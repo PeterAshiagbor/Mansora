@@ -256,6 +256,7 @@ export function BackupPage() {
         </Button>
         {result && <Alert tone="good" className="mt-3 max-w-2xl">Backup created and checked: {result.summary.sales} sale(s), {result.summary.products} product(s). Saved to <code className="break-all">{result.path}</code>. {result.uploaded ? 'A copy was also stored in the Mansora cloud.' : 'No internet, so it was not copied to the cloud. Copy the file to a USB drive or another safe place.'}</Alert>}
       </Card>
+      <AutoBackup enabled={!!status.data?.autoBackup} onChange={() => { status.reload(); list.reload(); }} />
       <Card title="Backups on this laptop" pad={false}>
         <Table rows={list.data} rowKey={(r) => r.id} empty="No backups yet" columns={[
           { header: 'Created', cell: (r) => dateTime(r.created_at) }, { header: 'Size', align: 'right', cell: (r) => `${(r.size_bytes / 1024).toFixed(0)} KB` },
@@ -278,6 +279,29 @@ export function BackupPage() {
         </Modal>
       )}
     </div>
+  );
+}
+
+function AutoBackup({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
+  const { state } = useApp();
+  const [pass, setPass] = useState('');
+  const { run, busy } = useAction();
+  if (state.user?.role !== 'owner') return null;
+  return (
+    <Card title="Automatic daily backup">
+      {enabled ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge tone="good">On</Badge>
+          <span className="text-sm text-slate-600">A backup is made once a day while the app is open, and copied to the Mansora cloud when online. Restore it with the passphrase you chose. Do not rename the backup files.</span>
+          <Button size="sm" disabled={busy} onClick={() => run(async () => { await call('backup.schedule', { enabled: false }); onChange(); }, 'Automatic backup switched off')}>Switch off</Button>
+        </div>
+      ) : (
+        <div className="flex max-w-2xl flex-wrap items-end gap-3">
+          <Field label="Passphrase for automatic backups" hint="At least 10 characters. The passphrase itself is not stored; you need it to restore." className="flex-1"><Input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="new-password" /></Field>
+          <Button disabled={busy || pass.length < 10} onClick={() => run(async () => { await call('backup.schedule', { enabled: true, passphrase: pass }); setPass(''); onChange(); }, 'Automatic daily backup switched on')}>Switch on</Button>
+        </div>
+      )}
+    </Card>
   );
 }
 

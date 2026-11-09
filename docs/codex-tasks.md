@@ -6,7 +6,7 @@ Take them in order; each is one pull request.
 ## Ground rules
 
 1. Branch from the latest `claude/relaxed-lovelace-0179ut` (the default branch). One branch and one pull request per task, named `codex/<task-id>-<short-name>`. Rebase before opening the PR.
-2. **Do not edit** `apps/desktop/src/core/**`, `packages/domain/src/sync.ts`, `apps/api/src/modules/device.ts` or `tests/sync/**`. Claude is changing these (scheduled backups, discount limits). Migration `id: 2` is already taken; start at `3`. If a task seems to need a change there, write what you need in the PR description instead.
+2. **Do not edit** `apps/desktop/src/core/**`, `packages/domain/src/sync.ts`, `apps/api/src/modules/device.ts` or `tests/sync/**`. Claude owns these. Migration `id: 2` is already taken; start at `3`. If a task seems to need a change there, write what you need in the PR description instead.
 3. Never edit a released migration. Add `id: 2`, `3`, … to `apps/api/src/migrations/index.ts`. New tenant tables need the same row-level-security block as the existing ones; new platform tables need a `GRANT` to `mansora_platform` only.
 4. All database access goes through `db.platform()` or `db.tenant()`. Admin code must never read a business table outside the consent-checked report path.
 5. Money is integer pesewas. No floating-point money.
@@ -58,4 +58,4 @@ Take them in order; each is one pull request.
 
 ## Not for Codex (Claude is doing these)
 
-Scheduled automatic backups · line discounts and discount limits at checkout · signed auto-updates.
+Discount limits at checkout (waiting on Mansora's policy) · signed auto-updates (waiting on a certificate) · Windows packaging in CI.

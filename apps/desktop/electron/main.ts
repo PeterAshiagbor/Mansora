@@ -5,7 +5,7 @@ import { basename, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, session, shell, type IpcMainInvokeEvent } from 'electron';
 import { DomainError } from '@mansora/domain';
-import { openEngine, restoreBackupFile, syncNow, type Engine } from '../src/core';
+import { openEngine, restoreBackupFile, runScheduledBackup, syncNow, type Engine } from '../src/core';
 
 const dataDir = join(app.getPath('userData'), 'data');
 const dbFile = join(dataDir, 'mansora.db');
@@ -156,6 +156,10 @@ function startSyncLoop(): void {
     setTimeout(tick, delay).unref();
   };
   setTimeout(tick, 5_000).unref();
+  // Daily automatic backup (if the owner switched it on): checked at start-up and every hour.
+  const backup = () => void runScheduledBackup(engine);
+  setTimeout(backup, 60_000).unref();
+  setInterval(backup, 3_600_000).unref();
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();

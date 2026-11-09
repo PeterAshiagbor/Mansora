@@ -14,6 +14,7 @@ export * from './db';
 export * from './sync';
 export * from './backup';
 export { renderReceiptHtml } from './receipt';
+export { runScheduledBackup } from './commands/system';
 
 export const ALL_COMMANDS = { ...authCommands, ...catalogCommands, ...salesCommands, ...peopleCommands, ...reportCommands, ...systemCommands };
 export type CommandName = keyof typeof ALL_COMMANDS;

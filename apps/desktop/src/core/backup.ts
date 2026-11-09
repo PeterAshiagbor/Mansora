@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3-multiple-ciphers';
@@ -37,6 +37,26 @@ export function summarise(db: Db): BackupSummary {
   };
 }
 
+const AUTO_FILE = /\.auto-([0-9a-f]{32})\.mbk$/i;
+
+/**
+ * Automatic backups cannot ask for the passphrase each night, and the
+ * passphrase itself is never stored. Instead a key is derived from it once
+ * (scrypt, random salt) and kept inside the encrypted local database. The salt
+ * travels in the backup's file name, so the owner's passphrase alone can
+ * reopen the file on any laptop. Do not rename automatic backup files.
+ */
+export function deriveAutoKey(passphrase: string, saltHex = randomBytes(16).toString('hex')): { salt: string; key: string } {
+  const key = scryptSync(passphrase.normalize('NFKC'), Buffer.from(saltHex, 'hex'), 32, { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }).toString('hex');
+  return { salt: saltHex, key };
+}
+
+/** The secret that actually encrypts a given backup file. */
+function fileSecret(path: string, passphrase: string): string {
+  const m = AUTO_FILE.exec(path);
+  return m ? deriveAutoKey(passphrase, m[1].toLowerCase()).key : passphrase;
+}
+
 export function checkPassphrase(passphrase: string): void {
   if (passphrase.length < 10) fail('WEAK_PASSPHRASE', 'The backup passphrase must be at least 10 characters');
 }
@@ -47,12 +67,13 @@ export function checkPassphrase(passphrase: string): void {
  * backup is independent of this laptop's own database key, so it can be
  * restored on a replacement laptop by someone who knows the passphrase.
  */
-export function createBackupFile(db: Db, dbKey: string | null, dir: string, passphrase: string): { id: string; path: string; size: number; sha256: string; summary: BackupSummary } {
-  checkPassphrase(passphrase);
+export function createBackupFile(db: Db, dbKey: string | null, dir: string, passphrase: string, auto?: { salt: string; key: string }): { id: string; path: string; size: number; sha256: string; summary: BackupSummary } {
+  if (!auto) checkPassphrase(passphrase);
+  const secret = auto ? auto.key : passphrase;
   mkdirSync(dir, { recursive: true });
   const id = randomUUID();
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const path = join(dir, `mansora-backup-${stamp}.mbk`);
+  const path = join(dir, `mansora-backup-${stamp}${auto ? `.auto-${auto.salt}` : ''}.mbk`);
   const tmp = `${path}.tmp`;
   rmSync(tmp, { force: true });
   db.prepare('VACUUM INTO ?').run(tmp); // transactionally consistent copy, still under the device key
@@ -62,19 +83,23 @@ export function createBackupFile(db: Db, dbKey: string | null, dir: string, pass
     else copy.pragma(`cipher = 'sqlcipher'`);
     // A portable backup must never carry a remembered decryption passphrase.
     copy.pragma('secure_delete = ON');
-    copy.prepare("DELETE FROM meta WHERE key = 'backup_passphrase'").run();
+    copy.prepare("DELETE FROM meta WHERE key IN ('backup_passphrase', 'backup_auto')").run();
     copy.pragma('journal_mode = DELETE');
-    copy.pragma(`rekey = '${passphrase.replace(/'/g, "''")}'`);
+    copy.pragma(`rekey = '${secret.replace(/'/g, "''")}'`);
   } finally {
     copy.close();
   }
   renameSync(tmp, path);
-  const summary = verifyBackupFile(path, passphrase); // never report success for a file we could not read back
+  const summary = verifySecret(path, secret); // never report success for a file we could not read back
   const bytes = readFileSync(path);
   return { id, path, size: statSync(path).size, sha256: createHash('sha256').update(bytes).digest('hex'), summary };
 }
 
 function openBackup(path: string, passphrase: string): Db {
+  return openWithSecret(path, fileSecret(path, passphrase));
+}
+
+function openWithSecret(path: string, passphrase: string): Db {
   if (!existsSync(path)) fail('NOT_FOUND', 'Backup file not found');
   const db = new Database(path, { readonly: false });
   try {
@@ -89,7 +114,11 @@ function openBackup(path: string, passphrase: string): Db {
 
 /** Open a backup, run SQLite's integrity checks and return what it contains. */
 export function verifyBackupFile(path: string, passphrase: string): BackupSummary {
-  const db = openBackup(path, passphrase);
+  return verifySecret(path, fileSecret(path, passphrase));
+}
+
+function verifySecret(path: string, secret: string): BackupSummary {
+  const db = openWithSecret(path, secret);
   try {
     const integrity = db.pragma('integrity_check') as { integrity_check: string }[];
     if (integrity[0]?.integrity_check !== 'ok') fail('BACKUP_CORRUPT', 'The backup failed its integrity check');
@@ -115,7 +144,7 @@ export function restoreBackupFile(backupPath: string, passphrase: string, destPa
   }
   const dest = new Database(destPath);
   try {
-    applyKey(dest, passphrase);
+    applyKey(dest, fileSecret(backupPath, passphrase));
     dest.pragma('journal_mode = DELETE');
     dest.pragma(`rekey = '${(newKey ?? '').replace(/'/g, "''")}'`);
   } finally {

@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { fail, formatGHS, SYNC_TABLES } from '@mansora/domain';
-import { createBackupFile, verifyBackupFile } from '../backup';
-import { dayBounds, defineCommands, empty, zId, zRange, zText, type Ctx } from '../engine';
+import { createBackupFile, deriveAutoKey, verifyBackupFile } from '../backup';
+import { Ctx, dayBounds, defineCommands, empty, zId, zRange, zText, type Engine } from '../engine';
 import { buildPreview, fileHash, IMPORT_FIELDS, readTable, suggestMapping, TEMPLATE_ROWS, toCsv, toXlsx, type ExistingKeys } from '../importer';
 import { syncNow, uploadBackup } from '../sync';
 import { createProduct } from './catalog';
@@ -17,6 +17,36 @@ function file(name: string, mime: string, content: Buffer | string) {
 async function tableFile(base: string, format: 'csv' | 'xlsx', sheets: { name: string; rows: unknown[][] }[]) {
   if (format === 'csv') return file(`${base}.csv`, 'text/csv', toCsv(sheets[0].rows));
   return file(`${base}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', await toXlsx(sheets));
+}
+
+const DAY = 24 * 3_600_000;
+
+/**
+ * Make the daily automatic backup if it is switched on and due. Called by the
+ * application on a timer; needs nobody signed in. Never throws.
+ */
+export async function runScheduledBackup(engine: Engine): Promise<{ made: boolean; reason?: string }> {
+  try {
+    const auto = JSON.parse(engine.meta('backup_auto') ?? 'null') as { salt: string; key: string } | null;
+    if (!auto) return { made: false, reason: 'off' };
+    const last = engine.db.prepare(`SELECT MAX(created_at) AS t FROM backup_records WHERE status = 'ok'`).get() as { t: string | null };
+    if (last.t && engine.now().getTime() - Date.parse(last.t) < DAY) return { made: false, reason: 'not due' };
+    const made = createBackupFile(engine.db, (engine as any).dbKey ?? null, join(engine.dataDir, 'backups'), '', auto);
+    const ctx = new Ctx(engine, 'backup.scheduled', null);
+    ctx.tx(() => {
+      ctx.run(`INSERT INTO backup_records (id, file_path, size_bytes, sha256, last_outbox_seq, status, created_at) VALUES (?, ?, ?, ?, ?, 'ok', ?)`, made.id, made.path, made.size, made.sha256, made.summary.lastOutboxSeq, ctx.now());
+      ctx.audit('backup', made.id, { size: made.size, automatic: true }, 'backup.created');
+      ctx.flush();
+    });
+    await uploadBackup(engine, made.id, readFileSync(made.path), made.sha256).catch(() => {});
+    return { made: true };
+  } catch (e) {
+    try {
+      const ctx = new Ctx(engine, 'backup.scheduled', null);
+      ctx.tx(() => (ctx.audit('backup', null, { error: String((e as Error).message), automatic: true }, 'backup.failed'), ctx.flush()));
+    } catch { /* nothing more we can do */ }
+    return { made: false, reason: 'failed' };
+  }
 }
 
 function existingKeys(ctx: Ctx): ExistingKeys {
@@ -61,6 +91,7 @@ export const systemCommands = defineCommands({
         lastError: s.lastError,
         lastBackupAt: lastBackup?.created_at ?? null,
         lastBackupUploadedAt: lastBackup?.uploaded_at ?? null,
+        autoBackup: !!ctx.setting('backup_auto'),
         /** Changes that exist only on this laptop: not yet on the server and not in any backup. */
         unprotected: n(`SELECT COUNT(*) AS v FROM outbox WHERE status = 'pending' AND seq > ${Number(lastBackup?.last_outbox_seq ?? 0)}`) as number,
         tenantStatus: ctx.setting('tenant_status') ?? 'active',
@@ -124,6 +155,24 @@ export const systemCommands = defineCommands({
         /* offline: the local encrypted file is still a valid backup */
       }
       return { id: made.id, path: made.path, size: made.size, summary: made.summary, uploaded };
+    },
+  },
+  /** Switch the daily automatic backup on (with a passphrase) or off. Owner only. */
+  'backup.schedule': {
+    perm: 'backup.manage',
+    mutates: true,
+    input: z.object({ enabled: z.boolean(), passphrase: z.string().max(200).optional() }),
+    run: (ctx, input) => {
+      if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can change automatic backups');
+      if (!input.enabled) {
+        ctx.engine.setMeta('backup_auto', null);
+      } else {
+        if (!(ctx.engine as any).dbKey) fail('ENCRYPTION_REQUIRED', 'Automatic backups need an encrypted local database');
+        if (!input.passphrase || input.passphrase.length < 10) fail('WEAK_PASSPHRASE', 'The backup passphrase must be at least 10 characters');
+        ctx.engine.setMeta('backup_auto', JSON.stringify(deriveAutoKey(input.passphrase))); // a derived key, never the passphrase
+      }
+      ctx.audit('backup', null, { enabled: input.enabled }, 'backup.schedule_changed');
+      return { enabled: input.enabled };
     },
   },
   'backup.verify': {

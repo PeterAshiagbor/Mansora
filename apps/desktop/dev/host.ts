@@ -8,7 +8,7 @@ import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { DomainError } from '@mansora/domain';
-import { openEngine, syncNow, type Engine } from '../src/core';
+import { openEngine, runScheduledBackup, syncNow, type Engine } from '../src/core';
 
 const MIME: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
 
@@ -52,6 +52,7 @@ export function startDevHost(opts: { dataDir: string; port: number; dbKey?: stri
     if (!file.startsWith(root) || !existsSync(file)) return void res.writeHead(404).end('Not found');
     res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' }).end(readFileSync(file));
   });
+  if (opts.syncEveryMs) setInterval(() => void runScheduledBackup(engine), 3_600_000).unref();
   if (opts.syncEveryMs) setInterval(() => void syncNow(engine).catch(() => {}), opts.syncEveryMs).unref();
   return new Promise((resolve) => server.listen(opts.port, '127.0.0.1', () => resolve({ server, engine, url: `http://127.0.0.1:${(server.address() as { port: number }).port}` })));
 }

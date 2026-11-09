@@ -42,7 +42,7 @@ production cloud exists; and the legal, privacy and commercial items are open.
 
 ## Tests executed and results
 
-`npm test` — **83 passed, 0 failed** (Node 22, Linux). Sync and isolation suites
+`npm test` — **84 passed, 0 failed** (Node 22, Linux). Sync and isolation suites
 were also run against a real PostgreSQL 16.15 server as a non-superuser: 18 passed.
 `npm run typecheck` — clean. All three applications build.
 
@@ -75,12 +75,12 @@ development container (the Electron build headers are blocked by its network pol
 3. **Unsigned installer; no automatic updates.**
 4. **No production cloud**, monitoring, error reporting or backup schedule.
 5. Owner password recovery, rebuilding a laptop from cloud data, re-linking a restored laptop and re-sending records are built and tested in software, **not rehearsed on physical laptops**.
-6. **No automatic scheduled backups.**
+6. Automatic daily backups exist but are off until the owner switches them on, and only run while the app is open.
 7. **Subscription expiry is not enforced** (policy undecided).
 8. **One administrator role, no two-factor authentication.**
 9. **Receipts**: no logo, no online sharing; PDF uses the printer page size.
 10. **Whole-unit quantities only**; no price override at the till; no discount limits.
-11. **Line-level discounts** are supported by the engine but the checkout screen offers only a basket discount.
+11. Discounts have no percentage or amount limits (policy undecided).
 12. **Remote permission changes** from the cloud are not implemented; staff are managed on the laptop.
 13. **Accessibility** has had no formal audit; it has labels, focus handling and keyboard support but has not been tested with a screen reader.
 14. **Performance** has not been measured with a large catalogue (tens of thousands of products).
@@ -90,7 +90,7 @@ development container (the Electron build headers are blocked by its network pol
 
 **Needs Mansora** — brand assets; reference hardware; approval of the defaults in the decision log; hosting region and Act 843 review; code-signing certificate; ownership and commercial terms.
 
-**Engineering, next** — run and fix on physical Windows hardware (Phase 5); signed installer and updates; production deployment with monitoring; scheduled backups; discount limits once policy exists; line discounts in the UI; administrator two-factor authentication; load testing; external security review; first-client pilot (Phase 6).
+**Engineering, next** — run and fix on physical Windows hardware (Phase 5); signed installer and updates; production deployment with monitoring; discount limits once policy exists; administrator two-factor authentication; load testing; external security review; first-client pilot (Phase 6).
 
 ## Demonstration
 

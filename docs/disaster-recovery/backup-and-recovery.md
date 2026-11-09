@@ -50,7 +50,7 @@ Sync status → Repair tools → "Send all records again" queues everything for 
 
 ## Honest limitations
 
-- **Automatic scheduled backups are not built.** Backups are made by the owner pressing a button. Cloud sync is the automatic protection.
+- **Automatic daily backups are optional and off by default.** The owner switches them on under Backup & recovery with a passphrase. They run while the app is open. The passphrase is not stored; a key derived from it is kept in the encrypted local database. The file name carries the information needed to reopen it with the passphrase, so automatic backup files must not be renamed.
 - **None of these recovery paths has been rehearsed on physical laptops**; they are verified by automated tests.
 - Rebuilding from the cloud does not bring back staff passwords, pending unsynced records, import history or local backup records.
 - A forgotten backup passphrase cannot be recovered.

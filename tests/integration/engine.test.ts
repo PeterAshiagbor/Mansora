@@ -368,3 +368,38 @@ describe('receipts', () => {
     expect(html).not.toContain('<script');
   });
 });
+
+describe('automatic daily backup', () => {
+  it('stores a derived key (never the passphrase), runs when due, and restores with the passphrase alone', async () => {
+    const { runScheduledBackup } = await import('../../apps/desktop/src/core');
+    let now = new Date('2026-11-09T08:00:00Z');
+    const s = await makeShop({ now: () => now });
+    await s.run(s.cashier, 'sale.complete', { id: uuid(), lines: [{ productId: s.products.milk, quantity: 1 }], tenders: cash(1250) });
+    expect(await runScheduledBackup(s.engine)).toEqual({ made: false, reason: 'off' });
+    await expectCode(s.run(s.manager, 'backup.schedule', { enabled: true, passphrase: 'nightly backup phrase' }), 'PERMISSION_DENIED');
+    await expectCode(s.run(s.owner, 'backup.schedule', { enabled: true, passphrase: 'short' }), 'WEAK_PASSPHRASE');
+    await s.run(s.owner, 'backup.schedule', { enabled: true, passphrase: 'nightly backup phrase' });
+    expect((s.engine.db.prepare(`SELECT COUNT(*) AS n FROM meta WHERE value LIKE '%nightly backup phrase%'`).get() as any).n).toBe(0);
+
+    expect(await runScheduledBackup(s.engine)).toEqual({ made: true });
+    expect(await runScheduledBackup(s.engine)).toEqual({ made: false, reason: 'not due' });
+    now = new Date('2026-11-10T08:00:01Z');
+    expect(await runScheduledBackup(s.engine)).toEqual({ made: true });
+    const files = (s.engine.db.prepare('SELECT file_path FROM backup_records ORDER BY created_at').all() as any[]).map((r) => r.file_path);
+    expect(files.length).toBe(2);
+    expect(files[0]).toMatch(/\.auto-[0-9a-f]{32}\.mbk$/);
+
+    // On a replacement laptop only the passphrase is known - not the stored key.
+    expect(() => verifyBackupFile(files[0], 'wrong passphrase 123')).toThrow(/could not be opened/);
+    const dir = tempDir('mansora-auto-restore-');
+    const restored = restoreBackupFile(files[0], 'nightly backup phrase', join(dir, 'mansora.db'), 'another-laptop-key');
+    expect(restored).toMatchObject({ sales: 1, products: 3, users: 3 });
+    // The backup does not carry the automatic-backup key with it.
+    const e2 = openEngine({ dataDir: dir, dbKey: 'another-laptop-key' });
+    expect(e2.meta('backup_auto')).toBeUndefined();
+
+    await s.run(await login(s.engine, OWNER), 'backup.schedule', { enabled: false }); // the day's gap locked the earlier session
+    now = new Date('2026-11-12T08:00:00Z');
+    expect(await runScheduledBackup(s.engine)).toEqual({ made: false, reason: 'off' });
+  });
+});
