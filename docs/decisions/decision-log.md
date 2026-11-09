@@ -47,3 +47,4 @@ software needed an answer to function, a conservative default was implemented.
 | A-10 | Fewer packages than the spec's suggested layout (`domain` holds types, validation, permissions and the sync protocol) | They change together; splitting would add ceremony with no isolation benefit yet |
 | A-11 | Development browser host for the desktop UI | Lets the real engine and UI be driven by automated browser tests without Electron |
 | A-12 | Activation codes and device tokens stored only as SHA-256 hashes | A database leak does not yield usable credentials |
+| A-15 | Retain the released report indexes after measuring and rejecting a wider covering-index experiment; keep the opt-in experiment and raw before/candidate results in the performance harness | The candidates increase database size about 20% and worsen profit-report latency without a robust overall gain. Slow aggregates/sync have explicit measured follow-ups; report definitions and durability are unchanged |

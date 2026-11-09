@@ -1,0 +1,158 @@
+{
+  "measuredAt": "2026-11-09T23:29:52.453Z",
+  "machine": {
+    "os": "linux",
+    "arch": "x64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "availableCpus": 2,
+    "hostMemoryBytes": 10452459520,
+    "cgroupMemoryBytes": 8589934592,
+    "node": "v24.22.1",
+    "sqlite": {
+      "version": "3.53.2"
+    },
+    "encrypted": true
+  },
+  "fixture": {
+    "products": 20000,
+    "sales": 200000,
+    "saleItems": 600000,
+    "customers": 2000,
+    "expected": {
+      "revenue": 300000000,
+      "cogs": 180000000,
+      "stockUnits": 20000000
+    },
+    "seedMs": 238422.06,
+    "period": {
+      "from": "2025-01-01",
+      "to": "2025-12-31"
+    },
+    "historicalOutbox": "not fabricated; writes measured through the real engine",
+    "historicalInventoryMovements": 620000,
+    "sqliteBytes": 588017664,
+    "footprintMethod": "Main database file stat captured during this run; transient WAL excluded"
+  },
+  "percentiles": "median of sorted samples; p95 nearest rank; warmups excluded",
+  "rows": [
+    {
+      "operation": "product.list name fragment",
+      "samples": 20,
+      "medianMs": 3.84,
+      "p95Ms": 4.39,
+      "minMs": 3.36,
+      "maxMs": 4.43
+    },
+    {
+      "operation": "product.lookup barcode",
+      "samples": 20,
+      "medianMs": 0.12,
+      "p95Ms": 0.27,
+      "minMs": 0.09,
+      "maxMs": 0.48
+    },
+    {
+      "operation": "sale.complete three lines",
+      "samples": 20,
+      "medianMs": 2.91,
+      "p95Ms": 3.68,
+      "minMs": 2.48,
+      "maxMs": 4.03
+    },
+    {
+      "operation": "report.sales month",
+      "samples": 20,
+      "medianMs": 370.39,
+      "p95Ms": 493.76,
+      "minMs": 347.67,
+      "maxMs": 501.61
+    },
+    {
+      "operation": "report.profit month",
+      "samples": 20,
+      "medianMs": 241.38,
+      "p95Ms": 251,
+      "minMs": 229.69,
+      "maxMs": 258.63
+    },
+    {
+      "operation": "report.sales year",
+      "samples": 20,
+      "medianMs": 6220.27,
+      "p95Ms": 9147.02,
+      "minMs": 5871.1,
+      "maxMs": 9635.89
+    },
+    {
+      "operation": "report.profit year",
+      "samples": 20,
+      "medianMs": 2670.76,
+      "p95Ms": 2755.57,
+      "minMs": 2538.82,
+      "maxMs": 2802.5
+    },
+    {
+      "operation": "stock.overview all",
+      "samples": 20,
+      "medianMs": 90.84,
+      "p95Ms": 112.02,
+      "minMs": 85.11,
+      "maxMs": 113.45
+    },
+    {
+      "operation": "sale.list one day",
+      "samples": 20,
+      "medianMs": 0.93,
+      "p95Ms": 1.03,
+      "minMs": 0.89,
+      "maxMs": 1.07
+    },
+    {
+      "operation": "sync.push 1000 product events (5 x 200)",
+      "samples": 5,
+      "medianMs": 1856.85,
+      "p95Ms": 1911.01,
+      "minMs": 1787.62,
+      "maxMs": 1911.01
+    }
+  ],
+  "plans": {
+    "product fragment": [
+      {
+        "id": 5,
+        "parent": 0,
+        "notused": 165,
+        "detail": "SCAN products USING INDEX products_name"
+      }
+    ],
+    "sales date": [
+      {
+        "id": 3,
+        "parent": 0,
+        "notused": 190,
+        "detail": "SCAN sales"
+      }
+    ],
+    "sale items report": [
+      {
+        "id": 8,
+        "parent": 0,
+        "notused": 190,
+        "detail": "SCAN s"
+      },
+      {
+        "id": 14,
+        "parent": 0,
+        "notused": 51,
+        "detail": "SEARCH i USING INDEX sale_items_sale (sale_id=?)"
+      },
+      {
+        "id": 20,
+        "parent": 0,
+        "notused": 0,
+        "detail": "USE TEMP B-TREE FOR GROUP BY"
+      }
+    ]
+  },
+  "schemaState": "SQLite migration 1; before the report covering indexes"
+}
