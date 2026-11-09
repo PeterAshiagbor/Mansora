@@ -60,6 +60,9 @@ export function createBackupFile(db: Db, dbKey: string | null, dir: string, pass
   try {
     if (dbKey) applyKey(copy, dbKey);
     else copy.pragma(`cipher = 'sqlcipher'`);
+    // A portable backup must never carry a remembered decryption passphrase.
+    copy.pragma('secure_delete = ON');
+    copy.prepare("DELETE FROM meta WHERE key = 'backup_passphrase'").run();
     copy.pragma('journal_mode = DELETE');
     copy.pragma(`rekey = '${passphrase.replace(/'/g, "''")}'`);
   } finally {

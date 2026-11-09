@@ -133,7 +133,7 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
   });
 
   /** Store a backup the laptop has already encrypted with the owner's passphrase. Mansora cannot read it. */
-  app.put('/v1/backups/:id', { preParsing: async (req) => { await device(req); } }, async (req) => {
+  app.put('/v1/backups/:id', { bodyLimit: 200 * 1024 * 1024, preParsing: async (req) => { await device(req); } }, async (req) => {
     const dev = await device(req);
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const content = req.body as Buffer;

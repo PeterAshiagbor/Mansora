@@ -7,7 +7,6 @@ if (!url) {
   process.exit(1);
 }
 const db = await connectPostgres(url);
-await db.migrate();
 const app = await buildApp({
   db,
   backupDir: process.env.BACKUP_DIR ?? './data/backups',

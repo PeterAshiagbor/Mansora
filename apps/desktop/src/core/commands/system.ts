@@ -82,6 +82,7 @@ export const systemCommands = defineCommands({
     input: z.object({ passphrase: z.string().min(1).max(200), remember: z.boolean().default(false) }),
     run: async (ctx, input) => {
       const e = ctx.engine;
+      if (input.remember && !(e as any).dbKey) fail('ENCRYPTION_REQUIRED', 'Remembering a backup passphrase requires an encrypted local database');
       let made;
       try {
         made = createBackupFile(e.db, (e as any).dbKey ?? null, join(e.dataDir, 'backups'), input.passphrase);

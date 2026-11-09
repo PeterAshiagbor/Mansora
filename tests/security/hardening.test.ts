@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { hashPassword, verifyPassword, RateLimiter, sha256 } from '../../apps/api/src/security';
+import { hashPassword, verifyPassword, RateLimiter, sha256, verifyLoginPassword } from '../../apps/api/src/security';
 import { hashPassword as localHash, verifyPassword as localVerify } from '../../apps/desktop/src/core/passwords';
 import { startCloud, type Cloud } from '../cloud';
 
@@ -15,6 +15,17 @@ describe('password hash validation', () => {
       }
     });
   }
+  it('checks login passwords asynchronously, rejects unknown accounts and bounds concurrent work', async () => {
+    const stored = hashPassword('correct-password');
+    expect(await verifyLoginPassword('correct-password', stored)).toBe(true);
+    expect(await verifyLoginPassword('wrong-password', stored)).toBe(false);
+    expect(await verifyLoginPassword('anything')).toBe(false);
+    const checks = Array.from({ length: 5 }, () => verifyLoginPassword('correct-password', stored));
+    const results = await Promise.allSettled(checks);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(4);
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+    expect(await verifyLoginPassword('correct-password', stored)).toBe(true);
+  });
   it('bounds limiter state and releases expired entries', () => {
     vi.useFakeTimers();
     try {
@@ -40,6 +51,10 @@ describe('API hardening', () => {
   it('authenticates backup uploads before parsing the body', async () => {
     const response = await cloud.app.inject({ method: 'PUT', url: `/v1/backups/${randomUUID()}`, headers: { 'content-type': 'application/json' }, payload: '{invalid' });
     expect(response.statusCode).toBe(401);
+  });
+  it('does not give login requests the larger backup body allowance', async () => {
+    const response = await cloud.app.inject({ method: 'POST', url: '/v1/admin/login', headers: { 'content-type': 'application/octet-stream' }, payload: Buffer.alloc(8 * 1024 * 1024 + 1) });
+    expect(response.statusCode).toBe(413);
   });
   it('keeps backup bytes and metadata immutable across retries', async () => {
     const id = randomUUID();

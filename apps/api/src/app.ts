@@ -28,7 +28,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     return payload;
   });
   // Encrypted backup uploads arrive as raw bytes.
-  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: 200 * 1024 * 1024 }, (_req, body, done) => done(null, body));
+  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 
   app.setErrorHandler((err: any, req, reply) => {
     if (err instanceof HttpError) return reply.status(err.status).send({ code: err.code, message: err.message });

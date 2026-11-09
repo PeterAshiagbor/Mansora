@@ -7,12 +7,14 @@ import { createAdmin } from './modules/admin';
  * Credentials come from the environment so they never land in shell history files or source control.
  */
 const [command] = process.argv.slice(2);
-const url = process.env.DATABASE_URL;
+const url = command === 'migrate' ? process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL : process.env.DATABASE_URL;
 if (!url) throw new Error('DATABASE_URL is required');
 const db = await connectPostgres(url);
 try {
-  await db.migrate();
-  if (command === 'migrate') console.log('Database is up to date.');
+  if (command === 'migrate') {
+    await db.migrate();
+    console.log('Database is up to date.');
+  }
   else if (command === 'create-admin') {
     const { ADMIN_EMAIL: email, ADMIN_NAME: name, ADMIN_PASSWORD: password } = process.env;
     if (!email || !name || !password) throw new Error('Set ADMIN_EMAIL, ADMIN_NAME and ADMIN_PASSWORD');
