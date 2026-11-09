@@ -1,0 +1,48 @@
+{
+  "name": "@mansora/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mansora Sales & Stock - offline-first POS for Windows laptops",
+  "author": "Mansora Consulting and Business Solutions",
+  "main": "dist/electron/main.cjs",
+  "scripts": {
+    "dev": "tsx dev/host.ts",
+    "build:renderer": "vite build",
+    "build:electron": "node build-electron.mjs",
+    "build": "npm run build:renderer && npm run build:electron",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@mansora/domain": "*",
+    "@mansora/ui": "*",
+    "better-sqlite3-multiple-ciphers": "^12.0.0",
+    "exceljs": "^4.4.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.25.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.0.0",
+    "vite": "^7.0.0"
+  },
+  "build": {
+    "appId": "com.mansora.salesandstock",
+    "productName": "Mansora Sales & Stock",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "package.json"],
+    "asarUnpack": ["**/*.node"],
+    "npmRebuild": true,
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
+    "nsis": { "oneClick": false, "perMachine": true, "allowToChangeInstallationDirectory": false }
+  }
+}

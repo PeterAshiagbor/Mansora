@@ -1,0 +1,12 @@
+node_modules/
+dist/
+release/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+!.env.example
+.demo-data/
+coverage/
+*.tsbuildinfo

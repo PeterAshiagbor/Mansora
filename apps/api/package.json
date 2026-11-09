@@ -1,0 +1,26 @@
+{
+  "name": "@mansora/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "esbuild src/server.ts src/cli.ts --bundle --platform=node --format=esm --target=node22 --outdir=dist --packages=external --alias:@mansora/domain=../../packages/domain/src/index.ts",
+    "migrate": "tsx src/cli.ts migrate",
+    "create-admin": "tsx src/cli.ts create-admin"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.0.0",
+    "@fastify/helmet": "^13.0.0",
+    "@mansora/domain": "*",
+    "fastify": "^5.2.0",
+    "pg": "^8.13.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.0",
+    "@types/pg": "^8.11.0",
+    "esbuild": "^0.25.0"
+  }
+}

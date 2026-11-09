@@ -1,0 +1,268 @@
+import { randomUUID } from 'node:crypto';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { z } from 'zod';
+import { ONBOARDING_STEPS } from '@mansora/domain';
+import type { Query } from '../db';
+import { hashPassword, httpError, newActivationCode, newToken, RateLimiter, sha256, verifyPassword } from '../security';
+import type { AppContext } from '../app';
+
+interface Admin {
+  id: string;
+  name: string;
+  email: string;
+}
+
+const zId = z.object({ id: z.string().uuid() });
+const text = (max = 200) => z.string().trim().min(1).max(max);
+const optText = (max = 200) => z.string().trim().max(max).nullish().transform((v) => v || null);
+const zDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const SESSION_HOURS = 12;
+
+const audit = (q: Query, admin: Admin | null, action: string, tenantId: string | null, detail: Record<string, unknown> = {}) =>
+  q(`INSERT INTO admin_audit_logs (id, admin_id, action, tenant_id, detail) VALUES ($1, $2, $3, $4, $5)`, [randomUUID(), admin?.id ?? null, action, tenantId, JSON.stringify(detail)]);
+
+export async function createAdmin(q: Query, input: { email: string; name: string; password: string }): Promise<string> {
+  if (input.password.length < 12) throw new Error('Administrator passwords must be at least 12 characters');
+  const id = randomUUID();
+  await q(`INSERT INTO admins (id, email, name, password_hash) VALUES ($1, $2, $3, $4)`, [id, input.email.trim().toLowerCase(), input.name, hashPassword(input.password)]);
+  return id;
+}
+
+export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void {
+  const { db } = ctx;
+  const loginLimiter = new RateLimiter(8, 5 * 60_000);
+
+  async function admin(req: FastifyRequest): Promise<Admin> {
+    const header = req.headers.authorization ?? '';
+    if (!header.startsWith('Bearer ')) httpError(401, 'UNAUTHENTICATED', 'Please sign in');
+    const [row] = await db.platform((q) =>
+      q<Admin>(`SELECT a.id, a.name, a.email FROM admin_sessions s JOIN admins a ON a.id = s.admin_id WHERE s.token_hash = $1 AND s.expires_at > now() AND a.status = 'active'`, [sha256(header.slice(7))]),
+    );
+    return row ?? httpError(401, 'UNAUTHENTICATED', 'Your session has expired. Please sign in again.');
+  }
+
+  app.post('/v1/admin/login', async (req) => {
+    const body = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) }).parse(req.body);
+    const email = body.email.toLowerCase();
+    loginLimiter.check(`${req.ip}|${email}`);
+    return db.platform(async (q) => {
+      const [a] = await q(`SELECT * FROM admins WHERE email = $1`, [email]);
+      if (!a || a.status !== 'active' || !verifyPassword(body.password, a.password_hash)) httpError(401, 'INVALID_CREDENTIALS', 'Incorrect email or password');
+      const token = newToken();
+      await q(`DELETE FROM admin_sessions WHERE expires_at < now()`);
+      await q(`INSERT INTO admin_sessions (token_hash, admin_id, expires_at) VALUES ($1, $2, now() + interval '${SESSION_HOURS} hours')`, [sha256(token), a.id]);
+      await audit(q, a, 'admin.login', null);
+      loginLimiter.clear(`${req.ip}|${email}`);
+      return { token, admin: { id: a.id, name: a.name, email: a.email } };
+    });
+  });
+  app.post('/v1/admin/logout', async (req) => {
+    await admin(req);
+    await db.platform((q) => q(`DELETE FROM admin_sessions WHERE token_hash = $1`, [sha256(req.headers.authorization!.slice(7))]));
+    return { ok: true };
+  });
+  app.get('/v1/admin/me', async (req) => admin(req));
+
+  // ----- Module C: service plans -----
+  const planBody = z.object({ name: text(80), price: z.number().int().nonnegative(), billingPeriod: z.enum(['monthly', 'quarterly', 'yearly']), includedSupport: z.string().max(1000).default(''), active: z.boolean().default(true) });
+  app.get('/v1/admin/plans', async (req) => {
+    await admin(req);
+    return db.platform((q) => q(`SELECT p.*, (SELECT COUNT(*) FROM client_subscriptions s WHERE s.plan_id = p.id AND s.status IN ('trial','active')) AS active_clients FROM service_plans p ORDER BY p.price`));
+  });
+  app.post('/v1/admin/plans', async (req) => {
+    const a = await admin(req);
+    const b = planBody.parse(req.body);
+    const id = randomUUID();
+    await db.platform(async (q) => {
+      await q(`INSERT INTO service_plans (id, name, price, billing_period, included_support, active) VALUES ($1, $2, $3, $4, $5, $6)`, [id, b.name, b.price, b.billingPeriod, b.includedSupport, b.active]);
+      await audit(q, a, 'plan.created', null, { id, ...b });
+    });
+    return { id };
+  });
+  app.put('/v1/admin/plans/:id', async (req) => {
+    const a = await admin(req);
+    const { id } = zId.parse(req.params);
+    const b = planBody.parse(req.body);
+    await db.platform(async (q) => {
+      const r = await q(`UPDATE service_plans SET name = $2, price = $3, billing_period = $4, included_support = $5, active = $6 WHERE id = $1 RETURNING id`, [id, b.name, b.price, b.billingPeriod, b.includedSupport, b.active]);
+      if (!r.length) httpError(404, 'NOT_FOUND', 'Plan not found');
+      await audit(q, a, 'plan.updated', null, { id, ...b });
+    });
+    return { id };
+  });
+
+  // ----- Module A: client directory -----
+  const clientBody = z.object({
+    name: text(120), ownerName: text(120), phone: optText(40), email: z.string().trim().email().max(200).or(z.literal('')).nullish().transform((v) => v || null),
+    address: optText(300), businessType: text(60).default('retail'), supportContact: optText(120),
+  });
+  const HEALTH = `
+    (SELECT COUNT(*) FROM onboarding_steps o WHERE o.tenant_id = t.id AND o.completed_at IS NOT NULL) AS steps_done,
+    d.id AS device_id, d.name AS device_name, d.app_version, d.last_seen_at, d.last_sync_at, d.pending_count, d.last_backup_at,
+    s.status AS subscription_status, s.renewal_date, p.name AS plan_name, p.id AS plan_id`;
+  const HEALTH_JOIN = `LEFT JOIN devices d ON d.tenant_id = t.id AND d.status = 'active' LEFT JOIN client_subscriptions s ON s.tenant_id = t.id LEFT JOIN service_plans p ON p.id = s.plan_id`;
+  const withHealth = (row: any) => ({
+    ...row,
+    steps_total: ONBOARDING_STEPS.length,
+    // "Connected" means the laptop has been heard from recently. A quiet laptop may simply be offline - its data may be incomplete here.
+    connectivity: !row.device_id ? 'no_device' : row.last_seen_at && Date.now() - Date.parse(row.last_seen_at) < 15 * 60_000 ? 'online' : 'offline',
+    data_may_be_incomplete: !row.device_id || (row.pending_count ?? 0) > 0 || !row.last_sync_at || Date.now() - Date.parse(row.last_sync_at) > 24 * 3_600_000,
+  });
+
+  app.get('/v1/admin/clients', async (req) => {
+    await admin(req);
+    return (await db.platform((q) => q(`SELECT t.*, ${HEALTH} FROM tenants t ${HEALTH_JOIN} ORDER BY t.created_at DESC`))).map(withHealth);
+  });
+  app.post('/v1/admin/clients', async (req) => {
+    const a = await admin(req);
+    const b = clientBody.extend({ planId: z.string().uuid().nullish() }).parse(req.body);
+    const id = randomUUID();
+    await db.platform(async (q) => {
+      await q(`INSERT INTO tenants (id, name, owner_name, phone, email, address, business_type, support_contact) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [id, b.name, b.ownerName, b.phone, b.email, b.address, b.businessType, b.supportContact ?? a.name]);
+      for (const [step] of ONBOARDING_STEPS) {
+        const done = step === 'create_account';
+        await q(`INSERT INTO onboarding_steps (tenant_id, step, completed_at, completed_by) VALUES ($1, $2, $3, $4)`, [id, step, done ? new Date().toISOString() : null, done ? a.id : null]);
+      }
+      if (b.planId) await q(`INSERT INTO client_subscriptions (id, tenant_id, plan_id, status) VALUES ($1, $2, $3, 'trial')`, [randomUUID(), id, b.planId]);
+      await audit(q, a, 'client.created', id, { name: b.name });
+    });
+    return { id };
+  });
+  app.get('/v1/admin/clients/:id', async (req) => {
+    await admin(req);
+    const { id } = zId.parse(req.params);
+    const out = await db.platform(async (q) => {
+      const [client] = await q(`SELECT t.*, ${HEALTH} FROM tenants t ${HEALTH_JOIN} WHERE t.id = $1`, [id]);
+      if (!client) httpError(404, 'NOT_FOUND', 'Client not found');
+      return {
+        client: withHealth(client),
+        onboarding: await q(`SELECT o.step, o.completed_at, o.notes, a.name AS completed_by_name FROM onboarding_steps o LEFT JOIN admins a ON a.id = o.completed_by WHERE o.tenant_id = $1`, [id]),
+        devices: await q(`SELECT id, name, status, app_version, last_seen_at, last_sync_at, pending_count, last_backup_at, activated_at FROM devices WHERE tenant_id = $1 ORDER BY activated_at DESC`, [id]),
+        backups: await q(`SELECT id, size_bytes, status, created_at FROM backup_records WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 10`, [id]),
+      };
+    });
+    const order = ONBOARDING_STEPS.map(([s]) => s as string);
+    out.onboarding.sort((x, y) => order.indexOf(x.step) - order.indexOf(y.step));
+    // Grants are business data: read inside the tenant's own context. Only the grant metadata is exposed.
+    const grants = await db.tenant(id, (q) => q(`SELECT id, scope, purpose, starts_at, expires_at, revoked_at FROM support_access_grants ORDER BY created_at DESC LIMIT 20`));
+    return { ...out, onboarding: out.onboarding.map((o) => ({ ...o, label: ONBOARDING_STEPS.find(([s]) => s === o.step)?.[1] ?? o.step })), grants };
+  });
+  app.put('/v1/admin/clients/:id', async (req) => {
+    const a = await admin(req);
+    const { id } = zId.parse(req.params);
+    const b = clientBody.extend({ status: z.enum(['onboarding', 'active', 'suspended', 'closed']) }).parse(req.body);
+    await db.platform(async (q) => {
+      const r = await q(
+        `UPDATE tenants SET name = $2, owner_name = $3, phone = $4, email = $5, address = $6, business_type = $7, support_contact = $8, status = $9,
+           onboarded_at = CASE WHEN $9 = 'active' AND onboarded_at IS NULL THEN now() ELSE onboarded_at END WHERE id = $1 RETURNING id`,
+        [id, b.name, b.ownerName, b.phone, b.email, b.address, b.businessType, b.supportContact, b.status],
+      );
+      if (!r.length) httpError(404, 'NOT_FOUND', 'Client not found');
+      await audit(q, a, 'client.updated', id, { status: b.status, name: b.name });
+    });
+    return { id };
+  });
+
+  // ----- Module B: onboarding -----
+  app.put('/v1/admin/clients/:id/onboarding/:step', async (req) => {
+    const a = await admin(req);
+    const p = z.object({ id: z.string().uuid(), step: z.enum(ONBOARDING_STEPS.map(([s]) => s) as [string, ...string[]]) }).parse(req.params);
+    const b = z.object({ completed: z.boolean(), notes: optText(500) }).parse(req.body);
+    await db.platform(async (q) => {
+      const r = await q(`UPDATE onboarding_steps SET completed_at = $3, completed_by = $4, notes = $5 WHERE tenant_id = $1 AND step = $2 RETURNING step`, [p.id, p.step, b.completed ? new Date().toISOString() : null, b.completed ? a.id : null, b.notes]);
+      if (!r.length) httpError(404, 'NOT_FOUND', 'Client not found');
+      if (p.step === 'go_live' && b.completed) await q(`UPDATE tenants SET status = 'active', onboarded_at = COALESCE(onboarded_at, now()) WHERE id = $1 AND status = 'onboarding'`, [p.id]);
+      await audit(q, a, 'onboarding.step', p.id, { step: p.step, completed: b.completed });
+    });
+    return { ok: true };
+  });
+
+  app.put('/v1/admin/clients/:id/subscription', async (req) => {
+    const a = await admin(req);
+    const { id } = zId.parse(req.params);
+    const b = z.object({ planId: z.string().uuid(), status: z.enum(['trial', 'active', 'past_due', 'cancelled']), renewalDate: zDate.nullish() }).parse(req.body);
+    await db.platform(async (q) => {
+      await q(
+        `INSERT INTO client_subscriptions (id, tenant_id, plan_id, status, renewal_date) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (tenant_id) DO UPDATE SET plan_id = EXCLUDED.plan_id, status = EXCLUDED.status, renewal_date = EXCLUDED.renewal_date, updated_at = now()`,
+        [randomUUID(), id, b.planId, b.status, b.renewalDate ?? null],
+      );
+      await audit(q, a, 'subscription.updated', id, b);
+    });
+    return { ok: true };
+  });
+
+  // ----- device activation -----
+  app.post('/v1/admin/clients/:id/activation-codes', async (req) => {
+    const a = await admin(req);
+    const { id } = zId.parse(req.params);
+    const code = newActivationCode();
+    const expiresAt = new Date(Date.now() + 72 * 3_600_000).toISOString();
+    await db.platform(async (q) => {
+      if (!(await q(`SELECT 1 FROM tenants WHERE id = $1 AND status <> 'closed'`, [id])).length) httpError(404, 'NOT_FOUND', 'Client not found');
+      await q(`INSERT INTO activation_codes (code_hash, tenant_id, expires_at, created_by) VALUES ($1, $2, $3, $4)`, [sha256(code), id, expiresAt, a.id]);
+      await audit(q, a, 'activation_code.created', id, { expiresAt });
+    });
+    return { code, expiresAt }; // shown once; only its hash is stored
+  });
+  app.post('/v1/admin/devices/:id/revoke', async (req) => {
+    const a = await admin(req);
+    const { id } = zId.parse(req.params);
+    await db.platform(async (q) => {
+      const r = await q(`UPDATE devices SET status = 'revoked' WHERE id = $1 RETURNING tenant_id`, [id]);
+      if (!r.length) httpError(404, 'NOT_FOUND', 'Device not found');
+      await audit(q, a, 'device.revoked', r[0].tenant_id, { deviceId: id });
+    });
+    return { ok: true };
+  });
+
+  // ----- Module E: consent-based access to a client's reports -----
+  app.get('/v1/admin/clients/:id/reports/summary', async (req) => {
+    const a = await admin(req);
+    const { id } = zId.parse(req.params);
+    const range = z.object({ from: zDate, to: zDate }).parse(req.query);
+    const result = await db.tenant(id, async (q) => {
+      const [grant] = await q(`SELECT id, purpose, expires_at FROM support_access_grants WHERE scope = 'reports' AND revoked_at IS NULL AND starts_at <= now() AND expires_at > now() ORDER BY expires_at DESC LIMIT 1`);
+      if (!grant) return null;
+      const p = [`${range.from}T00:00:00Z`, `${range.to}T23:59:59.999Z`];
+      const [sales] = await q(`SELECT COUNT(*) AS count, COALESCE(SUM(total), 0)::bigint AS gross, COALESCE(SUM(discount_total), 0)::bigint AS discounts FROM sales WHERE created_at BETWEEN $1 AND $2`, p);
+      const [refunds] = await q(`SELECT COALESCE(SUM(amount), 0)::bigint AS total FROM refunds WHERE created_at BETWEEN $1 AND $2`, p);
+      const payments = await q(`SELECT p.method, SUM(p.amount)::bigint AS total FROM payments p JOIN sales s ON s.tenant_id = p.tenant_id AND s.id = p.sale_id WHERE s.created_at BETWEEN $1 AND $2 GROUP BY p.method ORDER BY 2 DESC`, p);
+      const top = await q(`SELECT i.product_name AS name, SUM(i.quantity)::bigint AS quantity, SUM(i.line_total)::bigint AS revenue FROM sale_items i JOIN sales s ON s.tenant_id = i.tenant_id AND s.id = i.sale_id WHERE s.created_at BETWEEN $1 AND $2 GROUP BY 1 ORDER BY 3 DESC LIMIT 10`, p);
+      const [stock] = await q(`SELECT COUNT(*) AS products, COALESCE(SUM(CASE WHEN b.quantity <= p.reorder_level THEN 1 ELSE 0 END), 0)::bigint AS low FROM products p JOIN stock_balances b ON b.tenant_id = p.tenant_id AND b.product_id = p.id WHERE p.active = 1`);
+      await q(`INSERT INTO support_access_log (tenant_id, id, admin_id, admin_name, grant_id, action) VALUES ($1, $2, $3, $4, $5, $6)`, [id, randomUUID(), a.id, a.name, grant.id, `Viewed sales summary ${range.from} to ${range.to}`]);
+      return { grant, sales: { ...sales, refunds: refunds.total, net: sales.gross - refunds.total }, payments, topProducts: top, stock };
+    });
+    await db.platform((q) => audit(q, a, result ? 'support.report_viewed' : 'support.access_denied', id, { ...range, grantId: result?.grant.id ?? null }));
+    if (!result) httpError(403, 'SUPPORT_ACCESS_DENIED', 'The business owner has not granted access to their reports (or the access has expired).');
+    const [health] = await db.platform((q) => q(`SELECT last_sync_at, pending_count FROM devices WHERE tenant_id = $1 AND status = 'active'`, [id]));
+    return { ...result, range, syncedUpTo: health?.last_sync_at ?? null, unsyncedOnDevice: health?.pending_count ?? null };
+  });
+
+  // ----- Module F: Mansora's own reporting (no client financial data) -----
+  app.get('/v1/admin/overview', async (req) => {
+    await admin(req);
+    return db.platform(async (q) => ({
+      clientsByStatus: await q(`SELECT status, COUNT(*) AS count FROM tenants GROUP BY status`),
+      subscriptionsByStatus: await q(`SELECT s.status, COUNT(*) AS count FROM client_subscriptions s GROUP BY s.status`),
+      plans: await q(`SELECT p.name, COUNT(s.id) AS clients FROM service_plans p LEFT JOIN client_subscriptions s ON s.plan_id = p.id AND s.status IN ('trial','active') GROUP BY p.name ORDER BY 2 DESC`),
+      renewalsDue: await q(`SELECT t.id, t.name, s.renewal_date, s.status, p.name AS plan_name FROM client_subscriptions s JOIN tenants t ON t.id = s.tenant_id JOIN service_plans p ON p.id = s.plan_id WHERE s.renewal_date IS NOT NULL AND s.renewal_date <= CURRENT_DATE + 30 AND s.status <> 'cancelled' ORDER BY s.renewal_date`),
+      onboarding: await q(`SELECT t.id, t.name, COUNT(o.completed_at) AS done, COUNT(*) AS total FROM tenants t JOIN onboarding_steps o ON o.tenant_id = t.id WHERE t.status = 'onboarding' GROUP BY t.id, t.name ORDER BY t.name`),
+      needsAttention: await q(
+        `SELECT t.id, t.name, d.last_sync_at, d.pending_count, d.last_backup_at FROM tenants t LEFT JOIN devices d ON d.tenant_id = t.id AND d.status = 'active'
+         WHERE t.status = 'active' AND (d.id IS NULL OR d.last_sync_at IS NULL OR d.last_sync_at < now() - interval '48 hours' OR d.last_backup_at IS NULL OR d.last_backup_at < now() - interval '7 days') ORDER BY t.name`,
+      ),
+    }));
+  });
+  app.get('/v1/admin/audit', async (req) => {
+    await admin(req);
+    const { tenantId } = z.object({ tenantId: z.string().uuid().optional() }).parse(req.query);
+    return db.platform((q) =>
+      q(
+        `SELECT l.id, l.action, l.detail, l.occurred_at, a.name AS admin_name, t.name AS tenant_name FROM admin_audit_logs l LEFT JOIN admins a ON a.id = l.admin_id LEFT JOIN tenants t ON t.id = l.tenant_id
+         ${tenantId ? 'WHERE l.tenant_id = $1' : ''} ORDER BY l.occurred_at DESC LIMIT 300`,
+        tenantId ? [tenantId] : [],
+      ),
+    );
+  });
+}

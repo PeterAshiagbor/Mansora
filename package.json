@@ -1,0 +1,28 @@
+{
+  "name": "mansora-platform",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Mansora Sales & Stock Platform - offline-first POS, inventory and client administration",
+  "workspaces": ["packages/*", "apps/*"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "npm run build -w @mansora/desktop && npm run build -w @mansora/admin-web && npm run build -w @mansora/api",
+    "demo": "tsx scripts/demo-stack.ts",
+    "api:dev": "npm run dev -w @mansora/api",
+    "api:migrate": "npm run migrate -w @mansora/api",
+    "api:create-admin": "npm run create-admin -w @mansora/api",
+    "desktop:dev": "npm run dev -w @mansora/desktop",
+    "desktop:dist": "npm run dist -w @mansora/desktop",
+    "admin:dev": "npm run dev -w @mansora/admin-web"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
