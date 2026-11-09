@@ -1,9 +1,9 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { ONBOARDING_STEPS } from '@mansora/domain';
 import type { Query } from '../db';
-import { hashPassword, httpError, newActivationCode, newToken, RateLimiter, sha256, verifyLoginPassword } from '../security';
+import { hashPassword, httpError, newActivationCode, newToken, RateLimiter, sha256, verifyLoginPassword, adminTotpKey, base32, decryptTotpSecret, encryptTotpSecret, matchTotp, newRecoveryCode, normaliseRecoveryCode } from '../security';
 import type { AppContext } from '../app';
 
 interface Admin {
@@ -42,29 +42,180 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return row ?? httpError(401, 'UNAUTHENTICATED', 'Your session has expired. Please sign in again.');
   }
 
+  type Totp = {
+    admin_id: string; secret_encrypted: string | null; enabled_at: string | null; last_used_step: number;
+    pending_secret_encrypted: string | null; pending_expires_at: string | null;
+    failed_attempts: number; attempts_reset_at: string | null;
+  };
+  const failure = (status: number, code: string, message: string) => ({ failure: { status, code, message } });
+  // Failed verification/audit writes must commit before returning an HTTP error.
+  const finish = (result: any) => {
+    if (result.failure) httpError(result.failure.status, result.failure.code, result.failure.message);
+    return result;
+  };
+  const unavailableCode = () => failure(401, 'INVALID_TOTP_CODE', 'Incorrect, expired or already used code');
+  const limited = (factor: Totp) => factor.attempts_reset_at && Date.parse(factor.attempts_reset_at) > Date.now() && factor.failed_attempts >= 5;
+  const rateLimitFailure = () => failure(429, 'TOO_MANY_ATTEMPTS', 'Too many attempts. Please wait five minutes and try again.');
+  async function failedCode(q: Query, a: Admin, purpose: string) {
+    await q(`UPDATE admin_totp SET failed_attempts = CASE WHEN attempts_reset_at > now() THEN failed_attempts + 1 ELSE 1 END,
+      attempts_reset_at = CASE WHEN attempts_reset_at > now() THEN attempts_reset_at ELSE now() + interval '5 minutes' END WHERE admin_id = $1`, [a.id]);
+    await audit(q, a, 'admin.totp.verification_failed', null, { purpose });
+    return purpose === 'login' ? unavailableCode() : failure(400, 'INVALID_TOTP_CODE', 'Incorrect, expired or already used code');
+  }
+  async function factor(q: Query, id: string): Promise<Totp> {
+    await q(`INSERT INTO admin_totp (admin_id) VALUES ($1) ON CONFLICT DO NOTHING`, [id]);
+    return (await q<Totp>(`SELECT * FROM admin_totp WHERE admin_id = $1 FOR UPDATE`, [id]))[0];
+  }
+  async function lockedAdmin(q: Query, req: FastifyRequest): Promise<Admin & { password_hash: string }> {
+    const [a] = await q(`SELECT a.* FROM admins a JOIN admin_sessions s ON s.admin_id = a.id
+      WHERE s.token_hash = $1 AND s.expires_at > now() AND a.status = 'active' FOR UPDATE OF a`, [sha256((req.headers.authorization ?? '').slice(7))]);
+    return a ?? httpError(401, 'UNAUTHENTICATED', 'Please sign in again');
+  }
+  async function session(q: Query, a: Admin) {
+    const token = newToken();
+    await q(`DELETE FROM admin_sessions WHERE expires_at < now()`);
+    await q(`INSERT INTO admin_sessions (token_hash, admin_id, expires_at) VALUES ($1, $2, now() + interval '${SESSION_HOURS} hours')`, [sha256(token), a.id]);
+    await audit(q, a, 'admin.login', null);
+    return { token, admin: { id: a.id, name: a.name, email: a.email } };
+  }
+  async function verifyFactor(q: Query, a: Admin, f: Totp, code: string): Promise<boolean> {
+    const secret = decryptTotpSecret(f.secret_encrypted!, a.id);
+    const step = matchTotp(secret, code, Number(f.last_used_step));
+    if (step !== null) {
+      await q(`UPDATE admin_totp SET last_used_step = $2, failed_attempts = 0, attempts_reset_at = NULL WHERE admin_id = $1`, [a.id, step]);
+      return true;
+    }
+    // A recovery code is never stored in plaintext and can be consumed only once.
+    const recovery = normaliseRecoveryCode(code);
+    if (!/^[A-Z2-7]{16}$/.test(recovery)) return false;
+    const used = await q(`DELETE FROM admin_totp_recovery_codes WHERE admin_id = $1 AND code_hash = $2 RETURNING code_hash`, [a.id, sha256(recovery)]);
+    if (!used.length) return false;
+    await q(`UPDATE admin_totp SET failed_attempts = 0, attempts_reset_at = NULL WHERE admin_id = $1`, [a.id]);
+    await audit(q, a, 'admin.totp.recovery_used', null);
+    return true;
+  }
+
+  app.addHook('onReady', async () => {
+    const [enrolled] = await db.platform((q) => q(`SELECT admin_id, secret_encrypted FROM admin_totp WHERE enabled_at IS NOT NULL LIMIT 1`));
+    if (enrolled) decryptTotpSecret(enrolled.secret_encrypted, enrolled.admin_id);
+  });
+
   app.post('/v1/admin/login', async (req) => {
     ipLimiter.check(req.ip);
     const body = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) }).parse(req.body);
     const email = body.email.toLowerCase();
     loginLimiter.check(email);
     return db.platform(async (q) => {
-      const [a] = await q(`SELECT * FROM admins WHERE email = $1`, [email]);
+      // Serialise password login with enrolment and disabling for this account.
+      const [a] = await q(`SELECT * FROM admins WHERE email = $1 FOR UPDATE`, [email]);
       const validPassword = await verifyLoginPassword(body.password, a?.password_hash);
       if (!a || a.status !== 'active' || !validPassword) httpError(401, 'INVALID_CREDENTIALS', 'Incorrect email or password');
-      const token = newToken();
-      await q(`DELETE FROM admin_sessions WHERE expires_at < now()`);
-      await q(`INSERT INTO admin_sessions (token_hash, admin_id, expires_at) VALUES ($1, $2, now() + interval '${SESSION_HOURS} hours')`, [sha256(token), a.id]);
-      await audit(q, a, 'admin.login', null);
       loginLimiter.clear(email);
-      return { token, admin: { id: a.id, name: a.name, email: a.email } };
+      const [f] = await q<Totp>(`SELECT * FROM admin_totp WHERE admin_id = $1`, [a.id]);
+      if (!f?.enabled_at) return session(q, a);
+      decryptTotpSecret(f.secret_encrypted!, a.id); // fail closed if the encryption key is unavailable
+      const challenge = newToken();
+      const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+      await q(`DELETE FROM admin_totp_challenges WHERE admin_id = $1 OR expires_at <= now()`, [a.id]);
+      await q(`INSERT INTO admin_totp_challenges (token_hash, admin_id, expires_at) VALUES ($1, $2, $3)`, [sha256(challenge), a.id, expiresAt]);
+      return { requiresTotp: true, challenge, expiresAt };
     });
   });
+
+  app.post('/v1/admin/login/totp', async (req) => {
+    ipLimiter.check(req.ip);
+    const body = z.object({ challenge: z.string().min(20).max(100), code: z.string().trim().min(1).max(64) }).parse(req.body);
+    return finish(await db.platform(async (q) => {
+      const [candidate] = await q(`SELECT admin_id FROM admin_totp_challenges WHERE token_hash = $1`, [sha256(body.challenge)]);
+      if (!candidate) return failure(401, 'INVALID_CHALLENGE', 'Sign in again to request a new code challenge');
+      const [a] = await q(`SELECT * FROM admins WHERE id = $1 FOR UPDATE`, [candidate.admin_id]);
+      const [challenge] = await q(`SELECT * FROM admin_totp_challenges WHERE token_hash = $1 AND expires_at > now() FOR UPDATE`, [sha256(body.challenge)]);
+      if (!a || a.status !== 'active' || !challenge) return failure(401, 'INVALID_CHALLENGE', 'Sign in again to request a new code challenge');
+      const f = await factor(q, a.id);
+      if (!f.enabled_at) return failure(401, 'INVALID_CHALLENGE', 'Sign in again to request a new code challenge');
+      if (limited(f)) return rateLimitFailure();
+      if (!await verifyFactor(q, a, f, body.code)) return failedCode(q, a, 'login');
+      await q(`DELETE FROM admin_totp_challenges WHERE admin_id = $1`, [a.id]);
+      return session(q, a);
+    }));
+  });
+
   app.post('/v1/admin/logout', async (req) => {
     await admin(req);
     await db.platform((q) => q(`DELETE FROM admin_sessions WHERE token_hash = $1`, [sha256(req.headers.authorization!.slice(7))]));
     return { ok: true };
   });
   app.get('/v1/admin/me', async (req) => admin(req));
+  app.get('/v1/admin/totp', async (req) => {
+    const a = await admin(req);
+    return db.platform(async (q) => {
+      const [f] = await q<Totp>(`SELECT * FROM admin_totp WHERE admin_id = $1`, [a.id]);
+      const [remaining] = await q(`SELECT COUNT(*) AS count FROM admin_totp_recovery_codes WHERE admin_id = $1`, [a.id]);
+      return { enabled: !!f?.enabled_at, recoveryCodesRemaining: remaining.count };
+    });
+  });
+
+  app.post('/v1/admin/totp/enrol', async (req) => {
+    await admin(req);
+    const body = z.object({ password: z.string().min(1).max(200) }).parse(req.body);
+    adminTotpKey();
+    return finish(await db.platform(async (q) => {
+      const a = await lockedAdmin(q, req);
+      const f = await factor(q, a.id);
+      if (f.enabled_at) return failure(409, 'TOTP_ALREADY_ENABLED', 'Two-factor authentication is already enabled');
+      if (limited(f)) return rateLimitFailure();
+      if (!await verifyLoginPassword(body.password, a.password_hash)) return failedCode(q, a, 'enrol_password');
+      const secret = base32(randomBytes(20));
+      const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
+      await q(`UPDATE admin_totp SET pending_secret_encrypted = $2, pending_expires_at = $3 WHERE admin_id = $1`, [a.id, encryptTotpSecret(secret, a.id), expiresAt]);
+      await audit(q, a, 'admin.totp.enrolment_started', null);
+      const issuer = 'Mansora';
+      return { secret, uri: `otpauth://totp/${encodeURIComponent(`${issuer}:${a.email}`)}?${new URLSearchParams({ secret, issuer, algorithm: 'SHA1', digits: '6', period: '30' })}`, expiresAt };
+    }));
+  });
+
+  app.post('/v1/admin/totp/confirm', async (req) => {
+    await admin(req);
+    const body = z.object({ code: z.string().trim().min(1).max(64) }).parse(req.body);
+    return finish(await db.platform(async (q) => {
+      const a = await lockedAdmin(q, req);
+      const f = await factor(q, a.id);
+      if (f.enabled_at) return failure(409, 'TOTP_ALREADY_ENABLED', 'Two-factor authentication is already enabled');
+      if (limited(f)) return rateLimitFailure();
+      if (!f.pending_secret_encrypted || !f.pending_expires_at || Date.parse(f.pending_expires_at) <= Date.now()) return failure(400, 'ENROLMENT_EXPIRED', 'Start authenticator enrolment again');
+      const step = matchTotp(decryptTotpSecret(f.pending_secret_encrypted, a.id), body.code, -1);
+      if (step === null) return failedCode(q, a, 'enrol_confirm');
+      const recoveryCodes = Array.from({ length: 10 }, newRecoveryCode);
+      await q(`DELETE FROM admin_totp_recovery_codes WHERE admin_id = $1`, [a.id]);
+      for (const code of recoveryCodes) await q(`INSERT INTO admin_totp_recovery_codes (admin_id, code_hash) VALUES ($1, $2)`, [a.id, sha256(normaliseRecoveryCode(code))]);
+      await q(`UPDATE admin_totp SET secret_encrypted = pending_secret_encrypted, enabled_at = now(), last_used_step = $2,
+        pending_secret_encrypted = NULL, pending_expires_at = NULL, failed_attempts = 0, attempts_reset_at = NULL WHERE admin_id = $1`, [a.id, step]);
+      await q(`DELETE FROM admin_sessions WHERE admin_id = $1 AND token_hash <> $2`, [a.id, sha256(req.headers.authorization!.slice(7))]);
+      await q(`DELETE FROM admin_totp_challenges WHERE admin_id = $1`, [a.id]);
+      await audit(q, a, 'admin.totp.enabled', null);
+      return { enabled: true, recoveryCodes };
+    }));
+  });
+
+  app.post('/v1/admin/totp/disable', async (req) => {
+    await admin(req);
+    const body = z.object({ password: z.string().min(1).max(200), code: z.string().trim().min(1).max(64) }).parse(req.body);
+    return finish(await db.platform(async (q) => {
+      const a = await lockedAdmin(q, req);
+      const f = await factor(q, a.id);
+      if (!f.enabled_at) return failure(409, 'TOTP_NOT_ENABLED', 'Two-factor authentication is not enabled');
+      if (limited(f)) return rateLimitFailure();
+      if (!await verifyLoginPassword(body.password, a.password_hash)) return failedCode(q, a, 'disable_password');
+      if (!await verifyFactor(q, a, f, body.code)) return failedCode(q, a, 'disable_code');
+      await q(`UPDATE admin_totp SET secret_encrypted = NULL, enabled_at = NULL, last_used_step = -1,
+        pending_secret_encrypted = NULL, pending_expires_at = NULL WHERE admin_id = $1`, [a.id]);
+      await q(`DELETE FROM admin_totp_recovery_codes WHERE admin_id = $1`, [a.id]);
+      await q(`DELETE FROM admin_totp_challenges WHERE admin_id = $1`, [a.id]);
+      await q(`DELETE FROM admin_sessions WHERE admin_id = $1`, [a.id]);
+      await audit(q, a, 'admin.totp.disabled', null);
+      return { enabled: false, signInAgain: true };
+    }));
+  });
 
   // ----- Module C: service plans -----
   const planBody = z.object({ name: text(80), price: z.number().int().nonnegative(), billingPeriod: z.enum(['monthly', 'quarterly', 'yearly']), includedSupport: z.string().max(1000).default(''), active: z.boolean().default(true) });

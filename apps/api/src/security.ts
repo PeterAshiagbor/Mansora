@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scrypt, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scrypt, scryptSync, timingSafeEqual } from 'node:crypto';
 
 const N = 1 << 15;
 const MAXMEM = 64 * 1024 * 1024;
@@ -87,3 +87,81 @@ export class RateLimiter {
     this.hits.delete(key);
   }
 }
+
+// RFC 4648 base32 (authenticator apps use an unpadded secret).
+const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+export function base32(bytes: Buffer): string {
+  let bits = 0, value = 0, result = '';
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) { bits -= 5; result += BASE32[(value >>> bits) & 31]; }
+  }
+  if (bits) result += BASE32[(value << (5 - bits)) & 31];
+  return result;
+}
+function decodeBase32(secret: string): Buffer {
+  let bits = 0, value = 0;
+  const out: number[] = [];
+  for (const char of secret) {
+    const index = BASE32.indexOf(char);
+    if (index < 0) throw new Error('Invalid authenticator secret');
+    value = (value << 5) | index;
+    bits += 5;
+    if (bits >= 8) { bits -= 8; out.push((value >>> bits) & 255); }
+  }
+  return Buffer.from(out);
+}
+
+/** RFC 6238, SHA-1, 30-second steps. Eight digits are used only by RFC vector tests. */
+export function totpCode(secret: string, time = Date.now(), digits: 6 | 8 = 6): string {
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(time / 30_000)));
+  const digest = createHmac('sha1', decodeBase32(secret)).update(counter).digest();
+  const offset = digest[digest.length - 1] & 15;
+  return String((digest.readUInt32BE(offset) & 0x7fffffff) % (10 ** digits)).padStart(digits, '0');
+}
+
+/** Return the accepted step, strictly newer than the last accepted step. */
+export function matchTotp(secret: string, code: string, lastStep: number, time = Date.now()): number | null {
+  if (!/^\d{6}$/.test(code)) return null;
+  const current = Math.floor(time / 30_000);
+  let matched: number | null = null;
+  for (const step of [current - 1, current, current + 1]) {
+    if (step < 0) continue;
+    const valid = timingSafeEqual(Buffer.from(totpCode(secret, step * 30_000)), Buffer.from(code));
+    if (valid && step > lastStep) matched = step;
+  }
+  return matched;
+}
+
+export function adminTotpKey(): Buffer {
+  const encoded = process.env.ADMIN_TOTP_KEY ?? '';
+  const key = Buffer.from(encoded, 'base64');
+  if (key.length !== 32 || key.toString('base64') !== encoded) httpError(503, 'TOTP_UNAVAILABLE', 'Administrator two-factor authentication is unavailable. Contact your server administrator.');
+  return key;
+}
+
+/** AES-256-GCM with administrator-bound authenticated data; never log these values. */
+export function encryptTotpSecret(secret: string, adminId: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', adminTotpKey(), iv);
+  cipher.setAAD(Buffer.from(`mansora:admin-totp:${adminId}`));
+  const ciphertext = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
+  return ['v1', iv.toString('base64'), cipher.getAuthTag().toString('base64'), ciphertext.toString('base64')].join('.');
+}
+export function decryptTotpSecret(encrypted: string, adminId: string): string {
+  const key = adminTotpKey();
+  try {
+    const [version, iv, tag, ciphertext] = encrypted.split('.');
+    if (version !== 'v1') throw new Error('Invalid envelope');
+    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64'));
+    decipher.setAAD(Buffer.from(`mansora:admin-totp:${adminId}`));
+    decipher.setAuthTag(Buffer.from(tag, 'base64'));
+    return Buffer.concat([decipher.update(Buffer.from(ciphertext, 'base64')), decipher.final()]).toString('utf8');
+  } catch {
+    return httpError(503, 'TOTP_UNAVAILABLE', 'Administrator two-factor authentication is unavailable. Contact your server administrator.');
+  }
+}
+export const normaliseRecoveryCode = (code: string) => code.trim().toUpperCase().replace(/[\s-]/g, '');
+export const newRecoveryCode = () => base32(randomBytes(10)).match(/.{4}/g)!.join('-');
