@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Typecheck, build and test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: mansora_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Install browser for end-to-end tests
+        run: npm install --no-save playwright && npx playwright install --with-deps chromium
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: Tests (embedded PostgreSQL)
+        run: npm test
+      - name: Sync tests against a real PostgreSQL 16 server
+        run: npx vitest run tests/sync/sync.test.ts
+        env:
+          TEST_DATABASE_URL: postgres://postgres:ci-only@localhost:5432/mansora_ci
+      - name: Dependency audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+
+  windows-installer:
+    name: Windows installer (unsigned) and app smoke test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build and package
+        run: npm run dist -w @mansora/desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Launch the packaged application and check the secure shell
+        run: npm install --no-save playwright && node tests/hardware/electron-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mansora-windows-installer-unsigned
+          path: apps/desktop/release/*.exe
+          if-no-files-found: error
+          retention-days: 14

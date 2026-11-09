@@ -2,7 +2,7 @@ import { fail } from './errors';
 import { mulDivRound, type Pesewas } from './money';
 
 /**
- * Moving weighted-average cost (proposed policy - see docs/decisions/0003).
+ * Moving weighted-average cost (proposed policy - see decision D-03 in docs/decisions/decision-log.md).
  * Receiving stock re-averages the unit cost; selling does not change it.
  */
 export function movingAverageCost(onHand: number, currentAverage: Pesewas, receivedQty: number, receivedUnitCost: Pesewas): Pesewas {
