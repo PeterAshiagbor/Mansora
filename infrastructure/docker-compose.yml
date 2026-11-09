@@ -1,0 +1,92 @@
+name: mansora-local
+x-api: &api
+  image: mansora-api:local
+  build:
+    context: ..
+    dockerfile: infrastructure/Dockerfile
+  init: true
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: ["/tmp:size=64m,mode=1777"]
+  networks: [backend]
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mansora
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password, migration_password, runtime_password]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-mansora.sql:ro
+    networks: [backend]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U postgres -d mansora']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *api
+    command: [migrate]
+    healthcheck: {disable: true}
+    environment:
+      DATABASE_USER: mansora_migration
+      DATABASE_PASSWORD_FILE: /run/secrets/migration_password
+    secrets: [migration_password]
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  bootstrap:
+    <<: *api
+    command: [bootstrap]
+    healthcheck: {disable: true}
+    environment:
+      DATABASE_USER: mansora_runtime
+      DATABASE_PASSWORD_FILE: /run/secrets/runtime_password
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost.test}
+      ADMIN_NAME: Local administrator
+      ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+    secrets: [runtime_password, admin_password]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  api:
+    <<: *api
+    command: [api]
+    environment:
+      DATABASE_USER: mansora_runtime
+      DATABASE_PASSWORD_FILE: /run/secrets/runtime_password
+      ADMIN_TOTP_KEY_FILE: /run/secrets/admin_totp_key
+      ADMIN_ORIGINS: ${ADMIN_ORIGINS:-http://localhost:5174}
+    secrets: [runtime_password, admin_totp_key]
+    volumes: [backup_data:/data/backups]
+    ports: ['127.0.0.1:${API_PORT:-4000}:4000']
+    depends_on:
+      bootstrap: {condition: service_completed_successfully}
+
+  smoke:
+    <<: *api
+    profiles: [test]
+    command: [smoke]
+    healthcheck: {disable: true}
+    environment:
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost.test}
+      ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+    secrets: [admin_password]
+    depends_on:
+      api: {condition: service_healthy}
+
+networks:
+  backend:
+volumes:
+  postgres_data:
+  backup_data:
+secrets:
+  postgres_password: {file: ./.secrets/postgres_password}
+  migration_password: {file: ./.secrets/migration_password}
+  runtime_password: {file: ./.secrets/runtime_password}
+  admin_password: {file: ./.secrets/admin_password}
+  admin_totp_key: {file: ./.secrets/admin_totp_key}

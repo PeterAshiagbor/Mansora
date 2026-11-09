@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const url = process.env.API_URL ?? 'http://api:4000';
+const response = await fetch(`${url}/health`, { signal: AbortSignal.timeout(5000) });
+assert.equal(response.status, 200);
+assert.equal((await response.json()).status, 'ok');
+const password = (await readFile(process.env.ADMIN_PASSWORD_FILE, 'utf8')).trim();
+const login = await fetch(`${url}/v1/admin/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: process.env.ADMIN_EMAIL, password }), signal: AbortSignal.timeout(5000) });
+assert.equal(login.status, 200, 'Administrator login must succeed');
+const { token } = await login.json();
+assert.equal(typeof token, 'string');
+const me = await fetch(`${url}/v1/admin/me`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) });
+assert.equal(me.status, 200);
+assert.equal((await me.json()).email, process.env.ADMIN_EMAIL);
+const anonymous = await fetch(`${url}/v1/admin/me`);
+assert.equal(anonymous.status, 401);
+await fetch(`${url}/v1/admin/logout`, { method: 'POST', headers: { authorization: `Bearer ${token}` } });
+console.log('Container health and authenticated/anonymous admin endpoints verified.');

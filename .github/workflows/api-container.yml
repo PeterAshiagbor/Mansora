@@ -1,0 +1,31 @@
+name: API container
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - run: node --test infrastructure/secrets.test.mjs
+      - run: node infrastructure/init-secrets.mjs
+      - name: Build and start with migrations and restricted runtime role
+        run: docker compose -f infrastructure/docker-compose.yml up --build --wait --wait-timeout 180
+      - name: Verify health, authentication and container/role boundaries
+        run: |
+          docker compose -f infrastructure/docker-compose.yml run --rm smoke
+          docker compose -f infrastructure/docker-compose.yml exec -T api node /app/infrastructure/entrypoint.mjs check
+      - name: Verify restart preserves data and bootstrap is idempotent
+        run: |
+          docker compose -f infrastructure/docker-compose.yml down
+          docker compose -f infrastructure/docker-compose.yml up --wait --wait-timeout 180
+          docker compose -f infrastructure/docker-compose.yml run --rm smoke
+      - name: Tear down ephemeral containers and volumes
+        if: always()
+        run: docker compose -f infrastructure/docker-compose.yml down --volumes --remove-orphans
