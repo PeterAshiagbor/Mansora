@@ -26,7 +26,7 @@
     "test:e2e": "npm run build -w @mansora/desktop && npm run build -w @mansora/admin-web && vitest run tests/e2e"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^26.6.6",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^5.1.0"
