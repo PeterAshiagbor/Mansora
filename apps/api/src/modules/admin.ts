@@ -30,6 +30,7 @@ export async function createAdmin(q: Query, input: { email: string; name: string
 
 export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void {
   const { db } = ctx;
+  const ipLimiter = new RateLimiter(30, 5 * 60_000);
   const loginLimiter = new RateLimiter(8, 5 * 60_000);
 
   async function admin(req: FastifyRequest): Promise<Admin> {
@@ -42,9 +43,10 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   }
 
   app.post('/v1/admin/login', async (req) => {
+    ipLimiter.check(req.ip);
     const body = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) }).parse(req.body);
     const email = body.email.toLowerCase();
-    loginLimiter.check(`${req.ip}|${email}`);
+    loginLimiter.check(email);
     return db.platform(async (q) => {
       const [a] = await q(`SELECT * FROM admins WHERE email = $1`, [email]);
       if (!a || a.status !== 'active' || !verifyPassword(body.password, a.password_hash)) httpError(401, 'INVALID_CREDENTIALS', 'Incorrect email or password');
@@ -52,7 +54,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       await q(`DELETE FROM admin_sessions WHERE expires_at < now()`);
       await q(`INSERT INTO admin_sessions (token_hash, admin_id, expires_at) VALUES ($1, $2, now() + interval '${SESSION_HOURS} hours')`, [sha256(token), a.id]);
       await audit(q, a, 'admin.login', null);
-      loginLimiter.clear(`${req.ip}|${email}`);
+      loginLimiter.clear(email);
       return { token, admin: { id: a.id, name: a.name, email: a.email } };
     });
   });

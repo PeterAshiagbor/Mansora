@@ -15,12 +15,18 @@ export interface AppContext {
 export interface AppOptions extends AppContext {
   adminOrigins?: string[];
   logger?: boolean;
+  /** Explicit proxy addresses/CIDRs only; forwarded headers are untrusted by default. */
+  trustProxy?: string[];
 }
 
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
-  const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 8 * 1024 * 1024, trustProxy: true });
+  const app = Fastify({ logger: opts.logger ? { redact: ['req.headers.authorization', 'req.headers.cookie'] } : false, bodyLimit: 8 * 1024 * 1024, trustProxy: opts.trustProxy ?? false });
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: opts.adminOrigins ?? false, methods: ['GET', 'POST', 'PUT'] });
+  app.addHook('onSend', async (_req, reply, payload) => {
+    reply.header('cache-control', 'no-store');
+    return payload;
+  });
   // Encrypted backup uploads arrive as raw bytes.
   app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: 200 * 1024 * 1024 }, (_req, body, done) => done(null, body));
 
