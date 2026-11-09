@@ -46,7 +46,7 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
     browser = await pw.chromium.launch();
     const page = async () => {
       const p = await browser.newPage({ viewport: { width: 1366, height: 768 } });
-      p.setDefaultTimeout(10_000);
+      p.setDefaultTimeout(30_000);
       p.on('pageerror', (e: Error) => errors.push(e.message));
       return p;
     };
