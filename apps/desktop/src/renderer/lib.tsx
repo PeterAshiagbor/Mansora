@@ -28,9 +28,14 @@ const bridge: Bridge = window.mansora ?? {
 export const canRestore = () => !!bridge.restore;
 export const restoreBackup = (passphrase: string) => bridge.restore!(passphrase);
 
+const READ_ONLY = /\.(list|get|status|queue|current|overview|movements|lookup|receipt|dashboard|sales|profit|stock|state|preview|history|template|table)$/;
+
 export async function call<T = any>(command: string, input: unknown = {}): Promise<T> {
   const res = await bridge.invoke(command, input);
-  if (res.ok) return res.data as T;
+  if (res.ok) {
+    if (!READ_ONLY.test(command)) window.dispatchEvent(new Event('mansora:changed'));
+    return res.data as T;
+  }
   if (res.error.code === 'SESSION_LOCKED' || res.error.code === 'NOT_SIGNED_IN') window.dispatchEvent(new CustomEvent('mansora:signed-out', { detail: res.error.code }));
   throw new DomainError(res.error.code, res.error.message, res.error.details);
 }
@@ -114,7 +119,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed bottom-12 right-4 z-50 flex w-80 flex-col gap-2 no-print">
+      <div aria-live="polite" className="pointer-events-none fixed right-4 top-4 z-50 flex w-80 flex-col gap-2 no-print">
         {items.map((i) => (
           <div key={i.id} role={i.tone === 'bad' ? 'alert' : 'status'} className={cx('rounded-md px-4 py-3 text-sm font-medium text-white shadow-lg', i.tone === 'bad' ? 'bg-red-700' : 'bg-slate-900')}>{i.message}</div>
         ))}

@@ -53,7 +53,7 @@ export function startDevHost(opts: { dataDir: string; port: number; dbKey?: stri
     res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' }).end(readFileSync(file));
   });
   if (opts.syncEveryMs) setInterval(() => void syncNow(engine).catch(() => {}), opts.syncEveryMs).unref();
-  return new Promise((resolve) => server.listen(opts.port, '127.0.0.1', () => resolve({ server, engine, url: `http://127.0.0.1:${opts.port}` })));
+  return new Promise((resolve) => server.listen(opts.port, '127.0.0.1', () => resolve({ server, engine, url: `http://127.0.0.1:${(server.address() as { port: number }).port}` })));
 }
 
 if (process.argv[1] && import.meta.filename === process.argv[1]) {

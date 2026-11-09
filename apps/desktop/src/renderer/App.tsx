@@ -257,8 +257,10 @@ function StatusBar() {
   const { state, go } = useApp();
   const [tick, setTick] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setTick((x) => x + 1), 5000);
-    return () => clearInterval(t);
+    const bump = () => setTick((x) => x + 1);
+    const t = setInterval(bump, 5000);
+    window.addEventListener('mansora:changed', bump);
+    return () => (clearInterval(t), window.removeEventListener('mansora:changed', bump));
   }, []);
   const sync = useQuery<any>('sync.status', {}, [tick]).data;
   const shift = useQuery<any>('shift.current', {}, [tick]).data;
