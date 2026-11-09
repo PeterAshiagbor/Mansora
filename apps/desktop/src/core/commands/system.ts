@@ -79,7 +79,7 @@ export const systemCommands = defineCommands({
   'backup.create': {
     perm: 'backup.manage',
     async: true,
-    input: z.object({ passphrase: z.string().min(1).max(200), remember: z.boolean().default(false) }),
+    input: z.object({ passphrase: z.string().min(1).max(200) }),
     run: async (ctx, input) => {
       const e = ctx.engine;
       let made;
@@ -97,7 +97,6 @@ export const systemCommands = defineCommands({
           `INSERT INTO backup_records (id, file_path, size_bytes, sha256, last_outbox_seq, status, created_at) VALUES (?, ?, ?, ?, ?, 'ok', ?)`,
           made.id, made.path, made.size, made.sha256, made.summary.lastOutboxSeq, ctx.now(),
         );
-        if (input.remember) e.setMeta('backup_passphrase', input.passphrase);
         ctx.audit('backup', made.id, { size: made.size, sales: made.summary.sales }, 'backup.created');
         ctx.flush();
       });

@@ -1,0 +1,185 @@
+/**
+ * Provisional Mansora design system: restrained, high-contrast, keyboard-friendly.
+ * To be re-skinned once the final Mansora logo and colours are supplied.
+ */
+import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ComponentProps, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+
+export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
+
+const focus = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2';
+
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost'; size?: 'sm' | 'md' | 'lg' };
+export function Button({ variant = 'secondary', size = 'md', className, type = 'button', ...rest }: ButtonProps) {
+  const variants = {
+    primary: 'bg-brand-700 text-white hover:bg-brand-800 border-transparent',
+    secondary: 'bg-white text-slate-800 hover:bg-slate-50 border-slate-300',
+    danger: 'bg-red-700 text-white hover:bg-red-800 border-transparent',
+    ghost: 'bg-transparent text-slate-700 hover:bg-slate-100 border-transparent',
+  };
+  const sizes = { sm: 'px-2.5 py-1 text-sm', md: 'px-3.5 py-2 text-sm', lg: 'px-5 py-3 text-base' };
+  return <button type={type} className={cx('inline-flex items-center justify-center gap-2 rounded-md border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50', focus, variants[variant], sizes[size], className)} {...rest} />;
+}
+
+export function Field({ label, hint, error, children, className }: { label: string; hint?: string; error?: string | null; children: ReactNode; className?: string }) {
+  return (
+    <label className={cx('block', className)}>
+      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      {children}
+      {hint && !error && <span className="mt-1 block text-xs text-slate-500">{hint}</span>}
+      {error && <span className="mt-1 block text-xs font-medium text-red-700">{error}</span>}
+    </label>
+  );
+}
+
+const control = cx('block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:bg-slate-100', 'focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30');
+export function Input({ className, ...rest }: ComponentProps<'input'>) {
+  return <input className={cx(control, className)} {...rest} />;
+}
+export function Select({ className, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={cx(control, className)} {...rest} />;
+}
+export function Textarea({ className, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className={cx(control, className)} rows={3} {...rest} />;
+}
+
+export function Modal({ title, open, onClose, children, footer, wide }: { title: string; open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const el = ref.current;
+    (el?.querySelector<HTMLElement>('[autofocus], input:not([disabled]), select, textarea, button') ?? el)?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+      if (e.key === 'Tab' && el) {
+        const items = [...el.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])')];
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) (e.preventDefault(), last.focus());
+        else if (!e.shiftKey && document.activeElement === last) (e.preventDefault(), first.focus());
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      previous?.focus?.();
+    };
+  }, [open]);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} className={cx('w-full rounded-lg bg-white shadow-xl outline-none', wide ? 'max-w-3xl' : 'max-w-lg')}>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <h2 id={id} className="text-base font-semibold text-slate-900">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className={cx('rounded p-1 text-slate-500 hover:bg-slate-100', focus)}>✕</button>
+        </div>
+        <div className="px-5 py-4">{children}</div>
+        {footer && <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3 rounded-b-lg">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+export function Card({ title, actions, children, className, pad = true }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; pad?: boolean }) {
+  return (
+    <section className={cx('rounded-lg border border-slate-200 bg-white', className)}>
+      {(title || actions) && (
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
+          <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+          <div className="flex items-center gap-2">{actions}</div>
+        </div>
+      )}
+      <div className={pad ? 'p-4' : ''}>{children}</div>
+    </section>
+  );
+}
+
+export function Stat({ label, value, hint, tone = 'default' }: { label: string; value: ReactNode; hint?: ReactNode; tone?: 'default' | 'good' | 'warn' | 'bad' }) {
+  const tones = { default: 'text-slate-900', good: 'text-emerald-700', warn: 'text-amber-700', bad: 'text-red-700' };
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
+      <div className={cx('mt-1 text-2xl font-semibold tabular-nums', tones[tone])}>{value}</div>
+      {hint && <div className="mt-1 text-xs text-slate-500">{hint}</div>}
+    </div>
+  );
+}
+
+export interface Column<T> {
+  header: string;
+  cell: (row: T) => ReactNode;
+  align?: 'left' | 'right';
+  className?: string;
+}
+export function Table<T>({ columns, rows, onRowClick, empty = 'Nothing to show yet', rowKey }: { columns: Column<T>[]; rows: T[] | undefined; onRowClick?: (row: T) => void; empty?: string; rowKey?: (row: T, i: number) => string | number }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+            {columns.map((c) => (
+              <th key={c.header} scope="col" className={cx('px-3 py-2', c.align === 'right' && 'text-right')}>{c.header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {(rows ?? []).map((row, i) => (
+            <tr
+              key={rowKey ? rowKey(row, i) : i}
+              tabIndex={onRowClick ? 0 : undefined}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              onKeyDown={onRowClick ? (e) => e.key === 'Enter' && onRowClick(row) : undefined}
+              className={cx('border-b border-slate-100 last:border-0', onRowClick && 'cursor-pointer hover:bg-brand-50 focus:bg-brand-50 focus:outline-none')}
+            >
+              {columns.map((c) => (
+                <td key={c.header} className={cx('px-3 py-2 align-top', c.align === 'right' && 'text-right tabular-nums', c.className)}>{c.cell(row)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows && rows.length === 0 && <div className="px-3 py-8 text-center text-sm text-slate-500">{empty}</div>}
+      {!rows && <div className="px-3 py-8 text-center text-sm text-slate-400">Loading…</div>}
+    </div>
+  );
+}
+
+export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'good' | 'warn' | 'bad' | 'info'; children: ReactNode }) {
+  const tones = { neutral: 'bg-slate-100 text-slate-700', good: 'bg-emerald-100 text-emerald-800', warn: 'bg-amber-100 text-amber-900', bad: 'bg-red-100 text-red-800', info: 'bg-sky-100 text-sky-800' };
+  return <span className={cx('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap', tones[tone])}>{children}</span>;
+}
+
+export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-sm text-slate-600">{subtitle}</p>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 print:hidden">{actions}</div>
+    </div>
+  );
+}
+
+export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string }[]; value: T; onChange: (id: T) => void }) {
+  return (
+    <div role="tablist" className="mb-4 flex gap-1 border-b border-slate-200 print:hidden">
+      {tabs.map((t) => (
+        <button key={t.id} role="tab" type="button" aria-selected={value === t.id} onClick={() => onChange(t.id)}
+          className={cx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', focus, value === t.id ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-600 hover:text-slate-900')}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function Alert({ tone = 'info', children, className }: { tone?: 'info' | 'warn' | 'bad' | 'good'; children: ReactNode; className?: string }) {
+  const tones = { info: 'border-sky-200 bg-sky-50 text-sky-900', warn: 'border-amber-300 bg-amber-50 text-amber-900', bad: 'border-red-300 bg-red-50 text-red-900', good: 'border-emerald-300 bg-emerald-50 text-emerald-900' };
+  return <div role={tone === 'bad' ? 'alert' : 'status'} className={cx('rounded-md border px-3 py-2 text-sm', tones[tone], className)}>{children}</div>;
+}
