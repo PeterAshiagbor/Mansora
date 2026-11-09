@@ -39,3 +39,7 @@ The `data` folder inside the app's Windows user-data directory (in the app: Help
 
 `db.key` only works for the same Windows user on the same PC. Moving to another
 laptop is done with a backup, not by copying files.
+
+## Electron version
+
+Electron is pinned to an exact version (44.x) because the encrypted-SQLite module ships prebuilt binaries only for certain Electron versions, and building it from source needs a C++ toolchain. Before upgrading Electron, check that `better-sqlite3-multiple-ciphers` publishes an `electron-v<ABI>-win32-x64` binary for it (version 13.0.3 had none for Electron 45 on 9 Nov 2026). Dependabot is told to leave both packages alone.

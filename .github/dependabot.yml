@@ -4,8 +4,22 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Type definitions must match the Node.js version the app runs on (22), not the newest Node.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+      # Electron and the encrypted-SQLite module must be upgraded together, after the module publishes
+      # binaries for the new Electron. See docs/installation/windows-installer.md.
+      - dependency-name: electron
+      - dependency-name: better-sqlite3-multiple-ciphers
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

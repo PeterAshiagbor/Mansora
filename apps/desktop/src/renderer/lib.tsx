@@ -97,7 +97,7 @@ export function useQuery<T = any>(command: string, input: unknown = {}, deps: un
 
 // ---------- session ----------
 export interface AppState {
-  business: { activated: boolean; name: string; phone: string; address: string; receiptFooter: string; lockMinutes: number; allowNegativeStock: boolean };
+  business: { activated: boolean; name: string; phone: string; address: string; receiptFooter: string; lockMinutes: number; allowNegativeStock: boolean; maxDiscountBps: number };
   user: { id: string; name: string; username: string; role: string; permissions: string[] } | null;
   appVersion: string;
   permissions: Record<string, string>;

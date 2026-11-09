@@ -18,7 +18,7 @@ Take them in order; each is one pull request.
 
 ## Tasks
 
-### C1 — Two-factor authentication for Mansora administrators (TOTP)
+### C1 — Two-factor authentication for Mansora administrators (TOTP) — DONE, merged (PR #10)
 **Status:** Implemented on `codex/C1-admin-totp` for PR review; not deployed. Includes dashboard enrolment and challenged login, migration 3, encrypted secrets, hashed recovery codes, persistent rate limits, audit events, and API/browser regression tests.
 **Why:** an admin account can create activation codes and deactivate laptops; a password alone is too weak.
 **Scope:** `apps/api/src/modules/admin.ts`, `apps/api/src/security.ts`, new migration, `apps/admin-web/src/App.tsx`.
@@ -57,6 +57,16 @@ Take them in order; each is one pull request.
 **Build:** request ID on every request (accept a validated incoming `x-request-id`, else generate) returned in the response and included in error bodies; JSON logs with tenant ID and device ID or admin ID where known, and never tokens, passwords, backup bytes or event payloads; a `reportError(err, context)` hook that is a no-op unless `ERROR_WEBHOOK_URL` is set; `/health` split into liveness and readiness; a `/metrics` endpoint (Prometheus text, protected by a bearer token from the environment) with request counts and durations by route, sync events accepted and rejected, and login failures.
 **Done when:** tests assert that secrets never appear in captured log output for login, sync and backup requests, and that request IDs propagate.
 
+### C8 — Draft privacy and data-protection documents for legal review
+**Scope:** new files under `docs/legal/` only. No code.
+**Build:** plain-language drafts, each headed "DRAFT — not legal advice — for review by a Ghanaian data-protection lawyer": (1) a data inventory from the real schema (`packages/domain/src/sync.ts` and the migrations) listing every personal-data field, why it is held, where (laptop, cloud, backups) and who can see it; (2) a client-facing privacy notice template a shop can display to its customers; (3) a controller/processor responsibilities outline for the Mansora–client agreement; (4) a retention and deletion proposal per table, with the engineering consequence of each choice (financial records are immutable by design, so say what deletion or anonymisation would require); (5) a checklist for Data Protection Act, 2012 (Act 843) registration and cross-border-transfer questions to put to the lawyer. State assumptions as questions, not conclusions.
+**Done when:** every personal-data column in the schema appears in the inventory (add a small test that reads the schema and fails if a new column is not listed).
+
+### C9 — Browser end-to-end coverage for the remaining desktop workflows
+**Scope:** new files under `tests/e2e/` only; read-only use of `apps/desktop/dev/host.ts` and `scripts/static.ts`.
+**Build:** tests through the real interface for: stock count with differences, receiving a purchase and the resulting average cost, damaged-stock adjustment, product import preview with an error row and with duplicates, import commit and the "already imported" refusal, credit sale then partial repayment then settlement, cash in/out with manager approval, closing a shift with a variance and manager sign-off, expense from the till changing expected cash, staff creation with a restricted permission set, owner-only settings, owner recovery and re-link screens, backup creation and verification, and the discount limit setting. Follow the style of `tests/e2e/ui.test.ts`.
+**Done when:** the tests pass in CI and any bug they find is reported in the PR description with the failing steps (fixes to `apps/desktop/src/**` are welcome as a separate commit in the same PR).
+
 ## Not for Codex (Claude is doing these)
 
-Discount limits at checkout (waiting on Mansora's policy) · signed auto-updates (waiting on a certificate) · Windows packaging in CI.
+Choosing the discount-limit value (Mansora's policy) · signed auto-updates (waiting on a certificate) · Windows packaging in CI.

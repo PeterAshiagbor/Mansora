@@ -18,6 +18,8 @@ function business(ctx: Ctx) {
     receiptFooter: m('receipt_footer'),
     lockMinutes: Number(m('lock_minutes') || 10),
     allowNegativeStock: m('allow_negative_stock') === '1',
+    /** 0 = no ceiling. Discounts above this share of the basket need the owner. */
+    maxDiscountBps: Number(m('max_discount_bps') || 0),
     currency: 'GHS',
   };
 }
@@ -199,17 +201,20 @@ export const authCommands = defineCommands({
     input: z.object({
       name: zText(120), phone: zOptText(40), address: zOptText(300), receiptFooter: zOptText(300),
       lockMinutes: z.number().int().min(1).max(240), allowNegativeStock: z.boolean(),
+      maxDiscountPercent: z.number().int().min(0).max(100).default(0),
     }),
     run: (ctx, input) => {
       const e = ctx.engine;
       const before = business(ctx);
       if (input.allowNegativeStock !== before.allowNegativeStock && ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can change the negative-stock policy');
+      if (input.maxDiscountPercent * 100 !== before.maxDiscountBps && ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can change the discount limit');
       e.setMeta('business_name', input.name);
       e.setMeta('business_phone', input.phone ?? '');
       e.setMeta('business_address', input.address ?? '');
       e.setMeta('receipt_footer', input.receiptFooter ?? '');
       e.setMeta('lock_minutes', String(input.lockMinutes));
       e.setMeta('allow_negative_stock', input.allowNegativeStock ? '1' : '0');
+      e.setMeta('max_discount_bps', String(input.maxDiscountPercent * 100));
       ctx.audit('business', before.tenantId, { before, after: input });
       return business(ctx);
     },

@@ -59,7 +59,7 @@ export function StaffPage() {
 // ---------------------------------------------------------------- Settings
 export function SettingsPage() {
   const { state, refresh, can } = useApp();
-  const [f, setF] = useState({ ...state.business, lockMinutes: String(state.business.lockMinutes) });
+  const [f, setF] = useState({ ...state.business, lockMinutes: String(state.business.lockMinutes), maxDiscountPercent: String(state.business.maxDiscountBps / 100) });
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
   const { run, busy } = useAction();
   const manage = can('settings.manage');
@@ -74,13 +74,14 @@ export function SettingsPage() {
             <Field label="Address" className="col-span-2"><Input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} /></Field>
             <Field label="Receipt footer message" className="col-span-2"><Input value={f.receiptFooter} onChange={(e) => setF({ ...f, receiptFooter: e.target.value })} placeholder="Thank you for your purchase" /></Field>
             <Field label="Lock screen after (minutes without activity)"><Input type="number" min={1} max={240} value={f.lockMinutes} onChange={(e) => setF({ ...f, lockMinutes: e.target.value })} /></Field>
+            <Field label="Discount limit (% of the basket)" hint="0 means no limit. Above the limit only the owner can approve a discount."><Input type="number" min={0} max={100} value={f.maxDiscountPercent} disabled={state.user?.role !== 'owner'} onChange={(e) => setF({ ...f, maxDiscountPercent: e.target.value })} /></Field>
             <div className="flex items-end pb-2 text-sm text-slate-600">Currency: Ghana cedi (GHS)</div>
             <label className="col-span-2 flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={f.allowNegativeStock} disabled={state.user?.role !== 'owner'} onChange={(e) => setF({ ...f, allowNegativeStock: e.target.checked })} />
               <span>Allow selling when the system shows no stock <span className="text-slate-500">(owner only; not recommended. Leave off so that stock records stay trustworthy.)</span></span>
             </label>
           </div>
-          <Button variant="primary" className="mt-4" disabled={busy || !f.name.trim()} onClick={() => run(async () => { await call('business.update', { name: f.name, phone: f.phone, address: f.address, receiptFooter: f.receiptFooter, lockMinutes: Number(f.lockMinutes) || 10, allowNegativeStock: f.allowNegativeStock }); await refresh(); }, 'Settings saved')}>Save settings</Button>
+          <Button variant="primary" className="mt-4" disabled={busy || !f.name.trim()} onClick={() => run(async () => { await call('business.update', { name: f.name, phone: f.phone, address: f.address, receiptFooter: f.receiptFooter, lockMinutes: Number(f.lockMinutes) || 10, allowNegativeStock: f.allowNegativeStock, maxDiscountPercent: Math.min(100, Math.max(0, Math.floor(Number(f.maxDiscountPercent) || 0))) }); await refresh(); }, 'Settings saved')}>Save settings</Button>
         </Card>
       )}
       <Card title="Change my password">

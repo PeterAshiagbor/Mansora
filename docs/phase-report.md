@@ -78,7 +78,7 @@ CI (GitHub Actions, run 42702980256): the Linux job passes typecheck, build, all
 8. **One administrator role, no two-factor authentication.**
 9. **Receipts**: no logo, no online sharing; PDF uses the printer page size.
 10. **Whole-unit quantities only**; no price override at the till; no discount limits.
-11. Discounts have no percentage or amount limits (policy undecided).
+11. Discount limit exists but is off until the owner sets a percentage; Mansora has not chosen a recommended value.
 12. **Remote permission changes** from the cloud are not implemented; staff are managed on the laptop.
 13. **Accessibility** has had no formal audit; it has labels, focus handling and keyboard support but has not been tested with a screen reader.
 14. **Performance** has not been measured with a large catalogue (tens of thousands of products).

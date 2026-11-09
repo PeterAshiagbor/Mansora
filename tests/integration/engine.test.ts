@@ -403,3 +403,34 @@ describe('automatic daily backup', () => {
     expect(await runScheduledBackup(s.engine)).toEqual({ made: false, reason: 'off' });
   });
 });
+
+describe('discount limit (optional, owner-set)', () => {
+  it('is off by default; when set, only the owner can approve discounts above it', async () => {
+    const s = await makeShop();
+    const sale = (token: string, discount: number, approver?: { username: string; password: string }) =>
+      s.run(token, 'sale.complete', { id: uuid(), lines: [{ productId: s.products.rice, quantity: 1, discount }], tenders: cash(8000), approver });
+    const owner = { username: OWNER.username, password: OWNER.password };
+    const manager = { username: MANAGER.username, password: MANAGER.password };
+
+    // Default: no ceiling, so a manager may discount by any amount (existing behaviour).
+    await s.run(s.manager, 'shift.open', { openingFloat: 0 });
+    await sale(s.manager, 6000);
+
+    const biz = { name: 'Test Mini Mart', phone: '', address: '', receiptFooter: '', lockMinutes: 10, allowNegativeStock: false };
+    await expectCode(s.run(s.manager, 'business.update', { ...biz, maxDiscountPercent: 10 }), 'PERMISSION_DENIED');
+    await s.run(s.owner, 'business.update', { ...biz, maxDiscountPercent: 10 });
+    expect((await s.run(s.cashier, 'app.state', {})).business).toMatchObject({ maxDiscountBps: 1000 });
+
+    await sale(s.manager, 800); // exactly 10%: allowed
+    await expectCode(sale(s.manager, 801), 'OWNER_APPROVAL_REQUIRED'); // 10.01%
+    await expectCode(sale(s.cashier, 1200, manager), 'OWNER_APPROVAL_REQUIRED'); // a manager's credentials are not enough
+    await expectCode(sale(s.cashier, 400), 'APPROVAL_REQUIRED'); // under the limit still needs a supervisor
+    await sale(s.cashier, 400, manager);
+    const approved = await sale(s.cashier, 1200, owner); // owner approves at the till
+    expect((s.engine.db.prepare('SELECT u.role FROM sales s JOIN users u ON u.id = s.discount_approved_by WHERE s.id = ?').get(approved.id) as any).role).toBe('owner');
+    await s.run(s.owner, 'shift.open', { openingFloat: 0 });
+    await sale(s.owner, 1200); // owner discounts on their own authority
+    await s.run(s.owner, 'business.update', { ...biz, maxDiscountPercent: 0 });
+    await sale(s.manager, 6000);
+  });
+});

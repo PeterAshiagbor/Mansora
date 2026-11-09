@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fail, PAYMENT_METHODS, priceCart, refundLineAmount, SETTLEMENT_METHODS, settlePayments, splitRefund, sum } from '@mansora/domain';
+import { fail, mulDivRound, PAYMENT_METHODS, priceCart, refundLineAmount, SETTLEMENT_METHODS, settlePayments, splitRefund, sum } from '@mansora/domain';
 import { dayBounds, defineCommands, zApprover, zId, zMoney, zOptText, zQty, zRange, zText, type Ctx } from '../engine';
 import { renderReceiptHtml } from '../receipt';
 import { moveStock, nextNumber, openShift, requireOpenShift } from '../stock';
@@ -69,7 +69,16 @@ export const salesCommands = defineCommands({
       });
       // Prices always come from the local catalogue, never from the screen.
       const cart = priceCart(input.lines.map((l, i) => ({ productId: l.productId, quantity: l.quantity, unitPrice: products[i].selling_price, discount: l.discount })), input.cartDiscount);
-      const discountApprovedBy = cart.discountTotal > 0 ? ctx.authorise('sale.discount', input.approver) : null;
+      let discountApprovedBy: string | null = null;
+      if (cart.discountTotal > 0) {
+        // Optional owner-set ceiling (percent of the basket before discount). Above it, only the owner may approve.
+        const maxBps = Number(ctx.setting('max_discount_bps') ?? 0);
+        if (maxBps > 0 && mulDivRound(cart.discountTotal, 10_000, cart.subtotal) > maxBps) {
+          const approverId = input.approver ? ctx.engine.verifyCredentials(input.approver.username, input.approver.password).id : ctx.user.id;
+          if (ctx.engine.loadUser(approverId)?.role !== 'owner') fail('OWNER_APPROVAL_REQUIRED', `Discounts above ${maxBps / 100}% need the owner's approval`, { maxBps });
+          discountApprovedBy = approverId;
+        } else discountApprovedBy = ctx.authorise('sale.discount', input.approver);
+      }
       const settlement = settlePayments(cart.total, input.tenders);
       if (settlement.creditAmount > 0) {
         if (!input.customerId) fail('CUSTOMER_REQUIRED', 'Choose a customer for a credit sale');

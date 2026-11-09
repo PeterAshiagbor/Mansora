@@ -14,6 +14,10 @@ running low and what customers owe you.
   - **Stock → Stock count** after a physical count.
 - Selling is blocked when the system shows no stock. If that stops a real sale, receive or count the stock first.
 
+## Discounts
+
+Under **Settings → Discount limit** you can set the largest discount (as a percentage of the basket) your staff may give. Above it, only you can approve, either by selling yourself or by typing your username and password at the till. Leave it at 0 for no limit.
+
 ## Staff
 
 **Staff → Add staff member.** Give every person their own login. Tick what each

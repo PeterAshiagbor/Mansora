@@ -19,7 +19,7 @@ interface Line {
 }
 
 export function Checkout() {
-  const { can } = useApp();
+  const { can, state } = useApp();
   const toast = useToast();
   const [saleId, setSaleId] = useState(uuid);
   const [lines, setLines] = useState<Line[]>([]);
@@ -167,7 +167,7 @@ export function Checkout() {
           {cart && 'total' in cart && (
             <dl className="space-y-0.5 text-sm">
               <div className="flex justify-between text-slate-600"><dt>Subtotal</dt><dd className="tabular-nums">{money(cart.subtotal)}</dd></div>
-              {cart.discountTotal > 0 && <div className="flex justify-between text-slate-600"><dt>Discount {!can('sale.discount') && <span className="text-xs">(needs approval)</span>}</dt><dd className="tabular-nums">−{money(cart.discountTotal)}</dd></div>}
+              {cart.discountTotal > 0 && <div className="flex justify-between text-slate-600"><dt>Discount {(!can('sale.discount') || (state.business.maxDiscountBps > 0 && state.user?.role !== 'owner' && cart.discountTotal * 10_000 > state.business.maxDiscountBps * cart.subtotal)) && <span className="text-xs">(needs approval)</span>}</dt><dd className="tabular-nums">−{money(cart.discountTotal)}</dd></div>}
             </dl>
           )}
           <div className="flex items-end justify-between">
@@ -179,7 +179,7 @@ export function Checkout() {
       </section>
 
       {paying && cart && 'total' in cart && (
-        <PayModal total={cart.total} needsDiscountApproval={cart.discountTotal > 0 && !can('sale.discount')} customerId={customerId} customerName={customers.find((c) => c.id === customerId)?.name}
+        <PayModal total={cart.total} needsDiscountApproval={cart.discountTotal > 0 && (!can('sale.discount') || (state.business.maxDiscountBps > 0 && state.user?.role !== 'owner' && cart.discountTotal * 10_000 > state.business.maxDiscountBps * cart.subtotal))} customerId={customerId} customerName={customers.find((c) => c.id === customerId)?.name}
           onClose={() => setPaying(false)}
           submit={async (tenders, dueDate, approver) => {
             const res = await call('sale.complete', {
