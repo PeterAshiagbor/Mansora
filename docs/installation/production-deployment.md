@@ -28,6 +28,7 @@ the cloud account and domain.
 | `TRUSTED_PROXIES` | Exact proxy IPs/CIDRs whose forwarding headers are trusted. Empty for direct connections |
 | `PORT`, `HOST` | Listen address |
 | `ADMIN_ORIGINS` | Exact origin(s) of the admin dashboard, comma-separated |
+| `ADMIN_TOTP_KEY` | Base64 of 32 cryptographically random bytes; required for enrolment and whenever any administrator is enrolled. Supply from a secret manager; never put the key in dashboard config or source control |
 | `BACKUP_DIR` | Directory for client backup files |
 
 ## Deploy
@@ -42,6 +43,14 @@ node apps/api/dist/server.js
 Admin dashboard: deploy `apps/admin-web/dist` and replace `config.js` with
 `window.MANSORA_API_URL = 'https://api.<your-domain>';`.
 
+## Administrator TOTP encryption key
+
+Generate a fresh key in your secret manager, or use `node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))"` in a secure administrative terminal and store its output there. Supply the same `ADMIN_TOTP_KEY` to every API instance. Do not include the value in commits, logs, browser configuration or support messages.
+
+Run the new migration before deploying the API. It adds only platform MFA tables, with no change to released migration 1 or tenant data. When an administrator is enrolled, startup verifies that the key can decrypt an enrolled secret; missing/invalid keys prevent startup. Enrolment also refuses to proceed without a configured key.
+
+Back up the key separately from the database and test restoration together. Changing or losing it makes enrolled secrets unreadable, including when attempting to use a recovery code; the server fails closed. There is no automatic key-rotation, password-only bypass or administrative MFA-reset endpoint in this task. Coordinate a controlled disable/re-enrol operation while the old key is available, or define a separately reviewed recovery/rotation procedure before changing the key.
+
 ## Before real client data
 
 - [ ] Ghana Data Protection Act 2012 (Act 843) review; registration with the Data Protection Commission if required
@@ -51,5 +60,5 @@ Admin dashboard: deploy `apps/admin-web/dist` and replace `config.js` with
 - [ ] Backup restore of the cloud database rehearsed into a clean environment
 - [ ] Independent security review of the API and installer
 - [ ] Backup storage moved from a local directory to private object storage
-- [ ] Two-factor authentication for administrators (not yet built)
+- [ ] Configure and back up `ADMIN_TOTP_KEY`, enrol administrators, and test recovery codes
 - [ ] Monitoring and alert routing tested

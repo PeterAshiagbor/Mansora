@@ -29,6 +29,7 @@ software needed an answer to function, a conservative default was implemented.
 | D-19 | Shift sign-off | A manager cannot sign off their own shift; the owner can | `shift.review` | Awaiting approval |
 | D-20 | Owner password recovery | Mansora issues a one-time code (1 hour) with a recorded reason; it only works on that client's activated laptop; the owner chooses the password. Identity verification of the caller is a Mansora procedure, not enforced by software | `auth.recoverOwner`, recovery-code endpoint | Awaiting approval of the verification procedure |
 | D-21 | Rebuilding a laptop from cloud data | Allowed only on a laptop that has never been activated, after the old one is deactivated. Whoever activates takes over the owner account; other staff need new passwords | `activation.activate` with `restoreFromCloud` | Awaiting approval |
+| D-22 | Administrator MFA | Optional self-enrolment with password reauthentication; RFC 6238 SHA-1, six digits/30 seconds, ±1 step; five-minute one-use login challenge, ten-minute setup, five failures per five minutes per admin; ten one-use 80-bit recovery codes. Enabling revokes other sessions; disabling requires password plus fresh authenticator or unused recovery code and revokes all sessions. No password-only reset/override or automatic encryption-key rotation | `admin.ts`, `security.ts`; `docs/operations/admin-guide.md` | Default for C1; organization-wide enforcement and recovery policy await approval |
 
 ## B. Architecture decisions
 

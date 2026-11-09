@@ -19,6 +19,7 @@ Take them in order; each is one pull request.
 ## Tasks
 
 ### C1 — Two-factor authentication for Mansora administrators (TOTP)
+**Status:** Implemented on `codex/C1-admin-totp` for PR review; not deployed. Includes dashboard enrolment and challenged login, migration 3, encrypted secrets, hashed recovery codes, persistent rate limits, audit events, and API/browser regression tests.
 **Why:** an admin account can create activation codes and deactivate laptops; a password alone is too weak.
 **Scope:** `apps/api/src/modules/admin.ts`, `apps/api/src/security.ts`, new migration, `apps/admin-web/src/App.tsx`.
 **Build:** RFC 6238 TOTP using `node:crypto` only (no new dependency). Endpoints to start enrolment (returns secret + `otpauth://` URI), confirm enrolment with a code, and disable (requires password + code). Login becomes two-step when enrolled: password → short-lived challenge → code. Store the secret encrypted with a key from `ADMIN_TOTP_KEY` (32 bytes, base64, required when any admin is enrolled). Ten single-use recovery codes, stored hashed. Rate-limit code attempts per admin. Audit enrolment, disablement, failed codes, recovery-code use.

@@ -40,7 +40,7 @@ export function App() {
   }, []);
   if (!signedIn) return <Login onDone={() => setSignedIn(true)} />;
   const go = (id: string, param?: string) => setPage({ id, param });
-  const nav = [['overview', 'Overview'], ['clients', 'Clients'], ['plans', 'Service plans'], ['audit', 'Audit log']];
+  const nav = [['overview', 'Overview'], ['clients', 'Clients'], ['plans', 'Service plans'], ['audit', 'Audit log'], ['security', 'Account security']];
   return (
     <div className="flex h-full">
       <nav aria-label="Main" className="flex w-52 shrink-0 flex-col bg-slate-900 text-slate-200">
@@ -59,6 +59,7 @@ export function App() {
         {page.id === 'client' && page.param && <Client id={page.param} go={go} />}
         {page.id === 'plans' && <Plans />}
         {page.id === 'audit' && <Audit />}
+        {page.id === 'security' && <AccountSecurity />}
       </main>
     </div>
   );
@@ -67,18 +68,93 @@ export function App() {
 function Login({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [code, setCode] = useState('');
   const { run, busy, error } = useAction();
+  const signIn = () => run(async () => {
+    const result = challenge
+      ? await api('POST', '/v1/admin/login/totp', { challenge, code })
+      : await api('POST', '/v1/admin/login', { email, password });
+    setPassword('');
+    if (result.requiresTotp) { setChallenge(result.challenge); setCode(''); return; }
+    setToken(result.token);
+    onDone();
+  });
   return (
     <div className="flex min-h-full items-center justify-center bg-slate-900 p-6">
-      <form className="w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" onSubmit={(e) => { e.preventDefault(); run(async () => { setToken((await api('POST', '/v1/admin/login', { email, password })).token); onDone(); }); }}>
-        <div><div className="text-xs font-semibold uppercase tracking-widest text-brand-700">Mansora</div><h1 className="text-2xl font-semibold">Administrator sign in</h1></div>
+      <form className="w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
+        <div><div className="text-xs font-semibold uppercase tracking-widest text-brand-700">Mansora</div><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
         {error && <Alert tone="bad">{error}</Alert>}
-        <Field label="Email"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus autoComplete="username" /></Field>
-        <Field label="Password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
-        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !email || !password}>Sign in</Button>
+        {challenge ? <>
+          <p className="text-sm text-slate-600">Enter a code from your authenticator app, or one of your unused recovery codes. This sign-in challenge expires after five minutes.</p>
+          <Field label="Authenticator or recovery code"><Input key="second-factor" value={code} onChange={(e) => setCode(e.target.value)} autoFocus autoComplete="one-time-code" maxLength={64} /></Field>
+          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !code.trim()}>Verify and sign in</Button>
+          <Button disabled={busy} onClick={() => { setChallenge(null); setCode(''); }}>Back to password sign in</Button>
+        </> : <>
+          <Field label="Email"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus autoComplete="username" /></Field>
+          <Field label="Password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
+          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !email || !password}>Sign in</Button>
+        </>}
       </form>
     </div>
   );
+}
+
+function AccountSecurity() {
+  const { data, error: loadError, reload } = useApi<{ enabled: boolean; recoveryCodesRemaining: number }>('/v1/admin/totp');
+  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [enrolment, setEnrolment] = useState<{ secret: string; uri: string; expiresAt: string } | null>(null);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [disabling, setDisabling] = useState(false);
+  const { run, busy, error } = useAction();
+  if (loadError) return <Alert tone="bad">{loadError.message}</Alert>;
+  if (!data) return <p>Loading…</p>;
+  return <div className="max-w-2xl space-y-4">
+    <PageHeader title="Account security" subtitle="Protect your Mansora administrator account with an authenticator app." />
+    {error && <Alert tone="bad">{error}</Alert>}
+    {recoveryCodes ? <Card title="Save your recovery codes">
+      <Alert tone="warn">These ten codes are shown once. Store them securely away from this browser. Each code works once in place of an authenticator code. Your other sessions have been signed out.</Alert>
+      <ul className="my-4 grid grid-cols-2 gap-2 font-mono" data-testid="totp-recovery-codes">{recoveryCodes.map((value) => <li key={value}>{value}</li>)}</ul>
+      <Button variant="primary" onClick={() => { setRecoveryCodes(null); reload(); }}>I have saved my recovery codes</Button>
+    </Card> : enrolment ? <Card title="Connect your authenticator">
+      <p className="text-sm">In your authenticator app, add an account named Mansora using this setup key. Choose time-based codes, SHA-1, six digits and a 30-second period. This setup expires {when(enrolment.expiresAt)}.</p>
+      <p className="my-4 break-all rounded bg-slate-100 p-3 font-mono select-all" data-testid="totp-secret">{enrolment.secret}</p>
+      <details className="mb-4 text-sm"><summary>Authenticator setup URI</summary><code className="break-all">{enrolment.uri}</code></details>
+      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(async () => {
+        const result = await api('POST', '/v1/admin/totp/confirm', { code });
+        setRecoveryCodes(result.recoveryCodes); setEnrolment(null); setCode(''); reload();
+      }); }}>
+        <Field label="Authenticator code"><Input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} /></Field>
+        <div className="flex gap-2"><Button type="submit" variant="primary" disabled={busy || !/^\d{6}$/.test(code)}>Enable two-factor authentication</Button><Button disabled={busy} onClick={() => { setEnrolment(null); setCode(''); }}>Cancel setup</Button></div>
+      </form>
+    </Card> : <Card title="Two-factor authentication">
+      <p className="mb-3"><Badge tone={data.enabled ? 'good' : 'warn'}>{data.enabled ? 'Enabled' : 'Not enabled'}</Badge></p>
+      {data.enabled ? <>
+        <p className="mb-3 text-sm">Password sign-in also requires your authenticator or a recovery code. You have {data.recoveryCodesRemaining} unused recovery codes.</p>
+        <Button variant="danger" onClick={() => { setDisabling(true); setPassword(''); setCode(''); }}>Disable two-factor authentication</Button>
+      </> : <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(async () => {
+        const result = await api('POST', '/v1/admin/totp/enrol', { password });
+        setPassword(''); setEnrolment(result); setCode('');
+      }); }}>
+        <p className="text-sm">Confirm your password to start setup. Keep your authenticator and recovery codes private.</p>
+        <Field label="Current password"><Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+        <Button type="submit" variant="primary" disabled={busy || !password}>Set up authenticator</Button>
+      </form>}
+    </Card>}
+    {disabling && <Modal open title="Disable two-factor authentication" onClose={() => { setDisabling(false); setPassword(''); setCode(''); }}>
+      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(async () => {
+        await api('POST', '/v1/admin/totp/disable', { password, code });
+        setPassword(''); setCode(''); setToken(null); window.dispatchEvent(new Event('mansora:signed-out'));
+      }); }}>
+        <Alert tone="warn">This removes your second sign-in step and invalidates all sessions and recovery codes. You will need to sign in again.</Alert>
+        {error && <Alert tone="bad">{error}</Alert>}
+        <Field label="Current password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus /></Field>
+        <Field label="Authenticator or recovery code"><Input value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" maxLength={64} /></Field>
+        <Button type="submit" variant="danger" disabled={busy || !password || !code.trim()}>Confirm disable</Button>
+      </form>
+    </Modal>}
+  </div>;
 }
 
 function Overview({ go }: { go: (id: string, param?: string) => void }) {

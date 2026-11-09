@@ -453,4 +453,33 @@ CREATE TABLE owner_recovery_codes (
 GRANT SELECT, INSERT, UPDATE ON owner_recovery_codes TO mansora_platform;
 `,
   },
+  {
+    id: 3,
+    name: 'admin_totp',
+    sql: `
+CREATE TABLE admin_totp (
+  admin_id uuid PRIMARY KEY REFERENCES admins(id),
+  secret_encrypted text,
+  enabled_at timestamptz,
+  last_used_step bigint NOT NULL DEFAULT -1,
+  pending_secret_encrypted text,
+  pending_expires_at timestamptz,
+  failed_attempts integer NOT NULL DEFAULT 0,
+  attempts_reset_at timestamptz,
+  CHECK ((secret_encrypted IS NULL) = (enabled_at IS NULL))
+);
+CREATE TABLE admin_totp_recovery_codes (
+  admin_id uuid NOT NULL REFERENCES admins(id),
+  code_hash text NOT NULL,
+  PRIMARY KEY (admin_id, code_hash)
+);
+CREATE TABLE admin_totp_challenges (
+  token_hash text PRIMARY KEY,
+  admin_id uuid NOT NULL REFERENCES admins(id),
+  expires_at timestamptz NOT NULL
+);
+CREATE INDEX admin_totp_challenges_expiry ON admin_totp_challenges(expires_at);
+GRANT SELECT, INSERT, UPDATE, DELETE ON admin_totp, admin_totp_recovery_codes, admin_totp_challenges TO mansora_platform;
+`,
+  },
 ];
