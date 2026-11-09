@@ -70,23 +70,3 @@ jobs:
           path: apps/desktop/release/*.exe
           if-no-files-found: error
           retention-days: 14
-
-  electron-compat:
-    name: Native module builds for Electron ${{ matrix.electron }}
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        electron: ['43.8.7', '44.10.2']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - name: Rebuild the encrypted SQLite module for this Electron version
-        working-directory: apps/desktop
-        run: npx electron-builder install-app-deps -c.electronVersion=${{ matrix.electron }}

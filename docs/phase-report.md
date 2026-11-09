@@ -64,14 +64,12 @@ were also run against a real PostgreSQL 16.15 server as a non-superuser: 18 pass
 | 14 Mansora access control | Pass | isolation + e2e | Denied, granted, logged, revoked, expired |
 | 15 Data integrity | Pass | engine + `tests/sync/crash.test.ts` | Failure before commit, and SIGKILL mid-transaction |
 
-A Windows packaging job and a launch test of the packaged app are defined in CI;
-see the pull request for their first results. They could not be run in the
-development container (the Electron build headers are blocked by its network policy).
+CI (GitHub Actions, run 42702980256): the Linux job passes typecheck, build, all tests, the sync suite on PostgreSQL 16 and the dependency audit. The Windows job builds the unsigned installer on Electron 44 and launches the packaged app, which passes its shell checks (no Node access in the page, only the agreed bridge calls, unauthenticated and unknown commands refused, navigation blocked). Electron 45 is not yet usable: the encrypted-SQLite module does not compile against it.
 
 ## Known limitations
 
 1. **Hardware untested**: no scanner, receipt printer, cash drawer or reference laptop.
-2. **Electron app not run by hand.** The interface was exercised through the development browser host. CI is the first place the packaged app launches.
+2. **Electron app not used by a person.** CI launches the packaged Windows app and checks its shell; every workflow test runs through the development browser host instead.
 3. **Unsigned installer; no automatic updates.**
 4. **No production cloud**, monitoring, error reporting or backup schedule.
 5. Owner password recovery, rebuilding a laptop from cloud data, re-linking a restored laptop and re-sending records are built and tested in software, **not rehearsed on physical laptops**.
