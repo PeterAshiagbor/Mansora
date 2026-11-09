@@ -17,8 +17,11 @@ export function verifyPassword(password: string, stored: string): boolean {
   const parts = stored.split('$');
   if (parts.length !== 6 || parts[0] !== 'scrypt') return false;
   const [, n, r, p, salt, hash] = parts;
+  if (n !== String(N) || r !== String(R) || p !== String(P)) return false;
+  const saltBytes = Buffer.from(salt, 'base64');
   const expected = Buffer.from(hash, 'base64');
-  const actual = scryptSync(password.normalize('NFKC'), Buffer.from(salt, 'base64'), expected.length, { N: Number(n), r: Number(r), p: Number(p), maxmem: MAXMEM });
+  if (saltBytes.length !== 16 || expected.length !== KEYLEN) return false;
+  const actual = scryptSync(password.normalize('NFKC'), saltBytes, KEYLEN, { N, r: R, p: P, maxmem: MAXMEM });
   return timingSafeEqual(actual, expected);
 }
 

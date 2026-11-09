@@ -41,7 +41,7 @@ production cloud exists; and the legal, privacy and commercial items are open.
 
 ## Tests executed and results
 
-`npm test` — **66 passed, 0 failed** (Node 22, Linux). Sync and isolation suites
+`npm test` — **78 passed, 0 failed** (Node 22, Linux). Sync and isolation suites
 were also run against a real PostgreSQL 16.15 server as a non-superuser: 18 passed.
 `npm run typecheck` — clean. All three applications build.
 
@@ -83,7 +83,7 @@ development container (the Electron build headers are blocked by its network pol
 12. **Remote permission changes** from the cloud are not implemented; staff are managed on the laptop.
 13. **Accessibility** has had no formal audit; it has labels, focus handling and keyboard support but has not been tested with a screen reader.
 14. **Performance** has not been measured with a large catalogue (tens of thousands of products).
-15. Seven moderate advisories remain in build-time tooling (`electron-builder` → `minimatch`); none ships in the app.
+15. `npm audit` reports no known vulnerabilities (two transitive packages are pinned to patched versions by overrides).
 
 ## Remaining work
 

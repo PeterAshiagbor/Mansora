@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { link, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -133,18 +133,32 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
   });
 
   /** Store a backup the laptop has already encrypted with the owner's passphrase. Mansora cannot read it. */
-  app.put('/v1/backups/:id', async (req) => {
+  app.put('/v1/backups/:id', { bodyLimit: 200 * 1024 * 1024, preParsing: async (req) => { await device(req); } }, async (req) => {
     const dev = await device(req);
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const content = req.body as Buffer;
     if (!Buffer.isBuffer(content) || content.length === 0) httpError(400, 'INVALID_BACKUP', 'Empty backup');
     const digest = sha256(content);
     if (req.headers['x-sha256'] !== digest) httpError(400, 'CHECKSUM_MISMATCH', 'The backup was damaged in transit');
-    const key = join(dev.tenant_id, `${id}.mbk`);
-    await mkdir(join(ctx.backupDir, dev.tenant_id), { recursive: true });
-    await writeFile(join(ctx.backupDir, key), content);
+    const [existing] = await db.platform((q) => q(`SELECT tenant_id, sha256 FROM backup_records WHERE id = $1`, [id]));
+    if (existing && (existing.tenant_id !== dev.tenant_id || existing.sha256 !== digest)) httpError(409, 'BACKUP_CONFLICT', 'Backup ID is already in use');
+    const key = join(dev.tenant_id, `${id}-${digest}.mbk`);
+    await mkdir(join(ctx.backupDir, dev.tenant_id), { recursive: true, mode: 0o700 });
+    const temp = join(ctx.backupDir, dev.tenant_id, `${randomUUID()}.tmp`);
+    try {
+      await writeFile(temp, content, { flag: 'wx', mode: 0o600 });
+      try {
+        await link(temp, join(ctx.backupDir, key)); // atomically publish a complete, immutable file
+      } catch (err: any) {
+        if (err.code !== 'EEXIST') throw err;
+      }
+    } finally {
+      await unlink(temp).catch(() => {});
+    }
     await db.platform(async (q) => {
       await q(`INSERT INTO backup_records (id, tenant_id, device_id, size_bytes, sha256, storage_key, status) VALUES ($1, $2, $3, $4, $5, $6, 'stored') ON CONFLICT (id) DO NOTHING`, [id, dev.tenant_id, dev.id, content.length, digest, key]);
+      const [record] = await q(`SELECT tenant_id, sha256 FROM backup_records WHERE id = $1`, [id]);
+      if (record.tenant_id !== dev.tenant_id || record.sha256 !== digest) httpError(409, 'BACKUP_CONFLICT', 'Backup ID is already in use');
       await q(`UPDATE devices SET last_backup_at = now() WHERE id = $1`, [dev.id]);
     });
     return { id, stored: true };

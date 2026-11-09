@@ -17,13 +17,15 @@ the cloud account and domain.
 | Role | Used by | Privileges |
 | --- | --- | --- |
 | Migration role | Deploy step only | Owns the schema; `CREATEROLE` on first run |
-| API login role | The running API | Member of `mansora_platform` and `mansora_tenant`; **not** superuser, **no** `BYPASSRLS` |
+| API login role | The running API | Member of `mansora_platform` and `mansora_tenant`; `NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`; owns nothing |
 
 ## Configuration (environment variables)
 
 | Variable | Meaning |
 | --- | --- |
-| `DATABASE_URL` | PostgreSQL connection string (TLS required) |
+| `DATABASE_URL` | Runtime login's PostgreSQL connection string (TLS required) |
+| `MIGRATION_DATABASE_URL` | Used only by `npm run api:migrate`. The API server never runs migrations |
+| `TRUSTED_PROXIES` | Exact proxy IPs/CIDRs whose forwarding headers are trusted. Empty for direct connections |
 | `PORT`, `HOST` | Listen address |
 | `ADMIN_ORIGINS` | Exact origin(s) of the admin dashboard, comma-separated |
 | `BACKUP_DIR` | Directory for client backup files |
@@ -32,7 +34,7 @@ the cloud account and domain.
 
 ```bash
 npm ci && npm run build
-DATABASE_URL=... npm run api:migrate
+MIGRATION_DATABASE_URL=... npm run api:migrate
 ADMIN_EMAIL=... ADMIN_NAME=... ADMIN_PASSWORD=... DATABASE_URL=... npm run api:create-admin   # first time only
 node apps/api/dist/server.js
 ```

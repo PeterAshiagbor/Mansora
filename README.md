@@ -23,7 +23,7 @@ is done, what is not, and the evidence.
 
 ## Try it on one machine
 
-Requires Node.js 22 or newer. No database install is needed for the demo.
+Requires Node.js 22.12 or newer. No database install is needed for the demo.
 
 ```bash
 npm install
@@ -51,7 +51,7 @@ Start the demo again and they sync once.
 ```bash
 npm run typecheck
 npm run build        # needed once for the browser end-to-end test
-npm test             # 66 tests
+npm test
 ```
 
 The suite maps to the acceptance tests in the specification; the mapping and
@@ -75,4 +75,5 @@ giving an installer to a client. Details: [docs/installation](docs/installation/
 - [Local development](docs/installation/local-development.md) · [Production deployment](docs/installation/production-deployment.md)
 - [Client onboarding](docs/onboarding/client-onboarding.md) · [Hardware test script](docs/onboarding/hardware-test-script.md)
 - [Cashier guide](docs/user-guide/cashier.md) · [Owner guide](docs/user-guide/owner.md) · [Mansora administrator guide](docs/operations/admin-guide.md)
+- [Security audit and hardening](docs/security-audit.md)
 - [Backup and recovery](docs/disaster-recovery/backup-and-recovery.md) · [Incident response](docs/operations/incident-response.md) · [Releases](docs/operations/release.md)
