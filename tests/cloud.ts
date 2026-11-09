@@ -1,7 +1,7 @@
 import type { AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../apps/api/src/app';
-import { connectEmbedded, type Database } from '../apps/api/src/db';
+import { connectEmbedded, connectPostgres, type Database } from '../apps/api/src/db';
 import { createAdmin } from '../apps/api/src/modules/admin';
 import { tempDir } from './helpers';
 
@@ -19,7 +19,8 @@ export interface Cloud {
 
 /** A real API server on a real (embedded) PostgreSQL, listening on a random local port. */
 export async function startCloud(): Promise<Cloud> {
-  const db = await connectEmbedded();
+  // Default: embedded PostgreSQL (no setup). Set TEST_DATABASE_URL to an EMPTY database to run the same tests on a real server.
+  const db = process.env.TEST_DATABASE_URL ? await connectPostgres(process.env.TEST_DATABASE_URL) : await connectEmbedded();
   await db.migrate();
   await db.platform((q) => createAdmin(q, ADMIN));
   const app = await buildApp({ db, backupDir: tempDir('mansora-cloud-backups-') });
