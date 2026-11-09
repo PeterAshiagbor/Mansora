@@ -19,7 +19,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.3.0",
+    "@electric-sql/pglite": "^0.5.15",
     "@types/pg": "^8.11.0",
     "esbuild": "^0.25.0"
   }
