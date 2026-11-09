@@ -11,6 +11,8 @@ integer pesewas. Two kinds of bearer token exist and are not interchangeable.
 | POST | `/v1/sync/events` | Push `{protocol: 1, device: {appVersion, pendingCount, lastBackupAt}, events: [...]}` (max 200). Returns `{accepted: [ids], rejected: [{id, reason}]}`. Safe to repeat. |
 | GET | `/v1/sync/pull` | Account status, subscription, log of Mansora access to this business. |
 | PUT | `/v1/backups/:id` | Upload an encrypted backup (`application/octet-stream`, `x-sha256` header). |
+| POST | `/v1/devices/owner-recovery` | Confirm a one-time owner recovery code for this business. |
+| GET | `/v1/sync/snapshot` | All synced rows for this business, to rebuild a replacement laptop. Audited. |
 | GET | `/v1/backups/latest` | Download this business's latest cloud backup. |
 
 Event shape: `{id, seq, type, occurredAt, actorId, payload: {rows: {<table>: [row…]}}}`.
@@ -28,6 +30,7 @@ unknown tables or columns are rejected.
 | PUT | `/v1/admin/clients/:id/onboarding/:step` | Mark a step done or not done |
 | PUT | `/v1/admin/clients/:id/subscription` | Plan, status, renewal date |
 | POST | `/v1/admin/clients/:id/activation-codes` | New code (shown once, 72 hours) |
+| POST | `/v1/admin/clients/:id/recovery-codes` | Owner recovery code (reason required, 1 hour, shown once) |
 | POST | `/v1/admin/devices/:id/revoke` | Deactivate a laptop |
 | GET | `/v1/admin/clients/:id/reports/summary?from&to` | Sales summary. **403 unless the owner has an active grant.** Every call is audited. |
 | GET | `/v1/admin/overview` | Platform health; no client financial data |

@@ -441,4 +441,16 @@ CREATE POLICY tenant_isolation ON support_access_log USING (tenant_id = NULLIF(c
 GRANT SELECT, INSERT, UPDATE ON support_access_log TO mansora_tenant;
 `,
   },
+  {
+    id: 2,
+    name: 'owner_recovery_codes',
+    sql: `
+-- One-time codes that let a business owner set a new password on their own laptop.
+CREATE TABLE owner_recovery_codes (
+  code_hash text PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES tenants(id), expires_at timestamptz NOT NULL, used_at timestamptz,
+  created_by uuid NOT NULL REFERENCES admins(id), created_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE ON owner_recovery_codes TO mansora_platform;
+`,
+  },
 ];

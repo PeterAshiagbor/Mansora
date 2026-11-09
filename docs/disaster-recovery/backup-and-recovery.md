@@ -31,11 +31,26 @@ screens.
 3. The app verifies the backup (decryption, SQLite integrity and foreign-key checks), restores it under the new laptop's own key and opens it. Staff sign in as before. Anything that was waiting to sync is sent.
 4. In the dashboard, the laptop keeps its identity. If the old laptop was stolen, see the limitation below.
 
+## No backup file? Rebuild from the cloud
+
+1. Mansora deactivates the lost laptop and creates a new activation code.
+2. On the new laptop's activation screen, tick "This laptop replaces a lost one and I have no backup file".
+3. The laptop downloads every record the cloud holds for the business (products, stock, sales, credit, shifts, audit history), continues receipt numbering where it left off, and the person activating takes over the owner account with a new password.
+4. Other staff cannot sign in until the owner gives them new passwords (Staff → edit → new password). Staff passwords are never stored in the cloud.
+
+Anything that had not synced when the old laptop was lost is gone. Covered by `tests/sync/recovery.test.ts`.
+
+## After restoring a backup when the old laptop was stolen
+
+A restored backup carries the old laptop's identity. Mansora deactivates that identity (which stops the thief's copy syncing), creates a new activation code, and the owner enters it under Sync status → Repair tools → Re-link. Records are kept and syncing resumes.
+
+## After the cloud database is rolled back
+
+Sync status → Repair tools → "Send all records again" queues everything for re-sending. The server ignores what it already holds, so nothing is duplicated.
+
 ## Honest limitations
 
 - **Automatic scheduled backups are not built.** Backups are made by the owner pressing a button. Cloud sync is the automatic protection.
-- **Rebuilding a laptop from cloud data is not built.** Without a `.mbk` file, a new laptop starts empty; history stays visible to Mansora (with consent) and can be exported, but is not loaded back.
-- **A restored laptop reuses the old device identity.** If the old laptop was stolen and is deactivated, the restored one is deactivated too; re-keying a restored laptop to a new identity is not built. Until then, restore first and only deactivate if the stolen laptop is a real risk, then contact the developer.
-- **Restore has been verified by automated test, not on a physical replacement laptop.**
-- **Cloud restore loses acknowledgements.** If the cloud database is rolled back, events the laptops already marked as synced after the restore point are not re-sent. A "re-send everything since" tool is needed and is not built. The data remains on the laptops.
-- A forgotten passphrase cannot be recovered.
+- **None of these recovery paths has been rehearsed on physical laptops**; they are verified by automated tests.
+- Rebuilding from the cloud does not bring back staff passwords, pending unsynced records, import history or local backup records.
+- A forgotten backup passphrase cannot be recovered.

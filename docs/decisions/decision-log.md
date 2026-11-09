@@ -27,6 +27,8 @@ software needed an answer to function, a conservative default was implemented.
 | D-17 | Sync when suspended or deactivated | A suspended account still syncs (data is never refused). A deactivated laptop cannot sync but keeps working locally | `device()` in the API | Awaiting approval |
 | D-18 | Cash in/out of till | Needs a supervisor (shift review permission or credentials) | `shift.cashMovement` | Awaiting approval |
 | D-19 | Shift sign-off | A manager cannot sign off their own shift; the owner can | `shift.review` | Awaiting approval |
+| D-20 | Owner password recovery | Mansora issues a one-time code (1 hour) with a recorded reason; it only works on that client's activated laptop; the owner chooses the password. Identity verification of the caller is a Mansora procedure, not enforced by software | `auth.recoverOwner`, recovery-code endpoint | Awaiting approval of the verification procedure |
+| D-21 | Rebuilding a laptop from cloud data | Allowed only on a laptop that has never been activated, after the old one is deactivated. Whoever activates takes over the owner account; other staff need new passwords | `activation.activate` with `restoreFromCloud` | Awaiting approval |
 
 ## B. Architecture decisions
 

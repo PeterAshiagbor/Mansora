@@ -172,7 +172,30 @@ export function DataPage() {
 }
 
 // ---------------------------------------------------------------- Sync
+function SyncRepair({ onDone }: { onDone: () => void }) {
+  const [code, setCode] = useState('');
+  const { run, busy } = useAction();
+  return (
+    <Card title="Repair tools (use only when Mansora support asks you to)" className="mt-4">
+      <div className="grid gap-4 xl:grid-cols-2">
+        <div>
+          <p className="mb-2 text-sm text-slate-600"><strong>Re-link this laptop.</strong> After restoring a backup onto a replacement laptop, enter a new activation code from Mansora so this laptop gets its own identity. Your records are kept.</p>
+          <div className="flex gap-2">
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="MNS-XXXX-XXXX-XXXX" aria-label="New activation code" />
+            <Button disabled={busy || !code.trim()} onClick={() => run(async () => { await call('device.relink', { code, deviceName: 'Shop laptop' }); setCode(''); await call('sync.run'); onDone(); }, 'Laptop re-linked')}>Re-link</Button>
+          </div>
+        </div>
+        <div>
+          <p className="mb-2 text-sm text-slate-600"><strong>Send all records again.</strong> Queues everything already synced to be sent once more. The server ignores what it already has, so nothing is duplicated.</p>
+          <Button disabled={busy} onClick={() => run(async () => { const r = await call('sync.requeue', {}); await call('sync.run'); onDone(); return r; }, 'Records queued and sent again')}>Send all records again</Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export function SyncPage() {
+  const { state } = useApp();
   const status = useQuery<any>('sync.status');
   const queue = useQuery<any[]>('sync.queue');
   const { run, busy } = useAction();
@@ -202,6 +225,7 @@ export function SyncPage() {
           { header: 'Synced at', cell: (r) => dateTime(r.synced_at) }, { header: 'Note', cell: (r) => r.last_error ?? '' },
         ]} />
       </Card>
+      {state.user?.role === 'owner' && <SyncRepair onDone={() => { status.reload(); queue.reload(); }} />}
     </div>
   );
 }

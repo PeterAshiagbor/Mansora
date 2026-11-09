@@ -208,6 +208,24 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     });
     return { code, expiresAt }; // shown once; only its hash is stored
   });
+  /**
+   * Owner password recovery. The code only works on the client's own activated
+   * laptop, once, within an hour. Mansora never learns or sets the password.
+   */
+  app.post('/v1/admin/clients/:id/recovery-codes', async (req) => {
+    const a = await admin(req);
+    const { id } = zId.parse(req.params);
+    const b = z.object({ reason: text(300) }).parse(req.body);
+    const code = newActivationCode().replace(/^MNS/, 'REC');
+    const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
+    await db.platform(async (q) => {
+      if (!(await q(`SELECT 1 FROM devices WHERE tenant_id = $1 AND status = 'active'`, [id])).length) httpError(409, 'NO_ACTIVE_DEVICE', 'This client has no active laptop');
+      await q(`UPDATE owner_recovery_codes SET used_at = now() WHERE tenant_id = $1 AND used_at IS NULL`, [id]); // only the newest code is valid
+      await q(`INSERT INTO owner_recovery_codes (code_hash, tenant_id, expires_at, created_by) VALUES ($1, $2, $3, $4)`, [sha256(code), id, expiresAt, a.id]);
+      await audit(q, a, 'owner_recovery_code.created', id, { reason: b.reason, expiresAt });
+    });
+    return { code, expiresAt };
+  });
   app.post('/v1/admin/devices/:id/revoke', async (req) => {
     const a = await admin(req);
     const { id } = zId.parse(req.params);

@@ -142,13 +142,48 @@ function Login({ onDone }: { onDone: () => void }) {
         <Field label="Password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !username || !password}>{busy ? 'Signing in…' : 'Sign in'}</Button>
       </form>
+      <OwnerRecovery />
     </AuthFrame>
+  );
+}
+
+function OwnerRecovery() {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ code: '', next: '', confirm: '' });
+  const [msg, setMsg] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!open) return <button type="button" className="mt-4 text-sm font-medium text-brand-700 hover:underline" onClick={() => setOpen(true)}>Owner forgot their password?</button>;
+  return (
+    <form className="mt-4 space-y-3 border-t border-slate-200 pt-4" onSubmit={async (e) => {
+      e.preventDefault();
+      if (f.next !== f.confirm) return setMsg({ tone: 'bad', text: 'The two passwords do not match' });
+      setBusy(true);
+      try {
+        const r = await call('auth.recoverOwner', { code: f.code, newPassword: f.next });
+        setMsg({ tone: 'good', text: `Password changed. Sign in above as "${r.username}".` });
+        setF({ code: '', next: '', confirm: '' });
+      } catch (err: any) {
+        setMsg({ tone: 'bad', text: err.message });
+      } finally {
+        setBusy(false);
+      }
+    }}>
+      <p className="text-sm text-slate-600">Call Mansora for a recovery code. It works once, for one hour, only on this laptop, and needs internet. You choose the new password here; Mansora never sees it.</p>
+      {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
+      <Field label="Recovery code"><Input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="REC-XXXX-XXXX-XXXX" autoComplete="off" /></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="New owner password"><Input type="password" value={f.next} onChange={(e) => setF({ ...f, next: e.target.value })} autoComplete="new-password" /></Field>
+        <Field label="Repeat new password"><Input type="password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} autoComplete="new-password" /></Field>
+      </div>
+      <Button type="submit" disabled={busy || !f.code || !f.next}>{busy ? 'Checking…' : 'Set new owner password'}</Button>
+    </form>
   );
 }
 
 function Activation() {
   const { refresh } = useApp();
   const [f, setF] = useState({ apiUrl: 'https://', code: '', deviceName: 'Shop laptop', name: '', username: '', password: '', confirm: '' });
+  const [fromCloud, setFromCloud] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
@@ -158,7 +193,7 @@ function Activation() {
     setBusy(true);
     setError(null);
     try {
-      await call('activation.activate', { apiUrl: f.apiUrl, code: f.code, deviceName: f.deviceName, owner: { name: f.name, username: f.username, password: f.password } });
+      await call('activation.activate', { apiUrl: f.apiUrl, code: f.code, deviceName: f.deviceName, owner: { name: f.name, username: f.username, password: f.password }, restoreFromCloud: fromCloud });
       await refresh();
     } catch (err: any) {
       setError(err.message);
@@ -183,6 +218,10 @@ function Activation() {
           <Field label="Password" hint="At least 8 characters"><Input type="password" value={f.password} onChange={set('password')} required autoComplete="new-password" /></Field>
           <Field label="Repeat password"><Input type="password" value={f.confirm} onChange={set('confirm')} required autoComplete="new-password" /></Field>
         </div>
+        <label className="flex items-start gap-2 text-sm text-slate-700">
+          <input type="checkbox" className="mt-1" checked={fromCloud} onChange={(e) => setFromCloud(e.target.checked)} />
+          <span>This laptop replaces a lost one and I have no backup file: load my business records from the Mansora cloud. <span className="text-slate-500">Staff other than the owner will need new passwords.</span></span>
+        </label>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? 'Activating…' : 'Activate'}</Button>
       </form>
       {canRestore() && <Restore onDone={refresh} />}

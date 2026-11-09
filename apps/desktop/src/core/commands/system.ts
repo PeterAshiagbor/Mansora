@@ -73,6 +73,22 @@ export const systemCommands = defineCommands({
     input: empty,
     run: (ctx) => ctx.all(`SELECT seq, type, occurred_at, status, attempts, last_error, synced_at FROM outbox ORDER BY seq DESC LIMIT 100`),
   },
+  /**
+   * Repair tool: queue already-synced changes to be sent again (for example
+   * after the cloud database was restored to an earlier point). Safe by
+   * design - the server ignores anything it already holds.
+   */
+  'sync.requeue': {
+    perm: 'settings.manage',
+    mutates: true,
+    input: z.object({ fromSeq: z.number().int().positive().default(1) }),
+    run: (ctx, input) => {
+      if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can re-send synced records');
+      const res = ctx.run(`UPDATE outbox SET status = 'pending', synced_at = NULL WHERE status = 'synced' AND seq >= ?`, input.fromSeq);
+      ctx.audit('sync', null, { fromSeq: input.fromSeq, requeued: res.changes });
+      return { requeued: res.changes };
+    },
+  },
   'sync.run': { perm: 'auth', async: true, input: empty, run: (ctx) => syncNow(ctx.engine) },
 
   'backup.list': { perm: 'backup.manage', input: empty, run: (ctx) => ctx.all('SELECT * FROM backup_records ORDER BY created_at DESC LIMIT 50') },

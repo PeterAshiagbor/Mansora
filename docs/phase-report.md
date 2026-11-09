@@ -31,6 +31,7 @@ production cloud exists; and the legal, privacy and commercial items are open.
 - Product and opening-stock import from Excel/CSV with template, column mapping, preview, validation, duplicate detection, history and safe retry
 - Full business data export (Excel, JSON)
 - Sync status, encrypted backup with verification, restore onto a fresh laptop
+- Owner password recovery with a one-time code; rebuilding a replacement laptop from cloud data; re-linking a restored laptop; re-sending synced records
 - Owner-controlled Mansora access with a visible access log; audit history
 
 **Cloud API and admin dashboard**
@@ -41,7 +42,7 @@ production cloud exists; and the legal, privacy and commercial items are open.
 
 ## Tests executed and results
 
-`npm test` — **78 passed, 0 failed** (Node 22, Linux). Sync and isolation suites
+`npm test` — **83 passed, 0 failed** (Node 22, Linux). Sync and isolation suites
 were also run against a real PostgreSQL 16.15 server as a non-superuser: 18 passed.
 `npm run typecheck` — clean. All three applications build.
 
@@ -73,8 +74,8 @@ development container (the Electron build headers are blocked by its network pol
 2. **Electron app not run by hand.** The interface was exercised through the development browser host. CI is the first place the packaged app launches.
 3. **Unsigned installer; no automatic updates.**
 4. **No production cloud**, monitoring, error reporting or backup schedule.
-5. **No owner password recovery.** A forgotten owner password needs developer help.
-6. **No automatic scheduled backups**; no rebuild of a laptop from cloud data; a restored laptop reuses the old device identity (see backup and recovery).
+5. Owner password recovery, rebuilding a laptop from cloud data, re-linking a restored laptop and re-sending records are built and tested in software, **not rehearsed on physical laptops**.
+6. **No automatic scheduled backups.**
 7. **Subscription expiry is not enforced** (policy undecided).
 8. **One administrator role, no two-factor authentication.**
 9. **Receipts**: no logo, no online sharing; PDF uses the printer page size.
@@ -89,7 +90,7 @@ development container (the Electron build headers are blocked by its network pol
 
 **Needs Mansora** — brand assets; reference hardware; approval of the defaults in the decision log; hosting region and Act 843 review; code-signing certificate; ownership and commercial terms.
 
-**Engineering, next** — run and fix on physical Windows hardware (Phase 5); signed installer and updates; production deployment with monitoring; owner recovery flow; scheduled backups; restore-from-cloud; device re-keying after restore; discount limits once policy exists; line discounts in the UI; administrator two-factor authentication; load testing; external security review; first-client pilot (Phase 6).
+**Engineering, next** — run and fix on physical Windows hardware (Phase 5); signed installer and updates; production deployment with monitoring; scheduled backups; discount limits once policy exists; line discounts in the UI; administrator two-factor authentication; load testing; external security review; first-client pilot (Phase 6).
 
 ## Demonstration
 

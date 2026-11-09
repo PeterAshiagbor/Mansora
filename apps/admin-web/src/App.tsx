@@ -179,6 +179,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
   const [edit, setEdit] = useState<any | null>(null);
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [sub, setSub] = useState<any | null>(null);
+  const [recovery, setRecovery] = useState<{ reason: string; code?: string; expiresAt?: string } | null>(null);
   const act = useAction();
   if (error) return <Alert tone="bad">{error.message}</Alert>;
   if (!data) return <p className="text-slate-500">Loading…</p>;
@@ -213,6 +214,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
             </dl>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" disabled={act.busy || !!device} title={device ? 'Deactivate the current laptop first' : ''} onClick={() => act.run(async () => setCode(await api('POST', `/v1/admin/clients/${id}/activation-codes`)))}>Create activation code</Button>
+              {device && <Button size="sm" disabled={act.busy} onClick={() => setRecovery({ reason: '' })}>Owner recovery code</Button>}
               {device && <Button size="sm" variant="danger" disabled={act.busy} onClick={() => confirm('Deactivate this laptop? It will keep working offline but can no longer sync until re-activated.') && act.run(async () => { await api('POST', `/v1/admin/devices/${device.id}/revoke`); reload(); })}>Deactivate laptop</Button>}
             </div>
           </Card>
@@ -239,6 +241,22 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
             <Field label="Status"><Select value={sub.status} onChange={(e) => setSub({ ...sub, status: e.target.value })}>{['trial', 'active', 'past_due', 'cancelled'].map((s) => <option key={s}>{s}</option>)}</Select></Field>
             <Field label="Renewal date"><Input type="date" value={sub.renewalDate} onChange={(e) => setSub({ ...sub, renewalDate: e.target.value })} /></Field>
           </div>
+        </Modal>
+      )}
+      {recovery && (
+        <Modal title="Owner password recovery" open onClose={() => setRecovery(null)}
+          footer={recovery.code ? <Button variant="primary" onClick={() => setRecovery(null)}>Done</Button> : <><Button onClick={() => setRecovery(null)}>Cancel</Button><Button variant="primary" disabled={act.busy || !recovery.reason.trim()} onClick={() => act.run(async () => setRecovery({ ...recovery, ...(await api('POST', `/v1/admin/clients/${id}/recovery-codes`, { reason: recovery.reason })) }))}>Create code</Button></>}>
+          {recovery.code ? (
+            <>
+              <p className="text-sm text-slate-600">Read this code to the owner. It works once, only on their activated laptop, and expires {when(recovery.expiresAt)}. They choose the new password themselves.</p>
+              <p className="my-4 select-all rounded-lg bg-slate-900 py-4 text-center font-mono text-2xl tracking-widest text-white">{recovery.code}</p>
+            </>
+          ) : (
+            <>
+              <Alert tone="warn" className="mb-3">Confirm you are speaking to the business owner before creating a code. This action is recorded in the audit log and on the client's laptop.</Alert>
+              <Field label="How did you verify the owner, and why is recovery needed?"><Textarea value={recovery.reason} onChange={(e) => setRecovery({ ...recovery, reason: e.target.value })} autoFocus /></Field>
+            </>
+          )}
         </Modal>
       )}
       {code && (

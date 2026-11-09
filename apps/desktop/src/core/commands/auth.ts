@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ALL_PERMISSIONS, fail, PERMISSIONS, ROLE_DEFAULTS, ROLES, sanitisePermissions } from '@mansora/domain';
 import { defineCommands, empty, zId, zOptText, zText, type Ctx } from '../engine';
 import { checkPasswordStrength, hashPassword } from '../passwords';
+import { importSnapshot } from '../restore';
 
 const zPassword = z.string().min(1).max(200);
 const zUsername = z.string().trim().min(3).max(40).regex(/^[a-zA-Z0-9._-]+$/, 'Use letters, numbers, dots, dashes or underscores');
@@ -19,6 +20,22 @@ function business(ctx: Ctx) {
     allowNegativeStock: m('allow_negative_stock') === '1',
     currency: 'GHS',
   };
+}
+
+async function deviceCall(ctx: Ctx, path: string, payload: unknown, offlineMessage: string): Promise<any> {
+  let res: Response;
+  try {
+    res = await ctx.engine.fetch(`${ctx.setting('api_url')}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${ctx.setting('device_token')}` },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    fail('OFFLINE', offlineMessage);
+  }
+  const body: any = await res.json().catch(() => ({}));
+  if (!res.ok) fail(body.code ?? 'REQUEST_FAILED', body.message ?? 'The server refused the request');
+  return body;
 }
 
 function strongPassword(pw: string): string {
@@ -43,6 +60,8 @@ export const authCommands = defineCommands({
       code: zText(64),
       deviceName: zText(80),
       owner: z.object({ name: zText(100), username: zUsername, password: zPassword }),
+      /** Replacement laptop with no backup file: load this business's synced records from the cloud. */
+      restoreFromCloud: z.boolean().default(false),
     }),
     run: async (ctx, input) => {
       if (ctx.engine.activated) fail('ALREADY_ACTIVATED', 'This laptop is already activated');
@@ -61,6 +80,12 @@ export const authCommands = defineCommands({
       }
       const body: any = await res.json().catch(() => ({}));
       if (!res.ok) fail(body.code ?? 'ACTIVATION_FAILED', body.message ?? 'Activation failed');
+      let snapshot: Record<string, unknown> | null = null;
+      if (input.restoreFromCloud) {
+        const snap = await ctx.engine.fetch(`${apiUrl}/v1/sync/snapshot`, { headers: { authorization: `Bearer ${body.deviceToken}` } }).catch(() => null);
+        if (!snap?.ok) fail('RESTORE_FAILED', 'The laptop was activated on the server but its records could not be downloaded. Ask Mansora for a new activation code and try again.');
+        snapshot = ((await snap.json()) as any).tables;
+      }
       ctx.tx(() => {
         const e = ctx.engine;
         e.setMeta('api_url', apiUrl);
@@ -70,12 +95,17 @@ export const authCommands = defineCommands({
         e.setMeta('business_phone', body.tenant.phone ?? '');
         e.setMeta('business_address', body.tenant.address ?? '');
         e.setMeta('activated_at', ctx.now());
-        const id = ctx.id();
-        ctx.insert('users', {
-          id, username: input.owner.username, name: input.owner.name, role: 'owner', status: 'active',
-          permissions: JSON.stringify(ALL_PERMISSIONS), password_hash: passwordHash, created_at: ctx.now(), updated_at: ctx.now(),
-        });
-        ctx.audit('device', body.deviceId, { deviceName: input.deviceName }, 'device.activated');
+        const restored = snapshot ? importSnapshot(ctx, snapshot) : null;
+        const owner = { username: input.owner.username, name: input.owner.name, updated_at: ctx.now() };
+        if (restored?.ownerId) {
+          // The person activating takes over the existing owner record, so history stays attached to one owner.
+          ctx.update('users', restored.ownerId, { ...owner, status: 'active' });
+          ctx.run('UPDATE users SET password_hash = ? WHERE id = ?', passwordHash, restored.ownerId);
+        } else {
+          ctx.insert('users', { id: ctx.id(), ...owner, role: 'owner', status: 'active', permissions: JSON.stringify(ALL_PERMISSIONS), password_hash: passwordHash, created_at: ctx.now() });
+        }
+        if (restored) e.setMeta('restored_from_cloud_at', ctx.now());
+        ctx.audit('device', body.deviceId, { deviceName: input.deviceName, restoredRows: restored?.rows ?? 0 }, restored ? 'device.restored_from_cloud' : 'device.activated');
         ctx.flush();
         e.setMeta('device_token', body.deviceToken); // last: marks activation complete
       });
@@ -94,6 +124,63 @@ export const authCommands = defineCommands({
     },
   },
   'auth.logout': { perm: 'public', input: empty, run: () => ({ ok: true }) },
+
+  /**
+   * Forgotten owner password. Needs a one-time code from Mansora, which the
+   * server only honours for this business's own activated laptop. The new
+   * password is chosen here and never leaves the laptop.
+   */
+  'auth.recoverOwner': {
+    perm: 'public',
+    async: true,
+    input: z.object({ code: zText(64), newPassword: zPassword }),
+    run: async (ctx, input) => {
+      if (!ctx.engine.activated) fail('NOT_ACTIVATED', 'This laptop has not been activated yet');
+      const passwordHash = strongPassword(input.newPassword);
+      const body = await deviceCall(ctx, '/v1/devices/owner-recovery', { code: input.code }, 'Password recovery needs an internet connection.');
+      void body;
+      return ctx.tx(() => {
+        const owner = ctx.get(`SELECT id, username FROM users WHERE role = 'owner' ORDER BY created_at LIMIT 1`);
+        if (!owner) fail('NOT_FOUND', 'No owner account exists on this laptop');
+        ctx.run(`UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL, status = 'active', updated_at = ? WHERE id = ?`, passwordHash, ctx.now(), owner.id);
+        ctx.engine.endSessionsFor(owner.id);
+        ctx.audit('user', owner.id, {}, 'owner.password_recovered');
+        ctx.flush();
+        return { username: owner.username as string };
+      });
+    },
+  },
+
+  /**
+   * Give this laptop a new identity with the server, keeping all local data.
+   * Used after restoring a backup when the old laptop was lost and deactivated.
+   */
+  'device.relink': {
+    perm: 'settings.manage',
+    async: true,
+    input: z.object({ code: zText(64), deviceName: zText(80) }),
+    run: async (ctx, input) => {
+      if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can re-link this laptop');
+      let res: Response;
+      try {
+        res = await ctx.engine.fetch(`${ctx.setting('api_url')}/v1/devices/activate`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ code: input.code, deviceName: input.deviceName, appVersion: ctx.engine.appVersion, expectTenantId: ctx.setting('tenant_id') }),
+        });
+      } catch {
+        fail('OFFLINE', 'Re-linking needs an internet connection.');
+      }
+      const body: any = await res.json().catch(() => ({}));
+      if (!res.ok) fail(body.code ?? 'ACTIVATION_FAILED', body.message ?? 'Re-linking failed');
+      ctx.tx(() => {
+        ctx.engine.setMeta('device_id', body.deviceId);
+        ctx.engine.setMeta('device_token', body.deviceToken);
+        ctx.audit('device', body.deviceId, { deviceName: input.deviceName }, 'device.relinked');
+        ctx.flush();
+      });
+      return { deviceId: body.deviceId as string };
+    },
+  },
   'auth.changePassword': {
     perm: 'auth',
     mutates: true,

@@ -51,12 +51,13 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
   /** Exchange a one-time activation code for a device identity. */
   app.post('/v1/devices/activate', async (req) => {
     activationLimiter.check(req.ip);
-    const body = z.object({ code: z.string().min(4).max(64), deviceName: z.string().min(1).max(80), appVersion: z.string().max(40) }).parse(req.body);
+    const body = z.object({ code: z.string().min(4).max(64), deviceName: z.string().min(1).max(80), appVersion: z.string().max(40), expectTenantId: z.string().uuid().optional() }).parse(req.body);
     const token = newToken();
     const deviceId = randomUUID();
     return db.platform(async (q) => {
       const [code] = await q(`SELECT * FROM activation_codes WHERE code_hash = $1 FOR UPDATE`, [sha256(normaliseCode(body.code))]);
       if (!code || code.used_at || Date.parse(code.expires_at) < Date.now()) httpError(400, 'INVALID_ACTIVATION_CODE', 'This activation code is not valid or has expired');
+      if (body.expectTenantId && body.expectTenantId !== code.tenant_id) httpError(400, 'INVALID_ACTIVATION_CODE', 'This activation code is not valid or has expired');
       const [tenant] = await q(`SELECT * FROM tenants WHERE id = $1`, [code.tenant_id]);
       if (tenant.status === 'closed') httpError(403, 'ACCOUNT_CLOSED', 'This account has been closed');
       // Version one supports exactly one checkout laptop per store.
@@ -130,6 +131,35 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       supportAccessLog: log.map((l) => ({ id: l.id, adminName: l.admin_name, action: l.action, grantId: l.grant_id, occurredAt: l.occurred_at })),
       serverTime: new Date().toISOString(),
     };
+  });
+
+  /** Confirm an owner-recovery code for this laptop's business. Single use. */
+  const recoveryLimiter = new RateLimiter(10, 10 * 60_000);
+  app.post('/v1/devices/owner-recovery', async (req) => {
+    const dev = await device(req);
+    recoveryLimiter.check(dev.id);
+    const body = z.object({ code: z.string().min(4).max(64) }).parse(req.body);
+    return db.platform(async (q) => {
+      const [code] = await q(`SELECT * FROM owner_recovery_codes WHERE code_hash = $1 AND tenant_id = $2 FOR UPDATE`, [sha256(normaliseCode(body.code)), dev.tenant_id]);
+      if (!code || code.used_at || Date.parse(code.expires_at) < Date.now()) httpError(400, 'INVALID_RECOVERY_CODE', 'This recovery code is not valid or has expired');
+      await q(`UPDATE owner_recovery_codes SET used_at = now() WHERE code_hash = $1`, [code.code_hash]);
+      await q(`INSERT INTO admin_audit_logs (id, admin_id, action, tenant_id, detail) VALUES ($1, $2, 'owner_recovery_code.used', $3, $4)`, [randomUUID(), code.created_by, dev.tenant_id, JSON.stringify({ deviceId: dev.id })]);
+      return { ok: true };
+    });
+  });
+
+  /**
+   * Everything the cloud holds for this business, for rebuilding a replacement
+   * laptop when no backup file exists. Staff passwords are not in the cloud.
+   */
+  app.get('/v1/sync/snapshot', async (req) => {
+    const dev = await device(req);
+    const tables: Record<string, unknown[]> = {};
+    await db.tenant(dev.tenant_id, async (q) => {
+      for (const [table, spec] of Object.entries(SYNC_TABLES)) tables[table] = await q(`SELECT ${Object.keys(spec.cols).join(', ')} FROM ${table}`);
+    });
+    await db.platform((q) => q(`INSERT INTO admin_audit_logs (id, action, tenant_id, detail) VALUES ($1, 'device.snapshot_downloaded', $2, $3)`, [randomUUID(), dev.tenant_id, JSON.stringify({ deviceId: dev.id })]));
+    return { tables, serverTime: new Date().toISOString() };
   });
 
   /** Store a backup the laptop has already encrypted with the owner's passphrase. Mansora cannot read it. */
