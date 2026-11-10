@@ -2,11 +2,11 @@
 
 Live demo: https://mansora-saas-demo.bgtpk74dbt.chatgpt.site
 
-The currently published Site is owner-private version 3 (C13). C18 prepares the
-billing-aware refresh; its deployment version and source are recorded after publication. Sign in with
+Published through Sites as owner-private **version 4** on 2026-11-10.
+It includes merged C14 and the C18 billing-aware refresh. Sign in with
 the owning ChatGPT account if prompted, then choose Client app or Mansora admin.
 Hosting project: `appgprj_6af2c4565ff881919480f43aab9e56bb`.
-The native deployment returned `succeeded`; this is an interface demo URL, not
+Deployment `appgdep_6af30b443b508191a45fb8fccd789f87` returned `succeeded`; this is an interface demo URL, not
 the production Mansora service.
 
 The owner requested a hosted demo while the application remains in development.
@@ -71,3 +71,9 @@ outside the captured range return an explanation instead of unrelated totals.
 The landing page also links to a screenshot walkthrough generated from the real
 application. These screenshots evidence interface behavior with sample records;
 they are not evidence of live payment processing or client/hardware acceptance.
+
+Publication provenance: Site source `cf0a6bfe882d93f5c83d4319a5f7269ba677abb4`,
+built from Mansora `09b3ab943972c2ce1469cbe5f91bb064c5ed3b47` (PR #27).
+All 69 output assets were hashed and verified against the retained provenance
+record before packaging; subsequent publication/handoff edits are documentation
+only. The existing owner-private identity and audience were retained.

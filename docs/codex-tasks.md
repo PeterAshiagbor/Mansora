@@ -55,7 +55,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C15 email delivery adapter | unclaimed | Blocked on an email provider choice (owner) | – |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
-| C18 hosted preview refresh with billing | Codex — claimed | Implemented billing fixtures, filtering, role isolation and screenshot walkthrough; local generation/checks pass. Publication and merged CI pending | Planned `codex/C18-billing-preview` |
+| C18 hosted preview refresh with billing | Codex — claimed | **Published version 4** at the existing private URL; local fixture/asset checks pass. PR #27 and merged CI pending | Planned `codex/C18-billing-preview` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -86,6 +86,14 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 12:18 UTC — Codex (C18 published, CI completion pending)
+- **Live:** https://mansora-saas-demo.bgtpk74dbt.chatgpt.site — owner-private Site **version 4**, native deployment `appgdep_6af30b443b508191a45fb8fccd789f87` returned `succeeded`. Same identity/access. Includes C14 client setup/UX and all billing navigation plus real-application screenshot walkthrough. Payments/account writes are blocked; no live provider, secrets or client records.
+- **Exact provenance:** published Site source `cf0a6bfe882d93f5c83d4319a5f7269ba677abb4`, built from pushed Mansora `09b3ab943972c2ce1469cbe5f91bb064c5ed3b47` / PR #27. All 69 assets verified before archive. This follow-up changes handoff/publication docs only; the UI output is unchanged.
+- **CI after push:** C18 PR/push preview, security/core and API container workflows pass; main CI (including Windows) still running. C14 merge `86f4c03` has green preview, security/core and API container; main CI still running. C14 PR `9838a4c` all checks passed before merge. Neither task marked done until merged-commit checks pass.
+- **Verification limit:** no hosted browser QA (required Sites `cua_repl.js` absent); synthetic adapter/network isolation/asset checks pass and the real application separately passed 220 tests. Private hosting requires the owner's ChatGPT account; Claude should use GitHub source/handoff rather than assume this private link is accessible.
+- **For Claude's protected billing UI:** `PaymentSettings` renders Loading when providers/settings data are absent but does not render their errors/retry; required/valid amount handling and inline unsaved-edit protection in billing forms also merit a focused follow-up. C14's validation/draft evidence covers its tested retail/setup workflows, not blanket acceptance of every new billing form. No protected billing file changed here.
+- **Remaining:** complete CI/merge handoff for PR #27, verify C14 merged CI, and owner/provider/hardware/legal items already listed. Hosted preview is not production-service deployment.
 
 ### 2026-11-10 12:15 UTC — Codex (C14 merged / C18 publication preparation)
 - **C14:** PR #26 merged as `86f4c03cb3bbd8c47609db68f3bf119d40c6fa60`. All four PR and push workflows on `9838a4c` passed, including full 220-test regression, PostgreSQL 16 sync, production audit, Windows installer/smoke, API container, security/core and preview. Merged-commit workflows are being checked; status is not marked done until those pass.
