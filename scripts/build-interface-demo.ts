@@ -53,6 +53,7 @@ try {
   await e.execute(token, 'shift.open', { openingFloat: 20000 });
   await e.execute(token, 'sale.complete', { id: randomUUID(), lines: [{ productId: ids[0], quantity: 2 }], tenders: [{ method: 'cash', amount: 9000 }] });
   await e.execute(token, 'sale.complete', { id: randomUUID(), customerId: customer.id, lines: [{ productId: ids[1], quantity: 5 }], tenders: [{ method: 'credit', amount: 4000 }] });
+  await e.execute(token, 'expense.create', { id: randomUUID(), category: 'Transport', description: 'Sample delivery transport', amount: 1200, expenseDate: new Date().toISOString().slice(0, 10), paymentMethod: 'cash', paidFromTill: true });
   await syncNow(e);
   const snapshot: Record<string, any> = {};
   const day = new Date().toISOString().slice(0, 10);
@@ -79,6 +80,7 @@ try {
   if (/"(?:password_hash|device_token|secret_encrypted|token_hash)"/.test(json)) throw new Error('Refusing credential fields');
   mkdirSync(join(target, 'dist'), { recursive: true });
   for (const [name, folder] of [['client', 'apps/desktop/dist/renderer'], ['admin', 'apps/admin-web/dist']] as const) {
+    rmSync(join(target, 'dist', name), { recursive: true, force: true });
     cpSync(join(root, folder), join(target, 'dist', name), { recursive: true });
     const path = join(target, 'dist', name, 'index.html');
     // Admin Vite output has root-relative asset paths. Each interface lives under its own directory.

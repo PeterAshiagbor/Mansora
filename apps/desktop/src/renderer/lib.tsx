@@ -196,14 +196,14 @@ export function MoneyInput({ value, onChange, ...rest }: { value: number | null;
   );
 }
 
-export function DateRange({ from, to, onChange }: { from: string; to: string; onChange: (r: { from: string; to: string }) => void }) {
+export function DateRange({ from, to, onChange, shortcuts = true }: { from: string; to: string; onChange: (r: { from: string; to: string }) => void; shortcuts?: boolean }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 no-print">
+    <div className="m-date-range flex flex-wrap items-center gap-2 no-print">
       <Input type="date" aria-label="From date" value={from} max={to} onChange={(e) => e.target.value && onChange({ from: e.target.value, to })} className="w-40" />
       <span className="text-sm text-slate-500">to</span>
       <Input type="date" aria-label="To date" value={to} min={from} onChange={(e) => e.target.value && onChange({ from, to: e.target.value })} className="w-40" />
-      <Button size="sm" onClick={() => onChange({ from: today(), to: today() })}>Today</Button>
-      <Button size="sm" onClick={() => onChange({ from: monthStart(), to: today() })}>This month</Button>
+      {shortcuts && <Button size="sm" onClick={() => onChange({ from: today(), to: today() })}>Today</Button>}
+      {shortcuts && <Button size="sm" onClick={() => onChange({ from: monthStart(), to: today() })}>This month</Button>}
     </div>
   );
 }

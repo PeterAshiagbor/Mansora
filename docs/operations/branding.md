@@ -13,7 +13,7 @@ Retrieved from the supplied site on 10 November 2026:
 - Unchanged logo: `/static/images/MANSORA.webp`, stored in `packages/ui/src/assets/`.
 - Desktop icon: `/static/images/logo-512.png`; favicon: `/static/images/favicon-32.png`.
 - Site styles: purple `#5c2d85`, deep purple `#38145c`, gold `#c48b17`, cream `#fffaf1`, ink `#221634`. Gold is an accent; body text uses dark colors.
-- DM Sans body text and Georgia headings follow the site. Latin/Latin Extended variable DM Sans fonts are bundled locally from Google Fonts v17; the SIL Open Font License is included with the sources, both web builds and the desktop package. Georgia falls back to local serif fonts.
+- DM Sans body text and a Georgia brand wordmark follow the site. The owner’s subsequent accounting-style UX request uses DM Sans for application headings. Latin/Latin Extended variable DM Sans fonts are bundled locally from Google Fonts v17; the SIL Open Font License is included with the sources, both web builds and the desktop package. The Georgia wordmark falls back to local serif fonts.
 
 Shared tokens live in `packages/ui/src/brand.css`; the provider mark lives in
 `brand.tsx`. There are no runtime requests to the company site or Google Fonts.

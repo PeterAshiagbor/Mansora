@@ -75,7 +75,7 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
     await shop.getByLabel('Opening cash float (GHS)', { exact: true }).fill('0');
     await shop.getByRole('button', { name: 'Open shift', exact: true }).click();
     await shop.getByLabel('Search or scan product').waitFor();
-    const names = ['New sale', 'Sales history', 'Cashier shifts', 'Customers', 'Credit & repayments', 'Products', 'Categories', 'Stock', 'Purchases & suppliers', 'Dashboard', 'Reports', 'Expenses', 'Staff', 'Settings', 'Import & export', 'Sync status', 'Backup & recovery', 'Mansora access', 'Audit history'];
+    const names = ['New sale', 'Sales history', 'Cashier shifts', 'Customers', 'Credit & repayments', 'Products', 'Categories', 'Stock', 'Purchases & suppliers', 'Dashboard', 'Reports', 'Expenses', 'Staff', 'Settings', 'Import & export', 'Sync status', 'Backup & recovery', 'Mansora access', 'Audit history', 'Help & getting started'];
     for (const zoom of [1, 2]) {
       await shop.setViewportSize({ width: 1366 / zoom, height: 768 / zoom });
       for (const name of names) {
@@ -89,6 +89,12 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
       await scan(shop, `Desktop product dialog zoom ${zoom}`);
       await shop.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
     }
+    await shop.getByRole('button', { name: 'How to use this page', exact: true }).click();
+    await scan(shop, 'Desktop contextual help zoom 2');
+    await shop.getByRole('dialog').getByRole('button', { name: 'Got it', exact: true }).click();
+    await shop.keyboard.press('Control+k');
+    await scan(shop, 'Desktop page finder zoom 2');
+    await shop.keyboard.press('Escape');
     expect(failures, JSON.stringify(failures, null, 2)).toEqual([]);
   });
   it('checks all administrator pages, client detail and create dialogs', async () => {

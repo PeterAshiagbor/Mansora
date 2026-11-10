@@ -32,3 +32,12 @@ Keyboard interaction checks exercise table Space activation, modal initial focus
 The integration review additionally scans the C6 client audit tab and laptop
 deactivation dialog at both viewports, using the C11 purple/gold palette and
 locally bundled fonts. It preserves all C5 keyboard and contrast checks.
+
+## Accounting-style UX follow-up (C13)
+
+The new shell, all 20 client pages (including Help & getting started), seven
+permitted report views, page finder and contextual help are scanned at both
+viewports. Search keeps its accessible text at narrow widths; page-finder
+buttons use their visible labels. Scrollable dialog content is a named,
+keyboard-focusable region, with fixed action footers. All serious/critical
+violations are resolved; no axe rule or existing assertion is disabled.

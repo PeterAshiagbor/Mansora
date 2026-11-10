@@ -22,7 +22,11 @@ describe.skipIf(!pw || !built)('Mansora provider branding and client workspace i
       const host = await startDevHost({ dataDir: dir, port: 0, dbKey: randomUUID() });
       await host.engine.execute(null, 'activation.activate', { apiUrl: cloud.url, code: client.code, deviceName: 'Synthetic client laptop', owner: { name: 'Client owner', username: 'owner', password } });
       const token = (await host.engine.execute(null, 'auth.login', { username: 'owner', password })).token;
-      await host.engine.execute(token, 'product.save', { name: name === 'Alpha client shop' ? 'Alpha stock item' : 'Beta stock item', sellingPrice: 1200, costPrice: 800, openingStock: 24 });
+      const product = await host.engine.execute(token, 'product.save', { name: name === 'Alpha client shop' ? 'Alpha stock item' : 'Beta stock item', sellingPrice: 1200, costPrice: 800, openingStock: 24 });
+      if (name === 'Alpha client shop') {
+        await host.engine.execute(token, 'shift.open', { openingFloat: 0 });
+        await host.engine.execute(token, 'sale.complete', { id: randomUUID(), lines: [{ productId: product.id, quantity: 1 }], tenders: [{ method: 'cash', amount: 1200 }] });
+      }
       const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
       shops.push({ host, page, dir, name, password });
     }
@@ -53,7 +57,8 @@ describe.skipIf(!pw || !built)('Mansora provider branding and client workspace i
     await page.evaluate(() => document.fonts.load('400 16px "DM Sans"', 'Ɛ'));
     expect(await page.evaluate(() => document.fonts.check('400 16px "DM Sans"'))).toBe(true);
     expect(await page.locator('body').evaluate((el: HTMLElement) => getComputedStyle(el).fontFamily)).toContain('DM Sans');
-    expect(await page.getByRole('heading').first().evaluate((el: HTMLElement) => getComputedStyle(el).fontFamily)).toContain('Georgia');
+    expect(await page.getByRole('heading').first().evaluate((el: HTMLElement) => getComputedStyle(el).fontFamily)).toContain('DM Sans');
+    expect(await mark.getByText('MANSORA', { exact: true }).evaluate((el: HTMLElement) => getComputedStyle(el).fontFamily)).toContain('Georgia');
     await expect.poll(() => mark.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     expect(new URL(await mark.locator('img').getAttribute('src'), page.url()).origin).toBe(new URL(page.url()).origin);
     const colors = await page.evaluate(() => {
@@ -79,6 +84,7 @@ describe.skipIf(!pw || !built)('Mansora provider branding and client workspace i
       await shop.page.getByRole('navigation').getByText('Client workspace', { exact: true }).waitFor();
       await shop.page.getByRole('navigation').getByText(shop.name, { exact: true }).waitFor();
       await checkBrand(shop.page);
+      if (shop.name === 'Alpha client shop') await screenshot(shop.page, 'client-dashboard');
       await shop.page.getByRole('navigation').getByRole('button', { name: 'Products', exact: true }).click();
       await shop.page.getByRole('cell', { name: shop.name === 'Alpha client shop' ? 'Alpha stock item' : 'Beta stock item', exact: true }).waitFor();
       expect(await shop.page.getByRole('cell', { name: shop.name === 'Alpha client shop' ? 'Beta stock item' : 'Alpha stock item', exact: true }).count()).toBe(0);
@@ -101,4 +107,32 @@ describe.skipIf(!pw || !built)('Mansora provider branding and client workspace i
     await screenshot(admin, 'platform-clients');
     expect(external).toEqual([]); expect(errors).toEqual([]);
   });
+  it('finds permitted pages, explains reports and provides searchable task guides', async () => {
+    const page = shops[0].page;
+    await page.keyboard.press('Control+k');
+    const finder = page.getByRole('dialog', { name: 'Find a page', exact: true });
+    await finder.getByLabel('Find a page', { exact: true }).fill('reports');
+    await finder.getByLabel('Find a page', { exact: true }).press('Enter');
+    await page.getByRole('heading', { name: 'Reports', exact: true }).waitFor();
+    await page.getByText('Collections after refunds', { exact: true }).first().waitFor();
+    expect(await page.getByRole('row').filter({ hasText: 'Collections after refunds' }).getByRole('cell').last().innerText()).toBe('GHS 12.00');
+    await screenshot(page, 'business-summary');
+    await page.getByRole('tab', { name: 'Expenses', exact: true }).click();
+    await page.getByRole('heading', { name: 'Expense detail', exact: true }).waitFor();
+    await page.getByRole('tab', { name: 'Customer balances', exact: true }).click();
+    await page.getByText('Current customer balances as of now.', { exact: false }).waitFor();
+    await page.getByRole('button', { name: 'How to use this page', exact: true }).click();
+    const guide = page.getByRole('dialog', { name: 'How to use: Reports', exact: true });
+    await guide.getByText('Net sales = sales after discounts less refunds.', { exact: false }).waitFor();
+    await guide.getByRole('button', { name: 'Got it', exact: true }).click();
+    await page.getByRole('navigation').getByRole('button', { name: 'Help & getting started', exact: true }).click();
+    await page.getByLabel('Search help guides', { exact: true }).fill('carton');
+    await page.locator('section').filter({ has: page.getByRole('heading', { name: 'Products', exact: true }) }).getByRole('button', { name: 'Read guide', exact: true }).click();
+    const productGuide = page.getByRole('dialog', { name: 'How to use: Products', exact: true });
+    await productGuide.getByText('Example: GHS 100', { exact: false }).waitFor();
+    await screenshot(page, 'product-help');
+    await productGuide.getByRole('button', { name: 'Close', exact: true }).last().click();
+    expect(errors).toEqual([]);
+  });
+
 });

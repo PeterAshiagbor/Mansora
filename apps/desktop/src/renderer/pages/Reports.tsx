@@ -1,23 +1,61 @@
 import { useState } from 'react';
-import { Alert, Card, PageHeader, Stat, Table, Tabs } from '@mansora/ui';
+import { Alert, Button, Card, PageHeader, Stat, Table, Tabs } from '@mansora/ui';
+import { SalesActivity } from '../components/SalesActivity';
+import { collectionSummary, reportPresets } from '../reporting';
 import { DateRange, ExportButtons, METHOD, money, monthStart, percent, plain, today, useApp, useQuery } from '../lib';
 
-type Tab = 'sales' | 'payments' | 'profit' | 'stock';
+type Tab = 'summary' | 'sales' | 'payments' | 'profit' | 'stock' | 'expenses' | 'balances';
 export function ReportsPage() {
   const { can } = useApp();
-  const tabs = [{ id: 'sales' as Tab, label: 'Sales' }, { id: 'payments' as Tab, label: 'Payments' }, ...(can('report.profit') ? [{ id: 'profit' as Tab, label: 'Gross profit' }] : []), ...(can('report.stock') ? [{ id: 'stock' as Tab, label: 'Stock' }] : [])];
-  const [tab, setTab] = useState<Tab>('sales');
+  const tabs = [{ id: 'summary' as Tab, label: 'Summary' }, { id: 'sales' as Tab, label: 'Sales' }, { id: 'payments' as Tab, label: 'Payments' }, ...(can('report.profit') ? [{ id: 'profit' as Tab, label: 'Gross profit' }] : []), ...(can('report.stock') ? [{ id: 'stock' as Tab, label: 'Stock' }] : []), ...(can('expense.manage') ? [{ id: 'expenses' as Tab, label: 'Expenses' }] : []), ...(can('credit.repayment') ? [{ id: 'balances' as Tab, label: 'Customer balances' }] : [])];
+  const [tab, setTab] = useState<Tab>('summary');
   const [range, setRange] = useState({ from: monthStart(), to: today() });
   return (
     <div>
       <PageHeader title="Reports" subtitle={`${range.from} to ${range.to} · from the records on this laptop (works offline)`} />
       <Tabs value={tab} onChange={setTab} tabs={tabs} />
-      <div className="mb-4"><DateRange {...range} onChange={setRange} /></div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{reportPresets(today()).map((preset) => <Button size="sm" key={preset.label} aria-pressed={range.from === preset.from && range.to === preset.to} variant={range.from === preset.from && range.to === preset.to ? 'primary' : 'secondary'} onClick={() => setRange({ from: preset.from, to: preset.to })}>{preset.label}</Button>)}</div><DateRange {...range} onChange={setRange} shortcuts={false} /></div>
+      {tab === 'summary' && <SummaryReport range={range} />}
+      {tab === 'expenses' && <ExpenseReport range={range} />}
+      {tab === 'balances' && <BalanceReport />}
       {(tab === 'sales' || tab === 'payments') && <SalesReport range={range} payments={tab === 'payments'} />}
       {tab === 'profit' && <ProfitReport range={range} />}
       {tab === 'stock' && <StockReport range={range} />}
     </div>
   );
+}
+
+function SummaryReport({ range }: { range: { from: string; to: string } }) {
+  const { can } = useApp();
+  const { data: d, error } = useQuery<any>('report.sales', range);
+  if (error) return <Alert tone="bad">{error}</Alert>;
+  if (!d) return <p className="text-slate-500">Loading…</p>;
+  const collections = collectionSummary(d.payments);
+  const average = d.totals.count ? Math.round(d.totals.gross / d.totals.count) : null;
+  const rows = [['Net sales', d.totals.net], ['Sales after discounts, before refunds', d.totals.gross], ['Refunds', d.totals.refunds], ['Discounts given', d.totals.discounts], ['Collections on new sales (excludes credit)', collections.saleCollections], ['Credit repayments', collections.repayments], ['Refunds paid out', collections.refundsPaid], ['Collections after refunds', collections.netCollections], ['New credit granted', collections.newCredit]];
+  return <div className="space-y-5"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-600">Sales performance and customer money collected · {range.from} to {range.to}</p><ExportButtons title={`Business summary ${range.from} to ${range.to}`} columns={['Measure', 'GHS']} rows={() => rows.map(([label, amount]) => [label, plain(amount as number)])} /></div>
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4"><Stat label="Net sales" value={money(d.totals.net)} hint="After discounts and refunds" /><Stat label="Collections after refunds" value={money(collections.netCollections)} hint="All received methods, including repayments" /><Stat label="Average completed sale" value={average == null ? '—' : money(average)} hint={`${d.totals.count} sales · before subsequent refunds`} /><Stat label="New credit granted" value={money(collections.newCredit)} hint="Customer debt created; not money received" tone={collections.newCredit ? 'warn' : 'default'} /></div>
+    <div className="grid gap-5 xl:grid-cols-2"><Card title="Daily net sales"><SalesActivity rows={d.daily} /></Card><Card title="Sales and collections reconciliation" pad={false}><Table rows={rows} columns={[{ header: 'Measure', cell: (r) => r[0] }, { header: 'Amount', align: 'right', cell: (r) => money(r[1] as number) }]} /><p className="border-t border-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">Collections = payments on new sales excluding credit, plus credit repayments, less refunds paid out. This is not a bank reconciliation or a cash-flow statement.</p></Card></div>
+    {can('report.profit') && <ProfitSnapshot range={range} />}
+  </div>;
+}
+function ProfitSnapshot({ range }: { range: { from: string; to: string } }) {
+  const { data: d, error } = useQuery<any>('report.profit', range);
+  if (error) return <Alert tone="bad">{error}</Alert>;
+  if (!d) return null;
+  return <Card title="Profitability at a glance"><div className="grid grid-cols-2 gap-4 xl:grid-cols-4"><div><p className="text-xs text-slate-600">Cost of goods sold</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(d.cogs)}</p></div><div><p className="text-xs text-slate-600">Gross profit</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(d.grossProfit)}</p></div><div><p className="text-xs text-slate-600">Gross margin</p><p className="mt-2 text-xl font-semibold tabular-nums">{percent(d.marginBps)}</p></div><div><p className="text-xs text-slate-600">Recorded expenses</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(d.expenses)}</p></div></div><p className="mt-5 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-600">Gross profit is net sales less recorded cost of goods sold. Expenses are separate. These figures do not represent a complete accounting profit-and-loss statement.</p></Card>;
+}
+function ExpenseReport({ range }: { range: { from: string; to: string } }) {
+  const { data: d, error } = useQuery<any>('expense.list', range);
+  if (error) return <Alert tone="bad">{error}</Alert>;
+  if (!d) return <p className="text-slate-500">Loading…</p>;
+  return <div className="space-y-5"><div className="grid grid-cols-2 gap-4"><Stat label="Recorded expenses" value={money(d.total)} hint="Running costs; excludes cost of goods sold" /><Stat label="Expense records" value={d.rows.length} hint="In the selected period" /></div><div className="grid gap-5 xl:grid-cols-2"><Card title="Expenses by category" pad={false}><Table rows={d.byCategory} empty="No expenses in this period" columns={[{ header: 'Category', cell: (r: any) => r.key }, { header: 'Amount', align: 'right', cell: (r: any) => money(r.total) }]} /></Card><Card title="Expenses by payment method" pad={false}><Table rows={d.byMethod} empty="No expenses in this period" columns={[{ header: 'Method', cell: (r: any) => METHOD[r.key] }, { header: 'Amount', align: 'right', cell: (r: any) => money(r.total) }]} /></Card></div><Card title="Expense detail" pad={false} actions={<ExportButtons title={`Expense report ${range.from} to ${range.to}`} columns={['Date', 'Category', 'Description', 'Method', 'GHS']} rows={() => d.rows.map((r: any) => [r.expense_date, r.category, r.description, METHOD[r.payment_method], plain(r.amount)])} />}><Table rows={d.rows} empty="No expenses in this period" columns={[{ header: 'Date', cell: (r: any) => r.expense_date }, { header: 'Category', cell: (r: any) => r.category }, { header: 'Description', cell: (r: any) => r.description }, { header: 'Amount', align: 'right', cell: (r: any) => money(r.amount) }]} /></Card></div>;
+}
+function BalanceReport() {
+  const { data: d, error } = useQuery<any>('credit.list', { status: 'open' });
+  if (error) return <Alert tone="bad">{error}</Alert>;
+  if (!d) return <p className="text-slate-500">Loading…</p>;
+  return <div className="space-y-5"><Alert>Current customer balances as of now. The date filter above does not reconstruct past balances. Due dates determine which records are overdue.</Alert><div className="grid grid-cols-2 gap-4"><Stat label="Customer credit outstanding" value={money(d.totalOutstanding)} /><Stat label="Overdue credit" value={money(d.totalOverdue)} tone={d.totalOverdue ? 'warn' : 'default'} /></div><Card title="Open customer balances" pad={false} actions={<ExportButtons title={`Current customer balances ${today()}`} columns={['Customer', 'Receipt', 'Due date', 'Outstanding GHS']} rows={() => d.accounts.map((r: any) => [r.customer_name, r.receipt_no, r.due_date ?? '', plain(r.outstanding_balance)])} />}><Table rows={d.accounts} empty="No outstanding customer balances" columns={[{ header: 'Customer', cell: (r: any) => r.customer_name }, { header: 'Receipt', cell: (r: any) => r.receipt_no }, { header: 'Due date', cell: (r: any) => r.due_date ?? 'Not set' }, { header: 'Status', cell: (r: any) => r.overdue ? 'Overdue' : 'Open' }, { header: 'Outstanding', align: 'right', cell: (r: any) => money(r.outstanding_balance) }]} /></Card></div>;
 }
 
 function SalesReport({ range, payments }: { range: { from: string; to: string }; payments: boolean }) {
@@ -98,6 +136,7 @@ function StockReport({ range }: { range: { from: string; to: string } }) {
   const moveCols = [{ header: 'When', cell: (r: any) => r.occurred_at.slice(0, 10) }, { header: 'Product', cell: (r: any) => r.product }, { header: 'Change', align: 'right' as const, cell: (r: any) => r.quantity_delta }, { header: 'By', cell: (r: any) => r.actor }, { header: 'Reason', cell: (r: any) => r.reason ?? '' }];
   return (
     <>
+      <p className="mb-4 text-xs leading-relaxed text-slate-600">Stock on hand and valuation are the current position. Damage, adjustments and movement summaries use the selected date range.</p>
       <div className="mb-4 grid grid-cols-3 gap-3">
         <Stat label="Products in stock list" value={d.onHand.length} />
         <Stat label="Low or out of stock" value={d.lowStock.length} tone={d.lowStock.length ? 'warn' : 'good'} />

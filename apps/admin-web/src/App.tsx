@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea } from '@mansora/ui';
+import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES } from '@mansora/ui';
 import { api, getToken, setToken, useApi } from './api';
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : '—');
@@ -40,29 +40,21 @@ export function App() {
   }, []);
   if (!signedIn) return <Login onDone={() => setSignedIn(true)} />;
   const go = (id: string, param?: string) => setPage({ id, param });
-  const nav = [['overview', 'Overview'], ['clients', 'Clients'], ['plans', 'Service plans'], ['audit', 'Audit log'], ['security', 'Account security']];
-  return (
-    <div className="flex h-full">
-      <nav aria-label="Main" className="flex w-52 shrink-0 flex-col overflow-y-auto bg-brand-900 text-brand-100">
-        <div className="px-4 py-4"><MansoraBrand compact inverse /><div className="mt-4 border-t border-brand-700 pt-3 text-sm font-semibold text-white">Platform administration</div></div>
-        <div className="flex-1 px-2">
-          {nav.map(([id, label]) => (
-            <button key={id} type="button" onClick={() => go(id)} aria-current={page.id === id || (id === 'clients' && page.id === 'client') ? 'page' : undefined}
-              className={cx('mb-0.5 block w-full rounded-md px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-white', page.id === id || (id === 'clients' && page.id === 'client') ? 'bg-white font-semibold text-brand-900' : 'hover:bg-brand-800')}>{label}</button>
-          ))}
-        </div>
-        <button type="button" className="m-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-brand-800" onClick={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>Sign out</button>
-      </nav>
-      <main className="min-w-0 flex-1 overflow-y-auto p-6" key={page.id + (page.param ?? '')}>
+  const groups = [
+    { group: 'Workspace', items: [{ id: 'overview', label: 'Overview', icon: 'home' }, { id: 'clients', label: 'Clients', icon: 'users' }, { id: 'plans', label: 'Service plans', icon: 'wallet' }] },
+    { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'security', label: 'Account security', icon: 'shield' }] },
+  ];
+  const current = groups.flatMap((g) => g.items).find((item) => item.id === (page.id === 'client' ? 'clients' : page.id))!;
+  return <WorkspaceShell groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>
+      <div key={page.id + (page.param ?? '')}>
         {page.id === 'overview' && <Overview go={go} />}
         {page.id === 'clients' && <Clients go={go} />}
         {page.id === 'client' && page.param && <Client id={page.param} go={go} />}
         {page.id === 'plans' && <Plans />}
         {page.id === 'audit' && <Audit />}
         {page.id === 'security' && <AccountSecurity />}
-      </main>
-    </div>
-  );
+      </div>
+    </WorkspaceShell>;
 }
 
 function Login({ onDone }: { onDone: () => void }) {
@@ -165,7 +157,7 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
   const total = d.clientsByStatus.reduce((a: number, c: any) => a + c.count, 0);
   return (
     <div>
-      <PageHeader title="Overview" subtitle="Platform health. Client sales and financial data are never shown here." />
+      <PageHeader title="Overview" subtitle="Your client portfolio, onboarding progress and service health. Client financial data stays in its own workspace." actions={<Button variant="primary" onClick={() => go('clients')}>View client directory</Button>} />
       <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <Stat label="Client businesses" value={total} />
         <Stat label="Live" value={n(d.clientsByStatus, 'active')} tone="good" />

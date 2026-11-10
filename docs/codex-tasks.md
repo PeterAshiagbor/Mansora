@@ -116,3 +116,8 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 **Status:** Published the [private sample demo](https://mansora-saas-demo.bgtpk74dbt.chatgpt.site) through Sites. Implemented on `codex/C12-hosted-demo`, based on the combined integration branch because it previews all prepared tasks. Owner requested hosting without supplying a Vercel project.
 **Scope:** New preview builder, isolated static browser adapters and preview documentation. No production engine, API, migration, permission or billing behavior changes.
 **Evidence:** See [interface preview](operations/interface-preview.md). Both current interfaces are used with generated synthetic records; temporary sample edits are explicit, live writes are blocked.
+
+### C13 — Professional accounting-style UX, reports and page guidance
+**Status:** Implemented on `codex/C13-accounting-ux`, based on C12 so the same hosted demo can show the combined application. Owner requested familiar accounting UX, professionalism, more reporting and how-to help.
+**Scope:** Shared workspace shell/components/styles, client and provider interfaces, authorised report presentation, page guides, sample preview regeneration and regression coverage. No engine or schema changes.
+**Evidence:** See [accounting UX](operations/accounting-ux.md).
