@@ -21,6 +21,7 @@
     if (command === 'auth.logout') { signedIn = false; return { ok: true }; }
     if (command === 'auth.login') throw new Error('Use the “Enter sample workspace” button above. No account or password is needed for this demo.');
     if (!signedIn) throw new Error('Enter the sample workspace using the demo toolbar.');
+    if (command.startsWith('billing.') && role !== 'owner') throw new Error('Billing is available only in the Owner preview.');
     if (command === 'product.list') return filter(desktop[command], input).filter((p) => (input.includeInactive || p.active) && (!input.categoryId || p.category_id === input.categoryId)).slice(0, input.limit ?? 1000).map(safeProduct);
     if (command === 'product.lookup') return safeProduct(desktop['product.list'].find((p) => p.barcode === input.code || p.sku === input.code) ?? null);
     if (command === 'report.dashboard' && role !== 'owner') return clone(desktop.cashierDashboard);
@@ -69,8 +70,17 @@
     const url = new URL(typeof request === 'string' ? request : request.url ?? request, location.href);
     if (url.pathname.startsWith('/v1/')) {
       if ((init.method ?? 'GET') !== 'GET') return new Response(JSON.stringify({ code: 'INTERFACE_DEMO', message: blocked }), { status: 409, headers: { 'content-type': 'application/json' } });
-      const key = url.pathname + (url.searchParams.has('tenantId') ? `?tenantId=${encodeURIComponent(url.searchParams.get('tenantId'))}` : '');
-      const data = provider[key];
+      const params = new URLSearchParams(url.searchParams); params.sort();
+      const key = url.pathname + (params.size ? `?${params}` : '');
+      let data = provider[key];
+      if (url.pathname === '/v1/admin/billing/invoices') {
+        data = provider[url.pathname].filter((row) => (!params.get('tenantId') || row.tenant_id === params.get('tenantId')) && (!params.get('status') || row.status === params.get('status') || row.display_status === params.get('status')) && (!params.get('q') || [row.number, row.client].some((v) => String(v ?? '').toLowerCase().includes(params.get('q').toLowerCase()))));
+      } else if (url.pathname.startsWith('/v1/admin/billing/reports/') && data === undefined) {
+        return new Response(JSON.stringify({ code: 'INTERFACE_DEMO', message: `This preview contains billing reports for ${fixture.reportRange.from} to ${fixture.reportRange.to} only. Custom periods and CSV downloads require the application.` }), { status: 409, headers: { 'content-type': 'application/json' } });
+      } else if (!url.pathname.startsWith('/v1/admin/billing/') && data === undefined) {
+        const legacyKey = url.pathname + (params.has('tenantId') ? `?tenantId=${encodeURIComponent(params.get('tenantId'))}` : '');
+        data = provider[legacyKey];
+      }
       return new Response(JSON.stringify(data ?? { code: 'INTERFACE_DEMO', message: 'This preview has no live service connection.' }), { status: data === undefined ? 404 : 200, headers: { 'content-type': 'application/json' } });
     }
     return nativeFetch(request, init);
@@ -90,7 +100,7 @@
       enter.onclick = () => { signedIn = true; window.dispatchEvent(new Event('mansora:signed-out')); }; bar.append(enter);
     }
     const reset = document.createElement('button'); reset.textContent = 'Reset demo'; reset.onclick = () => location.reload(); bar.append(reset);
-    const help = document.createElement('span'); help.className = 'demo-help'; help.textContent = 'Browse pages and forms. Product/customer edits stay in this tab. Reload resets them. Reports show the original sample records.';
+    const help = document.createElement('span'); help.className = 'demo-help'; help.textContent = 'Browse pages and forms. Product/customer edits stay in this tab. Reload resets them. Billing is sample data; payments and account changes are blocked.';
     bar.append(help); document.body.prepend(bar); document.body.classList.add('interface-demo');
   });
 })();

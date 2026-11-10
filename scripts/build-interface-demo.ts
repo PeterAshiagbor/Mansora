@@ -1,5 +1,5 @@
 /** Build a static, sample-only interface preview from the real interfaces and engine responses. */
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -7,6 +7,8 @@ import { buildApp } from '../apps/api/src/app';
 import { connectEmbedded } from '../apps/api/src/db';
 import { createAdmin } from '../apps/api/src/modules/admin';
 import { openEngine, syncNow } from '../apps/desktop/src/core';
+import { NoEmail, type Billing } from '../apps/api/src/billing';
+import { createProviders } from '../apps/api/src/billing/providers/registry';
 
 const root = resolve(import.meta.dirname, '..');
 const target = resolve(process.argv[2] ?? join(root, '.interface-demo'));
@@ -15,9 +17,15 @@ const secrets: string[] = [randomUUID(), randomUUID(), randomUUID()];
 const db = await connectEmbedded(); await db.migrate();
 const admin = { email: 'preview@mansora.example', name: 'Sample Platform Administrator', password: secrets[0] };
 await db.platform((q) => createAdmin(q, admin));
-const app = await buildApp({ db, backupDir: join(temporary, 'backups') });
+const billingEnv = { publicBaseUrl: 'http://127.0.0.1:0', payLinkSecret: randomUUID(), encryptionKey: randomBytes(32), adminEmail: 'preview@mansora.example' };
+secrets.push(billingEnv.payLinkSecret, billingEnv.encryptionKey.toString('hex'));
+const { registry, sandbox } = createProviders({ allowSandbox: true, publicBaseUrl: billingEnv.publicBaseUrl });
+const billing: Billing = { db, providers: registry, email: new NoEmail(), env: billingEnv, now: () => new Date() };
+const app = await buildApp({ db, backupDir: join(temporary, 'backups'), billing });
 await app.listen({ port: 0, host: '127.0.0.1' });
 const origin = `http://127.0.0.1:${(app.server.address() as any).port}`;
+billingEnv.publicBaseUrl = origin;
+sandbox!.baseUrl = origin;
 let adminToken = '';
 async function api(method: string, url: string, payload?: unknown) {
   const response = await app.inject({ method: method as any, url, headers: adminToken ? { authorization: `Bearer ${adminToken}` } : {}, ...(payload ? { payload } : {}) });
@@ -27,9 +35,17 @@ async function api(method: string, url: string, payload?: unknown) {
 let engine: ReturnType<typeof openEngine> | undefined;
 try {
   adminToken = (await api('POST', '/v1/admin/login', admin)).token; secrets.push(adminToken);
-  const plan = await api('POST', '/v1/admin/plans', { name: 'Sample Retail Plan', price: 0, billingPeriod: 'monthly', includedSupport: 'Demonstration plan; pricing is not an offer' });
+  const plan = await api('POST', '/v1/admin/plans', { name: 'Sample Retail Plan — illustrative pricing', price: 30000, billingPeriod: 'monthly', includedSupport: 'Demonstration plan; pricing is not an offer' });
   const client = await api('POST', '/v1/admin/clients', { name: 'Sample Mini Mart', ownerName: 'Sample Business Owner', address: 'Accra — sample location', businessType: 'mini mart', planId: plan.id });
-  await api('POST', '/v1/admin/clients', { name: 'Sample General Store', ownerName: 'Sample Store Owner', businessType: 'retail' });
+  const secondClient = await api('POST', '/v1/admin/clients', { name: 'Sample General Store', ownerName: 'Sample Store Owner', businessType: 'retail' });
+  const subscriptions = [];
+  for (const tenant of [client, secondClient]) {
+    const subscription = await api('POST', '/v1/admin/billing/subscriptions', { tenantId: tenant.id, planId: plan.id, paymentMethod: 'manual' });
+    const issued = await api('POST', `/v1/admin/billing/subscriptions/${subscription.id}/submit`);
+    subscriptions.push({ ...subscription, invoiceId: issued.invoiceId });
+  }
+  await api('POST', `/v1/admin/billing/invoices/${subscriptions[0].invoiceId}/payment`, { amount: 10000, method: 'bank', reference: 'SAMPLE-PART-PAYMENT', notes: 'Synthetic partial payment; no money moved' });
+  await api('POST', `/v1/admin/billing/invoices/${subscriptions[1].invoiceId}/payment`, { amount: 30000, method: 'bank', reference: 'SAMPLE-PAID-INVOICE', notes: 'Synthetic sample receipt; no money moved' });
   const activation = await api('POST', `/v1/admin/clients/${client.id}/activation-codes`); secrets.push(activation.code);
   engine = openEngine({ dataDir: join(temporary, 'laptop'), dbKey: secrets[2], appVersion: '0.1.0-interface-demo' });
   const e = engine;
@@ -58,7 +74,7 @@ try {
   const snapshot: Record<string, any> = {};
   const day = new Date().toISOString().slice(0, 10);
   const range = { from: day.slice(0, 8) + '01', to: day };
-  for (const command of ['app.state', 'category.list', 'product.list', 'customer.list', 'supplier.list', 'purchase.list', 'stock.overview', 'stock.movements', 'shift.current', 'shift.list', 'sale.list', 'credit.list', 'expense.list', 'staff.list', 'sync.status', 'sync.queue', 'backup.list', 'support.list', 'audit.list', 'import.history', 'report.dashboard', 'report.sales', 'report.profit', 'report.stock']) {
+  for (const command of ['billing.summary', 'app.state', 'category.list', 'product.list', 'customer.list', 'supplier.list', 'purchase.list', 'stock.overview', 'stock.movements', 'shift.current', 'shift.list', 'sale.list', 'credit.list', 'expense.list', 'staff.list', 'sync.status', 'sync.queue', 'backup.list', 'support.list', 'audit.list', 'import.history', 'report.dashboard', 'report.sales', 'report.profit', 'report.stock']) {
     snapshot[command] = await e.execute(token, command, command.startsWith('report.') || ['sale.list', 'shift.list', 'expense.list', 'audit.list'].includes(command) ? range : {});
   }
   // These responses contain display data only; never serialize engine sessions or raw database files.
@@ -75,9 +91,17 @@ try {
     provider[`/v1/admin/clients/${c.id}`] = await api('GET', `/v1/admin/clients/${c.id}`);
     provider[`/v1/admin/audit?tenantId=${c.id}`] = await api('GET', `/v1/admin/audit?tenantId=${c.id}`);
   }
-  const json = JSON.stringify({ generatedAt: new Date().toISOString(), desktop: snapshot, admin: provider });
+  const prefix = '/v1/admin/billing';
+  for (const path of ['/collections', '/exceptions', '/notifications', '/attempts', '/invoices', '/subscriptions', '/payments', '/settlements', '/providers', '/settings', '/merchant-accounts']) provider[prefix + path] = await api('GET', prefix + path);
+  for (const filter of ['all', 'active', 'pending_mandate', 'upcoming', 'paid', 'overdue', 'failed', 'cancelled', 'disputed']) provider[`${prefix}/collections?filter=${filter}`] = await api('GET', `${prefix}/collections?filter=${filter}`);
+  for (const status of ['draft', 'awaiting_approval', 'trial', 'active', 'payment_due', 'payment_failed', 'overdue', 'paused', 'cancelled', 'expired']) provider[`${prefix}/subscriptions?status=${status}`] = await api('GET', `${prefix}/subscriptions?status=${status}`);
+  provider[`${prefix}/reports/summary?from=${range.from}&to=${range.to}`] = await api('GET', `${prefix}/reports/summary?from=${range.from}&to=${range.to}`);
+  for (const row of provider[prefix + '/invoices']) provider[`${prefix}/invoices/${row.id}`] = await api('GET', `${prefix}/invoices/${row.id}`);
+  for (const row of provider[prefix + '/subscriptions']) provider[`${prefix}/subscriptions/${row.id}`] = await api('GET', `${prefix}/subscriptions/${row.id}`);
+  for (const c of provider['/v1/admin/clients']) provider[`${prefix}/audit?tenantId=${c.id}`] = await api('GET', `${prefix}/audit?tenantId=${c.id}`);
+  const json = JSON.stringify({ generatedAt: new Date().toISOString(), reportRange: range, desktop: snapshot, admin: provider });
   for (const secret of secrets) if (json.includes(secret)) throw new Error('Refusing to publish an authentication secret');
-  if (/"(?:password_hash|device_token|secret_encrypted|token_hash)"/.test(json)) throw new Error('Refusing credential fields');
+  if (/"(?:password_hash|device_token|secret_encrypted|token_hash|token_encrypted|payLinkSecret|encryptionKey)"/.test(json)) throw new Error('Refusing credential fields');
   mkdirSync(join(target, 'dist'), { recursive: true });
   for (const [name, folder] of [['client', 'apps/desktop/dist/renderer'], ['admin', 'apps/admin-web/dist']] as const) {
     rmSync(join(target, 'dist', name), { recursive: true, force: true });
@@ -100,6 +124,9 @@ try {
   writeFileSync(join(target, 'dist', 'demo-data.js'), `window.MANSORA_DEMO_DATA = ${json};\n`);
   for (const file of ['index.html', 'demo.js', 'demo.css']) cpSync(join(root, 'scripts/interface-demo', file), join(target, 'dist', file));
   cpSync(join(root, 'packages/ui/src/assets/mansora-logo.webp'), join(target, 'dist', 'logo.webp'));
+  mkdirSync(join(target, 'dist', 'walkthrough'), { recursive: true });
+  cpSync(join(root, 'docs/team-walkthrough.html'), join(target, 'dist', 'walkthrough/index.html'));
+  cpSync(join(root, 'docs/screenshots'), join(target, 'dist', 'walkthrough/screenshots'), { recursive: true });
   console.log(`Built sample-only interface demo: ${target}/dist`);
 } finally {
   engine?.db.close(); await app.close(); await db.close(); rmSync(temporary, { recursive: true, force: true });

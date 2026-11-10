@@ -49,13 +49,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C2–C11 (backup storage, containers, performance, accessibility, admin dashboard, observability, legal drafts, workflow tests, carton costing, branding) | Codex | **Merged** via the integration review (commit `f49b1aa`) | PRs #13–#22 |
 | C12 hosted sample interface preview | Codex | **Merged** (`769981d`) | PR #24 (base is an old Codex branch, so GitHub may still show it open) |
 | C13 accounting-style workspace and page guides | Codex | **Merged** (`769981d`) | PR #25 (same note) |
-| C14 client readiness | Codex — active | **220 local tests pass on latest default.** Rebased and retargeted PR #26; screenshots and billing data inventory updated. Not merged; latest CI pending | `codex/C14-client-readiness`, PR #26 |
+| C14 client readiness | Codex — active | **Merged PR #26** as `86f4c03` after all four PR workflows passed. 220 tests pass; merged-commit CI pending | `codex/C14-client-readiness`, PR #26 |
 | Billing / System A (plans, subscriptions, invoices, payments, reminders, reconciliation, revenue, client Billing screen) | Claude | **Merged**, sandbox provider only. No real money has moved | commit `1e46b33` |
 | Team walkthrough artifact and `scripts/capture-walkthrough.ts` | Claude | Done; retake screenshots after any UI change | `519cab0` |
 | C15 email delivery adapter | unclaimed | Blocked on an email provider choice (owner) | – |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
-| C18 hosted preview refresh with billing | Codex — claimed | Refresh the existing sample preview after C14, including sandbox billing fixtures and all new navigation. No live money or provider credentials | Planned `codex/C18-billing-preview` |
+| C18 hosted preview refresh with billing | Codex — claimed | **Published version 4** at the existing private URL; local fixture/asset checks pass. PR #27 and merged CI pending | Planned `codex/C18-billing-preview` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -86,6 +86,20 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 12:18 UTC — Codex (C18 published, CI completion pending)
+- **Live:** https://mansora-saas-demo.bgtpk74dbt.chatgpt.site — owner-private Site **version 4**, native deployment `appgdep_6af30b443b508191a45fb8fccd789f87` returned `succeeded`. Same identity/access. Includes C14 client setup/UX and all billing navigation plus real-application screenshot walkthrough. Payments/account writes are blocked; no live provider, secrets or client records.
+- **Exact provenance:** published Site source `cf0a6bfe882d93f5c83d4319a5f7269ba677abb4`, built from pushed Mansora `09b3ab943972c2ce1469cbe5f91bb064c5ed3b47` / PR #27. All 69 assets verified before archive. This follow-up changes handoff/publication docs only; the UI output is unchanged.
+- **CI after push:** C18 PR/push preview, security/core and API container workflows pass; main CI (including Windows) still running. C14 merge `86f4c03` has green preview, security/core and API container; main CI still running. C14 PR `9838a4c` all checks passed before merge. Neither task marked done until merged-commit checks pass.
+- **Verification limit:** no hosted browser QA (required Sites `cua_repl.js` absent); synthetic adapter/network isolation/asset checks pass and the real application separately passed 220 tests. Private hosting requires the owner's ChatGPT account; Claude should use GitHub source/handoff rather than assume this private link is accessible.
+- **For Claude's protected billing UI:** `PaymentSettings` renders Loading when providers/settings data are absent but does not render their errors/retry; required/valid amount handling and inline unsaved-edit protection in billing forms also merit a focused follow-up. C14's validation/draft evidence covers its tested retail/setup workflows, not blanket acceptance of every new billing form. No protected billing file changed here.
+- **Remaining:** complete CI/merge handoff for PR #27, verify C14 merged CI, and owner/provider/hardware/legal items already listed. Hosted preview is not production-service deployment.
+
+### 2026-11-10 12:15 UTC — Codex (C14 merged / C18 publication preparation)
+- **C14:** PR #26 merged as `86f4c03cb3bbd8c47609db68f3bf119d40c6fa60`. All four PR and push workflows on `9838a4c` passed, including full 220-test regression, PostgreSQL 16 sync, production audit, Windows installer/smoke, API container, security/core and preview. Merged-commit workflows are being checked; status is not marked done until those pass.
+- **C18:** own branch `codex/C18-billing-preview` now rebased onto that merged default. Captures actual synthetic subscription/invoice/partial and full payment responses in throwaway stores, no-email and sandbox-only registry. Adds all billing read fixtures, effective invoice search/status and collection/subscription filters, owner-only billing reads, explicit unavailable custom report scope, blocked payment/account writes and generated screenshot walkthrough. No protected billing implementation changed.
+- **Verified:** build, typecheck, synthetic generation and expanded adapter/asset checks pass. Checks cover every captured admin read, no backend network, blocked payment/mutation methods, cashier denial, invoice search/status and scope behavior. Site identity/audience confirmed owner-private; retained source opened. Existing Site remains C13/version 3 until native publication succeeds. Hosted browser QA unavailable because required `cua_repl.js` is absent; real repository application browser tests above are separate evidence.
+- **Remaining:** check CI after this push, publish exact pushed source to existing Site, record deployment/version/source, and verify merged-commit CI for C14/C18. Legal/hardware/provider decisions remain owner work. Billing-specific form/content refinements should stay with Claude's protected billing implementation; no policy defaults approved here.
 
 ### 2026-11-10 12:09 UTC — Codex (C14 acceptance pass, C18 next)
 - **Source:** PR #26 targets default directly, rebased onto `698ce49`. No protected core/sync/billing implementation, migration, bridge, infrastructure or lockfile changes relative to current default.

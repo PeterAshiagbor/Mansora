@@ -7,11 +7,10 @@ constitute hardware, live-payment, legal or commercial acceptance.
 
 ## Publication and source
 
-Source is in PR #26, `codex/C14-client-readiness`, rebased onto default `698ce49`.
-The hosted private sample preview still shows C13 (Site version 3); C18 separately
-tracks its billing-aware refresh. The preview uses isolated synthetic fixtures and
-is distinct from the persistent encrypted desktop application. Reviewing default
-or the hosted preview does not yet review C14.
+PR #26 merged into default as `86f4c03` after all PR checks passed. Merged-commit CI is being verified.
+The hosted private sample preview now shows C14 and billing (Site version 4);
+C18 tracks its source merge and publication receipt. The preview uses isolated synthetic fixtures and
+is distinct from the persistent encrypted desktop application. The default branch and the refreshed hosted preview contain C14.
 
 ## Changes and acceptance evidence
 
@@ -64,5 +63,11 @@ columns. Production dependency audit reports zero vulnerabilities.
   choices remain owner/operator work. Sandbox billing does not charge real money.
 - Retention, privacy, tax, cancellation and non-payment policies remain draft or
   unapproved; inventory coverage does not establish legal approval.
-- C14 is not done until merged and merged-commit CI passes. C18 deployment is a
-  separate task and will record its exact source and publication version.
+- C14 and C18 require merged-commit CI before task completion. The private Site
+  deployment succeeded; exact source/version is in the interface-preview record.
+
+Billing-specific inline forms remain Claude's protected implementation. Further
+review should cover explicit failure/retry views for administrator payment
+settings and required/valid amount handling in billing forms. C14's draft and
+validation evidence applies to the tested retail/setup flows; it is not blanket
+acceptance of every new billing form.

@@ -2,10 +2,11 @@
 
 Live demo: https://mansora-saas-demo.bgtpk74dbt.chatgpt.site
 
-Published through Sites as owner-private version 1 on 2026-11-10. Sign in with
+Published through Sites as owner-private **version 4** on 2026-11-10.
+It includes merged C14 and the C18 billing-aware refresh. Sign in with
 the owning ChatGPT account if prompted, then choose Client app or Mansora admin.
 Hosting project: `appgprj_6af2c4565ff881919480f43aab9e56bb`.
-The native deployment returned `succeeded`; this is an interface demo URL, not
+Deployment `appgdep_6af30b443b508191a45fb8fccd789f87` returned `succeeded`; this is an interface demo URL, not
 the production Mansora service.
 
 The owner requested a hosted demo while the application remains in development.
@@ -46,8 +47,7 @@ suite and are not processed in this static preview.
 `scripts/interface-demo/check-demo.mjs` verifies fixture identities, filtering,
 temporary edits, blocked mutations, every provider read, zero backend requests
 and generated asset paths. The underlying combined application separately passed
-153 browser/integration/security tests and all CI, including Windows packaging,
-PostgreSQL 16 and the API container. The managed Sites environment has no
+220 browser/integration/security tests locally; current C14 CI is being verified, with Windows packaging, PostgreSQL 16 and the API container verified separately in CI. The managed Sites environment has no
 `cua_repl.js` browser tool, so hosted browser QA is unverified; the sample adapter
 and files are checked without claiming a browser run on the hosted Site.
 
@@ -56,3 +56,24 @@ The hosting project identity lives in the separate Site checkout's
 static output, demo sources and a provenance record pointing to the Mansora
 source commit. Updates rebuild from the desired Mansora branch, sync that Site
 repository and deploy a new version while preserving the Site identity/access.
+
+## C18 billing-aware refresh
+
+Synthetic fixtures include actual subscription creation, issued invoices, a partial
+payment and a fully paid invoice/receipt, all inside throwaway stores. No real
+provider credentials are configured; only the sandbox registry and no-email
+adapter are used. Billing owner reads, collections filters, subscriptions, invoice
+search/status, payments, revenue and provider settings have captured responses.
+The cashier adapter refuses owner billing reads. Every billing mutation remains
+blocked, including payment initiation and recurring authority. Report periods
+outside the captured range return an explanation instead of unrelated totals.
+
+The landing page also links to a screenshot walkthrough generated from the real
+application. These screenshots evidence interface behavior with sample records;
+they are not evidence of live payment processing or client/hardware acceptance.
+
+Publication provenance: Site source `cf0a6bfe882d93f5c83d4319a5f7269ba677abb4`,
+built from Mansora `09b3ab943972c2ce1469cbe5f91bb064c5ed3b47` (PR #27).
+All 69 output assets were hashed and verified against the retained provenance
+record before packaging; subsequent publication/handoff edits are documentation
+only. The existing owner-private identity and audience were retained.
