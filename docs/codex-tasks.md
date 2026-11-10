@@ -52,6 +52,7 @@ Take them in order; each is one pull request.
 **Done when:** the axe test passes with no serious or critical violations, and `docs/operations/accessibility.md` lists what was checked, what was fixed and what remains (screen-reader testing on Windows with NVDA must be listed as not done unless you actually did it).
 
 ### C6 — Admin dashboard: tests and small gaps
+**Status:** Implemented for review on `codex/C6-admin-dashboard`: combined client search/status filters, server-scoped client audit tab, in-app deactivation confirmation, stable pending onboarding checkbox state and localhost CRUD/session browser coverage. API source is unchanged.
 **Scope:** `apps/admin-web/src/**`, new `tests/e2e/admin.test.ts`, read-only use of the API.
 **Build:** browser tests for: add client, edit client, change status, tick and untick onboarding steps, create and edit a plan, assign a subscription, create an activation code, deactivate a laptop (with a fake activated device created through the API), session expiry returns to the login screen, and a non-admin token is rejected. Add client search and status filter to the Clients page, and a per-client audit tab using the existing `?tenantId=` parameter. Replace `window.confirm` with the `Modal` component.
 **Done when:** the tests pass in CI and need no network beyond localhost.
