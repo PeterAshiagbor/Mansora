@@ -49,13 +49,14 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C2–C11 (backup storage, containers, performance, accessibility, admin dashboard, observability, legal drafts, workflow tests, carton costing, branding) | Codex | **Merged** via the integration review (commit `f49b1aa`) | PRs #13–#22 |
 | C12 hosted sample interface preview | Codex | **Merged** (`769981d`) | PR #24 (base is an old Codex branch, so GitHub may still show it open) |
 | C13 accounting-style workspace and page guides | Codex | **Merged** (`769981d`) | PR #25 (same note) |
-| C14 client readiness | Codex — active | **Merged PR #26** as `86f4c03` after all four PR workflows passed. 220 tests pass; merged-commit CI pending | `codex/C14-client-readiness`, PR #26 |
+| C14 client readiness | Codex — done | **Merged PR #26** as `86f4c03`; all merged-commit workflows green, including 220 tests. Interface deployment refinement continues separately as C19 | `codex/C14-client-readiness`, PR #26 |
 | Billing / System A (plans, subscriptions, invoices, payments, reminders, reconciliation, revenue, client Billing screen) | Claude | **Merged**, sandbox provider only. No real money has moved | commit `1e46b33` |
 | Team walkthrough artifact and `scripts/capture-walkthrough.ts` | Claude | Done; retake screenshots after any UI change | `519cab0` |
 | C15 email delivery adapter | unclaimed | Blocked on an email provider choice (owner) | – |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
-| C18 hosted preview refresh with billing | Codex — claimed | **Published version 4** at the existing private URL; local fixture/asset checks pass. PR #27 and merged CI pending | Planned `codex/C18-billing-preview` |
+| C18 hosted preview refresh with billing | Codex — claimed | **Published version 4**, now anyone-with-link per owner request. PR #27 merged as `1ecb47f` after all checks passed; merged-commit CI pending | Planned `codex/C18-billing-preview` |
+| C19 interface deployment readiness | Codex — claimed | Owner clarified readiness means a deployable interface. Complete UI states/content/validation and billing form recovery; no engine/provider policy changes | Planned `codex/C19-interface-deployment-readiness` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -86,6 +87,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 12:26 UTC — Codex (owner clarified deployment UI scope / C19 claim)
+- **Owner steering:** “I want anyone with a ChatGPT account to be able to access it” and “by client readiness I mean that the interface is ready for deployment.” Sites has custom/public access, not an all-ChatGPT-users-only mode. Explained that anyone-with-link also permits signed-out visitors; set Site access to `public`, native policy revision 2. No invitation messages, provider secrets, client data or production service exposed. Future publication must use shared/public deployment, not owner-private operation.
+- **C14 done:** merged `86f4c03` and all merged workflows green. **C18:** version 4 published, PR #27 merged `1ecb47fa6f312a42266c711359c18227f9764d6c` after all PR/push workflows green. Merged C18 CI is checked after merge; not yet marked done.
+- **Claim C19:** `codex/C19-interface-deployment-readiness`. User's clarified scope includes all visible UI readiness. I am taking frontend-only billing recovery/validation/draft refinements flagged above; Claude should avoid concurrent edits to `apps/admin-web/src/billing.tsx` and `apps/desktop/src/renderer/pages/Billing.tsx` while this task is active. This is a coordinated UI claim under the owner's deployment-interface instruction; the protected billing engine, migration, adapters, policies and tests remain untouched. No default/provider/hardware approval is being requested or inferred.
+- **Acceptance:** complete actionable loading/empty/error/retry states, required/valid fields, guarded unsaved changes and accurate help/content across interface routes; meaningful real-API/browser checks before republishing. Hardware, hosting contracts and signing remain separate release operations and do not substitute for interface acceptance.
+- **Next:** fix and test the identified billing UI gaps, preserve working retail flows and republish the same shared Site with exact source provenance. Update the report to distinguish interface acceptance from live production deployment. CI for this docs-only claim is checked immediately after push.
 
 ### 2026-11-10 12:18 UTC — Codex (C18 published, CI completion pending)
 - **Live:** https://mansora-saas-demo.bgtpk74dbt.chatgpt.site — owner-private Site **version 4**, native deployment `appgdep_6af30b443b508191a45fb8fccd789f87` returned `succeeded`. Same identity/access. Includes C14 client setup/UX and all billing navigation plus real-application screenshot walkthrough. Payments/account writes are blocked; no live provider, secrets or client records.
@@ -233,3 +241,8 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 **Scope:** Existing preview builder/adapters and interface documentation, with synthetic sandbox billing fixtures. Keep the same Site identity/access; include client Billing and all provider billing screens. No live charge, provider onboarding, credentials, protected billing engine change or new payment policy.
 **Acceptance:** Generate from the merged current application; verify every displayed billing read and disabled write, no secret/real-client data, refresh the existing published URL, and record source/deployment/CI evidence here.
 
+
+### C19 — Interface ready for deployment
+**Owner:** Codex, claimed under the owner's clarified scope.
+**Scope:** Frontend states, navigation, validation, draft handling and client-facing copy, including billing UI. Do not change billing engine/provider/permission policy. Coordinate the temporary billing-UI file ownership in the handoff above.
+**Done when:** identified UI gaps fixed, browser acceptance and CI green, merged source and shared preview updated, and interface-specific readiness report records verified outcomes and remaining limitations.
