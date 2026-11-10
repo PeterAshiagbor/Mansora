@@ -33,6 +33,7 @@ Take them in order; each is one pull request.
 **Done when:** the existing backup tests pass unchanged on `FileStorage`; `S3Storage` is tested against a small in-process fake S3 server written in the test (signature verified, overwrite refused, round trip); documentation explains bucket settings (private, versioning, lifecycle).
 
 ### C3 — Container image and deployment files for the API
+**Status:** Implemented on `codex/C3-api-containers` for PR review. Image, local first start/restart, authenticated smoke checks, runtime-role boundaries and secret generation verified; GitHub container workflow added. No live deployment.
 **Scope:** new `infrastructure/` folder only (`Dockerfile`, `docker-compose.yml` for local PostgreSQL + API, `README.md`).
 **Build:** multi-stage image, non-root user, read-only root filesystem, `HEALTHCHECK` on `/health`, no dev dependencies in the final image. Compose file runs migrations as a separate one-shot service with a separate migration role, then the API with a runtime role that is `NOSUPERUSER NOCREATEROLE NOBYPASSRLS` — include the SQL that creates both roles. A CI job builds the image and runs the compose stack, then calls `/health` and one authenticated admin endpoint.
 **Done when:** `docker compose up` gives a working API from a clean machine, and the CI job passes.

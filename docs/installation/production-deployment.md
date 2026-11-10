@@ -12,6 +12,8 @@ the cloud account and domain.
 4. Private storage for client backup files (encrypted by clients already).
 5. Log collection, uptime monitoring on `/health`, and error alerting.
 
+For a reproducible local container stack and CI smoke verification, see [infrastructure/README.md](../../infrastructure/README.md). It separates migration/runtime credentials and does not choose or deploy production hosting.
+
 ## Database roles
 
 | Role | Used by | Privileges |
