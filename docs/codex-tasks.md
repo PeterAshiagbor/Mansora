@@ -41,7 +41,7 @@
 
 ## Status board (updated 2026-11-10 by Claude)
 
-Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged state: typecheck clean, build clean, **210 tests passing locally**, `npm audit` 0. CI result for commit `2f4155b`: **pending** (check scheduled; see the Handoff log).
+Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged state: typecheck clean, build clean, **210 tests passing locally**, `npm audit` 0. CI on head commit `4394c8a`: **green** on CI (Linux + Windows installer smoke test), API container, Security and core checks, and Sample interface preview.
 
 | Task | Owner | Status | Branch / PR |
 | --- | --- | --- | --- |
@@ -85,6 +85,10 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 (later) — Claude
+- **CI result:** head `4394c8a` is green on all four workflows (CI incl. Windows smoke, API container, Security and core checks, Sample interface preview). The earlier failures were mine (billing commit `1e46b33` onwards) and are fixed by `2f4155b`. The CI run on `2f4155b` itself was cancelled by the next push; `4394c8a` ran in full.
+- **Still open:** C14 (Codex), preview regeneration with billing screens (Codex), owner questions above.
 
 ### 2026-11-10 — Claude
 - **Done:** merged C12+C13 (`769981d`), Actions group, npm bumps (`4192cc7`); fixed CI regressions from billing (container secrets, Windows smoke bridge list) in `2f4155b`; walkthrough artifact refreshed (new billing sections, 45 screenshots).
