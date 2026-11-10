@@ -80,7 +80,7 @@ try {
     cpSync(join(root, folder), join(target, 'dist', name), { recursive: true });
     const path = join(target, 'dist', name, 'index.html');
     // Admin Vite output has root-relative asset paths. Each interface lives under its own directory.
-    let html = readFileSync(path, 'utf8').replaceAll('src="/assets/', `src="/${name}/assets/`).replaceAll('href="/assets/', `href="/${name}/assets/`).replace('href="/mansora-favicon.png"', `href="/${name}/mansora-favicon.png"`);
+    let html = readFileSync(path, 'utf8').replaceAll('src="/assets/', `src="/${name}/assets/`).replaceAll('href="/assets/', `href="/${name}/assets/`).replace('href="/mansora-favicon.png"', `href="/${name}/mansora-favicon.png"`).replace('src="/config.js"', 'src="/admin/config.js"');
     html = html.replace('<head>', `<head><meta name="robots" content="noindex,nofollow"><script src="/demo-data.js"></script><script src="/demo.js"></script><link rel="stylesheet" href="/demo.css">`);
     writeFileSync(path, html);
     if (name === 'admin') {

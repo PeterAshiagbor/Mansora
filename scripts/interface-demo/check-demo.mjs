@@ -37,6 +37,6 @@ assert.equal(unexpectedNetwork, 0);
 for (const name of ['client', 'admin']) {
   const html = readFileSync(resolve(root, name, 'index.html'), 'utf8');
   assert(html.indexOf('/demo.js') < html.indexOf('type="module"'));
-  for (const [, asset] of html.matchAll(/(?:src|href)="(\/(?:client|admin)\/[^"?]+)"/g)) assert(existsSync(resolve(root, '.' + asset)), `Missing ${asset}`);
+  for (const [, asset] of html.matchAll(/(?:src|href)="(\/[^"?]+)"/g)) assert(existsSync(resolve(root, '.' + asset)), `Missing ${asset}`);
 }
 console.log('Interface demo checks passed: fixture identities, filtering, carton-price sample edits, mutation isolation, all admin reads and asset paths.');
