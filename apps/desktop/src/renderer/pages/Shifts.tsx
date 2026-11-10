@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Textarea } from '@mansora/ui';
 import { ApprovalModal, call, DateRange, dateTime, daysAgo, ExportButtons, METHOD, money, MoneyInput, monthStart, plain, today, useAction, useApp, useQuery, uuid, type Approver } from '../lib';
 
+const less = (n: number) => (n ? `−${plain(n)}` : plain(0));
+
 export function ShiftsPage() {
   const { can } = useApp();
   const current = useQuery<any>('shift.current');
@@ -31,8 +33,8 @@ export function ShiftsPage() {
             <Stat label="Opening float" value={money(t.openingFloat)} />
             <Stat label="Cash sales" value={money(t.cashSales)} hint={`${t.salesCount} sale(s)`} />
             <Stat label="Cash repayments" value={money(t.cashRepayments)} />
-            <Stat label="Cash refunds" value={`−${plain(t.cashRefunds)}`} />
-            <Stat label="Other cash out / in" value={`−${plain(t.cashOut + t.cashExpenses)} / +${plain(t.cashIn)}`} />
+            <Stat label="Cash refunds" value={less(t.cashRefunds)} />
+            <Stat label="Other cash out / in" value={`${less(t.cashOut + t.cashExpenses)} / ${t.cashIn ? '+' : ''}${plain(t.cashIn)}`} />
             <Stat label="Cash expected in till" value={money(t.expectedCash)} tone="good" hint={`Non-cash sales ${money(t.nonCashSales)}`} />
           </div>
         </Card>
