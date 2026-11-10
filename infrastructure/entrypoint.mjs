@@ -12,6 +12,8 @@ if (!env.DATABASE_URL && mode !== 'smoke') {
   env.DATABASE_URL = url.toString();
 }
 if (env.ADMIN_TOTP_KEY_FILE) env.ADMIN_TOTP_KEY = (await readFile(env.ADMIN_TOTP_KEY_FILE, 'utf8')).trim();
+if (env.BILLING_ENCRYPTION_KEY_FILE) env.BILLING_ENCRYPTION_KEY = (await readFile(env.BILLING_ENCRYPTION_KEY_FILE, 'utf8')).trim();
+if (env.PAY_LINK_SECRET_FILE) env.PAY_LINK_SECRET = (await readFile(env.PAY_LINK_SECRET_FILE, 'utf8')).trim();
 if (mode === 'bootstrap') env.ADMIN_PASSWORD = (await readFile(env.ADMIN_PASSWORD_FILE, 'utf8')).trim();
 const [entry, ...args] = targets[mode];
 const child = spawn(process.execPath, [`/app/${entry}`, ...args], { env, stdio: 'inherit' });

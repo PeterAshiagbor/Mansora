@@ -31,6 +31,10 @@ For a reproducible local container stack and CI smoke verification, see [infrast
 | `PORT`, `HOST` | Listen address |
 | `ADMIN_ORIGINS` | Exact origin(s) of the admin dashboard, comma-separated |
 | `ADMIN_TOTP_KEY` | Base64 of 32 cryptographically random bytes; required for enrolment and whenever any administrator is enrolled. Supply from a secret manager; never put the key in dashboard config or source control |
+| `BILLING_ENCRYPTION_KEY` | Base64 of 32 random bytes. **Required in production.** Encrypts saved payment authorisations; losing it makes them unusable |
+| `PAY_LINK_SECRET` | Random secret that signs invoice payment links. **Required in production** |
+| `PUBLIC_BASE_URL` | Public HTTPS address of the API, used in payment links and provider return pages. **Required in production** |
+| `PAYSTACK_SECRET_KEY` | Optional until Mansora has a Paystack account; test key first. See [billing provider checklist](../billing/provider-onboarding.md) |
 | `BACKUP_DIR` | Local fallback for client backup files when S3 is not configured |
 | `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_BUCKET` | S3-compatible HTTPS endpoint, signing region and private bucket; set all connection variables to select S3 |
 | `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | Runtime S3 credentials from a secret manager; never dashboard config |

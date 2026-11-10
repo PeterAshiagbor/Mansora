@@ -3,8 +3,9 @@ import { chmod, mkdir, writeFile } from 'node:fs/promises';
 const directory = new URL('./.secrets/', import.meta.url);
 await mkdir(directory, { recursive: true, mode: 0o700 });
 await chmod(directory, 0o700);
-for (const name of ['postgres_password', 'migration_password', 'runtime_password', 'admin_password', 'admin_totp_key']) {
-  const content = randomBytes(name === 'admin_totp_key' ? 32 : 24).toString(name === 'admin_totp_key' ? 'base64' : 'hex');
+for (const name of ['postgres_password', 'migration_password', 'runtime_password', 'admin_password', 'admin_totp_key', 'billing_encryption_key', 'pay_link_secret']) {
+  const base64 = name === 'admin_totp_key' || name === 'billing_encryption_key';
+  const content = randomBytes(base64 ? 32 : 24).toString(base64 ? 'base64' : 'hex');
   try {
     // The parent directory is private. Docker bind-mounted secret files must be
     // readable by both the PostgreSQL and Node container UIDs.

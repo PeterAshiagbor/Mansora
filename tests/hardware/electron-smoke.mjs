@@ -28,7 +28,7 @@ try {
   };
   check('window title', (await win.title()).includes('Mansora'));
   check('no Node.js in the page', (await win.evaluate(() => `${typeof window.require}/${typeof window.process}/${typeof window.module}`)) === 'undefined/undefined/undefined');
-  check('bridge exposes only the agreed calls', (await win.evaluate(() => Object.keys(window.mansora).sort().join(','))) === 'invoke,print,restore,saveFile,savePdf');
+  check('bridge exposes only the agreed calls', (await win.evaluate(() => Object.keys(window.mansora).sort().join(','))) === 'invoke,openExternal,print,restore,saveFile,savePdf');
   const state = await win.evaluate(() => window.mansora.invoke('app.state'));
   check('engine answers, laptop not yet activated', state.ok && state.data.business.activated === false, JSON.stringify(state.data?.appVersion));
   check('unauthenticated command refused', (await win.evaluate(() => window.mansora.invoke('product.list'))).error?.code === 'NOT_SIGNED_IN');

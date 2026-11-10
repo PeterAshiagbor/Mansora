@@ -13,13 +13,13 @@ test('local secrets are random, private, readable by container UIDs and never re
     const output = run();
     const directory = join(root, '.secrets');
     const names = await readdir(directory);
-    assert.equal(names.length, 5);
+    assert.equal(names.length, 7);
     const before = new Map();
     for (const name of names) {
       const content = await readFile(join(directory, name), 'utf8');
       before.set(name, content);
       assert.ok(!output.includes(content.trim()), 'No generated value may be logged');
-      if (name === 'admin_totp_key') assert.equal(Buffer.from(content.trim(), 'base64').length, 32);
+      if (name === 'admin_totp_key' || name === 'billing_encryption_key') assert.equal(Buffer.from(content.trim(), 'base64').length, 32);
       else assert.match(content, /^[a-f0-9]{48}\n$/);
       if (process.platform !== 'win32') assert.equal((await stat(join(directory, name))).mode & 0o777, 0o444);
     }

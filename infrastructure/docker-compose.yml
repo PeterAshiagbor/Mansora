@@ -60,8 +60,11 @@ services:
       DATABASE_USER: mansora_runtime
       DATABASE_PASSWORD_FILE: /run/secrets/runtime_password
       ADMIN_TOTP_KEY_FILE: /run/secrets/admin_totp_key
+      BILLING_ENCRYPTION_KEY_FILE: /run/secrets/billing_encryption_key
+      PAY_LINK_SECRET_FILE: /run/secrets/pay_link_secret
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:4000}
       ADMIN_ORIGINS: ${ADMIN_ORIGINS:-http://localhost:5174}
-    secrets: [runtime_password, admin_totp_key]
+    secrets: [runtime_password, admin_totp_key, billing_encryption_key, pay_link_secret]
     volumes: [backup_data:/data/backups]
     ports: ['127.0.0.1:${API_PORT:-4000}:4000']
     depends_on:
@@ -90,3 +93,5 @@ secrets:
   runtime_password: {file: ./.secrets/runtime_password}
   admin_password: {file: ./.secrets/admin_password}
   admin_totp_key: {file: ./.secrets/admin_totp_key}
+  billing_encryption_key: {file: ./.secrets/billing_encryption_key}
+  pay_link_secret: {file: ./.secrets/pay_link_secret}
