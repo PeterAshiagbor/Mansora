@@ -43,6 +43,7 @@ Take them in order; each is one pull request.
 **Done when:** results (median and p95, machine described) are written to `docs/operations/performance.md`; any query over 200 ms at p95 is either fixed with an index and re-measured, or listed with a proposed fix. Do not change query results.
 
 ### C5 — Accessibility pass on the shared UI kit and both interfaces
+**Status:** Implemented on `codex/C5-accessibility` for review: axe scans of all navigation pages/tabs and representative forms, shared keyboard/focus/label fixes, contrast and responsive layout fixes. See `docs/operations/accessibility.md`; Windows NVDA/native zoom/hardware checks remain pending.
 **Scope:** `packages/ui/src/index.tsx`, `apps/admin-web/src/**`, and `apps/desktop/src/renderer/**` (interface only; no engine calls added or removed).
 **Build:** add `axe-core` as a dev dependency and an end-to-end test that runs it on every desktop page and every admin page and fails on serious or critical violations. Fix what it finds. Also check by hand: every control reachable and operable by keyboard, visible focus, modal focus trap and return, tables have captions or labels, colour is never the only signal (stock badges, variance badges), text contrast at least 4.5:1, and the layout works at 1366 × 768 and at 200% zoom.
 **Done when:** the axe test passes with no serious or critical violations, and `docs/operations/accessibility.md` lists what was checked, what was fixed and what remains (screen-reader testing on Windows with NVDA must be listed as not done unless you actually did it).

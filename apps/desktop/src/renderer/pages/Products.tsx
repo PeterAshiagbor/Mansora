@@ -29,7 +29,7 @@ export function ProductsPage() {
             { header: 'Category', cell: (p) => p.category_name ?? '' },
             ...(cost ? [{ header: 'Cost', align: 'right' as const, cell: (p: any) => money(p.cost_price) }] : []),
             { header: 'Price', align: 'right', cell: (p) => money(p.selling_price) },
-            { header: 'In stock', align: 'right', cell: (p) => (p.quantity <= 0 ? <Badge tone="bad">{p.quantity}</Badge> : p.quantity <= p.reorder_level ? <Badge tone="warn">{p.quantity}</Badge> : p.quantity) },
+            { header: 'In stock', align: 'right', cell: (p) => (p.quantity <= 0 ? <Badge tone="bad">{p.quantity} · Out of stock</Badge> : p.quantity <= p.reorder_level ? <Badge tone="warn">{p.quantity} · Low stock</Badge> : p.quantity) },
           ]} />
       </Card>
       {edit && <ProductForm product={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }} />}
