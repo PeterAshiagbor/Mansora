@@ -96,8 +96,8 @@ export function Checkout() {
   if (shift.data === null) return <OpenShift onOpened={shift.reload} />;
 
   return (
-    <div className="flex h-full gap-4">
-      <section aria-label="Products" className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-h-full flex-col gap-4 xl:flex-row">
+      <section aria-label="Products" className="flex min-h-64 min-w-0 flex-1 flex-col">
         <div className="flex gap-2">
           <Input ref={searchRef as any} autoFocus value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onEnter())}
             placeholder="Scan a barcode, or type a product name or SKU   (F2)" aria-label="Search or scan product" className="!py-3 !text-base" />
@@ -125,7 +125,7 @@ export function Checkout() {
         </div>
       </section>
 
-      <section aria-label="Basket" className="flex w-[26rem] shrink-0 flex-col rounded-lg border border-slate-200 bg-white">
+      <section aria-label="Basket" className="flex w-full shrink-0 flex-col xl:w-[26rem] rounded-lg border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
           <h2 className="text-sm font-semibold">Basket {lines.length > 0 && <span className="font-normal text-slate-500">· {lines.reduce((a, l) => a + l.quantity, 0)} item(s)</span>}</h2>
           {lines.length > 0 && <Button size="sm" variant="ghost" onClick={reset}>Clear</Button>}

@@ -60,6 +60,8 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
   });
 
   const signIn = async (username: string, password: string) => {
+    // Activation also has username/password fields; wait for the login screen before filling.
+    await shop.getByText('Sign in with your staff username and password. This works without internet.', { exact: true }).waitFor();
     await shop.getByLabel('Username').fill(username);
     await shop.getByLabel('Password', { exact: true }).fill(password);
     await shop.getByRole('button', { name: 'Sign in' }).click();

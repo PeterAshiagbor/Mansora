@@ -35,7 +35,7 @@ export function StockPage() {
               columns={[
                 { header: 'Product', cell: (r: any) => r.name },
                 { header: 'SKU', cell: (r: any) => r.sku ?? '' },
-                { header: 'In stock', align: 'right', cell: (r: any) => (r.quantity <= 0 ? <Badge tone="bad">{r.quantity}</Badge> : r.quantity <= r.reorder_level ? <Badge tone="warn">{r.quantity}</Badge> : r.quantity) },
+                { header: 'In stock', align: 'right', cell: (r: any) => (r.quantity <= 0 ? <Badge tone="bad">{r.quantity} · Out of stock</Badge> : r.quantity <= r.reorder_level ? <Badge tone="warn">{r.quantity} · Low stock</Badge> : r.quantity) },
                 { header: 'Reorder at', align: 'right', cell: (r: any) => r.reorder_level },
                 ...(s?.valuation != null ? [{ header: 'Avg cost', align: 'right' as const, cell: (r: any) => money(r.average_cost) }, { header: 'Value', align: 'right' as const, cell: (r: any) => money(Math.max(0, r.quantity) * r.average_cost) }] : []),
                 ...(can('stock.adjust') ? [{ header: '', align: 'right' as const, cell: (r: any) => <Button size="sm" onClick={() => setAdjust(r)}>Adjust</Button> }] : []),

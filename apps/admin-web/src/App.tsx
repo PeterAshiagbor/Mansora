@@ -43,7 +43,7 @@ export function App() {
   const nav = [['overview', 'Overview'], ['clients', 'Clients'], ['plans', 'Service plans'], ['audit', 'Audit log'], ['security', 'Account security']];
   return (
     <div className="flex h-full">
-      <nav aria-label="Main" className="flex w-52 shrink-0 flex-col bg-slate-900 text-slate-200">
+      <nav aria-label="Main" className="flex w-52 shrink-0 flex-col overflow-y-auto bg-slate-900 text-slate-200">
         <div className="px-4 py-4"><div className="text-[11px] font-semibold uppercase tracking-widest text-brand-300">Mansora</div><div className="text-base font-semibold text-white">Client administration</div></div>
         <div className="flex-1 px-2">
           {nav.map(([id, label]) => (
@@ -166,7 +166,7 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
   return (
     <div>
       <PageHeader title="Overview" subtitle="Platform health. Client sales and financial data are never shown here." />
-      <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-5">
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <Stat label="Client businesses" value={total} />
         <Stat label="Live" value={n(d.clientsByStatus, 'active')} tone="good" />
         <Stat label="Being onboarded" value={n(d.clientsByStatus, 'onboarding')} />
@@ -193,7 +193,7 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
 function Progress({ done, total }: { done: number; total: number }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuenow={done} aria-valuemax={total}><div className="h-full bg-brand-600" style={{ width: `${(done / total) * 100}%` }} /></div>
+      <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Onboarding progress" aria-valuenow={done} aria-valuemax={total}><div className="h-full bg-brand-600" style={{ width: `${(done / total) * 100}%` }} /></div>
       <span className="text-xs tabular-nums text-slate-600">{done}/{total}</span>
     </div>
   );
@@ -274,7 +274,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
               <li key={s.step} className="flex items-center gap-3 border-b border-slate-100 px-4 py-2 last:border-0">
                 <input type="checkbox" id={s.step} checked={!!s.completed_at} disabled={act.busy} className="h-4 w-4"
                   onChange={(e) => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}/onboarding/${s.step}`, { completed: e.target.checked, notes: s.notes }); reload(); })} />
-                <label htmlFor={s.step} className="flex-1 text-sm"><span className="mr-1 text-slate-400">{i + 1}.</span>{s.label}{s.notes && <span className="text-xs text-slate-500"> — {s.notes}</span>}</label>
+                <label htmlFor={s.step} className="flex-1 text-sm"><span className="mr-1 text-slate-600">{i + 1}.</span>{s.label}{s.notes && <span className="text-xs text-slate-500"> — {s.notes}</span>}</label>
                 <span className="text-xs text-slate-500">{s.completed_at ? `${when(s.completed_at)}${s.completed_by_name ? ` · ${s.completed_by_name}` : ''}` : ''}</span>
               </li>
             ))}
