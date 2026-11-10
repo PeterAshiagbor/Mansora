@@ -113,6 +113,6 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 
 
 ### C12 — Hosted sample interface preview
-**Status:** Owner requested a hosted demo without supplying a Vercel project. Implemented on `codex/C12-hosted-demo`, based on the combined integration branch because it previews all prepared tasks.
+**Status:** Published the [private sample demo](https://mansora-saas-demo.bgtpk74dbt.chatgpt.site) through Sites. Implemented on `codex/C12-hosted-demo`, based on the combined integration branch because it previews all prepared tasks. Owner requested hosting without supplying a Vercel project.
 **Scope:** New preview builder, isolated static browser adapters and preview documentation. No production engine, API, migration, permission or billing behavior changes.
 **Evidence:** See [interface preview](operations/interface-preview.md). Both current interfaces are used with generated synthetic records; temporary sample edits are explicit, live writes are blocked.

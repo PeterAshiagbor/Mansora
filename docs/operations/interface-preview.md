@@ -1,5 +1,13 @@
 # Hosted interface preview
 
+Live demo: https://mansora-saas-demo.bgtpk74dbt.chatgpt.site
+
+Published through Sites as owner-private version 1 on 2026-11-10. Sign in with
+the owning ChatGPT account if prompted, then choose Client app or Mansora admin.
+Hosting project: `appgprj_6af2c4565ff881919480f43aab9e56bb`.
+The native deployment returned `succeeded`; this is an interface demo URL, not
+the production Mansora service.
+
 The owner requested a hosted demo while the application remains in development.
 The sample-only static preview uses the current, built desktop and administrator
 interfaces. It does not expose the development host or connect a public browser
