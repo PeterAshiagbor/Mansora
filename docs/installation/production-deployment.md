@@ -29,7 +29,10 @@ the cloud account and domain.
 | `PORT`, `HOST` | Listen address |
 | `ADMIN_ORIGINS` | Exact origin(s) of the admin dashboard, comma-separated |
 | `ADMIN_TOTP_KEY` | Base64 of 32 cryptographically random bytes; required for enrolment and whenever any administrator is enrolled. Supply from a secret manager; never put the key in dashboard config or source control |
-| `BACKUP_DIR` | Directory for client backup files |
+| `BACKUP_DIR` | Local fallback for client backup files when S3 is not configured |
+| `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_BUCKET` | S3-compatible HTTPS endpoint, signing region and private bucket; set all connection variables to select S3 |
+| `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | Runtime S3 credentials from a secret manager; never dashboard config |
+| `BACKUP_S3_SERVER_SIDE_ENCRYPTION` | `AES256` by default; explicit `none` only for providers without SSE-S3 |
 
 ## Deploy
 
@@ -42,6 +45,8 @@ node apps/api/dist/server.js
 
 Admin dashboard: deploy `apps/admin-web/dist` and replace `config.js` with
 `window.MANSORA_API_URL = 'https://api.<your-domain>';`.
+
+See [API backup storage](../operations/backup-storage.md) for private bucket permissions, versioning, lifecycle, configuration, cutover and verification. S3 configuration is all-or-nothing; selecting a driver does not migrate existing files.
 
 ## Administrator TOTP encryption key
 

@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { link, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -173,18 +172,7 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
     const [existing] = await db.platform((q) => q(`SELECT tenant_id, sha256 FROM backup_records WHERE id = $1`, [id]));
     if (existing && (existing.tenant_id !== dev.tenant_id || existing.sha256 !== digest)) httpError(409, 'BACKUP_CONFLICT', 'Backup ID is already in use');
     const key = join(dev.tenant_id, `${id}-${digest}.mbk`);
-    await mkdir(join(ctx.backupDir, dev.tenant_id), { recursive: true, mode: 0o700 });
-    const temp = join(ctx.backupDir, dev.tenant_id, `${randomUUID()}.tmp`);
-    try {
-      await writeFile(temp, content, { flag: 'wx', mode: 0o600 });
-      try {
-        await link(temp, join(ctx.backupDir, key)); // atomically publish a complete, immutable file
-      } catch (err: any) {
-        if (err.code !== 'EEXIST') throw err;
-      }
-    } finally {
-      await unlink(temp).catch(() => {});
-    }
+    await ctx.backupStorage.put(key, content, digest);
     await db.platform(async (q) => {
       await q(`INSERT INTO backup_records (id, tenant_id, device_id, size_bytes, sha256, storage_key, status) VALUES ($1, $2, $3, $4, $5, $6, 'stored') ON CONFLICT (id) DO NOTHING`, [id, dev.tenant_id, dev.id, content.length, digest, key]);
       const [record] = await q(`SELECT tenant_id, sha256 FROM backup_records WHERE id = $1`, [id]);
@@ -199,6 +187,6 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
     const [rec] = await db.platform((q) => q(`SELECT * FROM backup_records WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1`, [dev.tenant_id]));
     if (!rec) httpError(404, 'NOT_FOUND', 'No cloud backup exists for this business');
     reply.header('content-type', 'application/octet-stream').header('x-sha256', rec.sha256);
-    return readFile(join(ctx.backupDir, rec.storage_key));
+    return ctx.backupStorage.get(rec.storage_key);
   });
 }

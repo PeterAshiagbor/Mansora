@@ -26,6 +26,7 @@ Take them in order; each is one pull request.
 **Done when:** tests cover a correct code, wrong code, replayed code within the same time step (rejected), clock skew of ±1 step, recovery code used once then rejected, rate limit, and that a session cannot be obtained with a password alone once enrolled. Admin dashboard has an enrolment screen and the second login step.
 
 ### C2 — Pluggable backup storage with an S3-compatible driver
+**Status:** Implemented on `codex/C2-backup-storage` for PR review; not deployed. Includes immutable filesystem/S3 drivers, signed conditional requests, safe storage errors, unchanged existing backup tests and a local signature-verifying fake S3 suite.
 **Why:** production must not keep client backups on the API server's disk.
 **Scope:** new `apps/api/src/storage.ts`; `apps/api/src/app.ts`, `server.ts`, `.env.example`; the two backup routes may only be changed to call the interface (coordinate: they live in `modules/device.ts` — keep the diff to replacing the `fs` calls).
 **Build:** `BackupStorage` interface (`put(key, bytes, sha256)` that never overwrites, `get(key)`, `exists(key)`). Keep the current filesystem behaviour as `FileStorage`. Add `S3Storage` using SigV4 signed `fetch` with `node:crypto` (no AWS SDK): `PutObject` with `If-None-Match: *`, `GetObject`, `HeadObject`; configured by `BACKUP_S3_ENDPOINT`, `_REGION`, `_BUCKET`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`. Server-side encryption header on by default.

@@ -13,6 +13,10 @@
 laptop.** The app counts them and warns on the Dashboard, Sync status and Backup
 screens.
 
+## Cloud backup storage
+
+The API can store encrypted backups in a private S3-compatible bucket or the existing private filesystem directory. Driver selection preserves tenant authentication and checksum checks. See [API backup storage](../operations/backup-storage.md) for bucket settings, retention and moving existing files. A bucket and the PostgreSQL backup metadata must be restored together; switching storage configuration does not copy existing backups.
+
 ## Recovery scenarios
 
 | Scenario | Outcome | Evidence |
