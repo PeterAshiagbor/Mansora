@@ -49,12 +49,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C2–C11 (backup storage, containers, performance, accessibility, admin dashboard, observability, legal drafts, workflow tests, carton costing, branding) | Codex | **Merged** via the integration review (commit `f49b1aa`) | PRs #13–#22 |
 | C12 hosted sample interface preview | Codex | **Merged** (`769981d`) | PR #24 (base is an old Codex branch, so GitHub may still show it open) |
 | C13 accounting-style workspace and page guides | Codex | **Merged** (`769981d`) | PR #25 (same note) |
-| C14 client readiness | Codex | **Not merged: WIP, 4 browser tests fail** (see Notes for Codex) | `codex/C14-client-readiness`, PR #26 |
+| C14 client readiness | Codex — active | **Claimed; fixing and retesting on latest default.** Refund regression fixed locally; 15 targeted browser tests pass on the pre-billing C14 state. Not merged; full current-default checks pending | `codex/C14-client-readiness`, PR #26 |
 | Billing / System A (plans, subscriptions, invoices, payments, reminders, reconciliation, revenue, client Billing screen) | Claude | **Merged**, sandbox provider only. No real money has moved | commit `1e46b33` |
 | Team walkthrough artifact and `scripts/capture-walkthrough.ts` | Claude | Done; retake screenshots after any UI change | `519cab0` |
 | C15 email delivery adapter | unclaimed | Blocked on an email provider choice (owner) | – |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
+| C18 hosted preview refresh with billing | Codex — claimed | Refresh the existing sample preview after C14, including sandbox billing fixtures and all new navigation. No live money or provider credentials | Planned `codex/C18-billing-preview` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -85,6 +86,15 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 11:58 UTC — Codex (active work / claim)
+- **Read and claimed:** C14 remains mine; C18 claims the billing-aware refresh of the existing private preview. C15–C17 remain unclaimed/blocked as recorded. I have not edited Claude's billing engine, migration, provider adapters or protected core files.
+- **Current source:** draft PR #26 / `codex/C14-client-readiness`. Work includes actual-record setup, safe query states, money/whole-unit validation, draft protection, paginated/sortable lists and complete print exports. It is not yet deployed or accepted.
+- **Verified before this handoff merge:** local typecheck passes; the existing eight desktop workflows pass; the legacy six UI scenarios and nine new client-readiness scenarios pass together (15 tests). This fixes the refund/owner-report/admin-consent cascade noted below. A false post-save navigation warning after creating a client is fixed too.
+- **In progress:** preserve local changes, rebase C14 onto the current default, retarget PR #26 there, retain all billing navigation/guides/bridge/container configuration, reinstall from Claude's lockfile and run the full suite including billing and accessibility. The fourth reported keyboard/accessibility failure is not yet re-verified on this state.
+- **Not verified yet:** current-default full CI, the rebased application, new walkthrough screenshots, and the billing-aware hosted preview. Existing published Site is still C13. Owner choices above remain open; no provider/tax/non-payment defaults approved here.
+- **CI:** this docs-only claim commit is being pushed; its exact workflow result will be checked and logged. Do not infer its result from an earlier green commit.
+
 
 ### 2026-11-10 (later) — Claude
 - **CI result:** head `4394c8a` is green on all four workflows (CI incl. Windows smoke, API container, Security and core checks, Sample interface preview). The earlier failures were mine (billing commit `1e46b33` onwards) and are fixed by `2f4155b`. The CI run on `2f4155b` itself was cancelled by the next push; `4394c8a` ran in full.
@@ -190,3 +200,8 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 
 ### C17 — Printable PDF invoices and receipts
 **Scope:** `apps/api/src/billing/documents.ts`. The current output is printable HTML. Add server-side PDF only if it needs no heavy new dependency (otherwise keep HTML print). Tests compare totals, numbers and issuer details.
+
+### C18 — Billing-aware hosted sample preview refresh
+**Owner:** Codex, claimed before implementation.
+**Scope:** Existing preview builder/adapters and interface documentation, with synthetic sandbox billing fixtures. Keep the same Site identity/access; include client Billing and all provider billing screens. No live charge, provider onboarding, credentials, protected billing engine change or new payment policy.
+**Acceptance:** Generate from the merged current application; verify every displayed billing read and disabled write, no secret/real-client data, refresh the existing published URL, and record source/deployment/CI evidence here.
