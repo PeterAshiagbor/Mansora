@@ -6,7 +6,7 @@
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const desktop = clone(fixture.desktop);
   const provider = clone(fixture.admin);
-  let role = 'owner', signedIn = true;
+  let role = sessionStorage.getItem('mansora-demo-role') === 'cashier' ? 'cashier' : 'owner', signedIn = true;
   const blocked = 'This is an interface preview with sample records. Transactions, imports, backups and account changes are available in the desktop application, and are not submitted from this demo.';
   const filter = (rows, input) => rows.filter((r) => !input.search || [r.name, r.sku, r.barcode, r.receipt_no].some((v) => String(v ?? '').toLowerCase().includes(input.search.toLowerCase())));
   const safeProduct = (p) => {
@@ -39,7 +39,7 @@
     }
     if (command === 'audit.list') return clone(desktop[command].filter((r) => !input.action || r.action.includes(input.action)));
     if (command === 'credit.list') { const data = clone(desktop[command]); if (input.status === 'open') data.accounts = data.accounts.filter((a) => a.status === 'open'); return data; }
-    if (command === 'shift.current' && role !== 'owner') return null;
+    if (command === 'shift.current' && role !== 'owner') return clone(desktop.cashierShift);
     if (['product.save', 'category.save', 'customer.save', 'supplier.save', 'business.update'].includes(command)) {
       if (role !== 'owner') throw new Error('Switch to the Owner preview to edit sample records.');
       if (command === 'business.update') { Object.assign(desktop['app.state'].business, input, { maxDiscountBps: (input.maxDiscountPercent ?? 0) * 100 }); return { ok: true }; }
@@ -83,7 +83,8 @@
       const label = document.createElement('label'); label.textContent = 'View as ';
       const select = document.createElement('select'); select.setAttribute('aria-label', 'Demo staff role');
       select.innerHTML = '<option value="owner">Owner</option><option value="cashier">Cashier</option>';
-      select.onchange = () => { role = select.value; signedIn = true; window.dispatchEvent(new Event('mansora:signed-out')); };
+      select.value = role;
+      select.onchange = () => { sessionStorage.setItem('mansora-demo-role', select.value); location.reload(); };
       label.append(select); bar.append(label);
       const enter = document.createElement('button'); enter.textContent = 'Enter sample workspace';
       enter.onclick = () => { signedIn = true; window.dispatchEvent(new Event('mansora:signed-out')); }; bar.append(enter);

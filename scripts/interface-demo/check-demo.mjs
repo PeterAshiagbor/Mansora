@@ -10,7 +10,7 @@ const context = {
   window: { fetch: async () => { unexpectedNetwork++; throw new Error('Unexpected network'); } },
   location: { href: 'https://demo.example/client/', pathname: '/client/' },
   document: { addEventListener: (_event, callback) => callbacks.push(callback) },
-  sessionStorage: { setItem: (key, value) => store.set(key, value) },
+  sessionStorage: { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) },
   URL, Response, crypto: globalThis.crypto, Event,
 };
 runInNewContext(readFileSync(resolve(root, 'demo-data.js'), 'utf8'), context);
@@ -34,6 +34,13 @@ for (const path of Object.keys(fixture.admin)) {
 }
 assert.equal((await context.window.fetch('/v1/admin/clients', { method: 'POST' })).status, 409);
 assert.equal(unexpectedNetwork, 0);
+store.set('mansora-demo-role', 'cashier');
+runInNewContext(readFileSync(resolve(root, 'demo.js'), 'utf8'), context);
+assert.equal((await invoke('app.state')).user.role, 'cashier');
+assert.equal((await invoke('report.dashboard')).scope, 'own');
+assert(await invoke('shift.current'), 'Cashier can preview the checkout screen with a sample shift');
+assert(!('cost_price' in (await invoke('product.list'))[0]));
+assert.equal((await context.window.mansora.invoke('product.save', { name: 'Forbidden' })).ok, false);
 for (const name of ['client', 'admin']) {
   const html = readFileSync(resolve(root, name, 'index.html'), 'utf8');
   assert(html.indexOf('/demo.js') < html.indexOf('type="module"'));

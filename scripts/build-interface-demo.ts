@@ -64,6 +64,8 @@ try {
   for (const command of ['sale', 'customer', 'purchase']) for (const row of snapshot[`${command}.list`]) snapshot[`${command}.get:${row.id}`] = await e.execute(token, `${command}.get`, { id: row.id });
   for (const format of ['csv', 'xlsx']) snapshot[`import.template:${format}`] = await e.execute(token, 'import.template', { format });
   const cashierToken = (await e.execute(null, 'auth.login', { username: 'cashier', password: secrets[1] })).token; secrets.push(cashierToken);
+  await e.execute(cashierToken, 'shift.open', { openingFloat: 10000 });
+  snapshot.cashierShift = await e.execute(cashierToken, 'shift.current');
   snapshot.cashier = await e.execute(cashierToken, 'app.state');
   snapshot.cashierDashboard = await e.execute(cashierToken, 'report.dashboard');
   const provider: Record<string, any> = {};
