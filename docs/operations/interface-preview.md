@@ -2,9 +2,9 @@
 
 Live demo: https://mansora-saas-demo.bgtpk74dbt.chatgpt.site
 
-Published through Sites as owner-private **version 4** on 2026-11-10.
-It includes merged C14 and the C18 billing-aware refresh. Sign in with
-the owning ChatGPT account if prompted, then choose Client app or Mansora admin.
+Published through Sites as **version 4** (sharing changed to anyone-with-link at the owner’s request) on 2026-11-10.
+It includes merged C14 and the C18 billing-aware refresh. Choose Client app or Mansora admin. The sharing policy is public/anyone-with-link,
+so ChatGPT users and signed-out visitors can open it.
 Hosting project: `appgprj_6af2c4565ff881919480f43aab9e56bb`.
 Deployment `appgdep_6af30b443b508191a45fb8fccd789f87` returned `succeeded`; this is an interface demo URL, not
 the production Mansora service.
@@ -31,9 +31,8 @@ output contains no production endpoint or authentication credentials.
 The landing page links to the client workspace and platform administration.
 The client preview starts as the sample owner; its toolbar can switch to the
 cashier view or re-enter after locking the screen. Inside the demo there is no
-login requirement. The hosting service may require the owner's ChatGPT sign-in
-because the Site is private by default; hosting access is separate from the
-simulated application session.
+login requirement. The hosting audience is now public/anyone-with-link by explicit owner request;
+hosting access is separate from the simulated application session.
 
 Navigation, tables, forms, carton calculation and selling-price/margin display
 use the actual application code. Product, category, customer, supplier and
@@ -76,4 +75,5 @@ Publication provenance: Site source `cf0a6bfe882d93f5c83d4319a5f7269ba677abb4`,
 built from Mansora `09b3ab943972c2ce1469cbe5f91bb064c5ed3b47` (PR #27).
 All 69 output assets were hashed and verified against the retained provenance
 record before packaging; subsequent publication/handoff edits are documentation
-only. The existing owner-private identity and audience were retained.
+only. The project identity was retained. The owner subsequently requested broader
+sharing; native access policy revision 2 changed the audience to public/anyone-with-link.

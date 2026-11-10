@@ -28,7 +28,10 @@ export function BillingPage() {
   const sub = d.subscription;
   const open = async (fn: () => Promise<{ url: string }>) => {
     const r = await run(fn);
-    if (r) { await run(() => openExternal(r.url)); setWaiting(true); }
+    if (!r) return false;
+    const opened = await run(async () => { await openExternal(r.url); return true; });
+    if (opened) setWaiting(true);
+    return !!opened;
   };
   const document = (kind: 'invoice' | 'receipt', id: string, how: 'print' | 'pdf') =>
     run(async () => {
@@ -83,24 +86,24 @@ export function BillingPage() {
         </Card>
       </div>
       <p className="mt-4 text-sm text-slate-600">Questions about a charge? Contact {d.support.name}{d.support.email ? ` at ${d.support.email}` : ''}{d.support.phone ? ` or ${d.support.phone}` : ''}. We never ask for your card number, PIN or password on this screen: you enter those only on the payment provider's own page.</p>
-      {setup && <SetupModal options={d.options} onClose={() => setSetup(false)} onGo={(input) => { setSetup(false); open(() => call('billing.mandate.start', input)); }} />}
+      {setup && <SetupModal options={d.options} onClose={() => setSetup(false)} busy={busy} onGo={async (input) => { if (await open(() => call('billing.mandate.start', input))) setSetup(false); }} />}
       {cancelAuth && (
-        <Modal title="Cancel automatic payments?" open onClose={() => setCancelAuth(false)} footer={<><Button onClick={() => setCancelAuth(false)}>Keep them</Button><Button variant="danger" disabled={busy} onClick={async () => { await run(() => call('billing.mandate.cancel'), 'Automatic payments cancelled'); setCancelAuth(false); q.reload(); }}>Cancel automatic payments</Button></>}>
+        <Modal title="Cancel automatic payments?" open onClose={() => setCancelAuth(false)} footer={<><Button dismiss onClick={() => setCancelAuth(false)}>Keep them</Button><Button variant="danger" disabled={busy} onClick={async () => { await run(async () => { await call('billing.mandate.cancel'); setCancelAuth(false); q.reload(); }, 'Automatic payments cancelled'); }}>Cancel automatic payments</Button></>}>
           <p className="text-sm text-slate-700">Mansora will stop taking payment automatically. You will pay each invoice yourself from this screen. Your subscription continues.</p>
         </Modal>
       )}
-      {cancelSub && <CancelRequest busy={busy} onClose={() => setCancelSub(false)} onSend={async (reason) => { await run(() => call('billing.cancellation.request', { reason }), 'Request sent to Mansora'); setCancelSub(false); q.reload(); }} />}
+      {cancelSub && <CancelRequest busy={busy} onClose={() => setCancelSub(false)} onSend={async (reason) => { await run(async () => { await call('billing.cancellation.request', { reason }); setCancelSub(false); q.reload(); }, 'Request sent to Mansora'); }} />}
     </div>
   );
 }
 
-function SetupModal({ options, onClose, onGo }: { options: any; onClose: () => void; onGo: (input: { method: 'card' | 'momo'; phone?: string }) => void }) {
+function SetupModal({ options, busy, onClose, onGo }: { options: any; busy: boolean; onClose: () => void; onGo: (input: { method: 'card' | 'momo'; phone?: string }) => void }) {
   const [method, setMethod] = useState<'card' | 'momo'>(options.card.available ? 'card' : 'momo');
   const [phone, setPhone] = useState('');
   const [agree, setAgree] = useState(false);
   const opt = options[method];
   return (
-    <Modal title="Set up automatic payments" open onClose={onClose} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!agree || !opt.available || (method === 'momo' && !phone.trim())} onClick={() => onGo({ method, ...(method === 'momo' ? { phone: phone.trim() } : {}) })}>Continue to secure page</Button></>}>
+    <Modal title="Set up automatic payments" open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !agree || !opt.available || (method === 'momo' && !phone.trim())} onClick={() => onGo({ method, ...(method === 'momo' ? { phone: phone.trim() } : {}) })}>Continue to secure page</Button></>}>
       <div className="space-y-3">
         <Field label="Pay with"><Select value={method} onChange={(e) => setMethod(e.target.value as 'card' | 'momo')}><option value="card" disabled={!options.card.available}>Card</option><option value="momo" disabled={!options.momo.available}>Mobile Money</option></Select></Field>
         {!opt.available && <Alert tone="warn">{opt.reason}</Alert>}
@@ -115,7 +118,7 @@ function SetupModal({ options, onClose, onGo }: { options: any; onClose: () => v
 function CancelRequest({ busy, onClose, onSend }: { busy: boolean; onClose: () => void; onSend: (reason: string) => void }) {
   const [reason, setReason] = useState('');
   return (
-    <Modal title="Ask to cancel" open onClose={onClose} footer={<><Button onClick={onClose}>Never mind</Button><Button variant="danger" disabled={busy || !reason.trim()} onClick={() => onSend(reason.trim())}>Send request</Button></>}>
+    <Modal title="Ask to cancel" open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Never mind</Button><Button variant="danger" disabled={busy || !reason.trim()} onClick={() => onSend(reason.trim())}>Send request</Button></>}>
       <p className="mb-3 text-sm text-slate-700">This sends a request to Mansora. Nothing is cancelled until Mansora confirms with you, and any unpaid invoices still need to be settled.</p>
       <Field label="Why would you like to cancel?"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} autoFocus /></Field>
     </Modal>

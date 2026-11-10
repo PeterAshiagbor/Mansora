@@ -66,8 +66,7 @@ columns. Production dependency audit reports zero vulnerabilities.
 - C14 and C18 require merged-commit CI before task completion. The private Site
   deployment succeeded; exact source/version is in the interface-preview record.
 
-Billing-specific inline forms remain Claude's protected implementation. Further
-review should cover explicit failure/retry views for administrator payment
-settings and required/valid amount handling in billing forms. C14's draft and
-validation evidence applies to the tested retail/setup flows; it is not blanket
-acceptance of every new billing form.
+The owner clarified that readiness means an interface ready for deployment.
+[C19 interface acceptance](interface-deployment-readiness.md) tracks the focused
+billing UI recovery, validation and draft refinements following this C14 record.
+Hardware and legal release steps are separate from that interface acceptance.

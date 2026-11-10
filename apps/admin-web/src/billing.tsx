@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea } from '@mansora/ui';
+import { Alert, Badge, Button, Card, cx, Field, Input, Modal, PageHeader, QueryView, Select, Stat, Table, Tabs, Textarea, useUnsavedChanges } from '@mansora/ui';
 import { api, BASE, getToken, useApi } from './api';
 
 // ------------------------------------------------------------------ shared
@@ -22,9 +22,12 @@ function useAction() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const running = useRef(false);
   const run = async <T,>(fn: () => Promise<T>, success?: string): Promise<T | undefined> => {
+    if (running.current) return undefined;
+    running.current = true;
     setBusy(true); setError(null); setDone(null);
-    try { const r = await fn(); if (success) setDone(success); return r; } catch (e: any) { setError(e.message); return undefined; } finally { setBusy(false); }
+    try { const r = await fn(); if (success) setDone(success); return r; } catch (e: any) { setError(e.message); return undefined; } finally { running.current = false; setBusy(false); }
   };
   return { run, busy, error, done };
 }
@@ -32,17 +35,25 @@ const Msg = ({ a }: { a: { error: string | null; done: string | null } }) => <>{
 
 /** Cedi amount typed as text, reported as whole pesewas (or null while it is not a valid amount). */
 function MoneyField({ label: l, value, onChange, hint }: { label: string; value: string; onChange: (text: string) => void; hint?: string }) {
+  const input = useRef<HTMLInputElement>(null);
   let bad = false;
-  try { if (value.trim()) parseGHS(value); } catch { bad = true; }
-  return <Field label={l} hint={hint} error={bad ? 'Enter an amount like 150 or 150.50' : null}><Input inputMode="decimal" placeholder="0.00" value={value} onChange={(e) => onChange(e.target.value)} /></Field>;
+  try { if (value.trim()) bad = parseGHS(value) < 0; } catch { bad = true; }
+  useEffect(() => { input.current?.setCustomValidity(bad ? 'Enter a non-negative amount with at most two decimal places.' : ''); }, [bad]);
+  return <Field label={l} hint={hint} error={bad ? 'Enter an amount like 150 or 150.50' : null}><Input ref={input} aria-invalid={bad || undefined} inputMode="decimal" placeholder="0.00" value={value} onChange={(e) => onChange(e.target.value)} /></Field>;
 }
 const detailText = (d: unknown) => { if (d == null) return ''; const t = typeof d === 'string' ? d : JSON.stringify(d); return t === '{}' ? '' : t; };
 const toPesewas = (text: string): number | null => { try { return text.trim() ? parseGHS(text) : null; } catch { return null; } };
 
 async function openDocument(path: string) {
-  const r = await api<{ html: string }>('GET', path);
-  const url = URL.createObjectURL(new Blob([r.html], { type: 'text/html' }));
-  window.open(url, '_blank', 'noopener');
+  const tab = window.open('about:blank', '_blank');
+  if (!tab) throw new Error('Allow pop-ups for Mansora, then open the printable document again.');
+  tab.opener = null;
+  try {
+    const r = await api<{ html: string }>('GET', path);
+    const url = URL.createObjectURL(new Blob([r.html], { type: 'text/html' }));
+    tab.location.replace(url);
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) { tab.close(); throw error; }
 }
 async function downloadCsv(kind: string, from: string, to: string) {
   const res = await fetch(`${BASE}/v1/admin/billing/reports/export?kind=${kind}&from=${from}&to=${to}`, { headers: { authorization: `Bearer ${getToken()}` } });
@@ -83,11 +94,10 @@ function Bars({ rows }: { rows: { month: string; invoiced: number; collected: nu
 // ------------------------------------------------------------------ revenue reports
 export function RevenueReports() {
   const [range, setRange] = useState({ from: monthStart(), to: today() });
-  const { data: d, error } = useApi<any>(`/v1/admin/billing/reports/summary?from=${range.from}&to=${range.to}`);
+  const report = useApi<any>(`/v1/admin/billing/reports/summary?from=${range.from}&to=${range.to}`);
+  const d = report.data;
   const act = useAction();
-  if (error) return <Alert tone="bad">{error.message}</Alert>;
-  if (!d) return <p className="text-slate-500">Loading…</p>;
-  const exp = (kind: string, text: string) => <Button size="sm" disabled={act.busy} onClick={() => act.run(() => downloadCsv(kind, range.from, range.to))}>{text}</Button>;
+  const exp = (kind: string, text: string) => <Button size="sm" disabled={act.busy || !d} onClick={() => act.run(() => downloadCsv(kind, range.from, range.to))}>{text}</Button>;
   return (
     <div>
       <PageHeader title="Revenue reports" subtitle="Cash received is kept separate from what has been invoiced. Test (sandbox) payments are never counted."
@@ -99,6 +109,7 @@ export function RevenueReports() {
         <Input type="date" aria-label="To" value={range.to} min={range.from} onChange={(e) => e.target.value && setRange({ ...range, to: e.target.value })} className="w-40" />
         <Button size="sm" onClick={() => setRange({ from: monthStart(), to: today() })}>This month</Button>
       </div>
+      <QueryView query={report} label="revenue reports">{d && <>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Monthly recurring revenue" value={ghs(d.mrr)} hint="Running subscriptions, after discounts" />
         <Stat label="Annual recurring revenue" value={ghs(d.arr)} hint="Monthly recurring revenue × 12" />
@@ -134,6 +145,7 @@ export function RevenueReports() {
         </Card>
       </div>
       <p className="mt-4 text-xs text-slate-500">Subscription income alone is not profit: no costs are counted here, so no profit figure is shown.</p>
+      </>}</QueryView>
     </div>
   );
 }
@@ -160,7 +172,7 @@ export function Collections({ go }: { go: (id: string, param?: string) => void }
         <>
           <div className="mb-3 flex flex-wrap gap-1.5">{FILTERS.map(([id, text]) => <Button key={id} size="sm" variant={filter === id ? 'primary' : 'secondary'} onClick={() => setFilter(id)} aria-pressed={filter === id}>{text}</Button>)}</div>
           <Card pad={false}>
-            <Table rows={rows.data} rowKey={(r) => r.tenant_id} empty="No clients match this filter"
+            <QueryView query={rows} label="billing records"><Table rows={rows.data} rowKey={(r) => r.tenant_id} empty="No clients match this filter"
               columns={[
                 { header: 'Client', cell: (r) => <button className="font-medium text-brand-700 hover:underline" onClick={() => go('client', r.tenant_id)}>{r.client}</button> },
                 { header: 'Plan', cell: (r) => r.plan ?? '—' },
@@ -173,24 +185,24 @@ export function Collections({ go }: { go: (id: string, param?: string) => void }
                 { header: 'Mandate', cell: (r) => (r.mandate_status ? <Status s={r.mandate_status} /> : <Badge>none</Badge>) },
                 { header: 'Subscription', cell: (r) => <Status s={r.subscription_status} /> },
                 { header: '', align: 'right', cell: (r) => <Button size="sm" onClick={() => setManage(r)}>Manage</Button> },
-              ]} />
+              ]} /></QueryView>
           </Card>
         </>
       )}
       {tab === 'exceptions' && (
         <Card pad={false}>
-          <Table rows={exceptions.data} rowKey={(r) => r.id} empty="Nothing needs review. Differences between Mansora's records and the providers' appear here."
-            columns={[{ header: 'When', cell: (r) => when(r.created_at) }, { header: 'Kind', cell: (r) => <Badge tone="warn">{label(r.kind)}</Badge> }, { header: 'Client', cell: (r) => r.client ?? '—' }, { header: 'Invoice', cell: (r) => r.invoice ?? '' }, { header: 'What happened', cell: (r) => <span className="text-sm">{r.detail}</span> }, { header: '', align: 'right', cell: (r) => <Button size="sm" onClick={() => setResolve(r)}>Resolve</Button> }]} />
+          <QueryView query={exceptions} label="billing records"><Table rows={exceptions.data} rowKey={(r) => r.id} empty="Nothing needs review. Differences between Mansora's records and the providers' appear here."
+            columns={[{ header: 'When', cell: (r) => when(r.created_at) }, { header: 'Kind', cell: (r) => <Badge tone="warn">{label(r.kind)}</Badge> }, { header: 'Client', cell: (r) => r.client ?? '—' }, { header: 'Invoice', cell: (r) => r.invoice ?? '' }, { header: 'What happened', cell: (r) => <span className="text-sm">{r.detail}</span> }, { header: '', align: 'right', cell: (r) => <Button size="sm" onClick={() => setResolve(r)}>Resolve</Button> }]} /></QueryView>
         </Card>
       )}
       {tab === 'messages' && (
         <>
           <Alert tone="info" className="mb-3">Messages are recorded here whether or not they were delivered. If no email provider is connected, they stay "queued".</Alert>
-          <Card pad={false}><Table rows={messages.data} rowKey={(r) => r.id} empty="No messages yet" columns={[{ header: 'When', cell: (r) => when(r.created_at) }, { header: 'To', cell: (r) => r.to_address ?? '(no address)' }, { header: 'Client', cell: (r) => r.client ?? '' }, { header: 'Subject', cell: (r) => r.subject }, { header: 'Type', cell: (r) => label(r.kind) }, { header: 'Status', cell: (r) => <Status s={r.status} /> }]} /></Card>
+          <Card pad={false}><QueryView query={messages} label="billing records"><Table rows={messages.data} rowKey={(r) => r.id} empty="No messages yet" columns={[{ header: 'When', cell: (r) => when(r.created_at) }, { header: 'To', cell: (r) => r.to_address ?? '(no address)' }, { header: 'Client', cell: (r) => r.client ?? '' }, { header: 'Subject', cell: (r) => r.subject }, { header: 'Type', cell: (r) => label(r.kind) }, { header: 'Status', cell: (r) => <Status s={r.status} /> }]} /></QueryView></Card>
         </>
       )}
       {tab === 'attempts' && (
-        <Card pad={false}><Table rows={attempts.data} rowKey={(r) => r.id} empty="No payment attempts yet" columns={[{ header: 'When', cell: (r) => when(r.created_at) }, { header: 'Client', cell: (r) => r.client }, { header: 'Invoice', cell: (r) => r.invoice }, { header: 'Kind', cell: (r) => label(r.kind) }, { header: 'Provider', cell: (r) => <>{r.provider}{r.sandbox && <> <Badge tone="warn">sandbox</Badge></>}</> }, { header: 'Amount', align: 'right', cell: (r) => ghs(r.amount) }, { header: 'Status', cell: (r) => <Status s={r.status} /> }, { header: 'Note', cell: (r) => <span className="text-xs text-slate-600">{r.failure_reason ?? ''}</span> }]} /></Card>
+        <Card pad={false}><QueryView query={attempts} label="billing records"><Table rows={attempts.data} rowKey={(r) => r.id} empty="No payment attempts yet" columns={[{ header: 'When', cell: (r) => when(r.created_at) }, { header: 'Client', cell: (r) => r.client }, { header: 'Invoice', cell: (r) => r.invoice }, { header: 'Kind', cell: (r) => label(r.kind) }, { header: 'Provider', cell: (r) => <>{r.provider}{r.sandbox && <> <Badge tone="warn">sandbox</Badge></>}</> }, { header: 'Amount', align: 'right', cell: (r) => ghs(r.amount) }, { header: 'Status', cell: (r) => <Status s={r.status} /> }, { header: 'Note', cell: (r) => <span className="text-xs text-slate-600">{r.failure_reason ?? ''}</span> }]} /></QueryView></Card>
       )}
       {manage && <ManageClient row={manage} go={go} onClose={() => setManage(null)} onChanged={reload} />}
       {resolve && (
@@ -207,7 +219,7 @@ function ResolveModal({ title, children, onClose, onSave, button = 'Save' }: { t
   const [text, setText] = useState('');
   const act = useAction();
   return (
-    <Modal title={title} open onClose={onClose} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={act.busy || !text.trim()} onClick={() => act.run(() => onSave(text))}>{button}</Button></>}>
+    <Modal title={title} open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={act.busy || !text.trim()} onClick={() => act.run(() => onSave(text))}>{button}</Button></>}>
       <Msg a={act} />{children}
       <Field label="Reason or note (kept in the audit log)"><Textarea value={text} onChange={(e) => setText(e.target.value)} autoFocus /></Field>
     </Modal>
@@ -222,7 +234,7 @@ function ManageClient({ row, go, onClose, onChanged }: { row: any; go: (id: stri
   const call = (method: 'POST', path: string, body?: unknown, msg?: string) => act.run(async () => { await api(method, `/v1/admin/billing${path}`, body ?? {}); onChanged(); }, msg);
   const inv = row.oldest_invoice_id;
   return (
-    <Modal title={row.client} open onClose={onClose} wide footer={<Button onClick={onClose}>Close</Button>}>
+    <Modal trackChanges={false} title={row.client} open onClose={onClose} wide footer={<Button dismiss onClick={onClose}>Close</Button>}>
       <Msg a={act} />
       {view === 'actions' && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -241,9 +253,9 @@ function ManageClient({ row, go, onClose, onChanged }: { row: any; go: (id: stri
       )}
       {view === 'link' && <><p className="mb-2 text-sm text-slate-600">Anyone with this link can pay this invoice. Share it only with the client.</p><CopyLink url={link} /></>}
       {view === 'invoice' && inv && <InvoiceDetail id={inv} onChanged={onChanged} embedded />}
-      {view === 'payment' && inv && <RecordPayment invoiceId={inv} onDone={() => { onChanged(); setView('actions'); }} />}
-      {view === 'plan' && <ChangePlan subscriptionId={row.subscription_id} onDone={() => { onChanged(); setView('actions'); }} />}
-      {view === 'history' && <Table rows={history.data} rowKey={(r: any) => r.id} empty="No history yet" columns={[{ header: 'When', cell: (r: any) => when(r.occurred_at) }, { header: 'By', cell: (r: any) => r.actor_type }, { header: 'Action', cell: (r: any) => <code className="text-xs">{r.action}</code> }, { header: 'Details', cell: (r: any) => <span className="break-all text-xs text-slate-600">{detailText(r.detail)}</span> }]} />}
+      {view === 'payment' && inv && <Modal title="Record payment" open onClose={() => setView('actions')} footer={<Button dismiss onClick={() => setView('actions')}>Cancel</Button>}><RecordPayment invoiceId={inv} onDone={() => { onChanged(); setView('actions'); }} /></Modal>}
+      {view === 'plan' && <Modal title="Change plan" open onClose={() => setView('actions')} footer={<Button dismiss onClick={() => setView('actions')}>Cancel</Button>}><ChangePlan subscriptionId={row.subscription_id} onDone={() => { onChanged(); setView('actions'); }} /></Modal>}
+      {view === 'history' && <QueryView query={history} label="billing records"><Table rows={history.data} rowKey={(r: any) => r.id} empty="No history yet" columns={[{ header: 'When', cell: (r: any) => when(r.occurred_at) }, { header: 'By', cell: (r: any) => r.actor_type }, { header: 'Action', cell: (r: any) => <code className="text-xs">{r.action}</code> }, { header: 'Details', cell: (r: any) => <span className="break-all text-xs text-slate-600">{detailText(r.detail)}</span> }]} /></QueryView>}
       {view !== 'actions' && <Button size="sm" className="mt-3" onClick={() => setView('actions')}>← Back to actions</Button>}
     </Modal>
   );
@@ -256,43 +268,46 @@ function RecordPayment({ invoiceId, onDone }: { invoiceId: string; onDone: () =>
   return (
     <div className="space-y-3">
       <Msg a={act} />
+      {act.error && <Alert tone="warn">If the connection failed after sending, check this invoice’s payment history before recording the money again.</Alert>}
       <p className="text-sm text-slate-600">Use this for money that arrived outside the payment provider: a bank transfer, cash, or a Mobile Money payment sent directly.</p>
       <div className="grid grid-cols-2 gap-3">
         <MoneyField label="Amount received (GH₵)" value={f.amount} onChange={(v) => setF({ ...f, amount: v })} />
         <Field label="Method"><Select value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}><option value="momo">Mobile Money</option><option value="bank">Bank transfer</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></Select></Field>
-        <Field label="Reference (transaction ID)"><Input value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Field>
+        <Field label="Reference (transaction ID)"><Input maxLength={80} value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></Field>
         <Field label="Date received"><Input type="date" max={today()} value={f.receivedOn} onChange={(e) => setF({ ...f, receivedOn: e.target.value })} /></Field>
       </div>
-      <Field label="Notes"><Input value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
+      <Field label="Notes"><Input maxLength={300} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></Field>
       <Button variant="primary" disabled={act.busy || !amount} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/invoices/${invoiceId}/payment`, { amount, method: f.method, reference: f.reference || null, receivedOn: f.receivedOn, notes: f.notes || null }); onDone(); })}>Record payment</Button>
     </div>
   );
 }
 
 function ChangePlan({ subscriptionId, onDone }: { subscriptionId: string; onDone: () => void }) {
-  const plans = useApi<any[]>('/v1/admin/plans').data ?? [];
+  const plansQuery = useApi<any[]>('/v1/admin/plans');
+  const plans = plansQuery.data ?? [];
   const [planId, setPlanId] = useState('');
   const [amount, setAmount] = useState('');
   const act = useAction();
   return (
     <div className="space-y-3">
       <Msg a={act} />
+      <QueryView query={plansQuery} label="service plans">{null}</QueryView>
       <Alert tone="info">The new price applies from the next invoice. Invoices already issued are never changed.</Alert>
       <Field label="New plan"><Select value={planId} onChange={(e) => setPlanId(e.target.value)}><option value="">Choose…</option>{plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} · {ghs(p.price)} {p.billing_period}</option>)}</Select></Field>
       <MoneyField label="Agreed amount per period (leave empty for the plan price)" value={amount} onChange={setAmount} />
-      <Button variant="primary" disabled={act.busy || !planId} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/subscriptions/${subscriptionId}/change-plan`, { planId, agreedAmount: toPesewas(amount) }); onDone(); })}>Change plan</Button>
+      <Button variant="primary" disabled={act.busy || !planId || !plansQuery.data} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/subscriptions/${subscriptionId}/change-plan`, { planId, agreedAmount: toPesewas(amount) }); onDone(); })}>Change plan</Button>
     </div>
   );
 }
 
 // ------------------------------------------------------------------ invoices
 export function InvoiceDetail({ id, onChanged, embedded }: { id: string; onChanged?: () => void; embedded?: boolean }) {
-  const { data: i, reload, error } = useApi<any>(`/v1/admin/billing/invoices/${id}`);
+  const query = useApi<any>(`/v1/admin/billing/invoices/${id}`);
+  const { data: i, reload } = query;
   const act = useAction();
   const [form, setForm] = useState<null | 'cancel' | 'write-off' | 'credit-note' | 'dispute' | 'dispute/resolve' | 'payment'>(null);
   const [amount, setAmount] = useState('');
-  if (error) return <Alert tone="bad">{error.message}</Alert>;
-  if (!i) return <p className="text-slate-500">Loading…</p>;
+  if (!i) return <QueryView query={query} label="invoice">{null}</QueryView>;
   const changed = () => { reload(); onChanged?.(); };
   const post = (path: string, body: unknown = {}, msg?: string) => act.run(async () => { await api('POST', `/v1/admin/billing/invoices/${id}/${path}`, body); changed(); }, msg);
   const payable = ['sent', 'partially_paid', 'disputed'].includes(i.status);
@@ -319,14 +334,13 @@ export function InvoiceDetail({ id, onChanged, embedded }: { id: string; onChang
         {i.status === 'disputed' && <Button onClick={() => setForm('dispute/resolve')}>Resolve dispute</Button>}
         {['draft', 'sent'].includes(i.status) && !i.amount_paid && <Button variant="danger" onClick={() => setForm('cancel')}>Cancel invoice</Button>}
       </div>
-      {form === 'payment' && <Card title="Record a payment received outside the provider"><RecordPayment invoiceId={id} onDone={() => { setForm(null); changed(); }} /></Card>}
+      {form === 'payment' && <Modal title="Record a payment received outside the provider" open onClose={() => setForm(null)} footer={<Button dismiss onClick={() => setForm(null)}>Cancel</Button>}><RecordPayment invoiceId={id} onDone={() => { setForm(null); changed(); }} /></Modal>}
       {form === 'credit-note' && (
-        <Card title="Issue a credit note"><MoneyField label="Credit amount (GH₵)" value={amount} onChange={setAmount} />
-          <ResolveModal title="Credit note" button="Issue credit note" onClose={() => setForm(null)} onSave={async (reason) => { const a = toPesewas(amount); if (!a) throw new Error('Enter the credit amount'); await post('credit-note', { amount: a, reason }); setForm(null); setAmount(''); }} /></Card>
+        <ResolveModal title="Credit note" button="Issue credit note" onClose={() => setForm(null)} onSave={async (reason) => { const a = toPesewas(amount); if (!a || a < 0) throw new Error('Enter a positive credit amount'); await api('POST', `/v1/admin/billing/invoices/${id}/credit-note`, { amount: a, reason }); setForm(null); setAmount(''); changed(); }}><MoneyField label="Credit amount (GH₵)" value={amount} onChange={setAmount} /></ResolveModal>
       )}
       {(form === 'cancel' || form === 'write-off' || form === 'dispute' || form === 'dispute/resolve') && (
         <ResolveModal title={form === 'cancel' ? 'Cancel this invoice' : form === 'write-off' ? 'Write off the balance' : form === 'dispute' ? 'Mark as disputed' : 'Resolve the dispute'} button="Confirm" onClose={() => setForm(null)}
-          onSave={async (text) => { await post(form, form === 'dispute/resolve' ? { resolution: text } : { reason: text }); setForm(null); }} />
+          onSave={async (text) => { await api('POST', `/v1/admin/billing/invoices/${id}/${form}`, form === 'dispute/resolve' ? { resolution: text } : { reason: text }); setForm(null); changed(); }} />
       )}
       <Card title="Lines" pad={false}><Table rows={i.lines} rowKey={(r: any) => r.id} columns={[{ header: 'Description', cell: (r: any) => r.description }, { header: 'Qty', align: 'right', cell: (r: any) => r.quantity }, { header: 'Unit', align: 'right', cell: (r: any) => ghs(r.unit_price) }, { header: 'Total', align: 'right', cell: (r: any) => ghs(r.line_total) }]} /></Card>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -353,30 +367,31 @@ export function Invoices() {
         <Select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} className="w-44"><option value="">All statuses</option>{['draft', 'sent', 'partially_paid', 'paid', 'overdue', 'disputed', 'cancelled', 'written_off'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</Select>
       </div>
       <Card pad={false}>
-        <Table rows={list.data} rowKey={(r) => r.id} empty="No invoices yet" onRowClick={(r) => setOpen(r.id)}
-          columns={[{ header: 'Number', cell: (r) => r.number ?? 'Draft' }, { header: 'Client', cell: (r) => r.client }, { header: 'Issued', cell: (r) => day(r.issue_date) }, { header: 'Due', cell: (r) => day(r.due_date) }, { header: 'Total', align: 'right', cell: (r) => ghs(r.total) }, { header: 'Owes', align: 'right', cell: (r) => ghs(r.outstanding) }, { header: 'Status', cell: (r) => <Status s={r.display_status} /> }, { header: '', align: 'right', cell: () => <span className="text-xs text-brand-700">Open</span> }]} />
+        <QueryView query={list} label="billing records"><Table rows={list.data} rowKey={(r) => r.id} empty="No invoices yet" onRowClick={(r) => setOpen(r.id)}
+          columns={[{ header: 'Number', cell: (r) => r.number ?? 'Draft' }, { header: 'Client', cell: (r) => r.client }, { header: 'Issued', cell: (r) => day(r.issue_date) }, { header: 'Due', cell: (r) => day(r.due_date) }, { header: 'Total', align: 'right', cell: (r) => ghs(r.total) }, { header: 'Owes', align: 'right', cell: (r) => ghs(r.outstanding) }, { header: 'Status', cell: (r) => <Status s={r.display_status} /> }, { header: '', align: 'right', cell: () => <span className="text-xs text-brand-700">Open</span> }]} /></QueryView>
       </Card>
-      {open && <Modal title="Invoice" open wide onClose={() => setOpen(null)} footer={<Button onClick={() => setOpen(null)}>Close</Button>}><InvoiceDetail id={open} onChanged={list.reload} /></Modal>}
+      {open && <Modal trackChanges={false} title="Invoice" open wide onClose={() => setOpen(null)} footer={<Button dismiss onClick={() => setOpen(null)}>Close</Button>}><InvoiceDetail id={open} onChanged={list.reload} /></Modal>}
       {creating && <NewInvoice onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); list.reload(); setOpen(id); }} />}
     </div>
   );
 }
 
 function NewInvoice({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
-  const clients = useApi<any[]>('/v1/admin/clients').data ?? [];
+  const clientsQuery = useApi<any[]>('/v1/admin/clients');
+  const clients = clientsQuery.data ?? [];
   const [tenantId, setTenantId] = useState('');
   const [lines, setLines] = useState([{ description: '', quantity: '1', unit: '' }]);
   const [notes, setNotes] = useState('');
   const [dueDate, setDueDate] = useState('');
   const act = useAction();
   const parsed = lines.map((l) => ({ description: l.description.trim(), quantity: Number(l.quantity), unitPrice: toPesewas(l.unit) }));
-  const valid = tenantId && parsed.every((l) => l.description && Number.isInteger(l.quantity) && l.quantity > 0 && l.unitPrice != null && l.unitPrice > 0);
+  const valid = clientsQuery.data && tenantId && lines.every((l) => /^\d+$/.test(l.quantity)) && parsed.every((l) => l.description && Number.isInteger(l.quantity) && l.quantity > 0 && l.unitPrice != null && l.unitPrice > 0);
   const total = parsed.reduce((n, l) => n + (l.unitPrice ?? 0) * (Number.isInteger(l.quantity) ? l.quantity : 0), 0);
   return (
-    <Modal title="New one-off invoice" open wide onClose={onClose} footer={<><Button onClick={onClose}>Cancel</Button>
+    <Modal title="New one-off invoice" open wide onClose={onClose} footer={<><Button dismiss onClick={onClose}>Cancel</Button>
       <Button disabled={act.busy || !valid} onClick={() => act.run(async () => { const r = await api('POST', '/v1/admin/billing/invoices', { tenantId, lines: parsed.map((l) => ({ description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, serviceCode: 'custom' })), dueDate: dueDate || null, notes: notes || null, issue: false }); onCreated(r.id); })}>Save as draft</Button>
       <Button variant="primary" disabled={act.busy || !valid} onClick={() => act.run(async () => { const r = await api('POST', '/v1/admin/billing/invoices', { tenantId, lines: parsed.map((l) => ({ description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, serviceCode: 'custom' })), dueDate: dueDate || null, notes: notes || null, issue: true }); onCreated(r.id); })}>Issue now</Button></>}>
-      <Msg a={act} />
+      <Msg a={act} /><QueryView query={clientsQuery} label="clients">{null}</QueryView>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Client"><Select value={tenantId} onChange={(e) => setTenantId(e.target.value)}><option value="">Choose…</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
         <Field label="Due date (optional)" hint="Defaults to the standard payment terms"><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
@@ -409,8 +424,8 @@ export function Subscriptions({ go }: { go: (id: string, param?: string) => void
       <PageHeader title="Subscriptions" subtitle="What each client has agreed to pay, and where it stands." actions={<Button variant="primary" onClick={() => setCreating(true)}>New subscription</Button>} />
       <div className="mb-3"><Select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} className="w-52"><option value="">All statuses</option>{['draft', 'awaiting_approval', 'trial', 'active', 'payment_due', 'payment_failed', 'overdue', 'paused', 'cancelled', 'expired'].map((s) => <option key={s} value={s}>{label(s)}</option>)}</Select></div>
       <Card pad={false}>
-        <Table rows={list.data} rowKey={(r) => r.id} empty="No subscriptions yet" onRowClick={(r) => setOpen(r.id)}
-          columns={[{ header: 'Client', cell: (r) => r.client }, { header: 'Plan', cell: (r) => r.plan ?? '—' }, { header: 'Agreed fee', align: 'right', cell: (r) => (r.agreed_amount == null ? '—' : <>{ghs(r.agreed_amount)}<span className="text-xs text-slate-500"> /{r.billing_frequency?.replace('ly', '')}</span></>) }, { header: 'Next billing', cell: (r) => day(r.renewal_date) }, { header: 'Paying by', cell: (r) => (r.payment_method ? label(r.payment_method) : '—') }, { header: 'Mandate', cell: (r) => (r.mandate_status ? <Status s={r.mandate_status} /> : '—') }, { header: 'Owes', align: 'right', cell: (r) => ghs(r.outstanding) }, { header: 'Status', cell: (r) => <Status s={r.status} /> }]} />
+        <QueryView query={list} label="billing records"><Table rows={list.data} rowKey={(r) => r.id} empty="No subscriptions yet" onRowClick={(r) => setOpen(r.id)}
+          columns={[{ header: 'Client', cell: (r) => r.client }, { header: 'Plan', cell: (r) => r.plan ?? '—' }, { header: 'Agreed fee', align: 'right', cell: (r) => (r.agreed_amount == null ? '—' : <>{ghs(r.agreed_amount)}<span className="text-xs text-slate-500"> /{r.billing_frequency?.replace('ly', '')}</span></>) }, { header: 'Next billing', cell: (r) => day(r.renewal_date) }, { header: 'Paying by', cell: (r) => (r.payment_method ? label(r.payment_method) : '—') }, { header: 'Mandate', cell: (r) => (r.mandate_status ? <Status s={r.mandate_status} /> : '—') }, { header: 'Owes', align: 'right', cell: (r) => ghs(r.outstanding) }, { header: 'Status', cell: (r) => <Status s={r.status} /> }]} /></QueryView>
       </Card>
       {open && <SubscriptionDetail id={open} go={go} onClose={() => setOpen(null)} onChanged={list.reload} />}
       {creating && <NewSubscription onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); list.reload(); setOpen(id); }} />}
@@ -419,7 +434,8 @@ export function Subscriptions({ go }: { go: (id: string, param?: string) => void
 }
 
 function SubscriptionDetail({ id, go, onClose, onChanged }: { id: string; go: (id: string, p?: string) => void; onClose: () => void; onChanged: () => void }) {
-  const { data, reload } = useApi<any>(`/v1/admin/billing/subscriptions/${id}`);
+  const query = useApi<any>(`/v1/admin/billing/subscriptions/${id}`);
+  const { data, reload } = query;
   const act = useAction();
   const [form, setForm] = useState<null | 'cancel' | 'pause' | 'plan' | 'date' | 'discount'>(null);
   const [text, setText] = useState('');
@@ -428,10 +444,11 @@ function SubscriptionDetail({ id, go, onClose, onChanged }: { id: string; go: (i
   const [invoice, setInvoice] = useState<string | null>(null);
   const s = data?.subscription;
   const changed = () => { reload(); onChanged(); };
-  const post = (path: string, body: unknown = {}, msg?: string) => act.run(async () => { await api('POST', `/v1/admin/billing/subscriptions/${id}/${path}`, body); setForm(null); setText(''); changed(); }, msg);
+  const mutate = async (path: string, body: unknown = {}) => { await api('POST', `/v1/admin/billing/subscriptions/${id}/${path}`, body); setForm(null); setText(''); changed(); };
+  const post = (path: string, body: unknown = {}, msg?: string) => act.run(() => mutate(path, body), msg);
   return (
-    <Modal title={s ? `${s.client} · ${s.plan ?? 'No plan'}` : 'Subscription'} open wide onClose={onClose} footer={<Button onClick={onClose}>Close</Button>}>
-      {!s ? <p className="text-slate-500">Loading…</p> : (
+    <Modal trackChanges={false} title={s ? `${s.client} · ${s.plan ?? 'No plan'}` : 'Subscription'} open wide onClose={onClose} footer={<Button dismiss onClick={onClose}>Close</Button>}>
+      {!s ? <QueryView query={query} label="subscription">{null}</QueryView> : (
         <div className="space-y-4">
           <Msg a={act} />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -445,20 +462,20 @@ function SubscriptionDetail({ id, go, onClose, onChanged }: { id: string; go: (i
             {s.status === 'draft' && <Button variant="primary" disabled={act.busy} onClick={() => post('submit', {}, 'Submitted for approval')}>Submit for approval</Button>}
             {['awaiting_approval', 'draft'].includes(s.status) && <Button disabled={act.busy} onClick={() => post('activate', {}, 'Subscription activated')}>Activate manually</Button>}
             {s.status === 'paused' ? <Button disabled={act.busy} onClick={() => post('resume', {}, 'Resumed')}>Resume</Button> : !['cancelled', 'expired'].includes(s.status) && <Button onClick={() => setForm('pause')}>Pause</Button>}
-            {!['cancelled', 'expired'].includes(s.status) && <><Button onClick={() => setForm('plan')}>Change plan</Button><Button onClick={() => setForm('date')}>Change billing date</Button><Button onClick={() => setForm('discount')}>Set discount</Button><Button variant="danger" onClick={() => setForm('cancel')}>Cancel</Button></>}
+            {!['cancelled', 'expired'].includes(s.status) && <><Button onClick={() => setForm('plan')}>Change plan</Button><Button onClick={() => setForm('date')}>Change billing date</Button><Button onClick={() => setForm('discount')}>Set discount</Button><Button dismiss variant="danger" onClick={() => setForm('cancel')}>Cancel</Button></>}
             <Button onClick={() => go('client', s.tenant_id)}>View client</Button>
           </div>
-          {form === 'pause' && <ResolveModal title="Pause subscription" button="Pause" onClose={() => setForm(null)} onSave={async (r) => { await post('pause', { reason: r }); }} />}
-          {form === 'cancel' && <ResolveModal title="Cancel subscription" button="Cancel subscription" onClose={() => setForm(null)} onSave={async (r) => { await post('cancel', { reason: r, atPeriodEnd: atEnd }); }}><label className="mb-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={atEnd} onChange={(e) => setAtEnd(e.target.checked)} />Keep the service until the end of the paid period</label></ResolveModal>}
+          {form === 'pause' && <ResolveModal title="Pause subscription" button="Pause" onClose={() => setForm(null)} onSave={async (r) => { await mutate('pause', { reason: r }); }} />}
+          {form === 'cancel' && <ResolveModal title="Cancel subscription" button="Cancel subscription" onClose={() => setForm(null)} onSave={async (r) => { await mutate('cancel', { reason: r, atPeriodEnd: atEnd }); }}><label className="mb-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={atEnd} onChange={(e) => setAtEnd(e.target.checked)} />Keep the service until the end of the paid period</label></ResolveModal>}
           {form === 'plan' && <Modal title="Change plan" open onClose={() => setForm(null)}><ChangePlan subscriptionId={id} onDone={() => { setForm(null); changed(); }} /></Modal>}
-          {form === 'date' && <Modal title="Change next billing date" open onClose={() => setForm(null)} footer={<><Button onClick={() => setForm(null)}>Cancel</Button><Button variant="primary" disabled={!text || act.busy} onClick={() => post('renewal-date', { date: text }, 'Billing date changed')}>Save</Button></>}><Field label="Next billing date"><Input type="date" value={text} onChange={(e) => setText(e.target.value)} /></Field></Modal>}
-          {form === 'discount' && <ResolveModal title="Set discount" onClose={() => setForm(null)} onSave={async (note) => { const v = Number(pct2); if (!(v >= 0 && v <= 100)) throw new Error('Enter a percentage between 0 and 100'); await post('discount', { discountBps: Math.round(v * 100), note }); }}><Field label="Discount (%)"><Input inputMode="decimal" value={pct2} onChange={(e) => setPct(e.target.value)} /></Field></ResolveModal>}
+          {form === 'date' && <Modal title="Change next billing date" open onClose={() => setForm(null)} footer={<><Button dismiss onClick={() => setForm(null)}>Cancel</Button><Button variant="primary" disabled={!text || act.busy} onClick={() => post('renewal-date', { date: text }, 'Billing date changed')}>Save</Button></>}><Msg a={act} /><Field label="Next billing date"><Input required type="date" value={text} onChange={(e) => setText(e.target.value)} /></Field></Modal>}
+          {form === 'discount' && <ResolveModal title="Set discount" onClose={() => setForm(null)} onSave={async (note) => { const v = Number(pct2); if (!pct2.trim() || !/^\d+(\.\d{1,2})?$/.test(pct2) || !(v >= 0 && v <= 100)) throw new Error('Enter a percentage between 0 and 100'); await mutate('discount', { discountBps: Math.round(v * 100), note }); }}><Field label="Discount (%)"><Input type="number" required min={0} max={100} step={0.01} value={pct2} onChange={(e) => setPct(e.target.value)} /></Field></ResolveModal>}
           <div className="grid gap-4 lg:grid-cols-2">
             <Card title="Invoices" pad={false}><Table rows={data.invoices} empty="No invoices yet" rowKey={(r: any) => r.id} onRowClick={(r: any) => setInvoice(r.id)} columns={[{ header: 'Number', cell: (r: any) => r.number ?? 'Draft' }, { header: 'Due', cell: (r: any) => day(r.due_date) }, { header: 'Total', align: 'right', cell: (r: any) => ghs(r.total) }, { header: 'Status', cell: (r: any) => <Status s={r.status} /> }]} /></Card>
             <Card title="Payment authorisations" pad={false}><Table rows={data.mandates} empty="No authorisation on file" rowKey={(r: any) => r.id} columns={[{ header: 'Method', cell: (r: any) => <>{label(r.method)} {r.masked}</> }, { header: 'Provider', cell: (r: any) => r.provider }, { header: 'Approved', cell: (r: any) => day(r.approved_at) }, { header: 'Status', cell: (r: any) => <Status s={r.status} /> }]} /></Card>
           </div>
           <Card title="History" pad={false}><Table rows={data.history} empty="No history" rowKey={(_r: any, k) => k} columns={[{ header: 'When', cell: (r: any) => when(r.occurred_at) }, { header: 'By', cell: (r: any) => r.actor_type }, { header: 'Action', cell: (r: any) => <code className="text-xs">{r.action}</code> }, { header: 'Details', cell: (r: any) => <span className="break-all text-xs text-slate-600">{detailText(r.detail)}</span> }]} /></Card>
-          {invoice && <Modal title="Invoice" open wide onClose={() => setInvoice(null)} footer={<Button onClick={() => setInvoice(null)}>Close</Button>}><InvoiceDetail id={invoice} onChanged={changed} /></Modal>}
+          {invoice && <Modal trackChanges={false} title="Invoice" open wide onClose={() => setInvoice(null)} footer={<Button dismiss onClick={() => setInvoice(null)}>Close</Button>}><InvoiceDetail id={invoice} onChanged={changed} /></Modal>}
         </div>
       )}
     </Modal>
@@ -466,14 +483,16 @@ function SubscriptionDetail({ id, go, onClose, onChanged }: { id: string; go: (i
 }
 
 function NewSubscription({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
-  const clients = useApi<any[]>('/v1/admin/clients').data ?? [];
-  const plans = (useApi<any[]>('/v1/admin/plans').data ?? []).filter((p) => p.active);
+  const clientsQuery = useApi<any[]>('/v1/admin/clients');
+  const clients = clientsQuery.data ?? [];
+  const plansQuery = useApi<any[]>('/v1/admin/plans');
+  const plans = (plansQuery.data ?? []).filter((p) => p.active);
   const [f, setF] = useState({ tenantId: '', planId: '', amount: '', startDate: '', paymentMethod: 'momo', activationPolicy: 'first_payment' });
   const act = useAction();
   const plan = plans.find((p) => p.id === f.planId);
   return (
-    <Modal title="New subscription" open onClose={onClose} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={act.busy || !f.tenantId || !f.planId} onClick={() => act.run(async () => { const r = await api('POST', '/v1/admin/billing/subscriptions', { tenantId: f.tenantId, planId: f.planId, agreedAmount: toPesewas(f.amount), startDate: f.startDate || null, paymentMethod: f.paymentMethod, activationPolicy: f.activationPolicy }); onCreated(r.id); })}>Create draft</Button></>}>
-      <Msg a={act} />
+    <Modal title="New subscription" open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={act.busy || !f.tenantId || !f.planId || !clientsQuery.data || !plansQuery.data} onClick={() => act.run(async () => { const r = await api('POST', '/v1/admin/billing/subscriptions', { tenantId: f.tenantId, planId: f.planId, agreedAmount: toPesewas(f.amount), startDate: f.startDate || null, paymentMethod: f.paymentMethod, activationPolicy: f.activationPolicy }); onCreated(r.id); })}>Create draft</Button></>}>
+      <Msg a={act} /><QueryView query={clientsQuery} label="clients">{null}</QueryView><QueryView query={plansQuery} label="service plans">{null}</QueryView>
       <div className="space-y-3">
         <Field label="Client"><Select value={f.tenantId} onChange={(e) => setF({ ...f, tenantId: e.target.value })}><option value="">Choose…</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
         <Field label="Plan"><Select value={f.planId} onChange={(e) => setF({ ...f, planId: e.target.value })}><option value="">Choose…</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {ghs(p.price)} {p.billing_period}</option>)}</Select></Field>
@@ -502,14 +521,14 @@ export function Payments() {
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'payments', label: 'Payments' }, { id: 'settlements', label: 'Provider payouts' }]} />
       {tab === 'payments' ? (
         <Card pad={false}>
-          <Table rows={list.data} rowKey={(r) => r.id} empty="No payments yet"
+          <QueryView query={list} label="billing records"><Table rows={list.data} rowKey={(r) => r.id} empty="No payments yet"
             columns={[{ header: 'Receipt', cell: (r) => <>{r.receipt_number}{r.sandbox && <> <Badge tone="warn">sandbox</Badge></>}</> }, { header: 'Client', cell: (r) => r.client }, { header: 'Received', cell: (r) => when(r.received_at) }, { header: 'Invoices', cell: (r) => r.invoices }, { header: 'Method', cell: (r) => <>{label(r.method)}<div className="text-xs text-slate-500">{r.provider}</div></> }, { header: 'Amount', align: 'right', cell: (r) => ghs(r.amount) }, { header: 'Refunded', align: 'right', cell: (r) => (r.amount_refunded ? ghs(r.amount_refunded) : '') }, { header: 'Settlement', cell: (r) => (r.settlement_id ? <Badge tone="good">paid out</Badge> : <Badge>awaiting</Badge>) },
-              { header: '', align: 'right', cell: (r) => <div className="flex justify-end gap-1"><Button size="sm" onClick={() => act.run(() => openDocument(`/v1/admin/billing/payments/${r.id}/receipt`))}>Receipt</Button>{r.amount > r.amount_refunded && <Button size="sm" onClick={() => setRefund(r)}>Refund</Button>}</div> }]} />
+              { header: '', align: 'right', cell: (r) => <div className="flex justify-end gap-1"><Button size="sm" onClick={() => act.run(() => openDocument(`/v1/admin/billing/payments/${r.id}/receipt`))}>Receipt</Button>{r.amount > r.amount_refunded && <Button size="sm" onClick={() => setRefund(r)}>Refund</Button>}</div> }]} /></QueryView>
         </Card>
       ) : (
         <>
           <Alert tone="info" className="mb-3">Provider payouts are recorded when a provider's settlement report arrives. Mansora compares each payout against the payments it expects and flags any difference under Collections → Needs review.</Alert>
-          <Card pad={false}><Table rows={settlements.data} empty="No payouts recorded" rowKey={(r) => r.id} columns={[{ header: 'Paid out', cell: (r) => day(r.settled_on) }, { header: 'Provider', cell: (r) => r.provider }, { header: 'Reference', cell: (r) => r.reference }, { header: 'Payments', align: 'right', cell: (r) => r.payments }, { header: 'Gross', align: 'right', cell: (r) => ghs(r.gross) }, { header: 'Fees', align: 'right', cell: (r) => ghs(r.fees) }, { header: 'Net', align: 'right', cell: (r) => ghs(r.net) }]} /></Card>
+          <Card pad={false}><QueryView query={settlements} label="billing records"><Table rows={settlements.data} empty="No payouts recorded" rowKey={(r) => r.id} columns={[{ header: 'Paid out', cell: (r) => day(r.settled_on) }, { header: 'Provider', cell: (r) => r.provider }, { header: 'Reference', cell: (r) => r.reference }, { header: 'Payments', align: 'right', cell: (r) => r.payments }, { header: 'Gross', align: 'right', cell: (r) => ghs(r.gross) }, { header: 'Fees', align: 'right', cell: (r) => ghs(r.fees) }, { header: 'Net', align: 'right', cell: (r) => ghs(r.net) }]} /></QueryView></Card>
         </>
       )}
       {refund && <RefundModal payment={refund} onClose={() => setRefund(null)} onDone={() => { setRefund(null); list.reload(); }} />}
@@ -535,11 +554,14 @@ export function PaymentSettings() {
   const settings = useApi<any>('/v1/admin/billing/settings');
   const accounts = useApi<any[]>('/v1/admin/billing/merchant-accounts');
   const [s, setS] = useState<any | null>(null);
+  const [lastSettings, setLastSettings] = useState<any>(null);
+  useEffect(() => { if (settings.data) setLastSettings(settings.data); }, [settings.data]);
   const act = useAction();
-  const cur = s ?? settings.data;
+  const cur = s ?? settings.data ?? lastSettings;
+  useUnsavedChanges(s != null, 'Billing settings');
   const jobs = useAction();
-  if (!providers.data || !cur) return <p className="text-slate-500">Loading…</p>;
-  const num = (v: string, min: number) => Math.max(min, Math.round(Number(v) || 0));
+  if (!providers.data || !cur) return <><PageHeader title="Payment settings" /><QueryView query={providers} label="payment providers">{null}</QueryView><QueryView query={settings} label="billing settings">{null}</QueryView></>;
+  const payload = () => ({ ...cur, ...Object.fromEntries(['invoiceLeadDays', 'defaultDueDays', 'maxAttempts', 'retryDays'].map((k) => [k, Number(cur[k])])), reminders: { ...cur.reminders, offsets: Object.fromEntries(Object.entries(cur.reminders.offsets).map(([k, v]) => [k, Number(v)])) } });
   const set = (patch: any) => setS({ ...cur, ...patch });
   const STEPS: [string, string][] = [['upcoming', 'Upcoming payment (days before due, negative)'], ['due', 'Due today'], ['overdue_1', 'First overdue notice (days after due)'], ['overdue_2', 'Second overdue notice'], ['escalate', 'Escalate to Mansora admin'], ['review', 'Flag for service review']];
   return (
@@ -554,26 +576,27 @@ export function PaymentSettings() {
         ]} />
       </Card>
       <Alert tone={providers.data.email.configured ? 'good' : 'warn'}>Email: {providers.data.email.configured ? 'connected' : providers.data.email.blocker}</Alert>
+      {lastSettings && (settings.loading || settings.error) && <QueryView query={settings} label="updated billing settings">{null}</QueryView>}
       <Card title="Invoice and collection rules">
         <Msg a={act} />
         <div className="grid gap-3 sm:grid-cols-4">
-          <Field label="Invoice created (days before renewal)"><Input inputMode="numeric" value={cur.invoiceLeadDays} onChange={(e) => set({ invoiceLeadDays: num(e.target.value, 0) })} /></Field>
-          <Field label="Payment terms (days)"><Input inputMode="numeric" value={cur.defaultDueDays} onChange={(e) => set({ defaultDueDays: num(e.target.value, 0) })} /></Field>
-          <Field label="Automatic attempts"><Input inputMode="numeric" value={cur.maxAttempts} onChange={(e) => set({ maxAttempts: num(e.target.value, 1) })} /></Field>
-          <Field label="Days between attempts"><Input inputMode="numeric" value={cur.retryDays} onChange={(e) => set({ retryDays: num(e.target.value, 1) })} /></Field>
+          <Field label="Invoice created (days before renewal)"><Input type="number" required min={0} max={60} step={1} value={cur.invoiceLeadDays} onChange={(e) => set({ invoiceLeadDays: e.target.value })} /></Field>
+          <Field label="Payment terms (days)"><Input type="number" required min={0} max={120} step={1} value={cur.defaultDueDays} onChange={(e) => set({ defaultDueDays: e.target.value })} /></Field>
+          <Field label="Automatic attempts"><Input type="number" required min={1} max={10} step={1} value={cur.maxAttempts} onChange={(e) => set({ maxAttempts: e.target.value })} /></Field>
+          <Field label="Days between attempts"><Input type="number" required min={1} max={30} step={1} value={cur.retryDays} onChange={(e) => set({ retryDays: e.target.value })} /></Field>
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={cur.reminders.enabled} onChange={(e) => set({ reminders: { ...cur.reminders, enabled: e.target.checked } })} />Send payment reminders automatically</label>
-        <div className="mt-2 grid gap-3 sm:grid-cols-3">{STEPS.map(([k, text]) => <Field key={k} label={text}><Input inputMode="numeric" value={cur.reminders.offsets[k]} onChange={(e) => set({ reminders: { ...cur.reminders, offsets: { ...cur.reminders.offsets, [k]: Math.round(Number(e.target.value) || 0) } } })} /></Field>)}</div>
+        <div className="mt-2 grid gap-3 sm:grid-cols-3">{STEPS.map(([k, text]) => <Field key={k} label={text}><Input type="number" required min={-30} max={180} step={1} value={cur.reminders.offsets[k]} onChange={(e) => set({ reminders: { ...cur.reminders, offsets: { ...cur.reminders.offsets, [k]: e.target.value } } })} /></Field>)}</div>
         <Alert tone="info" className="mt-3">Mansora never suspends a client's service automatically. Overdue accounts are flagged for a person to decide.</Alert>
         <h3 className="mb-2 mt-4 text-sm font-semibold">Printed on invoices</h3>
         <div className="grid gap-3 sm:grid-cols-2">
-          {([['name', 'Business name'], ['address', 'Address'], ['phone', 'Phone'], ['email', 'Billing email'], ['tin', 'Tax identification number']] as const).map(([k, text]) => <Field key={k} label={text}><Input value={cur.issuer[k]} onChange={(e) => set({ issuer: { ...cur.issuer, [k]: e.target.value } })} /></Field>)}
-          <Field label="Payment instructions"><Textarea value={cur.issuer.paymentInstructions} onChange={(e) => set({ issuer: { ...cur.issuer, paymentInstructions: e.target.value } })} /></Field>
+          {([['name', 'Business name'], ['address', 'Address'], ['phone', 'Phone'], ['email', 'Billing email'], ['tin', 'Tax identification number']] as const).map(([k, text]) => <Field key={k} label={text}><Input required={k === 'name'} type={k === 'email' ? 'email' : 'text'} maxLength={{ name: 120, address: 300, phone: 40, email: 160, tin: 40 }[k]} value={cur.issuer[k]} onChange={(e) => set({ issuer: { ...cur.issuer, [k]: e.target.value } })} /></Field>)}
+          <Field label="Payment instructions"><Textarea maxLength={600} value={cur.issuer.paymentInstructions} onChange={(e) => set({ issuer: { ...cur.issuer, paymentInstructions: e.target.value } })} /></Field>
         </div>
-        <div className="mt-3"><Button variant="primary" disabled={act.busy || !s} onClick={() => act.run(async () => { await api('PUT', '/v1/admin/billing/settings', s); settings.reload(); setS(null); }, 'Settings saved')}>Save settings</Button></div>
+        <div className="mt-3"><Button variant="primary" disabled={act.busy || !s} onClick={() => act.run(async () => { await api('PUT', '/v1/admin/billing/settings', payload()); settings.reload(); setS(null); }, 'Settings saved')}>Save settings</Button></div>
       </Card>
       <Card title="Mansora's settlement accounts" pad={false}>
-        <Table rows={accounts.data} empty="No accounts recorded. Add one once the provider has verified Mansora's business." rowKey={(r: any) => r.id} columns={[{ header: 'Provider', cell: (r: any) => r.provider }, { header: 'Name', cell: (r: any) => r.display_name }, { header: 'Status', cell: (r: any) => <Status s={r.status} /> }, { header: 'Settles to', cell: (r: any) => r.settlement_note }]} />
+        <QueryView query={accounts} label="billing records"><Table rows={accounts.data} empty="No accounts recorded. Add one once the provider has verified Mansora's business." rowKey={(r: any) => r.id} columns={[{ header: 'Provider', cell: (r: any) => r.provider }, { header: 'Name', cell: (r: any) => r.display_name }, { header: 'Status', cell: (r: any) => <Status s={r.status} /> }, { header: 'Settles to', cell: (r: any) => r.settlement_note }]} /></QueryView>
         <MerchantAccountForm onSaved={accounts.reload} />
       </Card>
       <Card title="Run now">
@@ -588,15 +611,16 @@ export function PaymentSettings() {
 function MerchantAccountForm({ onSaved }: { onSaved: () => void }) {
   const [f, setF] = useState({ provider: 'paystack', displayName: '', status: 'pending_verification', settlementNote: '' });
   const act = useAction();
+  useUnsavedChanges(!!f.displayName || !!f.settlementNote || f.provider !== 'paystack' || f.status !== 'pending_verification', 'Settlement account');
   return (
     <div className="border-t border-slate-200 p-4">
       <Msg a={act} />
       <div className="grid gap-3 sm:grid-cols-5">
         <Field label="Provider"><Select value={f.provider} onChange={(e) => setF({ ...f, provider: e.target.value })}><option value="paystack">Paystack</option><option value="hubtel">Hubtel</option><option value="bank">Bank</option></Select></Field>
-        <Field label="Account name"><Input value={f.displayName} onChange={(e) => setF({ ...f, displayName: e.target.value })} /></Field>
+        <Field label="Account name"><Input required maxLength={120} value={f.displayName} onChange={(e) => setF({ ...f, displayName: e.target.value })} /></Field>
         <Field label="Status"><Select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="pending_verification">Pending verification</option><option value="active">Active</option><option value="disabled">Disabled</option></Select></Field>
-        <Field label="Settles to (no account numbers)"><Input value={f.settlementNote} onChange={(e) => setF({ ...f, settlementNote: e.target.value })} /></Field>
-        <div className="flex items-end"><Button disabled={act.busy || !f.displayName.trim()} onClick={() => act.run(async () => { await api('POST', '/v1/admin/billing/merchant-accounts', f); onSaved(); }, 'Saved')}>Save account</Button></div>
+        <Field label="Settles to (no account numbers)"><Input maxLength={300} value={f.settlementNote} onChange={(e) => setF({ ...f, settlementNote: e.target.value })} /></Field>
+        <div className="flex items-end"><Button disabled={act.busy || !f.displayName.trim()} onClick={() => act.run(async () => { await api('POST', '/v1/admin/billing/merchant-accounts', f); setF({ provider: 'paystack', displayName: '', status: 'pending_verification', settlementNote: '' }); onSaved(); }, 'Saved')}>Save account</Button></div>
       </div>
     </div>
   );

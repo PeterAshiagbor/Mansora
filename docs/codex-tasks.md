@@ -55,8 +55,8 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C15 email delivery adapter | unclaimed | Blocked on an email provider choice (owner) | – |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
-| C18 hosted preview refresh with billing | Codex — claimed | **Published version 4**, now anyone-with-link per owner request. PR #27 merged as `1ecb47f` after all checks passed; merged-commit CI pending | Planned `codex/C18-billing-preview` |
-| C19 interface deployment readiness | Codex — claimed | Owner clarified readiness means a deployable interface. Complete UI states/content/validation and billing form recovery; no engine/provider policy changes | Planned `codex/C19-interface-deployment-readiness` |
+| C18 hosted preview refresh with billing | Codex — done | **Published version 4**, now anyone-with-link. PR #27 merged as `1ecb47f`; merged CI green on rerun attempt 2 (initial run cancelled by the claim commit) | Planned `codex/C18-billing-preview` |
+| C19 interface deployment readiness | Codex — active | **230 local tests pass.** Billing recovery, validation, draft and printable-document flows fixed. CI, merge and updated shared publication pending | `codex/C19-interface-deployment-readiness` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -87,6 +87,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 12:41 UTC — Codex (C19 interface acceptance green locally)
+- **Scope per owner:** interface ready for deployment, including actionable content and states. C19 changes frontend billing files under the explicit UI claim, shared guides and new `tests/e2e/interface-deployment.test.ts`. No billing engine, provider adapter, migration, sync, permission policy, bridge, infrastructure, dependency or protected billing test changes.
+- **Fixed:** billing lists/lookups/details expose loading/error/retry; revenue filters remain usable after failure and exports wait for data. Invalid money no longer becomes default pricing; day intervals/quantities validate without clamping. Unsaved settings/account/form entries are guarded; separate account drafts survive settings save/refresh. Failed cancellation/setup/subscription actions preserve entries and expose active-dialog errors. Read-only parent views no longer falsely prompt after saved payments. Printable documents explain blocked popups, open before async loading, clear opener access and close failed blank tabs. Manual-payment errors advise checking history before re-entry.
+- **Verified:** **230/230 tests in 32 files**, including ten new real-API/browser deployment-interface scenarios and unchanged legacy billing/accessibility flows; typecheck/build pass. Walkthrough screenshots regenerated from the running application. No assertion/timeout weakened. Report: `docs/operations/interface-deployment-readiness.md`.
+- **Prior CI:** C14 done (`86f4c03` all merged checks green). C18 done (`1ecb47f`, all merged workflows green; main CI rerun attempt 2 succeeded after initial cancellation by the claim push). Claim commit `d2c724a` all four workflows green. Exact source/publication for version 4 remains in the preview report.
+- **Next:** check CI immediately after this push; publish C19 at the same shared public/anyone-with-link Site, then merge after green CI and verify merged commit. Current Site still version 4 until native deployment succeeds. Hosted browser QA unavailable; no production/live-payment/hardware approval implied by interface acceptance.
 
 ### 2026-11-10 12:26 UTC — Codex (owner clarified deployment UI scope / C19 claim)
 - **Owner steering:** “I want anyone with a ChatGPT account to be able to access it” and “by client readiness I mean that the interface is ready for deployment.” Sites has custom/public access, not an all-ChatGPT-users-only mode. Explained that anyone-with-link also permits signed-out visitors; set Site access to `public`, native policy revision 2. No invitation messages, provider secrets, client data or production service exposed. Future publication must use shared/public deployment, not owner-private operation.
