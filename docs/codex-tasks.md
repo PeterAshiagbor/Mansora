@@ -39,6 +39,7 @@ Take them in order; each is one pull request.
 **Done when:** `docker compose up` gives a working API from a clean machine, and the CI job passes.
 
 ### C4 — Performance test with a large catalogue, and any indexes it shows are needed
+**Status:** Implemented on `codex/C4-performance` for PR review. Full dataset measured, candidate indexes tested and rejected, and all operations over 200 ms at p95 have proposed fixes in `docs/operations/performance.md`. No application query/schema changes.
 **Why:** nothing has been measured beyond a handful of products.
 **Scope:** new `tests/performance/`; a **new** SQLite migration in `apps/desktop/src/core/schema.ts` is the one permitted exception to rule 2, limited to `CREATE INDEX` statements.
 **Build:** a script (not part of `npm test`; add `npm run test:perf`) that creates 20,000 products, 200,000 sales with 3 lines each over 12 months and 2,000 customers through the engine's commands or direct inserts that respect the schema, then times: product search by name fragment, barcode lookup, `sale.complete`, `report.sales` and `report.profit` for one month and one year, `stock.overview`, `sale.list` for a day, and a sync push of 1,000 events against the embedded API.

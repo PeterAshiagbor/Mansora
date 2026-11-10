@@ -14,6 +14,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:perf": "tsx tests/performance/benchmark.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "npm run build -w @mansora/desktop && npm run build -w @mansora/admin-web && npm run build -w @mansora/api",
     "demo": "tsx scripts/demo-stack.ts",
