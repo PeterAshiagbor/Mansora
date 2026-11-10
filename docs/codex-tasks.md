@@ -58,6 +58,7 @@ Take them in order; each is one pull request.
 **Done when:** the tests pass in CI and need no network beyond localhost.
 
 ### C7 — Structured logging, request IDs and an error-reporting hook in the API
+**Status:** Implemented for review on `codex/C7-observability`: bounded request IDs, sanitized JSON logs and metadata identity context, liveness/readiness, token-protected in-memory Prometheus metrics and opt-in bounded error delivery. See `docs/operations/observability.md`.
 **Scope:** `apps/api/src/app.ts`, `server.ts`, new `apps/api/src/observability.ts`.
 **Build:** request ID on every request (accept a validated incoming `x-request-id`, else generate) returned in the response and included in error bodies; JSON logs with tenant ID and device ID or admin ID where known, and never tokens, passwords, backup bytes or event payloads; a `reportError(err, context)` hook that is a no-op unless `ERROR_WEBHOOK_URL` is set; `/health` split into liveness and readiness; a `/metrics` endpoint (Prometheus text, protected by a bearer token from the environment) with request counts and durations by route, sync events accepted and rejected, and login failures.
 **Done when:** tests assert that secrets never appear in captured log output for login, sync and backup requests, and that request IDs propagate.

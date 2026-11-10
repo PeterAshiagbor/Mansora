@@ -15,6 +15,8 @@ const app = await buildApp({
   backupStorage,
   adminOrigins: (process.env.ADMIN_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   logger: true,
+  metricsToken: process.env.METRICS_TOKEN,
+  errorWebhookUrl: process.env.ERROR_WEBHOOK_URL,
   trustProxy: (process.env.TRUSTED_PROXIES ?? '').split(',').map((s) => s.trim()).filter(Boolean),
 });
 await app.listen({ port: Number(process.env.PORT ?? 4000), host: process.env.HOST ?? '0.0.0.0' });
