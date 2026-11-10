@@ -18,7 +18,7 @@ export function ShiftsPage() {
   const t = current.data?.totals;
   return (
     <div>
-      <PageHeader title="Cashier shifts" subtitle="Open a shift before selling, close it when you hand over the till." />
+      <PageHeader title="Cashier shifts" subtitle="Open a shift before selling, close it when you hand over the till." actions={<ExportButtons disabled={!list.data} title={`Cashier shifts ${range.from} to ${range.to}`} columns={['Cashier', 'Opened', 'Closed', 'Sales GHS', 'Expected cash GHS', 'Counted GHS', 'Difference GHS', 'Status']} rows={() => (list.data ?? []).map((shift) => [shift.cashier_name, dateTime(shift.opened_at), dateTime(shift.closed_at), plain(shift.totals.salesTotal), plain(shift.expected_cash ?? shift.totals.expectedCash), plain(shift.counted_cash), plain(shift.variance), shift.status])} />} />
       {current.data === null && (
         <Card title="You have no open shift" className="mb-4 max-w-xl">
           <form className="flex items-end gap-3" onSubmit={(e) => { e.preventDefault(); if (float != null) run(async () => { await call('shift.open', { openingFloat: float }); reload(); }, 'Shift opened'); }}>
@@ -132,7 +132,7 @@ export function ExpensesPage() {
   return (
     <div>
       <PageHeader title="Expenses" subtitle="Running costs of the business. These are separate from the cost of the goods you sell."
-        actions={<><ExportButtons title="Expenses" columns={['Date', 'Category', 'Description', 'Paid by', 'Receipt ref', 'Recorded by', 'Amount']} rows={() => (data?.rows ?? []).map((e: any) => [e.expense_date, e.category, e.description, METHOD[e.payment_method], e.receipt_reference ?? '', e.created_by_name, plain(e.amount)])} /><Button variant="primary" onClick={() => setAdding(true)}>Record expense</Button></>} />
+        actions={<><ExportButtons disabled={!data} title={`Expenses ${range.from} to ${range.to}`} columns={['Date', 'Category', 'Description', 'Paid by', 'Receipt ref', 'Recorded by', 'Amount']} rows={() => (data?.rows ?? []).map((e: any) => [e.expense_date, e.category, e.description, METHOD[e.payment_method], e.receipt_reference ?? '', e.created_by_name, plain(e.amount)])} /><Button variant="primary" onClick={() => setAdding(true)}>Record expense</Button></>} />
       <div className="mb-3"><DateRange {...range} onChange={setRange} /></div>
       <div className="mb-4 grid gap-4 xl:grid-cols-4">
         <Stat label="Total expenses" value={money(data?.total)} />

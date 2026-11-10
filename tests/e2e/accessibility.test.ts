@@ -75,7 +75,7 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
     await shop.getByLabel('Opening cash float (GHS)', { exact: true }).fill('0');
     await shop.getByRole('button', { name: 'Open shift', exact: true }).click();
     await shop.getByLabel('Search or scan product').waitFor();
-    const names = ['New sale', 'Sales history', 'Cashier shifts', 'Customers', 'Credit & repayments', 'Products', 'Categories', 'Stock', 'Purchases & suppliers', 'Dashboard', 'Reports', 'Expenses', 'Staff', 'Settings', 'Import & export', 'Sync status', 'Backup & recovery', 'Mansora access', 'Audit history', 'Help & getting started'];
+    const names = ['Getting started', 'New sale', 'Sales history', 'Cashier shifts', 'Customers', 'Credit & repayments', 'Products', 'Categories', 'Stock', 'Purchases & suppliers', 'Dashboard', 'Reports', 'Expenses', 'Staff', 'Settings', 'Import & export', 'Sync status', 'Backup & recovery', 'Mansora access', 'Audit history', 'Help & getting started'];
     for (const zoom of [1, 2]) {
       await shop.setViewportSize({ width: 1366 / zoom, height: 768 / zoom });
       for (const name of names) {

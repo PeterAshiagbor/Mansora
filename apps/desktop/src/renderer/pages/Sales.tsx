@@ -12,7 +12,7 @@ export function SalesPage({ openId }: { openId?: string }) {
   return (
     <div>
       <PageHeader title="Sales history" subtitle="Completed sales cannot be changed. Use a refund to correct a sale."
-        actions={<ExportButtons title="Sales" columns={['Receipt', 'Date', 'Cashier', 'Customer', 'Paid by', 'Total', 'Refunded']} rows={() => (data ?? []).map((r) => [r.receipt_no, dateTime(r.created_at), r.cashier_name, r.customer_name ?? '', r.methods, plain(r.total), plain(r.refunded)])} />} />
+        actions={<ExportButtons disabled={!data} title={`Sales ${range.from} to ${range.to} — loaded matches`} columns={['Receipt', 'Date', 'Cashier', 'Customer', 'Paid by', 'Total', 'Refunded']} rows={() => (data ?? []).map((r) => [r.receipt_no, dateTime(r.created_at), r.cashier_name, r.customer_name ?? '', r.methods, plain(r.total), plain(r.refunded)])} />} />
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <DateRange {...range} onChange={setRange} />
         <Input placeholder="Receipt number or customer" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64 no-print" aria-label="Search sales" />
@@ -45,7 +45,7 @@ function SaleDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const { sale, items, payments, refunds, credit } = data;
   const refundable = items.some((i: any) => i.refunded_quantity < i.quantity);
   return (
-    <Modal title={`Receipt ${sale.receipt_no}`} open onClose={onClose} wide
+    <Modal trackChanges={false} title={`Receipt ${sale.receipt_no}`} open onClose={onClose} wide
       footer={<>
         {refundable && <Button variant="danger" onClick={() => setRefunding(true)}>Refund…</Button>}
         <Button disabled={busy} onClick={() => run(async () => { const r = await receipt(); await savePdf(r.html, `${r.receiptNo}.pdf`); })}>Save PDF</Button>

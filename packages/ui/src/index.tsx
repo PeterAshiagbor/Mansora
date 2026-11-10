@@ -106,7 +106,7 @@ export function Modal({ title, open, onClose, children, footer, wide, trackChang
   if (!open) return null;
   return (
     <DialogDismiss.Provider value={dismiss}><div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && dismiss(onClose)}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} onChangeCapture={() => setModified(true)} className={cx('m-dialog w-full rounded-lg bg-white shadow-xl outline-none', wide ? 'max-w-3xl' : 'max-w-lg')}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} onChangeCapture={(event) => { if ((event.target as HTMLElement).closest('[role="dialog"]') === event.currentTarget) setModified(true); }} className={cx('m-dialog w-full rounded-lg bg-white shadow-xl outline-none', wide ? 'max-w-3xl' : 'max-w-lg')}>
         <div className="m-dialog-header flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2 id={id} className="text-base font-semibold text-slate-900">{title}</h2>
           <button type="button" onClick={() => dismiss(onClose)} aria-label="Close" className={cx('rounded p-1 text-slate-500 hover:bg-slate-100', focus)}>✕</button>
@@ -197,7 +197,7 @@ export function Table<T>({ columns, rows, onRowClick, empty = 'Nothing to show y
       </table>
       {rows && rows.length === 0 && <div className="px-3 py-8 text-center text-sm text-slate-500">{empty}</div>}
       {!rows && <div className="px-3 py-8 text-center text-sm text-slate-600">Loading…</div>}
-    </div>{ordered.length > pageSize && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-600"><span role="status">Showing {activePage * pageSize + 1}–{Math.min((activePage + 1) * pageSize, ordered.length)} of {ordered.length} loaded rows</span><div className="flex gap-2"><Button size="sm" disabled={activePage === 0} onClick={() => setPage(activePage - 1)}>Previous page</Button><Button size="sm" disabled={(activePage + 1) * pageSize >= ordered.length} onClick={() => setPage(activePage + 1)}>Next page</Button></div></div>}</div>
+    </div>{ordered.length > pageSize && <p className="hidden print:block">This printout shows the current table page. Use the report’s Print / PDF button for all loaded rows.</p>}{ordered.length > pageSize && <div className="no-print flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-600"><span role="status">Showing {activePage * pageSize + 1}–{Math.min((activePage + 1) * pageSize, ordered.length)} of {ordered.length} loaded rows</span><div className="flex gap-2"><Button size="sm" disabled={activePage === 0} onClick={() => setPage(activePage - 1)}>Previous page</Button><Button size="sm" disabled={(activePage + 1) * pageSize >= ordered.length} onClick={() => setPage(activePage + 1)}>Next page</Button></div></div>}</div>
   );
 }
 

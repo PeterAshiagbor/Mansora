@@ -15,7 +15,7 @@ export function ProductsPage() {
     <div>
       <PageHeader title="Products" subtitle={data ? data.length === 1000 ? 'Showing the first 1,000 matching products. Refine your search to find more.' : `${data.length} matching product(s)` : undefined}
         actions={<>
-          <ExportButtons title="Products" columns={['Name', 'SKU', 'Barcode', 'Category', 'Selling price', ...(cost ? ['Cost price', 'Gross margin (%)'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price), marginLabel(p.selling_price, p.cost_price)] : []), p.quantity])} />
+          <ExportButtons disabled={!data} title="Products — loaded matching catalogue" columns={['Name', 'SKU', 'Barcode', 'Category', 'Selling price', ...(cost ? ['Cost price', 'Gross margin (%)'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price), marginLabel(p.selling_price, p.cost_price)] : []), p.quantity])} />
           {can('data.import') && <Button onClick={() => go('data')}>Upload Excel / CSV</Button>}
           {can('product.manage') && <Button variant="primary" onClick={() => setEdit({})}>Add product</Button>}
         </>} />
@@ -48,7 +48,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
   const categories = categoryOptions.data ?? [];
   const [f, setF] = useState({
     name: product.name ?? '', sku: product.sku ?? '', barcode: product.barcode ?? '', categoryId: product.category_id ?? '', unit: product.unit ?? 'each',
-    costPrice: (product.cost_price ?? 0) as number | null, sellingPrice: (product.selling_price ?? null) as number | null, reorderLevel: String(product.reorder_level ?? 0), active: product.active !== 0, openingStock: '',
+    costPrice: (product.cost_price ?? null) as number | null, sellingPrice: (product.selling_price ?? null) as number | null, reorderLevel: String(product.reorder_level ?? 0), active: product.active !== 0, openingStock: '',
   });
   const [cartonCost, setCartonCost] = useState<number | null>(null);
   const [cartonUnits, setCartonUnits] = useState('');
@@ -77,7 +77,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
         <Field label="Unit of measure"><Input value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Field>
         <h3 className="col-span-2 mt-2 border-t border-slate-100 pt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">2. Pricing &amp; cost</h3>
         <Field label="Selling price (GHS)"><MoneyInput value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
-        {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : undefined}><MoneyInput required value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
+        {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : 'Enter a verified unit cost. Use 0 only when the item genuinely has no cost.'}><MoneyInput required value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
         {cost && <fieldset className="col-span-2 rounded-lg border border-brand-200 bg-brand-50/40 p-4">
           <legend className="px-1 text-sm font-medium">Calculate cost from a carton</legend>
           <div className="grid grid-cols-2 gap-3">
@@ -113,7 +113,7 @@ export function CategoriesPage() {
       </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? 'Edit category' : 'Add category'} open onClose={() => setEdit(null)}
-          footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('category.save', { id: edit.id, name: edit.name, active: !!edit.active }); setEdit(null); reload(); }, 'Category saved')}>Save</Button></>}>
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('category.save', { id: edit.id, name: edit.name, active: !!edit.active }); setEdit(null); reload(); }, 'Category saved')}>Save</Button></>}>
           <div className="space-y-3">
             <Field label="Category name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked ? 1 : 0 })} /> Active</label>

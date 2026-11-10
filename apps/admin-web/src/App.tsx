@@ -228,7 +228,8 @@ function ClientFields({ f, setF }: { f: any; setF: (f: any) => void }) {
 function Clients({ go }: { go: (id: string, param?: string, afterSave?: boolean) => void }) {
   const clientsQuery = useApi<any[]>('/v1/admin/clients');
   const { data, reload } = clientsQuery;
-  const plans = useApi<any[]>('/v1/admin/plans').data ?? [];
+  const planOptions = useApi<any[]>('/v1/admin/plans');
+  const plans = planOptions.data ?? [];
   const [adding, setAdding] = useState<any | null>(null);
   const { run, busy, error } = useAction();
   const [search, setSearch] = useState('');
@@ -260,10 +261,10 @@ function Clients({ go }: { go: (id: string, param?: string, afterSave?: boolean)
       </Card></QueryView>
       {adding && (
         <Modal title="Add client" open onClose={() => setAdding(null)} wide
-          footer={<><Button onClick={() => setAdding(null)}>Cancel</Button><Button variant="primary" disabled={busy || !adding.name.trim() || !adding.ownerName.trim()} onClick={() => run(async () => { const r = await api('POST', '/v1/admin/clients', { ...adding, planId: adding.planId || null }); setAdding(null); reload(); go('client', r.id, true); })}>Create client</Button></>}>
+          footer={<><Button dismiss onClick={() => setAdding(null)}>Cancel</Button><Button variant="primary" disabled={busy || !adding.name.trim() || !adding.ownerName.trim() || (!!adding.planId && !planOptions.data)} onClick={() => run(async () => { const r = await api('POST', '/v1/admin/clients', { ...adding, planId: adding.planId || null }); setAdding(null); reload(); go('client', r.id, true); })}>Create client</Button></>}>
           {error && <Alert tone="bad" className="mb-3">{error}</Alert>}
           <ClientFields f={adding} setF={setAdding} />
-          <Field label="Service plan" className="mt-3"><Select value={adding.planId} onChange={(e) => setAdding({ ...adding, planId: e.target.value })}><option value="">Decide later</option>{plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+          <QueryView query={planOptions} label="service plan options"><Field label="Service plan" className="mt-3"><Select value={adding.planId} onChange={(e) => setAdding({ ...adding, planId: e.target.value })}><option value="">Decide later</option>{plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field></QueryView>
         </Modal>
       )}
     </div>
@@ -273,7 +274,8 @@ function Clients({ go }: { go: (id: string, param?: string, afterSave?: boolean)
 function Client({ id, go }: { id: string; go: (id: string, param?: string) => void }) {
   const clientQuery = useApi<any>(`/v1/admin/clients/${id}`);
   const { data, reload } = clientQuery;
-  const plans = useApi<any[]>('/v1/admin/plans').data ?? [];
+  const planOptions = useApi<any[]>('/v1/admin/plans');
+  const plans = planOptions.data ?? [];
   const [edit, setEdit] = useState<any | null>(null);
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [sub, setSub] = useState<any | null>(null);
@@ -342,20 +344,20 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
       </div>
       </div>
       {revoking && device && <Modal title="Deactivate laptop" open onClose={() => !act.busy && setRevoking(false)}
-        footer={<><Button disabled={act.busy} onClick={() => setRevoking(false)}>Cancel</Button><Button variant="danger" disabled={act.busy} onClick={() => act.run(async () => { await api('POST', `/v1/admin/devices/${device.id}/revoke`); setRevoking(false); reload(); })}>Deactivate laptop</Button></>}>
+        footer={<><Button dismiss disabled={act.busy} onClick={() => setRevoking(false)}>Cancel</Button><Button variant="danger" disabled={act.busy} onClick={() => act.run(async () => { await api('POST', `/v1/admin/devices/${device.id}/revoke`); setRevoking(false); reload(); })}>Deactivate laptop</Button></>}>
         <p className="text-sm">Deactivate {device.name}? This laptop will keep working offline but cannot sync until it is re-activated. This action is recorded.</p>
         {act.error && <Alert tone="bad" className="mt-3">{act.error}</Alert>}
       </Modal>}
       {edit && (
-        <Modal title="Edit client" open onClose={() => setEdit(null)} wide footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={act.busy} onClick={() => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}`, edit); setEdit(null); reload(); })}>Save</Button></>}>
+        <Modal title="Edit client" open onClose={() => setEdit(null)} wide footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={act.busy} onClick={() => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}`, edit); setEdit(null); reload(); })}>Save</Button></>}>
           <ClientFields f={edit} setF={setEdit} />
           <Field label="Account status" className="mt-3" hint="Suspending is recorded and shown to the client; it does not block sales."><Select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })}>{['onboarding', 'active', 'suspended', 'closed'].map((s) => <option key={s}>{s}</option>)}</Select></Field>
         </Modal>
       )}
       {sub && (
-        <Modal title="Service plan" open onClose={() => setSub(null)} footer={<><Button onClick={() => setSub(null)}>Cancel</Button><Button variant="primary" disabled={act.busy || !sub.planId} onClick={() => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}/subscription`, { ...sub, renewalDate: sub.renewalDate || null }); setSub(null); reload(); })}>Save</Button></>}>
+        <Modal title="Service plan" open onClose={() => setSub(null)} footer={<><Button dismiss onClick={() => setSub(null)}>Cancel</Button><Button variant="primary" disabled={act.busy || !planOptions.data || !sub.planId} onClick={() => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}/subscription`, { ...sub, renewalDate: sub.renewalDate || null }); setSub(null); reload(); })}>Save</Button></>}>
           <div className="space-y-3">
-            <Field label="Plan"><Select value={sub.planId} onChange={(e) => setSub({ ...sub, planId: e.target.value })}><option value="">Choose…</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {formatGHS(p.price)} {p.billing_period}</option>)}</Select></Field>
+            <QueryView query={planOptions} label="service plan options"><Field label="Plan"><Select value={sub.planId} onChange={(e) => setSub({ ...sub, planId: e.target.value })}><option value="">Choose…</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {formatGHS(p.price)} {p.billing_period}</option>)}</Select></Field></QueryView>
             <Field label="Status"><Select value={sub.status} onChange={(e) => setSub({ ...sub, status: e.target.value })}>{['trial', 'active', 'past_due', 'cancelled'].map((s) => <option key={s}>{s}</option>)}</Select></Field>
             <Field label="Renewal date"><Input type="date" value={sub.renewalDate} onChange={(e) => setSub({ ...sub, renewalDate: e.target.value })} /></Field>
           </div>
@@ -363,7 +365,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
       )}
       {recovery && (
         <Modal title="Owner password recovery" open onClose={() => setRecovery(null)}
-          footer={recovery.code ? <Button variant="primary" onClick={() => setRecovery(null)}>Done</Button> : <><Button onClick={() => setRecovery(null)}>Cancel</Button><Button variant="primary" disabled={act.busy || !recovery.reason.trim()} onClick={() => act.run(async () => setRecovery({ ...recovery, ...(await api('POST', `/v1/admin/clients/${id}/recovery-codes`, { reason: recovery.reason })) }))}>Create code</Button></>}>
+          footer={recovery.code ? <Button variant="primary" onClick={() => setRecovery(null)}>Done</Button> : <><Button dismiss onClick={() => setRecovery(null)}>Cancel</Button><Button variant="primary" disabled={act.busy || !recovery.reason.trim()} onClick={() => act.run(async () => setRecovery({ ...recovery, ...(await api('POST', `/v1/admin/clients/${id}/recovery-codes`, { reason: recovery.reason })) }))}>Create code</Button></>}>
           {recovery.code ? (
             <>
               <p className="text-sm text-slate-600">Read this code to the owner. It works once, only on their activated laptop, and expires {when(recovery.expiresAt)}. They choose the new password themselves.</p>
@@ -437,7 +439,7 @@ function Plans() {
           columns={[{ header: 'Plan', cell: (p) => <span className="font-medium">{p.name}</span> }, { header: 'Billing', cell: (p) => `${formatGHS(p.price)} ${p.billing_period}` }, { header: 'Included support', cell: (p) => p.included_support }, { header: 'Clients', align: 'right', cell: (p) => p.active_clients }, { header: 'Status', cell: (p) => (p.active ? <Badge tone="good">Offered</Badge> : <Badge>Retired</Badge>) }]} />
       </Card></QueryView>
       {edit && (
-        <Modal title={edit.id ? 'Edit plan' : 'Add plan'} open onClose={() => setEdit(null)} footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={save}>Save</Button></>}>
+        <Modal title={edit.id ? 'Edit plan' : 'Add plan'} open onClose={() => setEdit(null)} footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={save}>Save</Button></>}>
           {error && <Alert tone="bad" className="mb-3">{error}</Alert>}
           <div className="space-y-3">
             <Field label="Plan name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>

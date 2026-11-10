@@ -1,6 +1,14 @@
-# Phase report — Phases 0 and 1, with the core of Phases 2–4
+# Historical phase report — 9 November baseline
 
 Date: 9 November 2026 · Version 0.1.0
+
+**Historical snapshot, not the current acceptance report.** The later review
+branches implement administrator MFA, backup storage drivers, containers,
+observability, measured performance, accessibility, official branding, retail
+pricing, reporting, help and client-readiness improvements. Several limitations
+below describe the older baseline. Use the [current client-readiness report](operations/client-readiness.md)
+and [task review queue](codex-tasks.md) for current scope and evidence. These
+review branches are not all merged into the default branch.
 
 ## Summary
 

@@ -19,7 +19,7 @@ export function StockPage() {
   return (
     <div>
       <PageHeader title="Stock" subtitle="Every change to stock is recorded as a movement. Quantities are never typed over."
-        actions={tab === 'overview' ? <ExportButtons title="Stock on hand" columns={['Product', 'SKU', 'In stock', 'Reorder level']} rows={() => (overview.data?.rows ?? []).map((r: any) => [r.name, r.sku ?? '', r.quantity, r.reorder_level])} /> : undefined} />
+        actions={tab === 'overview' ? <ExportButtons disabled={!overview.data} title="Current stock on hand" columns={['Product', 'SKU', 'In stock', 'Reorder level']} rows={() => (overview.data?.rows ?? []).map((r: any) => [r.name, r.sku ?? '', r.quantity, r.reorder_level])} /> : undefined} />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Stock overview' }, { id: 'movements', label: 'Stock movements' }, ...(can('stock.adjust') ? [{ id: 'count' as const, label: 'Stock count' }] : [])]} />
       {tab === 'overview' && (
         <>
@@ -149,7 +149,7 @@ export function PurchasesPage() {
       {view && <PurchaseView id={view} onClose={() => setView(null)} />}
       {edit && (
         <Modal title={edit.id ? 'Edit supplier' : 'Add supplier'} open onClose={() => setEdit(null)}
-          footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('supplier.save', { id: edit.id, name: edit.name, phone: edit.phone, notes: edit.notes }); setEdit(null); suppliers.reload(); }, 'Supplier saved')}>Save</Button></>}>
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('supplier.save', { id: edit.id, name: edit.name, phone: edit.phone, notes: edit.notes }); setEdit(null); suppliers.reload(); }, 'Supplier saved')}>Save</Button></>}>
           <div className="space-y-3">
             <Field label="Supplier name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <Field label="Phone"><Input value={edit.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>

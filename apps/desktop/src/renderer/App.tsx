@@ -287,11 +287,13 @@ function StatusBar() {
     window.addEventListener('mansora:changed', bump);
     return () => (clearInterval(t), window.removeEventListener('mansora:changed', bump));
   }, []);
-  const sync = useQuery<any>('sync.status', {}, [tick]).data;
-  const shift = useQuery<any>('shift.current', {}, [tick]).data;
+  const syncQuery = useQuery<any>('sync.status', {}, [tick]);
+  const shiftQuery = useQuery<any>('shift.current', {}, [tick]);
+  const sync = syncQuery.data;
+  const shift = shiftQuery.data;
   const now = new Date();
   const tone = !sync ? 'bg-slate-400' : sync.state === 'online' && sync.pending === 0 ? 'bg-emerald-500' : sync.state === 'offline' ? 'bg-amber-500' : 'bg-sky-500';
-  const label = !sync ? '…' : sync.state === 'syncing' ? 'Syncing' : sync.state === 'offline' ? 'Offline' : sync.state === 'online' ? 'Online' : 'Not synced yet';
+  const label = !sync ? syncQuery.error ? 'Sync status unavailable' : 'Checking sync…' : sync.state === 'syncing' ? 'Syncing' : sync.state === 'offline' ? 'Offline' : sync.state === 'online' ? 'Online' : 'Not synced yet';
   return (
     <footer className="no-print flex items-center gap-5 border-t border-slate-300 bg-white px-4 py-1.5 text-xs text-slate-700">
       <button type="button" onClick={() => go('sync')} className="flex items-center gap-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600" title="Open sync status">
@@ -301,7 +303,7 @@ function StatusBar() {
         {sync && sync.rejected > 0 && <span className="font-semibold text-red-700">· {sync.rejected} sync error(s)</span>}
       </button>
       <span>Cashier: <strong>{state.user?.name}</strong></span>
-      <span>{shift ? <>Shift open since {new Date(shift.shift.opened_at).toISOString().slice(11, 16)}</> : <span className="text-amber-700">No shift open</span>}</span>
+      <span>{shift === undefined ? <span>{shiftQuery.error ? 'Shift status unavailable' : 'Checking shift…'}</span> : shift ? <>Shift open since {new Date(shift.shift.opened_at).toISOString().slice(11, 16)}</> : <span className="text-amber-700">No shift open</span>}</span>
       <span className="ml-auto">{state.business.name}</span>
       <span className="tabular-nums">{now.toLocaleDateString('en-GB')} {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
     </footer>

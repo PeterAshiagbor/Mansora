@@ -26,10 +26,10 @@ export function StaffPage() {
       </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? `Edit ${edit.name}` : 'Add staff member'} open onClose={() => setEdit(null)} wide
-          footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim() || !edit.username.trim() || (!edit.id && !edit.password)} onClick={save}>Save</Button></>}>
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim() || !edit.username.trim() || (!edit.id && !edit.password)} onClick={save}>Save</Button></>}>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Full name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
-            <Field label="Username"><Input minLength={3} maxLength={40} pattern="[a-zA-Z0-9._\-]+" value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="off" /></Field>
+            <Field label="Username" hint="3–40 letters, numbers, dots, dashes or underscores."><Input minLength={3} maxLength={40} pattern="[a-zA-Z0-9._\-]+" value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="off" /></Field>
             <Field label="Role">
               <Select value={edit.role} disabled={owner} onChange={(e) => setEdit({ ...edit, role: e.target.value, permissions: ROLE_DEFAULTS[e.target.value as Role] })}>
                 {owner && <option value="owner">Owner</option>}<option value="manager">Manager</option><option value="cashier">Cashier</option>
@@ -280,7 +280,7 @@ export function BackupPage() {
         <p className="mt-2 text-xs text-slate-500">Anything recorded after the backup was made and never synced cannot be recovered. See the Backup and Recovery guide.</p>
       </Card>
       {verify && (
-        <Modal title="Test backup" open onClose={() => setVerify(null)} footer={<><Button onClick={() => setVerify(null)}>Close</Button><Button variant="primary" disabled={busy || !verifyPass} onClick={() => run(async () => setVerify({ ...verify, summary: await call('backup.verify', { id: verify.id, passphrase: verifyPass }) }))}>Open and check</Button></>}>
+        <Modal title="Test backup" open onClose={() => setVerify(null)} footer={<><Button dismiss onClick={() => setVerify(null)}>Close</Button><Button variant="primary" disabled={busy || !verifyPass} onClick={() => run(async () => setVerify({ ...verify, summary: await call('backup.verify', { id: verify.id, passphrase: verifyPass }) }))}>Open and check</Button></>}>
           <Field label="Backup passphrase"><Input type="password" value={verifyPass} onChange={(e) => setVerifyPass(e.target.value)} autoFocus /></Field>
           {verify.summary && <Alert tone="good" className="mt-3">The backup opens and passes its integrity checks. It contains {verify.summary.sales} sale(s) worth {money(verify.summary.salesTotal)}, {verify.summary.products} product(s), {verify.summary.users} staff login(s).</Alert>}
         </Modal>
@@ -355,7 +355,7 @@ export function AuditPage() {
   return (
     <div>
       <PageHeader title="Audit history" subtitle="A permanent record of who did what. Entries cannot be edited or deleted."
-        actions={<ExportButtons title="Audit history" columns={['When', 'Who', 'Action', 'Record', 'Details']} rows={() => (data ?? []).map((a) => [dateTime(a.occurred_at), a.actor_name ?? 'System', a.action, a.entity_type ?? '', detail(a.detail)])} />} />
+        actions={<ExportButtons disabled={!data} title={`Audit history ${range.from} to ${range.to}`} columns={['When', 'Who', 'Action', 'Record', 'Details']} rows={() => (data ?? []).map((a) => [dateTime(a.occurred_at), a.actor_name ?? 'System', a.action, a.entity_type ?? '', detail(a.detail)])} />} />
       <div className="mb-3 flex flex-wrap items-center gap-3"><DateRange {...range} onChange={setRange} /><Input placeholder="Filter by action, e.g. refund" value={action} onChange={(e) => setAction(e.target.value)} className="w-64 no-print" aria-label="Filter by action" /></div>
       <QueryView query={auditQuery} label="audit history"><Card pad={false}>
         <Table rows={data} rowKey={(r) => r.id} empty="No activity in this period" columns={[

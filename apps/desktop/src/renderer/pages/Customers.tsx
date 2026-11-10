@@ -11,7 +11,7 @@ export function CustomersPage() {
   const { run, busy } = useAction();
   return (
     <div>
-      <PageHeader title="Customers" subtitle="Customer details are optional. Only collect what you need." actions={<Button variant="primary" onClick={() => setEdit({ name: '', phone: '', email: '', notes: '' })}>Add customer</Button>} />
+      <PageHeader title="Customers" subtitle="Walk-in sales do not need a customer record. Collect contact details only when they are needed." actions={<Button variant="primary" onClick={() => setEdit({ name: '', phone: '', email: '', notes: '' })}>Add customer</Button>} />
       <Input placeholder="Search by name or phone" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3 w-80" aria-label="Search customers" />
       {data?.length === 500 && <p className="mb-3 text-xs text-slate-600">Showing the first 500 matches. Refine the name or phone search to find another customer.</p>}
       <QueryView query={customersQuery} label="customers"><Card pad={false}>
@@ -21,9 +21,9 @@ export function CustomersPage() {
       </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? 'Edit customer' : 'Add customer'} open onClose={() => setEdit(null)}
-          footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('customer.save', { id: edit.id, name: edit.name, phone: edit.phone, email: edit.email ?? '', notes: edit.notes }); setEdit(null); reload(); }, 'Customer saved')}>Save</Button></>}>
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('customer.save', { id: edit.id, name: edit.name, phone: edit.phone, email: edit.email ?? '', notes: edit.notes }); setEdit(null); reload(); }, 'Customer saved')}>Save</Button></>}>
           <div className="space-y-3">
-            <Field label="Name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
+            <Field label="Name" hint="Required when saving a customer record."><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Phone (optional)"><Input value={edit.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
               <Field label="Email (optional)"><Input type="email" value={edit.email ?? ''} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Field>
