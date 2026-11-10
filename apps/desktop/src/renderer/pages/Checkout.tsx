@@ -23,6 +23,8 @@ export function Checkout() {
   const toast = useToast();
   const [saleId, setSaleId] = useState(uuid);
   const [lines, setLines] = useState<Line[]>([]);
+  const [requestingDiscount, setRequestingDiscount] = useState(false);
+  const discountEntry = can('sale.discount') || requestingDiscount;
   const [cartDiscount, setCartDiscount] = useState<number | null>(0);
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | undefined>();
@@ -77,6 +79,7 @@ export function Checkout() {
   const reset = () => {
     setLines([]);
     setCartDiscount(0);
+    setRequestingDiscount(false);
     setCustomerId('');
     setDone(null);
     setSaleId(uuid());
@@ -145,9 +148,9 @@ export function Checkout() {
                 <button type="button" aria-label={`Increase ${l.product.name}`} className="h-8 w-8 rounded border border-slate-300 text-lg leading-none hover:bg-slate-100" onClick={() => setQty(l.product.id, l.quantity + 1)}>+</button>
                 <span className="text-xs text-slate-500">× {money(l.product.selling_price)}</span>
                 {l.quantity > l.product.quantity && <Badge tone="bad">Only {l.product.quantity} in stock</Badge>}
-                <label className="ml-1 flex items-center gap-1 text-xs text-slate-500">Disc.
+                {discountEntry && <label className="ml-1 flex items-center gap-1 text-xs text-slate-500">Disc.
                   <MoneyInput value={l.discount || null} onChange={(v) => setLines((ls) => ls.map((x) => (x.product.id === l.product.id ? { ...x, discount: v ?? 0 } : x)))} aria-label={`Discount on ${l.product.name}`} className="!w-20 !px-2 !py-1 !text-xs" />
-                </label>
+                </label>}
                 <button type="button" className="ml-auto text-xs text-red-700 hover:underline" onClick={() => setQty(l.product.id, 0)}>Remove</button>
               </div>
             </div>
@@ -155,7 +158,7 @@ export function Checkout() {
         </div>
         <div className="space-y-2 border-t border-slate-200 p-4">
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Basket discount (GHS)"><MoneyInput value={cartDiscount} onChange={setCartDiscount} aria-label="Basket discount" /></Field>
+            {discountEntry ? <Field label={can('sale.discount') ? 'Basket discount (GHS)' : 'Requested discount (GHS)'}><MoneyInput value={cartDiscount} onChange={setCartDiscount} aria-label="Basket discount" /></Field> : <Button onClick={() => setRequestingDiscount(true)}>Request discount</Button>}
             <Field label="Customer (optional)">
               <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
                 <option value="">Walk-in customer</option>
@@ -163,6 +166,7 @@ export function Checkout() {
               </Select>
             </Field>
           </div>
+          {!can('sale.discount') && requestingDiscount && <p className="text-sm text-amber-900">Discount requests need an authorised approver at payment. You cannot apply a discount yourself.</p>}
           {cart && 'error' in cart && <Alert tone="bad">{cart.error}</Alert>}
           {cart && 'total' in cart && (
             <dl className="space-y-0.5 text-sm">

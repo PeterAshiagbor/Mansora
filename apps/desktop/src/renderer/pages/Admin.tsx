@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ROLE_DEFAULTS, type Role } from '@mansora/domain';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table } from '@mansora/ui';
-import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, money, saveFile, today, useAction, useApp, useQuery } from '../lib';
+import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, marginLabel, money, saveFile, today, useAction, useApp, useQuery } from '../lib';
 
 // ---------------------------------------------------------------- Staff
 export function StaffPage() {
@@ -98,7 +98,7 @@ export function SettingsPage() {
 }
 
 // ---------------------------------------------------------------- Import & export
-const FIELD_LABEL: Record<string, string> = { name: 'Product name *', sku: 'SKU', barcode: 'Barcode', category: 'Category', unit: 'Unit', cost_price: 'Cost price', selling_price: 'Selling price *', opening_stock: 'Opening stock', reorder_level: 'Reorder level' };
+const FIELD_LABEL: Record<string, string> = { name: 'Product name *', sku: 'SKU', barcode: 'Barcode', category: 'Category', unit: 'Unit', cost_price: 'Unit cost price (GHS)', carton_cost: 'Carton cost (GHS)', units_per_carton: 'Selling units per carton', selling_price: 'Selling price *', opening_stock: 'Opening stock', reorder_level: 'Reorder level' };
 export function DataPage() {
   const { can } = useApp();
   const history = useQuery<any[]>('import.history');
@@ -117,7 +117,7 @@ export function DataPage() {
     <div className="space-y-4">
       <PageHeader title="Import & export" />
       <Card title="Import products and opening stock" actions={<><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'xlsx' })))}>Download Excel template</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'csv' })))}>CSV template</Button></>}>
-        <p className="mb-3 text-sm text-slate-600">Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved.</p>
+        <p className="mb-3 text-sm text-slate-600">Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved. For carton costing, fill Carton cost and Units per carton; leave Cost price blank. Selling price and opening stock are per selling unit. Unit cost rounds to the nearest pesewa.</p>
         <input ref={input} type="file" accept=".xlsx,.csv" className="block text-sm" aria-label="Choose import file"
           onChange={async (e) => { const f = e.target.files?.[0]; if (f) load({ fileName: f.name, contentBase64: await fileToBase64(f) }); }} />
         {preview && file && (
@@ -141,7 +141,7 @@ export function DataPage() {
                 <div className="max-h-80 overflow-y-auto rounded border border-slate-200">
                   <Table rows={rows} rowKey={(r) => r.rowNo} columns={[
                     { header: 'Row', cell: (r) => r.rowNo }, { header: 'Product', cell: (r) => r.data.name }, { header: 'Barcode', cell: (r) => r.data.barcode ?? '' }, { header: 'Category', cell: (r) => r.data.category ?? '' },
-                    { header: 'Cost', align: 'right', cell: (r) => money(r.data.costPrice) }, { header: 'Price', align: 'right', cell: (r) => money(r.data.sellingPrice) }, { header: 'Opening stock', align: 'right', cell: (r) => r.data.openingStock },
+                    { header: 'Cost', align: 'right', cell: (r) => money(r.data.costPrice) }, { header: 'Selling price', align: 'right', cell: (r) => money(r.data.sellingPrice) }, ...(can('product.cost') ? [{ header: 'Gross margin', align: 'right' as const, cell: (r: any) => marginLabel(r.data.sellingPrice, r.data.costPrice) }] : []), { header: 'Opening stock', align: 'right', cell: (r) => r.data.openingStock },
                     { header: 'Result', cell: (r) => (r.errors.length ? <Badge tone="bad">{r.errors.join('; ')}</Badge> : r.duplicate ? <Badge tone="warn">{r.duplicate}</Badge> : <Badge tone="good">Will be added</Badge>) },
                   ]} />
                 </div>

@@ -76,3 +76,9 @@ Take them in order; each is one pull request.
 ## Not for Codex (Claude is doing these)
 
 Choosing the discount-limit value (Mansora's policy) · signed auto-updates (waiting on a certificate) · Windows packaging in CI.
+
+
+### C10 — Retail pricing additions requested by the owner
+**Priority:** Owner request on 2026-11-09/10, ahead of the remaining C5–C9 work.
+**Status:** Implemented for review on `codex/C10-carton-costing`: Excel carton columns and preview validation, product carton calculator, permission-gated catalogue gross margins and selling-price labels, explicit cashier discount requests, durable approval lockouts and exact owner-ceiling comparisons. See `docs/operations/product-pricing.md`.
+**Scope exception:** The owner's explicit costing/import and discount-restriction requirements need shared costing helpers and narrow importer/engine/sales changes under `apps/desktop/src/core/`; this feature PR keeps those changes separate from C4/C5. No sync protocol, sync tests or released migrations change.

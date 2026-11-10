@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { unitCostFromCarton } from '@mansora/domain';
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table } from '@mansora/ui';
-import { call, ExportButtons, money, MoneyInput, plain, useAction, useApp, useQuery } from '../lib';
+import { call, ExportButtons, marginLabel, money, MoneyInput, plain, useAction, useApp, useQuery } from '../lib';
 
 export function ProductsPage() {
-  const { can } = useApp();
+  const { can, go } = useApp();
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState(false);
   const [edit, setEdit] = useState<any | null>(null);
@@ -13,7 +14,8 @@ export function ProductsPage() {
     <div>
       <PageHeader title="Products" subtitle={data ? `${data.length} product(s)` : undefined}
         actions={<>
-          <ExportButtons title="Products" columns={['Name', 'SKU', 'Barcode', 'Category', 'Selling price', ...(cost ? ['Cost price'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price)] : []), p.quantity])} />
+          <ExportButtons title="Products" columns={['Name', 'SKU', 'Barcode', 'Category', 'Selling price', ...(cost ? ['Cost price', 'Gross margin (%)'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price), marginLabel(p.selling_price, p.cost_price)] : []), p.quantity])} />
+          {can('data.import') && <Button onClick={() => go('data')}>Upload Excel / CSV</Button>}
           {can('product.manage') && <Button variant="primary" onClick={() => setEdit({})}>Add product</Button>}
         </>} />
       <div className="mb-3 flex items-center gap-3 no-print">
@@ -28,7 +30,8 @@ export function ProductsPage() {
             { header: 'Barcode', cell: (p) => p.barcode ?? '' },
             { header: 'Category', cell: (p) => p.category_name ?? '' },
             ...(cost ? [{ header: 'Cost', align: 'right' as const, cell: (p: any) => money(p.cost_price) }] : []),
-            { header: 'Price', align: 'right', cell: (p) => money(p.selling_price) },
+            { header: 'Selling price', align: 'right', cell: (p) => money(p.selling_price) },
+            ...(cost ? [{ header: 'Gross margin', align: 'right' as const, cell: (p: any) => marginLabel(p.selling_price, p.cost_price) }] : []),
             { header: 'In stock', align: 'right', cell: (p) => (p.quantity <= 0 ? <Badge tone="bad">{p.quantity} · Out of stock</Badge> : p.quantity <= p.reorder_level ? <Badge tone="warn">{p.quantity} · Low stock</Badge> : p.quantity) },
           ]} />
       </Card>
@@ -45,6 +48,10 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
     name: product.name ?? '', sku: product.sku ?? '', barcode: product.barcode ?? '', categoryId: product.category_id ?? '', unit: product.unit ?? 'each',
     costPrice: (product.cost_price ?? 0) as number | null, sellingPrice: (product.selling_price ?? null) as number | null, reorderLevel: String(product.reorder_level ?? 0), active: product.active !== 0, openingStock: '',
   });
+  const [cartonCost, setCartonCost] = useState<number | null>(null);
+  const [cartonUnits, setCartonUnits] = useState('');
+  let derivedCost: number | null = null;
+  if (cartonCost != null && Number.isSafeInteger(Number(cartonUnits)) && Number(cartonUnits) > 0) derivedCost = unitCostFromCarton(cartonCost, Number(cartonUnits));
   const { run, busy } = useAction();
   const cost = can('product.cost');
   const save = () => run(async () => {
@@ -66,6 +73,17 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
         <Field label="Unit of measure"><Input value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Field>
         <Field label="Selling price (GHS)"><MoneyInput value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
         {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : undefined}><MoneyInput value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
+        {cost && <fieldset className="col-span-2 rounded border border-slate-200 p-3">
+          <legend className="px-1 text-sm font-medium">Calculate cost from a carton</legend>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Carton purchase cost (GHS)"><MoneyInput value={cartonCost} onChange={setCartonCost} /></Field>
+            <Field label="Selling units per carton" hint="Use 1 if you sell the whole carton."><Input type="number" min={1} step={1} value={cartonUnits} onChange={(e) => setCartonUnits(e.target.value)} /></Field>
+          </div>
+          <p className="my-2 text-sm" aria-live="polite">Unit cost: {derivedCost == null ? 'Enter carton cost and quantity' : money(derivedCost)}</p>
+          <Button disabled={derivedCost == null} onClick={() => setF({ ...f, costPrice: derivedCost })}>Use calculated unit cost</Button>
+          <p className="mt-2 text-xs text-slate-600">Rounded to the nearest pesewa. Quantities and selling price are per selling unit. This calculator does not record a purchase or change stock.</p>
+        </fieldset>}
+        {cost && <p className="col-span-2 text-sm">Gross margin: {f.sellingPrice == null || f.costPrice == null ? '—' : marginLabel(f.sellingPrice, f.costPrice)} <span className="text-slate-600">(selling price − cost) ÷ selling price; before discounts and expenses.</span></p>}
         <Field label="Reorder level" hint="Warn when stock falls to this quantity"><Input type="number" min={0} value={f.reorderLevel} onChange={(e) => setF({ ...f, reorderLevel: e.target.value })} /></Field>
         {isNew && can('stock.adjust') && <Field label="Opening stock" hint="Quantity on the shelf right now"><Input type="number" min={0} value={f.openingStock} onChange={(e) => setF({ ...f, openingStock: e.target.value })} /></Field>}
         {!isNew && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active (shown at checkout)</label>}

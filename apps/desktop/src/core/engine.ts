@@ -158,6 +158,9 @@ export class Engine {
   readonly now: () => Date;
   readonly fetch: typeof fetch;
   private sessions = new Map<string, Session>();
+  // Approval failures must survive a rejected financial transaction. Contains no credentials.
+  private credentialFailures?: Map<string, { attempts: number; lockedUntil: string | null }>;
+
   private commands: Commands = {};
   private beforeCommit?: (command: string) => void;
   /** Result of the most recent sync attempt (in memory only). */
@@ -211,6 +214,7 @@ export class Engine {
         const attempts = row.failed_attempts + 1;
         const lock = attempts >= 5 ? new Date(nowMs + 60_000).toISOString() : null;
         this.db.prepare('UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?').run(lock ? 0 : attempts, lock, row.id);
+        this.credentialFailures?.set(row.id, { attempts: lock ? 0 : attempts, lockedUntil: lock });
       }
       fail('INVALID_CREDENTIALS', 'Incorrect username or password');
     }
@@ -273,14 +277,27 @@ export class Engine {
     try {
       if (def.async) return await def.run(ctx, parsed.data);
       if (!def.mutates) return def.run(ctx, parsed.data);
-      return this.db
-        .transaction(() => {
+      const previousFailures = this.credentialFailures;
+      const failures = new Map<string, { attempts: number; lockedUntil: string | null }>();
+      this.credentialFailures = failures;
+      try {
+        return this.db.transaction(() => {
           const result = def.run(ctx, parsed.data);
           ctx.flush();
           this.beforeCommit?.(name);
           return result;
-        })
-        .immediate();
+        }).immediate();
+      } catch (error) {
+        // SQLite has rolled the command back. Keep only authentication throttling;
+        // sale, stock, audit and outbox writes remain rolled back together.
+        if (failures.size) this.db.transaction(() => {
+          const update = this.db.prepare('UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?');
+          for (const [id, failure] of failures) update.run(failure.attempts, failure.lockedUntil, id);
+        }).immediate();
+        throw error;
+      } finally {
+        this.credentialFailures = previousFailures;
+      }
     } catch (e: any) {
       if (e instanceof DomainError) throw e;
       if (typeof e?.code === 'string' && e.code.startsWith('SQLITE_CONSTRAINT')) fail('CONFLICT', friendlyConstraint(e.message));
