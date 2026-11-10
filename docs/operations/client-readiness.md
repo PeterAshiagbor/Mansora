@@ -7,11 +7,10 @@ constitute hardware, live-payment, legal or commercial acceptance.
 
 ## Publication and source
 
-Source is in PR #26, `codex/C14-client-readiness`, rebased onto default `698ce49`.
+PR #26 merged into default as `86f4c03` after all PR checks passed. Merged-commit CI is being verified.
 The hosted private sample preview still shows C13 (Site version 3); C18 separately
 tracks its billing-aware refresh. The preview uses isolated synthetic fixtures and
-is distinct from the persistent encrypted desktop application. Reviewing default
-or the hosted preview does not yet review C14.
+is distinct from the persistent encrypted desktop application. The default branch contains C14; the hosted preview will contain it after C18 publication.
 
 ## Changes and acceptance evidence
 
