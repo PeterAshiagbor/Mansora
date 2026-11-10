@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, Modal, PageHeader, Select, Stat, Table, Textarea } from '@mansora/ui';
+import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea } from '@mansora/ui';
 import { api, getToken, setToken, useApi } from './api';
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : '—');
@@ -45,15 +45,15 @@ export function App() {
   const nav = [['overview', 'Overview'], ['clients', 'Clients'], ['plans', 'Service plans'], ['audit', 'Audit log'], ['security', 'Account security']];
   return (
     <div className="flex h-full">
-      <nav aria-label="Main" className="flex w-52 shrink-0 flex-col bg-slate-900 text-slate-200">
-        <div className="px-4 py-4"><div className="text-[11px] font-semibold uppercase tracking-widest text-brand-300">Mansora</div><div className="text-base font-semibold text-white">Client administration</div></div>
+      <nav aria-label="Main" className="flex w-52 shrink-0 flex-col overflow-y-auto bg-brand-900 text-brand-100">
+        <div className="px-4 py-4"><MansoraBrand compact inverse /><div className="mt-4 border-t border-brand-700 pt-3 text-sm font-semibold text-white">Platform administration</div></div>
         <div className="flex-1 px-2">
           {nav.map(([id, label]) => (
             <button key={id} type="button" onClick={() => go(id)} aria-current={page.id === id || (id === 'clients' && page.id === 'client') ? 'page' : undefined}
-              className={cx('mb-0.5 block w-full rounded-md px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-white', page.id === id || (id === 'clients' && page.id === 'client') ? 'bg-white font-semibold text-slate-900' : 'hover:bg-slate-800')}>{label}</button>
+              className={cx('mb-0.5 block w-full rounded-md px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-white', page.id === id || (id === 'clients' && page.id === 'client') ? 'bg-white font-semibold text-brand-900' : 'hover:bg-brand-800')}>{label}</button>
           ))}
         </div>
-        <button type="button" className="m-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-800" onClick={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>Sign out</button>
+        <button type="button" className="m-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-brand-800" onClick={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>Sign out</button>
       </nav>
       <main className="min-w-0 flex-1 overflow-y-auto p-6" key={page.id + (page.param ?? '')}>
         {page.id === 'overview' && <Overview go={go} />}
@@ -83,9 +83,9 @@ function Login({ onDone }: { onDone: () => void }) {
     onDone();
   });
   return (
-    <div className="flex min-h-full items-center justify-center bg-slate-900 p-6">
+    <div className="flex min-h-full items-center justify-center bg-brand-900 p-6">
       <form className="w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
-        <div><div className="text-xs font-semibold uppercase tracking-widest text-brand-700">Mansora</div><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
+        <div><div className="mb-5"><MansoraBrand /></div><p className="mb-1 text-sm font-medium text-brand-700">Platform administration</p><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
         {error && <Alert tone="bad">{error}</Alert>}
         {challenge ? <>
           <p className="text-sm text-slate-600">Enter a code from your authenticator app, or one of your unused recovery codes. This sign-in challenge expires after five minutes.</p>
@@ -168,7 +168,7 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
   return (
     <div>
       <PageHeader title="Overview" subtitle="Platform health. Client sales and financial data are never shown here." />
-      <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-5">
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <Stat label="Client businesses" value={total} />
         <Stat label="Live" value={n(d.clientsByStatus, 'active')} tone="good" />
         <Stat label="Being onboarded" value={n(d.clientsByStatus, 'onboarding')} />
@@ -195,7 +195,7 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
 function Progress({ done, total }: { done: number; total: number }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuenow={done} aria-valuemax={total}><div className="h-full bg-brand-600" style={{ width: `${(done / total) * 100}%` }} /></div>
+      <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Onboarding progress" aria-valuenow={done} aria-valuemax={total}><div className="h-full bg-brand-600" style={{ width: `${(done / total) * 100}%` }} /></div>
       <span className="text-xs tabular-nums text-slate-600">{done}/{total}</span>
     </div>
   );
@@ -223,11 +223,22 @@ function Clients({ go }: { go: (id: string, param?: string) => void }) {
   const plans = useApi<any[]>('/v1/admin/plans').data ?? [];
   const [adding, setAdding] = useState<any | null>(null);
   const { run, busy, error } = useAction();
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const query = search.trim().toLocaleLowerCase();
+  const filtered = data?.filter((client) => (status === 'all' || client.status === status) &&
+    [client.name, client.owner_name, client.phone, client.email, client.support_contact].some((value) => String(value ?? '').toLocaleLowerCase().includes(query)));
   return (
     <div>
-      <PageHeader title="Clients" subtitle={data ? `${data.length} business(es)` : undefined} actions={<Button variant="primary" onClick={() => setAdding({ ...EMPTY_CLIENT, planId: '' })}>Add client</Button>} />
+      <PageHeader title="Clients" subtitle={data ? `${filtered?.length ?? 0} of ${data.length} business(es)` : undefined} actions={<Button variant="primary" onClick={() => setAdding({ ...EMPTY_CLIENT, planId: '' })}>Add client</Button>} />
+      <div className="mb-3 flex flex-wrap gap-3">
+        <Input aria-label="Search clients" placeholder="Business, owner, phone or email" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        <Select aria-label="Client status filter" value={status} onChange={(e) => setStatus(e.target.value)} className="max-w-xs">
+          <option value="all">All statuses</option>{['onboarding', 'active', 'suspended', 'closed'].map((value) => <option key={value} value={value}>{value}</option>)}
+        </Select>
+      </div>
       <Card pad={false}>
-        <Table rows={data} rowKey={(r) => r.id} onRowClick={(r) => go('client', r.id)} empty="No clients yet"
+        <Table rows={filtered} rowKey={(r) => r.id} onRowClick={(r) => go('client', r.id)} empty={query || status !== 'all' ? 'No clients match these filters' : 'No clients yet'}
           columns={[
             { header: 'Business', cell: (c) => <><div className="font-medium">{c.name}</div><div className="text-xs text-slate-500">{c.owner_name} · {c.business_type}</div></> },
             { header: 'Status', cell: (c) => <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge> },
@@ -259,6 +270,10 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
   const [sub, setSub] = useState<any | null>(null);
   const [recovery, setRecovery] = useState<{ reason: string; code?: string; expiresAt?: string } | null>(null);
   const act = useAction();
+  const [revoking, setRevoking] = useState(false);
+  const [tab, setTab] = useState<'overview' | 'audit'>('overview');
+  const [stepOverrides, setStepOverrides] = useState<Record<string, boolean>>({});
+  useEffect(() => setStepOverrides({}), [data]);
   if (error) return <Alert tone="bad">{error.message}</Alert>;
   if (!data) return <p className="text-slate-500">Loading…</p>;
   const c = data.client;
@@ -268,15 +283,25 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
       <button className="mb-2 text-sm text-brand-700 hover:underline" onClick={() => go('clients')}>← All clients</button>
       <PageHeader title={c.name} subtitle={<>{c.owner_name} · {[c.phone, c.email, c.address].filter(Boolean).join(' · ')} · Support: {c.support_contact ?? '—'}</>}
         actions={<><Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge><Button onClick={() => setEdit({ name: c.name, ownerName: c.owner_name, phone: c.phone ?? '', email: c.email ?? '', address: c.address ?? '', businessType: c.business_type, supportContact: c.support_contact ?? '', status: c.status })}>Edit</Button></>} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Client overview' }, { id: 'audit', label: 'Client audit' }]} />
+      {tab === 'audit' && <Audit tenantId={id} />}
+      <div hidden={tab !== 'overview'}>
       {act.error && <Alert tone="bad" className="mb-3">{act.error}</Alert>}
       <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Onboarding checklist" pad={false} actions={<Progress done={c.steps_done} total={c.steps_total} />}>
           <ul>
             {data.onboarding.map((s: any, i: number) => (
               <li key={s.step} className="flex items-center gap-3 border-b border-slate-100 px-4 py-2 last:border-0">
-                <input type="checkbox" id={s.step} checked={!!s.completed_at} disabled={act.busy} className="h-4 w-4"
-                  onChange={(e) => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}/onboarding/${s.step}`, { completed: e.target.checked, notes: s.notes }); reload(); })} />
-                <label htmlFor={s.step} className="flex-1 text-sm"><span className="mr-1 text-slate-400">{i + 1}.</span>{s.label}{s.notes && <span className="text-xs text-slate-500"> — {s.notes}</span>}</label>
+                <input type="checkbox" id={s.step} checked={stepOverrides[s.step] ?? !!s.completed_at} disabled={act.busy} className="h-4 w-4"
+                  onChange={(e) => {
+                    const completed = e.target.checked;
+                    setStepOverrides((previous) => ({ ...previous, [s.step]: completed }));
+                    act.run(async () => {
+                      try { await api('PUT', `/v1/admin/clients/${id}/onboarding/${s.step}`, { completed, notes: s.notes }); reload(); }
+                      catch (error) { setStepOverrides((previous) => { const next = { ...previous }; delete next[s.step]; return next; }); throw error; }
+                    });
+                  }} />
+                <label htmlFor={s.step} className="flex-1 text-sm"><span className="mr-1 text-slate-600">{i + 1}.</span>{s.label}{s.notes && <span className="text-xs text-slate-500"> — {s.notes}</span>}</label>
                 <span className="text-xs text-slate-500">{s.completed_at ? `${when(s.completed_at)}${s.completed_by_name ? ` · ${s.completed_by_name}` : ''}` : ''}</span>
               </li>
             ))}
@@ -293,7 +318,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" disabled={act.busy || !!device} title={device ? 'Deactivate the current laptop first' : ''} onClick={() => act.run(async () => setCode(await api('POST', `/v1/admin/clients/${id}/activation-codes`)))}>Create activation code</Button>
               {device && <Button size="sm" disabled={act.busy} onClick={() => setRecovery({ reason: '' })}>Owner recovery code</Button>}
-              {device && <Button size="sm" variant="danger" disabled={act.busy} onClick={() => confirm('Deactivate this laptop? It will keep working offline but can no longer sync until re-activated.') && act.run(async () => { await api('POST', `/v1/admin/devices/${device.id}/revoke`); reload(); })}>Deactivate laptop</Button>}
+              {device && <Button size="sm" variant="danger" disabled={act.busy} onClick={() => setRevoking(true)}>Deactivate laptop</Button>}
             </div>
           </Card>
           <Card title="Service plan" actions={<Button size="sm" onClick={() => setSub({ planId: c.plan_id ?? plans[0]?.id ?? '', status: c.subscription_status ?? 'trial', renewalDate: day(c.renewal_date) ?? '' })}>Change</Button>}>
@@ -306,6 +331,12 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
           <Table rows={data.backups} rowKey={(r: any) => r.id} empty="No backups stored in the cloud yet" columns={[{ header: 'Stored', cell: (b: any) => when(b.created_at) }, { header: 'Size', align: 'right', cell: (b: any) => `${Math.round(b.size_bytes / 1024)} KB` }, { header: 'Status', cell: (b: any) => b.status }]} />
         </Card>
       </div>
+      </div>
+      {revoking && device && <Modal title="Deactivate laptop" open onClose={() => !act.busy && setRevoking(false)}
+        footer={<><Button disabled={act.busy} onClick={() => setRevoking(false)}>Cancel</Button><Button variant="danger" disabled={act.busy} onClick={() => act.run(async () => { await api('POST', `/v1/admin/devices/${device.id}/revoke`); setRevoking(false); reload(); })}>Deactivate laptop</Button></>}>
+        <p className="text-sm">Deactivate {device.name}? This laptop will keep working offline but cannot sync until it is re-activated. This action is recorded.</p>
+        {act.error && <Alert tone="bad" className="mt-3">{act.error}</Alert>}
+      </Modal>}
       {edit && (
         <Modal title="Edit client" open onClose={() => setEdit(null)} wide footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={act.busy} onClick={() => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}`, edit); setEdit(null); reload(); })}>Save</Button></>}>
           <ClientFields f={edit} setF={setEdit} />
@@ -413,12 +444,13 @@ function Plans() {
   );
 }
 
-function Audit() {
-  const { data } = useApi<any[]>('/v1/admin/audit');
+function Audit({ tenantId }: { tenantId?: string } = {}) {
+  const { data, error } = useApi<any[]>(`/v1/admin/audit${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`);
   return (
     <div>
-      <PageHeader title="Audit log" subtitle="Everything Mansora administrators do, including every attempt to view client data." />
-      <Card pad={false}>
+      {!tenantId && <PageHeader title="Audit log" subtitle="Everything Mansora administrators do, including every attempt to view client data." />}
+      {error && <Alert tone="bad">{error.message}</Alert>}
+      <Card title={tenantId ? "Client audit history" : undefined} pad={false}>
         <Table rows={data} rowKey={(r) => r.id} empty="No activity yet"
           columns={[{ header: 'When', cell: (l) => <span className="whitespace-nowrap">{when(l.occurred_at)}</span> }, { header: 'Administrator', cell: (l) => l.admin_name ?? 'System' }, { header: 'Action', cell: (l) => (l.action === 'support.access_denied' ? <Badge tone="bad">{l.action}</Badge> : <code className="text-xs">{l.action}</code>) }, { header: 'Client', cell: (l) => l.tenant_name ?? '' }, { header: 'Details', cell: (l) => <span className="break-all text-xs text-slate-600">{l.detail === '{}' ? '' : l.detail}</span> }]} />
       </Card>

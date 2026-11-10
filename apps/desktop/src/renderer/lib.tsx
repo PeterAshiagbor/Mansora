@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { DomainError, formatGHS, parseGHS, type Permission } from '@mansora/domain';
+import { DomainError, formatGHS, grossMarginBps, parseGHS, type Permission } from '@mansora/domain';
 import { Button, cx, Field, Input, Modal } from '@mansora/ui';
 
 export interface FileOut {
@@ -198,7 +198,7 @@ export function MoneyInput({ value, onChange, ...rest }: { value: number | null;
 
 export function DateRange({ from, to, onChange }: { from: string; to: string; onChange: (r: { from: string; to: string }) => void }) {
   return (
-    <div className="flex items-center gap-2 no-print">
+    <div className="flex flex-wrap items-center gap-2 no-print">
       <Input type="date" aria-label="From date" value={from} max={to} onChange={(e) => e.target.value && onChange({ from: e.target.value, to })} className="w-40" />
       <span className="text-sm text-slate-500">to</span>
       <Input type="date" aria-label="To date" value={to} min={from} onChange={(e) => e.target.value && onChange({ from, to: e.target.value })} className="w-40" />
@@ -242,4 +242,10 @@ export function ExportButtons({ title, columns, rows }: { title: string; columns
       <Button size="sm" onClick={() => window.print()}>Print / PDF</Button>
     </>
   );
+}
+
+/** Catalogue gross margin; callers must enforce product.cost before displaying it. */
+export function marginLabel(price: number, cost: number): string {
+  const bps = grossMarginBps(price, cost);
+  return bps == null ? '—' : `${(bps / 100).toFixed(2)}%`;
 }

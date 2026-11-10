@@ -1,18 +1,13 @@
 @import 'tailwindcss';
+@import '../../../packages/ui/src/brand.css';
 @source '../../../packages/ui/src';
 
-@theme {
-  --color-brand-50: #effaf8;
-  --color-brand-100: #d6f1ec;
-  --color-brand-200: #aee2da;
-  --color-brand-300: #7bccc2;
-  --color-brand-400: #49afa5;
-  --color-brand-500: #2f938b;
-  --color-brand-600: #237670;
-  --color-brand-700: #1f5f5b;
-  --color-brand-800: #1c4c4a;
-  --color-brand-900: #173d3c;
-  --font-sans: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-}
+
 html, body, #root { height: 100%; }
-body { @apply bg-slate-100 text-slate-900 antialiased; font-family: var(--font-sans); }
+body { @apply bg-mansora-cream text-mansora-ink antialiased; font-family: var(--font-sans); }
+
+button:focus-visible, a[href]:focus-visible, [tabindex="0"]:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+}
+nav button:focus-visible { outline-color: white; outline-offset: -2px; }

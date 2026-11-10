@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+.git
+**/.env
+**/.env.*
+**/.secrets
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/release
+coverage

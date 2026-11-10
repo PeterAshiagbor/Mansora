@@ -16,6 +16,28 @@ Take them in order; each is one pull request.
 9. Do not claim anything is tested on hardware, or production-ready.
 10. Update the relevant file under `docs/` in the same PR, and add a row to `docs/decisions/decision-log.md` for any policy you had to assume.
 
+## Review queue (2026-11-10)
+
+The following implementations are prepared as separate PRs, not deployed. C1 is merged; the default branch does not yet contain the open PRs below. Validation results are recorded in each PR and its operational documentation.
+
+| Task | Review artifact |
+| --- | --- |
+| C1 administrator MFA | Merged: [PR #10](https://github.com/PeterAshiagbor/Mansora/pull/10) |
+| C2 backup storage | [PR #13](https://github.com/PeterAshiagbor/Mansora/pull/13) |
+| C3 API container | [PR #14](https://github.com/PeterAshiagbor/Mansora/pull/14) |
+| C4 performance | [PR #15](https://github.com/PeterAshiagbor/Mansora/pull/15); rejected indexes and measured slow-query proposals documented |
+| C5 accessibility | [PR #17](https://github.com/PeterAshiagbor/Mansora/pull/17); NVDA/native zoom/hardware acceptance still pending |
+| C6 admin dashboard | [PR #18](https://github.com/PeterAshiagbor/Mansora/pull/18) |
+| C7 API observability | [PR #19](https://github.com/PeterAshiagbor/Mansora/pull/19) |
+| C8 legal drafts | [PR #20](https://github.com/PeterAshiagbor/Mansora/pull/20); legal review, registration, hosting/transfer and retention decisions remain open |
+| C9 workflow coverage | [PR #21](https://github.com/PeterAshiagbor/Mansora/pull/21); see `docs/operations/workflow-tests.md` |
+| C10 owner-requested retail pricing | [PR #16](https://github.com/PeterAshiagbor/Mansora/pull/16); Excel/carton costing, selling prices, permission-gated margins and restricted discounts. Individual-item costing formula confirmed by the owner on 2026-11-10 |
+| C11 official branding and SaaS positioning | [PR #22](https://github.com/PeterAshiagbor/Mansora/pull/22); owner-supplied identity, offline assets, separate client/provider interfaces |
+
+All implementations are also combined on [`codex/integration-review`](https://github.com/PeterAshiagbor/Mansora/tree/codex/integration-review). See [combined verification](operations/integration-review.md) for resolutions and test evidence. This branch is a review artifact; no default-branch merge or deployment is implied.
+
+Physical hardware acceptance, a signing certificate, live hosting/credentials/region, counsel approval and outstanding policy defaults still require their responsible owners. No production access or legal approval is inferred from passing tests.
+
 ## Tasks
 
 ### C1 — Two-factor authentication for Mansora administrators (TOTP) — DONE, merged (PR #10)
@@ -26,33 +48,39 @@ Take them in order; each is one pull request.
 **Done when:** tests cover a correct code, wrong code, replayed code within the same time step (rejected), clock skew of ±1 step, recovery code used once then rejected, rate limit, and that a session cannot be obtained with a password alone once enrolled. Admin dashboard has an enrolment screen and the second login step.
 
 ### C2 — Pluggable backup storage with an S3-compatible driver
+**Status:** Implemented on `codex/C2-backup-storage` for PR review; not deployed. Includes immutable filesystem/S3 drivers, signed conditional requests, safe storage errors, unchanged existing backup tests and a local signature-verifying fake S3 suite.
 **Why:** production must not keep client backups on the API server's disk.
 **Scope:** new `apps/api/src/storage.ts`; `apps/api/src/app.ts`, `server.ts`, `.env.example`; the two backup routes may only be changed to call the interface (coordinate: they live in `modules/device.ts` — keep the diff to replacing the `fs` calls).
 **Build:** `BackupStorage` interface (`put(key, bytes, sha256)` that never overwrites, `get(key)`, `exists(key)`). Keep the current filesystem behaviour as `FileStorage`. Add `S3Storage` using SigV4 signed `fetch` with `node:crypto` (no AWS SDK): `PutObject` with `If-None-Match: *`, `GetObject`, `HeadObject`; configured by `BACKUP_S3_ENDPOINT`, `_REGION`, `_BUCKET`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`. Server-side encryption header on by default.
 **Done when:** the existing backup tests pass unchanged on `FileStorage`; `S3Storage` is tested against a small in-process fake S3 server written in the test (signature verified, overwrite refused, round trip); documentation explains bucket settings (private, versioning, lifecycle).
 
 ### C3 — Container image and deployment files for the API
+**Status:** Implemented on `codex/C3-api-containers` for PR review. Image, local first start/restart, authenticated smoke checks, runtime-role boundaries and secret generation verified; GitHub container workflow added. No live deployment.
 **Scope:** new `infrastructure/` folder only (`Dockerfile`, `docker-compose.yml` for local PostgreSQL + API, `README.md`).
 **Build:** multi-stage image, non-root user, read-only root filesystem, `HEALTHCHECK` on `/health`, no dev dependencies in the final image. Compose file runs migrations as a separate one-shot service with a separate migration role, then the API with a runtime role that is `NOSUPERUSER NOCREATEROLE NOBYPASSRLS` — include the SQL that creates both roles. A CI job builds the image and runs the compose stack, then calls `/health` and one authenticated admin endpoint.
 **Done when:** `docker compose up` gives a working API from a clean machine, and the CI job passes.
 
 ### C4 — Performance test with a large catalogue, and any indexes it shows are needed
+**Status:** Implemented on `codex/C4-performance` for PR review. Full dataset measured, candidate indexes tested and rejected, and all operations over 200 ms at p95 have proposed fixes in `docs/operations/performance.md`. No application query/schema changes.
 **Why:** nothing has been measured beyond a handful of products.
 **Scope:** new `tests/performance/`; a **new** SQLite migration in `apps/desktop/src/core/schema.ts` is the one permitted exception to rule 2, limited to `CREATE INDEX` statements.
 **Build:** a script (not part of `npm test`; add `npm run test:perf`) that creates 20,000 products, 200,000 sales with 3 lines each over 12 months and 2,000 customers through the engine's commands or direct inserts that respect the schema, then times: product search by name fragment, barcode lookup, `sale.complete`, `report.sales` and `report.profit` for one month and one year, `stock.overview`, `sale.list` for a day, and a sync push of 1,000 events against the embedded API.
 **Done when:** results (median and p95, machine described) are written to `docs/operations/performance.md`; any query over 200 ms at p95 is either fixed with an index and re-measured, or listed with a proposed fix. Do not change query results.
 
 ### C5 — Accessibility pass on the shared UI kit and both interfaces
+**Status:** Implemented on `codex/C5-accessibility` for review: axe scans of all navigation pages/tabs and representative forms, shared keyboard/focus/label fixes, contrast and responsive layout fixes. See `docs/operations/accessibility.md`; Windows NVDA/native zoom/hardware checks remain pending.
 **Scope:** `packages/ui/src/index.tsx`, `apps/admin-web/src/**`, and `apps/desktop/src/renderer/**` (interface only; no engine calls added or removed).
 **Build:** add `axe-core` as a dev dependency and an end-to-end test that runs it on every desktop page and every admin page and fails on serious or critical violations. Fix what it finds. Also check by hand: every control reachable and operable by keyboard, visible focus, modal focus trap and return, tables have captions or labels, colour is never the only signal (stock badges, variance badges), text contrast at least 4.5:1, and the layout works at 1366 × 768 and at 200% zoom.
 **Done when:** the axe test passes with no serious or critical violations, and `docs/operations/accessibility.md` lists what was checked, what was fixed and what remains (screen-reader testing on Windows with NVDA must be listed as not done unless you actually did it).
 
 ### C6 — Admin dashboard: tests and small gaps
+**Status:** Implemented for review on `codex/C6-admin-dashboard`: combined client search/status filters, server-scoped client audit tab, in-app deactivation confirmation, stable pending onboarding checkbox state and localhost CRUD/session browser coverage. API source is unchanged.
 **Scope:** `apps/admin-web/src/**`, new `tests/e2e/admin.test.ts`, read-only use of the API.
 **Build:** browser tests for: add client, edit client, change status, tick and untick onboarding steps, create and edit a plan, assign a subscription, create an activation code, deactivate a laptop (with a fake activated device created through the API), session expiry returns to the login screen, and a non-admin token is rejected. Add client search and status filter to the Clients page, and a per-client audit tab using the existing `?tenantId=` parameter. Replace `window.confirm` with the `Modal` component.
 **Done when:** the tests pass in CI and need no network beyond localhost.
 
 ### C7 — Structured logging, request IDs and an error-reporting hook in the API
+**Status:** Implemented for review on `codex/C7-observability`: bounded request IDs, sanitized JSON logs and metadata identity context, liveness/readiness, token-protected in-memory Prometheus metrics and opt-in bounded error delivery. See `docs/operations/observability.md`.
 **Scope:** `apps/api/src/app.ts`, `server.ts`, new `apps/api/src/observability.ts`.
 **Build:** request ID on every request (accept a validated incoming `x-request-id`, else generate) returned in the response and included in error bodies; JSON logs with tenant ID and device ID or admin ID where known, and never tokens, passwords, backup bytes or event payloads; a `reportError(err, context)` hook that is a no-op unless `ERROR_WEBHOOK_URL` is set; `/health` split into liveness and readiness; a `/metrics` endpoint (Prometheus text, protected by a bearer token from the environment) with request counts and durations by route, sync events accepted and rejected, and login failures.
 **Done when:** tests assert that secrets never appear in captured log output for login, sync and backup requests, and that request IDs propagate.
@@ -63,6 +91,7 @@ Take them in order; each is one pull request.
 **Done when:** every personal-data column in the schema appears in the inventory (add a small test that reads the schema and fails if a new column is not listed).
 
 ### C9 — Browser end-to-end coverage for the remaining desktop workflows
+**Status:** Implemented for review on `codex/C9-desktop-workflows`: eight real-interface scenarios covering every listed workflow, with accounting/permission invariants and actual backup verification. No application-code fix was required; selector/setup findings are documented in `docs/operations/workflow-tests.md`.
 **Scope:** new files under `tests/e2e/` only; read-only use of `apps/desktop/dev/host.ts` and `scripts/static.ts`.
 **Build:** tests through the real interface for: stock count with differences, receiving a purchase and the resulting average cost, damaged-stock adjustment, product import preview with an error row and with duplicates, import commit and the "already imported" refusal, credit sale then partial repayment then settlement, cash in/out with manager approval, closing a shift with a variance and manager sign-off, expense from the till changing expected cash, staff creation with a restricted permission set, owner-only settings, owner recovery and re-link screens, backup creation and verification, and the discount limit setting. Follow the style of `tests/e2e/ui.test.ts`.
 **Done when:** the tests pass in CI and any bug they find is reported in the PR description with the failing steps (fixes to `apps/desktop/src/**` are welcome as a separate commit in the same PR).
@@ -70,3 +99,15 @@ Take them in order; each is one pull request.
 ## Not for Codex (Claude is doing these)
 
 Choosing the discount-limit value (Mansora's policy) · signed auto-updates (waiting on a certificate) · Windows packaging in CI.
+
+
+### C10 — Retail pricing additions requested by the owner
+**Priority:** Owner request on 2026-11-09/10, ahead of the remaining C5–C9 work.
+**Status:** Implemented for review on `codex/C10-carton-costing`: Excel carton columns and preview validation, product carton calculator, permission-gated catalogue gross margins and selling-price labels, explicit cashier discount requests, durable approval lockouts and exact owner-ceiling comparisons. See `docs/operations/product-pricing.md`.
+**Scope exception:** The owner's explicit costing/import and discount-restriction requirements need shared costing helpers and narrow importer/engine/sales changes under `apps/desktop/src/core/`; this feature PR keeps those changes separate from C4/C5. No sync protocol, sync tests or released migrations change.
+
+### C11 — Official Mansora branding and SaaS positioning
+**Status:** Implemented for review on `codex/C11-mansora-branding`; owner requested the branding from https://mansora-consulting.com and confirmed Mansora provides the SaaS platform to client businesses.
+**Scope:** Shared brand assets/tokens/component, desktop and admin shells/sign-in, local asset serving, desktop icon configuration and branding browser tests.
+**Evidence:** See [branding](operations/branding.md). The provider brand accompanies client workspace names; receipt merchant identities remain client businesses. No subscription enforcement or legal terms are inferred from the branding.
+

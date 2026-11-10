@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
-import { Alert, Button, cx, Field, Input } from '@mansora/ui';
+import { Alert, Button, cx, Field, Input, MansoraBrand } from '@mansora/ui';
 import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
 import { Checkout } from './pages/Checkout';
 import { Dashboard } from './pages/Dashboard';
@@ -103,7 +103,7 @@ function AuthFrame({ title, subtitle, children }: { title: string; subtitle: str
     <div className="flex min-h-full items-center justify-center bg-brand-900 p-6">
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-2xl">
         <div className="mb-6">
-          <div className="text-xs font-semibold uppercase tracking-widest text-brand-700">Mansora Sales &amp; Stock</div>
+          <div className="mb-5"><MansoraBrand /></div>
           <h1 className="mt-1 text-2xl font-semibold text-slate-900">{title}</h1>
           <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
         </div>
@@ -202,7 +202,7 @@ function Activation() {
     }
   };
   return (
-    <AuthFrame title="Activate this laptop" subtitle="One-time setup. You need internet for this step and the activation code from Mansora.">
+    <AuthFrame title="Activate this laptop" subtitle="Connect this laptop to your business workspace on the Mansora platform. You need internet and your activation code for this one-time setup.">
       <form onSubmit={submit} className="space-y-3">
         {error && <Alert tone="bad">{error}</Alert>}
         <Field label="Mansora server address"><Input value={f.apiUrl} onChange={set('apiUrl')} required /></Field>
@@ -262,8 +262,11 @@ function Shell({ page }: { page: { id: string; param?: string } }) {
       <div className="flex min-h-0 flex-1">
         <nav aria-label="Main" className="no-print flex w-52 shrink-0 flex-col overflow-y-auto bg-brand-900 text-brand-100">
           <div className="px-4 py-4">
-            <div className="text-[11px] font-semibold uppercase tracking-widest text-brand-300">Mansora</div>
-            <div className="truncate text-base font-semibold text-white">{state.business.name}</div>
+            <MansoraBrand compact inverse />
+            <div className="mt-4 border-t border-brand-700 pt-3">
+              <div className="text-xs text-brand-200">Client workspace</div>
+              <div className="truncate text-sm font-semibold text-white" title={state.business.name}>{state.business.name}</div>
+            </div>
           </div>
           <div className="flex-1 space-y-3 px-2 pb-4">
             {groups.map((g) => (

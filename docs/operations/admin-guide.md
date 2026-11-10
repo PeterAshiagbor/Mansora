@@ -60,3 +60,15 @@ stop sales or syncing. No enforcement exists until a policy is agreed (decision 
 Use when a laptop is lost, stolen or replaced. The laptop can no longer sync.
 It cannot be wiped remotely, and it keeps working offline for anyone who can
 sign in to it.
+
+## Finding clients and reviewing changes
+
+On **Clients**, search by business, owner, phone, email or support contact and combine it with the status filter (onboarding, active, suspended or closed). Matching is case-insensitive. Filters apply to the client list already returned by the server and do not change account status.
+
+Open a client and choose **Client audit** to see that client's administrative history. The dashboard requests the existing admin audit endpoint with `tenantId`; filtering happens on the server. It shows the latest 300 entries, the endpoint's existing limit. Platform-wide plan changes and other clients' actions are not part of this view. Use **Client overview** to return to onboarding, health, subscriptions and consent-controlled reports.
+
+Onboarding checkboxes show the chosen state while a request is pending, remain disabled during the save, and return to the server state if saving fails. The audit trail records both marking a step complete and unmarking it. Account and subscription status changes retain their existing meaning: they do not stop a shop selling offline.
+
+**Deactivate laptop** opens an in-app dialog describing the offline/sync consequence. Cancel leaves the device active. Confirm revokes its cloud access and records the action; it does not erase the laptop's records or prevent offline sales. This uses the same existing API operation as before. An expired administrator session, or a device token supplied in its place, returns the dashboard to sign-in and removes the stored token.
+
+C6 validation includes Chromium tests for plan/client create and edit, status and combined search filters, checking/unchecking onboarding, subscription assignment, activation code creation, cancellation and confirmation of deactivation, client-scoped audits, actual session expiry and rejection of a still-valid device token. All fixtures run on localhost; no production client data or devices are used.

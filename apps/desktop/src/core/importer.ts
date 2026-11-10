@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import ExcelJS from 'exceljs';
-import { DomainError, fail, parseGHS } from '@mansora/domain';
+import { DomainError, fail, parseGHS, unitCostFromCarton } from '@mansora/domain';
 
-export const IMPORT_FIELDS = ['name', 'sku', 'barcode', 'category', 'unit', 'cost_price', 'selling_price', 'opening_stock', 'reorder_level'] as const;
+export const IMPORT_FIELDS = ['name', 'sku', 'barcode', 'category', 'unit', 'cost_price', 'carton_cost', 'units_per_carton', 'selling_price', 'opening_stock', 'reorder_level'] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 export type Mapping = Partial<Record<ImportField, string>>;
 
@@ -13,6 +13,8 @@ const ALIASES: Record<ImportField, string[]> = {
   category: ['category', 'group', 'department'],
   unit: ['unit', 'uom', 'unit of measure'],
   cost_price: ['cost price', 'cost', 'cost_price', 'buying price', 'purchase price'],
+  carton_cost: ['carton cost', 'carton_cost', 'carton purchase cost'],
+  units_per_carton: ['units per carton', 'units_per_carton', 'items per carton'],
   selling_price: ['selling price', 'price', 'selling_price', 'retail price', 'sale price'],
   opening_stock: ['opening stock', 'opening_stock', 'quantity', 'qty', 'stock', 'opening quantity', 'in stock'],
   reorder_level: ['reorder level', 'reorder_level', 'reorder', 'low stock', 'reorder threshold', 'minimum stock'],
@@ -113,7 +115,9 @@ const wholeNumber = (raw: string, label: string, errors: string[]): number => {
   const s = raw.trim().replace(/,/g, '').replace(/\.0+$/, '');
   if (s === '') return 0;
   if (!/^\d+$/.test(s)) return errors.push(`${label} must be a whole number`), 0;
-  return Number(s);
+  const value = Number(s);
+  if (!Number.isSafeInteger(value)) return errors.push(`${label} is too large`), 0;
+  return value;
 };
 const cedis = (raw: string, label: string, errors: string[], required = false): number => {
   const s = raw.trim();
@@ -160,6 +164,18 @@ export function buildPreview(table: string[][], mapping: Mapping, existing: Exis
       openingStock: wholeNumber(get('opening_stock'), 'Opening stock', errors),
       reorderLevel: wholeNumber(get('reorder_level'), 'Reorder level', errors),
     };
+    const cartonRaw = get('carton_cost');
+    const unitsRaw = get('units_per_carton');
+    if (cartonRaw || unitsRaw) {
+      const cartonCost = cedis(cartonRaw, 'Carton cost', errors, true);
+      const units = wholeNumber(unitsRaw, 'Units per carton', errors);
+      if (units <= 0) errors.push('Units per carton must be a positive whole number');
+      if (!errors.length) {
+        const derived = unitCostFromCarton(cartonCost, units);
+        if (get('cost_price') && data.costPrice !== derived) errors.push('Cost price does not match carton cost divided by units per carton');
+        else data.costPrice = derived;
+      }
+    }
     let duplicate: string | null = null;
     const lname = name.toLowerCase();
     if (data.barcode && existing.barcodes.has(data.barcode)) duplicate = 'Barcode already in your products';
@@ -182,6 +198,6 @@ export function fileHash(content: Buffer): string {
 }
 
 export const TEMPLATE_ROWS: unknown[][] = [
-  ['Name', 'SKU', 'Barcode', 'Category', 'Unit', 'Cost price', 'Selling price', 'Opening stock', 'Reorder level'],
-  ['Example: Milo 400g tin', 'MILO-400', '6001068000012', 'Beverages', 'each', '38.50', '45.00', '24', '6'],
+  ['Name', 'SKU', 'Barcode', 'Category', 'Unit', 'Cost price', 'Selling price', 'Opening stock', 'Reorder level', 'Carton cost', 'Units per carton'],
+  ['Example: Milo 400g tin', 'MILO-400', '6001068000012', 'Beverages', 'each', '', '45.00', '24', '6', '924.00', '24'],
 ];

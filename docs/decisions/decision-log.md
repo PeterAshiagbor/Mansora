@@ -4,11 +4,12 @@
 
 The specification (section 26) lists decisions Mansora must approve. Where the
 software needed an answer to function, a conservative default was implemented.
-**None of these is agreed policy.** Each is isolated so it can be changed.
+Defaults remain proposals unless the status explicitly records owner confirmation.
+Each is isolated so it can be changed.
 
 | # | Topic (spec ref) | Default implemented | Where to change | Status |
 | --- | --- | --- | --- | --- |
-| D-01 | Brand identity (A) | Provisional deep-teal palette, product name "Mansora Sales & Stock", no logo | `@theme` blocks in the two `styles.css`; `packages/ui` | Awaiting assets |
+| D-01 | Brand identity (A) | Official mansora-consulting.com logo, purple/gold palette, DM Sans body and Georgia headings; Mansora is the SaaS provider, client names identify their workspaces and receipts | `packages/ui/src/brand.css`, `brand.tsx`; `docs/operations/branding.md` | Owner supplied website and confirmed SaaS provider positioning in this session |
 | D-02 | Supported hardware (B) | None declared. Windows print queue + HID scanner input are implemented but untested on devices | `tests/hardware/README.md` | Awaiting hardware |
 | D-03 | Costing method (D) | Moving weighted-average cost, re-averaged on purchases and restocked returns; cost snapshotted per sale line | `packages/domain/src/costing.ts`, `apps/desktop/src/core/stock.ts` | Awaiting approval |
 | D-04 | Negative stock (E) | Blocked. An owner-only setting can allow it; changes are audited | `business.update`, `moveStock()` | Awaiting approval |
@@ -20,7 +21,7 @@ software needed an answer to function, a conservative default was implemented.
 | D-10 | Subscription expiry offline (I) | **No enforcement.** Suspending an account is recorded and shown to the shop as a notice; selling and syncing continue | `GET /v1/sync/pull`, dashboard alert | Policy must be defined before any enforcement is built |
 | D-11 | Customer data (J) | Name required; phone, email and notes optional. Customer records sync to the cloud; Mansora support access never includes them | `customer.save`, report endpoint | Awaiting privacy review |
 | D-12 | Hosting and privacy (K) | Nothing chosen. Act 843 review, hosting region, retention and processing agreements are not done | — | Blocks production |
-| D-13 | Ownership (L) | Not a software matter. Repository is under the client's GitHub account | — | Awaiting written agreement |
+| D-13 | Ownership (L) | Mansora provides the SaaS platform to client businesses. Software IP, contractual responsibilities and data rights still need written terms | `docs/legal/` | Provider positioning confirmed by owner; legal terms await review |
 | D-14 | Quantities | Whole units only. Goods sold by weight must be stocked in a small unit (e.g. grams) | `assertQuantity()` | Awaiting approval |
 | D-15 | Prices at checkout | Always the catalogue price; no price override at the till, only discounts | `sale.complete` | Awaiting approval |
 | D-16 | Support access scope | One scope, "reports": sales totals, payment methods, top products, stock counts. 1 hour to 3 days, owner-granted, revocable | `support.grant`, report endpoint | Awaiting approval |
@@ -30,6 +31,8 @@ software needed an answer to function, a conservative default was implemented.
 | D-20 | Owner password recovery | Mansora issues a one-time code (1 hour) with a recorded reason; it only works on that client's activated laptop; the owner chooses the password. Identity verification of the caller is a Mansora procedure, not enforced by software | `auth.recoverOwner`, recovery-code endpoint | Awaiting approval of the verification procedure |
 | D-21 | Rebuilding a laptop from cloud data | Allowed only on a laptop that has never been activated, after the old one is deactivated. Whoever activates takes over the owner account; other staff need new passwords | `activation.activate` with `restoreFromCloud` | Awaiting approval |
 | D-22 | Administrator MFA | Optional self-enrolment with password reauthentication; RFC 6238 SHA-1, six digits/30 seconds, ±1 step; five-minute one-use login challenge, ten-minute setup, five failures per five minutes per admin; ten one-use 80-bit recovery codes. Enabling revokes other sessions; disabling requires password plus fresh authenticator or unused recovery code and revokes all sessions. No password-only reset/override or automatic encryption-key rotation | `admin.ts`, `security.ts`; `docs/operations/admin-guide.md` | Default for C1; organization-wide enforcement and recovery policy await approval |
+
+| D-23 | Carton costing and catalogue margin | Per-selling-unit cost = carton cost / positive whole selling-unit count, half-up to a pesewa; whole cartons use count 1. Carton calculator inputs are not persistent pack definitions. Conflicting imported unit costs block commit. Gross margin uses catalogue cost and selling price before discounts/expenses; only cost-authorised users see it | `unitCostFromCarton`, importer, Products; `docs/operations/product-pricing.md` | Individual-item tracking and carton-cost / item-count formula confirmed by the owner on 2026-11-10; rounding, invoice allocation and persistent pack modelling remain separate policy details |
 
 ## B. Architecture decisions
 
@@ -47,3 +50,8 @@ software needed an answer to function, a conservative default was implemented.
 | A-10 | Fewer packages than the spec's suggested layout (`domain` holds types, validation, permissions and the sync protocol) | They change together; splitting would add ceremony with no isolation benefit yet |
 | A-11 | Development browser host for the desktop UI | Lets the real engine and UI be driven by automated browser tests without Electron |
 | A-12 | Activation codes and device tokens stored only as SHA-256 hashes | A database leak does not yield usable credentials |
+| A-13 | Pluggable immutable backup storage: filesystem fallback for existing installations; explicit all-or-nothing S3 configuration, path-style SigV4, SSE-S3 on by default, conditional single-part writes and verified identical retries | Preserve local behavior while making private object storage available without an AWS SDK. No automatic migration/failover or deletion policy; retention and real-provider rehearsals remain deployment decisions. HTTP is limited to loopback test/development endpoints |
+| A-14 | Local API Compose stack bootstraps pre-created database roles, uses a separate schema-owning migration login without global CREATEROLE, and runs the API with a non-root/read-only container and restricted runtime login | Enables reproducible local/CI deployment without committing credentials or giving the running API migration privileges. Generated secrets and local bootstrap are development fixtures; production hosting, rotation and retention remain explicit deployment decisions |
+| A-15 | Retain the released report indexes after measuring and rejecting a wider covering-index experiment; keep the opt-in experiment and raw before/candidate results in the performance harness | The candidates increase database size about 20% and worsen profit-report latency without a robust overall gain. Slow aggregates/sync have explicit measured follow-ups; report definitions and durability are unchanged |
+| A-16 | Shared table captions derive from an explicit caption, containing card title, or column names; table scroll regions have a short navigation label; 200% automated layout checks use half-size CSS viewports | Makes existing tables and overflow regions keyboard/screen-reader discoverable without changing engine calls; viewport equivalence and remaining native zoom/NVDA checks are documented in `docs/operations/accessibility.md` |
+| A-18 | Correlation IDs are bounded opaque strings; metrics/reporting are opt-in and errors expose type/code only | Avoid payload/credential leakage and metric-label growth. Metrics reset per process; error delivery is bounded/best-effort, with deployment access/retention decisions still open. See `docs/operations/observability.md` |

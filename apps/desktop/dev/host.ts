@@ -10,7 +10,7 @@ import { extname, join, normalize } from 'node:path';
 import { DomainError } from '@mansora/domain';
 import { openEngine, runScheduledBackup, syncNow, type Engine } from '../src/core';
 
-const MIME: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
+const MIME: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.json': 'application/json' };
 
 export function startDevHost(opts: { dataDir: string; port: number; dbKey?: string; syncEveryMs?: number }): Promise<{ server: Server; engine: Engine; url: string }> {
   const root = join(import.meta.dirname, '..', 'dist', 'renderer');

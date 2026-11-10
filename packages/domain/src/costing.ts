@@ -1,5 +1,5 @@
 import { fail } from './errors';
-import { mulDivRound, type Pesewas } from './money';
+import { assertNonNegative, mulDivRound, type Pesewas } from './money';
 
 /**
  * Moving weighted-average cost (proposed policy - see decision D-03 in docs/decisions/decision-log.md).
@@ -28,4 +28,11 @@ export function grossMarginBps(revenue: Pesewas, cogs: Pesewas): number | null {
   if (revenue <= 0) return null;
   const profit = revenue - cogs;
   return profit >= 0 ? mulDivRound(profit, 10_000, revenue) : -mulDivRound(-profit, 10_000, revenue);
+}
+
+/** Catalogue unit cost, rounded half up to the nearest pesewa. This does not allocate an invoice total. */
+export function unitCostFromCarton(cartonCost: Pesewas, unitsPerCarton: number): Pesewas {
+  assertNonNegative(cartonCost, 'Carton cost');
+  if (!Number.isSafeInteger(unitsPerCarton) || unitsPerCarton <= 0) fail('INVALID_QUANTITY', 'Units per carton must be a positive whole number');
+  return mulDivRound(cartonCost, 1, unitsPerCarton);
 }

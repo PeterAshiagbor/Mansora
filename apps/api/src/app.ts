@@ -1,18 +1,23 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { LogController, type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import type { Database } from './db';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
 import { HttpError } from './security';
+import { BackupStorageError, FileStorage, type BackupStorage } from './storage';
+import { installObservability, loggerOptions, requestId, safeError, type ObservabilityOptions } from './observability';
 
 export interface AppContext {
   db: Database;
-  backupDir: string;
+  backupStorage: BackupStorage;
 }
 
-export interface AppOptions extends AppContext {
+export interface AppOptions extends Omit<AppContext, 'backupStorage'>, ObservabilityOptions {
+  /** Local fallback for existing callers; unused when backupStorage is supplied. */
+  backupDir: string;
+  backupStorage?: BackupStorage;
   adminOrigins?: string[];
   logger?: boolean;
   /** Explicit proxy addresses/CIDRs only; forwarded headers are untrusted by default. */
@@ -20,7 +25,9 @@ export interface AppOptions extends AppContext {
 }
 
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
-  const app = Fastify({ logger: opts.logger ? { redact: ['req.headers.authorization', 'req.headers.cookie'] } : false, bodyLimit: 8 * 1024 * 1024, trustProxy: opts.trustProxy ?? false });
+  const context: AppContext = { db: opts.db, backupStorage: opts.backupStorage ?? new FileStorage(opts.backupDir) };
+  const app = Fastify({ logger: opts.logger || opts.logStream ? loggerOptions(opts.logStream) : false, logController: new LogController({ disableRequestLogging: true }), requestIdHeader: false, genReqId: requestId, bodyLimit: 8 * 1024 * 1024, trustProxy: opts.trustProxy ?? false });
+  const observability = installObservability(app, opts.db, opts);
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: opts.adminOrigins ?? false, methods: ['GET', 'POST', 'PUT'] });
   app.addHook('onSend', async (_req, reply, payload) => {
@@ -30,20 +37,27 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   // Encrypted backup uploads arrive as raw bytes.
   app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 
-  app.setErrorHandler((err: any, req, reply) => {
-    if (err instanceof HttpError) return reply.status(err.status).send({ code: err.code, message: err.message });
-    if (err instanceof ZodError) return reply.status(400).send({ code: 'INVALID_INPUT', message: `${err.issues[0].path.join('.') || 'request'}: ${err.issues[0].message}` });
-    if (err.code === '23505') return reply.status(409).send({ code: 'CONFLICT', message: 'A record with these details already exists' });
-    if (err.statusCode && err.statusCode < 500) return reply.status(err.statusCode).send({ code: 'BAD_REQUEST', message: err.message });
-    req.log.error(err);
-    return reply.status(500).send({ code: 'INTERNAL_ERROR', message: 'Something went wrong on the server' });
+  app.setErrorHandler(async (err: any, req, reply) => {
+    if (err instanceof HttpError || err instanceof BackupStorageError) return reply.status(err.status).send({ code: err.code, message: err.message, requestId: req.id });
+    if (err instanceof ZodError) return reply.status(400).send({ code: 'INVALID_INPUT', message: `${err.issues[0].path.join('.') || 'request'}: ${err.issues[0].message}`, requestId: req.id });
+    if (err.code === '23505') return reply.status(409).send({ code: 'CONFLICT', message: 'A record with these details already exists', requestId: req.id });
+    if (err.statusCode && err.statusCode < 500) return reply.status(err.statusCode).send({ code: 'BAD_REQUEST', message: err.message, requestId: req.id });
+    const context = await observability.context(req, 500);
+    req.log.error({ ...context, error: safeError(err) }, 'Request failed');
+    observability.reportError(err, context);
+    return reply.status(500).send({ code: 'INTERNAL_ERROR', message: 'Something went wrong on the server', requestId: req.id });
   });
 
-  app.get('/health', async () => {
-    await opts.db.platform((q) => q('SELECT 1'));
+  app.get('/health/live', async () => ({ status: 'ok', time: new Date().toISOString() }));
+  const ready = async () => {
+    try { await opts.db.platform((q) => q('SELECT 1')); }
+    catch { throw new HttpError(503, 'DATABASE_UNAVAILABLE', 'Database is unavailable'); }
     return { status: 'ok', time: new Date().toISOString() };
-  });
-  registerDeviceRoutes(app, opts);
-  registerAdminRoutes(app, opts);
+  };
+  app.get('/health/ready', ready);
+  app.get('/health', ready); // Compatibility with existing deployment health checks.
+  app.setNotFoundHandler((req, reply) => reply.code(404).send({ code: 'NOT_FOUND', message: 'Not found', requestId: req.id }));
+  registerDeviceRoutes(app, context);
+  registerAdminRoutes(app, context);
   return app;
 }

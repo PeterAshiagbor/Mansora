@@ -1,0 +1,157 @@
+{
+  "measuredAt": "2026-11-09T23:39:29.064Z",
+  "machine": {
+    "os": "linux",
+    "arch": "x64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "availableCpus": 2,
+    "hostMemoryBytes": 10452459520,
+    "cgroupMemoryBytes": 8589934592,
+    "node": "v24.22.1",
+    "sqlite": {
+      "version": "3.53.2"
+    },
+    "encrypted": true
+  },
+  "fixture": {
+    "products": 20000,
+    "sales": 200000,
+    "saleItems": 600000,
+    "customers": 2000,
+    "expected": {
+      "revenue": 300000000,
+      "cogs": 180000000,
+      "stockUnits": 20000000
+    },
+    "sqliteBytes": 703238144,
+    "seedMs": 284145.11,
+    "period": {
+      "from": "2025-01-01",
+      "to": "2025-12-31"
+    },
+    "historicalOutbox": "not fabricated; writes measured through the real engine",
+    "historicalInventoryMovements": 620000
+  },
+  "percentiles": "median of sorted samples; p95 nearest rank; warmups excluded",
+  "rows": [
+    {
+      "operation": "product.list name fragment",
+      "samples": 20,
+      "medianMs": 3.48,
+      "p95Ms": 3.64,
+      "minMs": 3.26,
+      "maxMs": 3.7
+    },
+    {
+      "operation": "product.lookup barcode",
+      "samples": 20,
+      "medianMs": 0.1,
+      "p95Ms": 0.13,
+      "minMs": 0.09,
+      "maxMs": 0.18
+    },
+    {
+      "operation": "sale.complete three lines",
+      "samples": 20,
+      "medianMs": 2.88,
+      "p95Ms": 3.78,
+      "minMs": 2.29,
+      "maxMs": 23.57
+    },
+    {
+      "operation": "report.sales month",
+      "samples": 20,
+      "medianMs": 446.01,
+      "p95Ms": 467.01,
+      "minMs": 429.62,
+      "maxMs": 471.51
+    },
+    {
+      "operation": "report.profit month",
+      "samples": 20,
+      "medianMs": 280.9,
+      "p95Ms": 313.22,
+      "minMs": 266.24,
+      "maxMs": 317.29
+    },
+    {
+      "operation": "report.sales year",
+      "samples": 20,
+      "medianMs": 6055.02,
+      "p95Ms": 6429.14,
+      "minMs": 5806.07,
+      "maxMs": 6496.59
+    },
+    {
+      "operation": "report.profit year",
+      "samples": 20,
+      "medianMs": 3505.4,
+      "p95Ms": 3670.54,
+      "minMs": 3044.56,
+      "maxMs": 3802.82
+    },
+    {
+      "operation": "stock.overview all",
+      "samples": 20,
+      "medianMs": 98.6,
+      "p95Ms": 120.4,
+      "minMs": 86.24,
+      "maxMs": 127.18
+    },
+    {
+      "operation": "sale.list one day",
+      "samples": 20,
+      "medianMs": 0.89,
+      "p95Ms": 1.21,
+      "minMs": 0.75,
+      "maxMs": 1.5
+    },
+    {
+      "operation": "sync.push 1000 product events (5 x 200)",
+      "samples": 5,
+      "medianMs": 1974.97,
+      "p95Ms": 2037.4,
+      "minMs": 1950.75,
+      "maxMs": 2037.4
+    }
+  ],
+  "plans": {
+    "product fragment": [
+      {
+        "id": 5,
+        "parent": 0,
+        "notused": 165,
+        "detail": "SCAN products USING INDEX products_name"
+      }
+    ],
+    "sales date": [
+      {
+        "id": 3,
+        "parent": 0,
+        "notused": 186,
+        "detail": "SEARCH sales USING COVERING INDEX sales_report_cover (created_at>? AND created_at<?)"
+      }
+    ],
+    "sale items report": [
+      {
+        "id": 7,
+        "parent": 0,
+        "notused": 190,
+        "detail": "SCAN s"
+      },
+      {
+        "id": 13,
+        "parent": 0,
+        "notused": 48,
+        "detail": "SEARCH i USING COVERING INDEX sale_items_report_cover (sale_id=?)"
+      },
+      {
+        "id": 18,
+        "parent": 0,
+        "notused": 0,
+        "detail": "USE TEMP B-TREE FOR GROUP BY"
+      }
+    ]
+  },
+  "schemaState": "Experimental report covering indexes; rejected and not shipped"
+}
