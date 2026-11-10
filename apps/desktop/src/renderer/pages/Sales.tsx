@@ -1,49 +1,51 @@
 import { useEffect, useState } from 'react';
 import { refundLineAmount } from '@mansora/domain';
-import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, Textarea } from '@mansora/ui';
+import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, Textarea, QueryView } from '@mansora/ui';
 import { ApprovalModal, call, DateRange, dateTime, ExportButtons, METHOD, money, plain, printHtml, savePdf, today, useAction, useApp, useQuery, uuid, type Approver } from '../lib';
 
 export function SalesPage({ openId }: { openId?: string }) {
   const [range, setRange] = useState({ from: today(), to: today() });
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<string | null>(openId ?? null);
-  const { data, reload } = useQuery<any[]>('sale.list', { ...range, search });
+  const salesQuery = useQuery<any[]>('sale.list', { ...range, search });
+  const { data, reload } = salesQuery;
   return (
     <div>
       <PageHeader title="Sales history" subtitle="Completed sales cannot be changed. Use a refund to correct a sale."
-        actions={<ExportButtons title="Sales" columns={['Receipt', 'Date', 'Cashier', 'Customer', 'Paid by', 'Total', 'Refunded']} rows={() => (data ?? []).map((r) => [r.receipt_no, dateTime(r.created_at), r.cashier_name, r.customer_name ?? '', r.methods, plain(r.total), plain(r.refunded)])} />} />
+        actions={<ExportButtons disabled={!data} title={`Sales ${range.from} to ${range.to} — loaded matches`} columns={['Receipt', 'Date', 'Cashier', 'Customer', 'Paid by', 'Total', 'Refunded']} rows={() => (data ?? []).map((r) => [r.receipt_no, dateTime(r.created_at), r.cashier_name, r.customer_name ?? '', r.methods, plain(r.total), plain(r.refunded)])} />} />
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <DateRange {...range} onChange={setRange} />
         <Input placeholder="Receipt number or customer" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64 no-print" aria-label="Search sales" />
       </div>
-      <Card pad={false}>
+      {data?.length === 300 && <p className="mb-3 text-xs text-slate-600">Showing the latest 300 matching sales. Narrow the dates or search to find an older receipt. Use Reports for complete period totals.</p>}
+      <QueryView query={salesQuery} label="sales history"><Card pad={false}>
         <Table rows={data} empty="No sales in this period" onRowClick={(r) => setOpen(r.id)} rowKey={(r) => r.id}
           columns={[
             { header: 'Receipt', cell: (r) => <span className="font-medium">{r.receipt_no}</span> },
-            { header: 'Date', cell: (r) => dateTime(r.created_at) },
+            { header: 'Date', sortValue: (r) => r.created_at, cell: (r) => dateTime(r.created_at) },
             { header: 'Cashier', cell: (r) => r.cashier_name },
             { header: 'Customer', cell: (r) => r.customer_name ?? '—' },
             { header: 'Paid by', cell: (r) => String(r.methods ?? '').split(',').map((m: string) => METHOD[m] ?? m).join(' + ') },
-            { header: 'Total', align: 'right', cell: (r) => money(r.total) },
+            { header: 'Total', sortValue: (r) => r.total, align: 'right', cell: (r) => money(r.total) },
             { header: 'Refunded', align: 'right', cell: (r) => (r.refunded ? <Badge tone="warn">{money(r.refunded)}</Badge> : '') },
           ]} />
-      </Card>
+      </Card></QueryView>
       {open && <SaleDetail id={open} onClose={() => { setOpen(null); reload(); }} />}
     </div>
   );
 }
 
 function SaleDetail({ id, onClose }: { id: string; onClose: () => void }) {
-  const { data, reload, error } = useQuery<any>('sale.get', { id });
+  const saleQuery = useQuery<any>('sale.get', { id });
+  const { data, reload } = saleQuery;
   const [refunding, setRefunding] = useState(false);
   const { run, busy } = useAction();
   const receipt = async () => call<{ html: string; receiptNo: string }>('sale.receipt', { id, reprint: true });
-  if (error) return <Modal title="Sale" open onClose={onClose}><Alert tone="bad">{error}</Alert></Modal>;
-  if (!data) return null;
+  if (!data) return <Modal title="Sale details" open trackChanges={false} onClose={onClose}><QueryView query={saleQuery} label="sale details">{null}</QueryView></Modal>;
   const { sale, items, payments, refunds, credit } = data;
   const refundable = items.some((i: any) => i.refunded_quantity < i.quantity);
   return (
-    <Modal title={`Receipt ${sale.receipt_no}`} open onClose={onClose} wide
+    <Modal trackChanges={false} title={`Receipt ${sale.receipt_no}`} open onClose={onClose} wide
       footer={<>
         {refundable && <Button variant="danger" onClick={() => setRefunding(true)}>Refund…</Button>}
         <Button disabled={busy} onClick={() => run(async () => { const r = await receipt(); await savePdf(r.html, `${r.receiptNo}.pdf`); })}>Save PDF</Button>
@@ -110,7 +112,7 @@ function RefundModal({ saleId, items, onClose, onDone }: { saleId: string; items
   return (
     <>
       <Modal title="Refund items" open={!approval} onClose={onClose} wide
-        footer={<><Button onClick={onClose}>Cancel</Button><Button variant="danger" disabled={busy || !lines.length || !reason.trim()} onClick={() => submit()}>Refund {money(amount)}</Button></>}>
+        footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="danger" disabled={busy || !lines.length || !reason.trim()} onClick={() => submit()}>Refund {money(amount)}</Button></>}>
         <Table rows={eligible} rowKey={(r) => r.id} columns={[
           { header: 'Product', cell: (r) => r.product_name },
           { header: 'Can refund', align: 'right', cell: (r) => r.quantity - r.refunded_quantity },

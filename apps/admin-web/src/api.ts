@@ -18,11 +18,12 @@ export async function api<T = any>(method: string, path: string, body?: unknown)
   try {
     res = await fetch(BASE + path, {
       method,
+      ...(method === 'GET' ? { signal: AbortSignal.timeout(15_000) } : {}),
       headers: { ...(body !== undefined ? { 'content-type': 'application/json' } : {}), ...(getToken() ? { authorization: `Bearer ${getToken()}` } : {}) },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError(0, 'OFFLINE', 'Cannot reach the Mansora server');
+    throw new ApiError(0, 'OFFLINE', 'Cannot reach the Mansora server. Check the connection and try again.');
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -36,14 +37,16 @@ export async function api<T = any>(method: string, path: string, body?: unknown)
 }
 
 export function useApi<T = any>(path: string | null, deps: unknown[] = []) {
-  const [data, setData] = useState<T | undefined>();
-  const [error, setError] = useState<ApiError | null>(null);
   const [tick, setTick] = useState(0);
+  const key = JSON.stringify([path, tick, deps]);
+  const [result, setResult] = useState<{ key: string; data?: T; error?: ApiError }>({ key: '' });
   useEffect(() => {
     if (!path) return;
     let live = true;
-    api<T>('GET', path).then((d) => live && (setData(d), setError(null)), (e) => live && (setError(e), setData(undefined)));
+    setResult({ key });
+    api<T>('GET', path).then((data) => live && setResult({ key, data }), (error) => live && setResult({ key, error }));
     return () => void (live = false);
   }, [path, tick, ...deps]);
-  return { data, error, reload: useCallback(() => setTick((t) => t + 1), []) };
+  const current = result.key === key ? result : undefined;
+  return { data: current?.data, error: current?.error ?? null, loading: !!path && !current?.error && current?.data === undefined, reload: useCallback(() => setTick((t) => t + 1), []) };
 }

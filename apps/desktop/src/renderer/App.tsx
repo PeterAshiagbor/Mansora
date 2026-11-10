@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
-import { Alert, Button, cx, Field, Input, MansoraBrand, WorkspaceShell, CLIENT_GUIDES } from '@mansora/ui';
+import { Alert, Button, cx, Field, Input, MansoraBrand, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard } from '@mansora/ui';
 import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
 import { Checkout } from './pages/Checkout';
 import { Dashboard } from './pages/Dashboard';
 import { HelpPage } from './pages/Help';
+import { GettingStartedPage } from './pages/GettingStarted';
 import { SalesPage } from './pages/Sales';
 import { CategoriesPage, ProductsPage } from './pages/Products';
 import { PurchasesPage, StockPage } from './pages/Stock';
@@ -21,7 +22,7 @@ interface NavItem {
   render: (param?: string) => ReactNode;
 }
 const NAV: { group: string; items: NavItem[] }[] = [
-  { group: 'Workspace', items: [{ id: 'dashboard', label: 'Dashboard', render: () => <Dashboard /> }] },
+  { group: 'Workspace', items: [{ id: 'dashboard', label: 'Dashboard', render: () => <Dashboard /> }, { id: 'getting-started', label: 'Getting started', perm: 'staff.manage', render: () => <GettingStartedPage /> }] },
   {
     group: 'Sell',
     items: [
@@ -69,12 +70,16 @@ const NAV: { group: string; items: NavItem[] }[] = [
   },
 ];
 
-export function App() {
+export function App() { return <DraftProvider><ClientApplication /></DraftProvider>; }
+
+function ClientApplication() {
+  const navigate = useNavigationGuard();
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<{ id: string; param?: string }>({ id: 'dashboard' });
   const refresh = useCallback(async () => {
     try {
+      setError(null);
       setState(await call<AppState>('app.state'));
     } catch (e: any) {
       setError(e.message);
@@ -87,11 +92,16 @@ export function App() {
     return () => window.removeEventListener('mansora:signed-out', onOut);
   }, [refresh]);
 
+  const go = useCallback((id: string, param?: string) => {
+    if (page.id === id && page.param === param) return;
+    navigate(() => setPage({ id, param }));
+  }, [navigate, page.id, page.param]);
+
   const ctx = useMemo(
-    () => state && { state, refresh, can: (p: Permission) => canDo(state.user ? { ...state.user, role: state.user.role as any, status: 'active' } : null, p), go: (id: string, param?: string) => setPage({ id, param }) },
-    [state, refresh],
+    () => state && { state, refresh, can: (p: Permission) => canDo(state.user ? { ...state.user, role: state.user.role as any, status: 'active' } : null, p), go },
+    [state, refresh, go],
   );
-  if (error) return <div className="p-8"><Alert tone="bad">The application could not start: {error}</Alert></div>;
+  if (error) return <div className="p-8"><Alert tone="bad">The application could not start: {error}</Alert><Button className="mt-4" onClick={refresh}>Retry</Button></div>;
   if (!ctx) return <div className="flex h-full items-center justify-center text-slate-500">Starting…</div>;
   return (
     <AppCtx.Provider value={ctx}>
@@ -176,7 +186,7 @@ function OwnerRecovery() {
       {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
       <Field label="Recovery code"><Input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="REC-XXXX-XXXX-XXXX" autoComplete="off" /></Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="New owner password"><Input type="password" value={f.next} onChange={(e) => setF({ ...f, next: e.target.value })} autoComplete="new-password" /></Field>
+        <Field label="New owner password"><Input type="password" minLength={8} maxLength={200} value={f.next} onChange={(e) => setF({ ...f, next: e.target.value })} autoComplete="new-password" /></Field>
         <Field label="Repeat new password"><Input type="password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} autoComplete="new-password" /></Field>
       </div>
       <Button type="submit" disabled={busy || !f.code || !f.next}>{busy ? 'Checking…' : 'Set new owner password'}</Button>
@@ -209,7 +219,7 @@ function Activation() {
     <AuthFrame title="Activate this laptop" subtitle="Connect this laptop to your business workspace on the Mansora platform. You need internet and your activation code for this one-time setup.">
       <form onSubmit={submit} className="space-y-3">
         {error && <Alert tone="bad">{error}</Alert>}
-        <Field label="Mansora server address"><Input value={f.apiUrl} onChange={set('apiUrl')} required /></Field>
+        <Field label="Mansora server address"><Input type="url" value={f.apiUrl} onChange={set('apiUrl')} required /></Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Activation code"><Input value={f.code} onChange={set('code')} placeholder="MNS-XXXX-XXXX-XXXX" required autoFocus /></Field>
           <Field label="Name for this laptop"><Input value={f.deviceName} onChange={set('deviceName')} required /></Field>
@@ -218,8 +228,8 @@ function Activation() {
         <p className="text-sm font-medium text-slate-700">Create the business owner's login</p>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Owner's full name"><Input value={f.name} onChange={set('name')} required /></Field>
-          <Field label="Username"><Input value={f.username} onChange={set('username')} required autoComplete="off" /></Field>
-          <Field label="Password" hint="At least 8 characters"><Input type="password" value={f.password} onChange={set('password')} required autoComplete="new-password" /></Field>
+          <Field label="Username"><Input minLength={3} maxLength={40} pattern="[a-zA-Z0-9._\-]+" value={f.username} onChange={set('username')} required autoComplete="off" /></Field>
+          <Field label="Password" hint="At least 8 characters"><Input type="password" minLength={8} maxLength={200} value={f.password} onChange={set('password')} required autoComplete="new-password" /></Field>
           <Field label="Repeat password"><Input type="password" value={f.confirm} onChange={set('confirm')} required autoComplete="new-password" /></Field>
         </div>
         <label className="flex items-start gap-2 text-sm text-slate-700">
@@ -243,10 +253,12 @@ function Restore({ onDone }: { onDone: () => Promise<void> }) {
     <form className="mt-4 space-y-3 border-t border-slate-200 pt-4" onSubmit={async (e) => {
       e.preventDefault();
       setBusy(true);
-      const r = await restoreBackup(pass);
-      setBusy(false);
-      if (r.ok) await onDone();
-      else setMsg(r.message ?? 'Restore cancelled');
+      try {
+        const r = await restoreBackup(pass);
+        if (r.ok) await onDone();
+        else setMsg(r.message ?? 'Restore cancelled');
+      } catch (error: any) { setMsg(error.message ?? 'The backup could not be opened. Check the file and try again.'); }
+      finally { setBusy(false); }
     }}>
       {msg && <Alert tone="bad">{msg}</Alert>}
       <Field label="Backup passphrase" hint="You will then be asked to choose the backup file (.mbk)."><Input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoFocus /></Field>
@@ -255,14 +267,15 @@ function Restore({ onDone }: { onDone: () => Promise<void> }) {
   );
 }
 
-const NAV_ICONS: Record<string, string> = { dashboard: 'home', checkout: 'sale', sales: 'file', shifts: 'wallet', customers: 'users', credit: 'wallet', products: 'box', categories: 'box', stock: 'box', purchases: 'sale', reports: 'chart', expenses: 'wallet', staff: 'users', settings: 'settings', data: 'file', sync: 'sync', backup: 'shield', support: 'shield', audit: 'file', help: 'help' };
+const NAV_ICONS: Record<string, string> = { dashboard: 'home', 'getting-started': 'file', checkout: 'sale', sales: 'file', shifts: 'wallet', customers: 'users', credit: 'wallet', products: 'box', categories: 'box', stock: 'box', purchases: 'sale', reports: 'chart', expenses: 'wallet', staff: 'users', settings: 'settings', data: 'file', sync: 'sync', backup: 'shield', support: 'shield', audit: 'file', help: 'help' };
 function Shell({ page }: { page: { id: string; param?: string } }) {
   const { state, can, go, refresh } = useApp();
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.perm || can(i.perm)).map((item) => ({ ...item, icon: NAV_ICONS[item.id] })) })).filter((g) => g.items.length);
   const all = groups.flatMap((g) => g.items);
   const current = all.find((i) => i.id === page.id) ?? all[0];
   const { run } = useAction();
-  return <div className="flex h-full flex-col"><div className="min-h-0 flex-1"><WorkspaceShell groups={groups} current={current} onNavigate={go} workspace={state.business.name} workspaceLabel="Client workspace" user={state.user?.name ?? 'Staff'} userRole={state.user?.role} guide={CLIENT_GUIDES[current.id]} signOutLabel="Lock / sign out" onSignOut={() => run(async () => { await call('auth.logout'); await refresh(); })}><div key={current.id + (page.param ?? '')}>{current.render(page.param)}</div></WorkspaceShell></div><StatusBar /></div>;
+  const navigate = useNavigationGuard();
+  return <div className="flex h-full flex-col"><div className="min-h-0 flex-1"><WorkspaceShell groups={groups} current={current} onNavigate={go} workspace={state.business.name} workspaceLabel="Client workspace" user={state.user?.name ?? 'Staff'} userRole={state.user?.role} guide={CLIENT_GUIDES[current.id]} signOutLabel="Lock / sign out" onSignOut={() => navigate(() => { void run(async () => { await call('auth.logout'); await refresh(); }); })}><div key={current.id + (page.param ?? '')}>{current.render(page.param)}</div></WorkspaceShell></div><StatusBar /></div>;
 }
 
 function StatusBar() {
@@ -274,11 +287,13 @@ function StatusBar() {
     window.addEventListener('mansora:changed', bump);
     return () => (clearInterval(t), window.removeEventListener('mansora:changed', bump));
   }, []);
-  const sync = useQuery<any>('sync.status', {}, [tick]).data;
-  const shift = useQuery<any>('shift.current', {}, [tick]).data;
+  const syncQuery = useQuery<any>('sync.status', {}, [tick]);
+  const shiftQuery = useQuery<any>('shift.current', {}, [tick]);
+  const sync = syncQuery.data;
+  const shift = shiftQuery.data;
   const now = new Date();
   const tone = !sync ? 'bg-slate-400' : sync.state === 'online' && sync.pending === 0 ? 'bg-emerald-500' : sync.state === 'offline' ? 'bg-amber-500' : 'bg-sky-500';
-  const label = !sync ? '…' : sync.state === 'syncing' ? 'Syncing' : sync.state === 'offline' ? 'Offline' : sync.state === 'online' ? 'Online' : 'Not synced yet';
+  const label = !sync ? syncQuery.error ? 'Sync status unavailable' : 'Checking sync…' : sync.state === 'syncing' ? 'Syncing' : sync.state === 'offline' ? 'Offline' : sync.state === 'online' ? 'Online' : 'Not synced yet';
   return (
     <footer className="no-print flex items-center gap-5 border-t border-slate-300 bg-white px-4 py-1.5 text-xs text-slate-700">
       <button type="button" onClick={() => go('sync')} className="flex items-center gap-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600" title="Open sync status">
@@ -288,7 +303,7 @@ function StatusBar() {
         {sync && sync.rejected > 0 && <span className="font-semibold text-red-700">· {sync.rejected} sync error(s)</span>}
       </button>
       <span>Cashier: <strong>{state.user?.name}</strong></span>
-      <span>{shift ? <>Shift open since {new Date(shift.shift.opened_at).toISOString().slice(11, 16)}</> : <span className="text-amber-700">No shift open</span>}</span>
+      <span>{shift === undefined ? <span>{shiftQuery.error ? 'Shift status unavailable' : 'Checking shift…'}</span> : shift ? <>Shift open since {new Date(shift.shift.opened_at).toISOString().slice(11, 16)}</> : <span className="text-amber-700">No shift open</span>}</span>
       <span className="ml-auto">{state.business.name}</span>
       <span className="tabular-nums">{now.toLocaleDateString('en-GB')} {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
     </footer>

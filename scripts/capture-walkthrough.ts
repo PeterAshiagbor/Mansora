@@ -4,7 +4,7 @@
  *
  *   npm run build && npx tsx scripts/capture-walkthrough.ts
  *
- * Development only: the sample passwords below are for a throwaway local database.
+ * Development only: credentials are generated for each throwaway local database.
  */
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
@@ -26,8 +26,8 @@ const pw = createRequire(import.meta.url)('playwright');
 
 const API = 'http://127.0.0.1:4100';
 process.env.PUBLIC_BASE_URL = API;
-const ADMIN = { email: 'demo.admin@mansora.example', name: 'Demo Administrator', password: 'demo-admin-password-1' };
-const PASS = 'sample-pass-123';
+const ADMIN = { email: 'demo.admin@mansora.example', name: 'Demo Administrator', password: randomUUID() };
+const PASS = randomUUID();
 const db = await connectEmbedded(mkdtempSync(join(tmpdir(), 'mns-cap-pg-')));
 await db.migrate();
 await db.platform((q) => createAdmin(q, ADMIN));

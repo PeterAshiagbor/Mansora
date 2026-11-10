@@ -14,9 +14,9 @@ laptop" ticks itself; the rest are ticked by you.
 | 7 | Configure staff | Laptop → Staff. One login per person. Start from the Cashier or Manager defaults |
 | 8 | Test scanner | Follow `hardware-test-script.md` |
 | 9 | Test printer | Follow `hardware-test-script.md` |
-| 10 | Complete test transaction | One cash sale, one refund, close the shift, check the till balances |
+| 10 | Complete test transaction | Rehearse a cash sale, refund and shift reconciliation in a separate training business/device arranged by Mansora; never invent sales in live client records |
 | 11 | Deliver training | Cashier guide and owner guide |
-| 12 | Confirm go-live | Ticking this sets the client to "active" |
+| 12 | Confirm go-live | Review and sign the [client handover](client-handover.md) with the owner. Ticking this marks an onboarding client active; it does not automatically verify hardware, training or legal/commercial requirements |
 
 ## Before you leave the shop
 
@@ -30,6 +30,11 @@ laptop" ticks itself; the rest are ticked by you.
 
 1. If the old laptop is lost or stolen: Dashboard → client → Deactivate laptop.
 2. Install on the new laptop. On the activation screen choose "Restore from a backup instead".
-3. If there is no backup, activate with a new code. Synced history remains in the
-   cloud, but loading it back onto a new laptop is **not yet built** — see the
-   backup and recovery guide.
+3. If there is no backup, use a fresh, never-activated installation and a new
+   activation code. Select the replacement-laptop option to load synced business
+   records from the cloud. The previous device must be deactivated first.
+4. Verify the owner's identity before issuing replacement access. The owner
+   chooses the replacement password; other staff need new passwords. Review
+   unsynced changes that may be missing from cloud history.
+5. Rehearse this procedure with synthetic records before relying on it. See the
+   [backup and recovery guide](../disaster-recovery/backup-and-recovery.md).

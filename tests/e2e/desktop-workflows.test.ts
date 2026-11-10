@@ -42,7 +42,11 @@ describe.skipIf(!pw || !built)('remaining desktop workflows through the real int
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByRole('button', { name: 'Lock / sign out', exact: true }).waitFor();
   }
-  const signOut = () => page.getByRole('button', { name: 'Lock / sign out', exact: true }).click();
+  const signOut = async () => {
+    await page.getByRole('button', { name: 'Lock / sign out', exact: true }).click();
+    const discard = page.getByRole('dialog', { name: 'Discard unsaved changes?', exact: true });
+    if (await discard.isVisible()) await discard.getByRole('button', { name: 'Discard changes', exact: true }).click();
+  };
   async function approve(who: typeof owner) {
     const dialog = page.getByRole('dialog', { name: 'Manager approval needed', exact: true });
     await dialog.getByLabel('Manager username').fill(who.username);

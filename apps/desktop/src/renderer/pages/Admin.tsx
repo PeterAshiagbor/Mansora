@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import { ROLE_DEFAULTS, type Role } from '@mansora/domain';
-import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table } from '@mansora/ui';
+import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, QueryView, useUnsavedChanges } from '@mansora/ui';
 import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, marginLabel, money, saveFile, today, useAction, useApp, useQuery } from '../lib';
 
 // ---------------------------------------------------------------- Staff
 export function StaffPage() {
   const { state } = useApp();
-  const { data, reload } = useQuery<any[]>('staff.list');
+  const staffQuery = useQuery<any[]>('staff.list');
+  const { data, reload } = staffQuery;
   const [edit, setEdit] = useState<any | null>(null);
   const { run, busy } = useAction();
   const save = () => run(async () => {
@@ -19,23 +20,23 @@ export function StaffPage() {
     <div>
       <PageHeader title="Staff" subtitle="Each person signs in with their own username so every action is traceable."
         actions={<Button variant="primary" onClick={() => setEdit({ name: '', username: '', role: 'cashier', status: 'active', permissions: ROLE_DEFAULTS.cashier, password: '' })}>Add staff member</Button>} />
-      <Card pad={false}>
+      <QueryView query={staffQuery} label="staff"><Card pad={false}>
         <Table rows={data} rowKey={(r) => r.id} onRowClick={(u) => setEdit({ ...u, password: '' })}
           columns={[{ header: 'Name', cell: (u) => <span className="font-medium">{u.name}</span> }, { header: 'Username', cell: (u) => u.username }, { header: 'Role', cell: (u) => <span className="capitalize">{u.role}</span> }, { header: 'Status', cell: (u) => (u.status === 'active' ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>) }]} />
-      </Card>
+      </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? `Edit ${edit.name}` : 'Add staff member'} open onClose={() => setEdit(null)} wide
-          footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim() || !edit.username.trim() || (!edit.id && !edit.password)} onClick={save}>Save</Button></>}>
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim() || !edit.username.trim() || (!edit.id && !edit.password)} onClick={save}>Save</Button></>}>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Full name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
-            <Field label="Username"><Input value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="off" /></Field>
+            <Field label="Username" hint="3–40 letters, numbers, dots, dashes or underscores."><Input minLength={3} maxLength={40} pattern="[a-zA-Z0-9._\-]+" value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="off" /></Field>
             <Field label="Role">
               <Select value={edit.role} disabled={owner} onChange={(e) => setEdit({ ...edit, role: e.target.value, permissions: ROLE_DEFAULTS[e.target.value as Role] })}>
                 {owner && <option value="owner">Owner</option>}<option value="manager">Manager</option><option value="cashier">Cashier</option>
               </Select>
             </Field>
             <Field label="Status"><Select value={edit.status} disabled={owner} onChange={(e) => setEdit({ ...edit, status: e.target.value })}><option value="active">Active</option><option value="disabled">Disabled (cannot sign in)</option></Select></Field>
-            <Field label={edit.id ? 'New password (leave empty to keep)' : 'Password'} hint="At least 8 characters" className="col-span-2"><Input type="password" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field>
+            <Field label={edit.id ? 'New password (leave empty to keep)' : 'Password'} hint="At least 8 characters" className="col-span-2"><Input type="password" minLength={8} maxLength={200} required={!edit.id} value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field>
           </div>
           {!owner && (
             <fieldset className="mt-4">
@@ -60,9 +61,12 @@ export function StaffPage() {
 export function SettingsPage() {
   const { state, refresh, can } = useApp();
   const [f, setF] = useState({ ...state.business, lockMinutes: String(state.business.lockMinutes), maxDiscountPercent: String(state.business.maxDiscountBps / 100) });
+  const [original, setOriginal] = useState(() => JSON.stringify(f));
+  useUnsavedChanges(JSON.stringify(f) !== original, 'business settings');
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
   const { run, busy } = useAction();
   const manage = can('settings.manage');
+  const validSettings = f.lockMinutes.trim() !== '' && Number.isInteger(Number(f.lockMinutes)) && Number(f.lockMinutes) >= 1 && Number(f.lockMinutes) <= 240 && f.maxDiscountPercent.trim() !== '' && Number.isInteger(Number(f.maxDiscountPercent)) && Number(f.maxDiscountPercent) >= 0 && Number(f.maxDiscountPercent) <= 100;
   return (
     <div className="max-w-3xl space-y-4">
       <PageHeader title="Settings" />
@@ -81,13 +85,13 @@ export function SettingsPage() {
               <span>Allow selling when the system shows no stock <span className="text-slate-500">(owner only; not recommended. Leave off so that stock records stay trustworthy.)</span></span>
             </label>
           </div>
-          <Button variant="primary" className="mt-4" disabled={busy || !f.name.trim()} onClick={() => run(async () => { await call('business.update', { name: f.name, phone: f.phone, address: f.address, receiptFooter: f.receiptFooter, lockMinutes: Number(f.lockMinutes) || 10, allowNegativeStock: f.allowNegativeStock, maxDiscountPercent: Math.min(100, Math.max(0, Math.floor(Number(f.maxDiscountPercent) || 0))) }); await refresh(); }, 'Settings saved')}>Save settings</Button>
+          <Button variant="primary" className="mt-4" disabled={busy || !validSettings || !f.name.trim()} onClick={() => run(async () => { await call('business.update', { name: f.name, phone: f.phone, address: f.address, receiptFooter: f.receiptFooter, lockMinutes: Number(f.lockMinutes), allowNegativeStock: f.allowNegativeStock, maxDiscountPercent: Number(f.maxDiscountPercent) }); setOriginal(JSON.stringify(f)); await refresh(); }, 'Settings saved')}>Save settings</Button>
         </Card>
       )}
       <Card title="Change my password">
         <div className="grid grid-cols-3 gap-3">
           <Field label="Current password"><Input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} autoComplete="current-password" /></Field>
-          <Field label="New password"><Input type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} autoComplete="new-password" /></Field>
+          <Field label="New password"><Input type="password" minLength={8} maxLength={200} value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} autoComplete="new-password" /></Field>
           <Field label="Repeat new password" error={pw.confirm && pw.confirm !== pw.next ? 'Does not match' : null}><Input type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} autoComplete="new-password" /></Field>
         </div>
         <Button className="mt-4" disabled={busy || !pw.current || !pw.next || pw.next !== pw.confirm} onClick={() => run(async () => { await call('auth.changePassword', { current: pw.current, next: pw.next }); setPw({ current: '', next: '', confirm: '' }); }, 'Password changed')}>Change password</Button>
@@ -106,6 +110,7 @@ export function DataPage() {
   const [preview, setPreview] = useState<any | null>(null);
   const [confirm, setConfirm] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  useUnsavedChanges(file != null, 'the product import preview');
   const { run, busy } = useAction();
   const load = (f: { fileName: string; contentBase64: string }, mapping?: Record<string, string>) => run(async () => { setFile(f); setConfirm(false); setPreview(await call('import.preview', { ...f, mapping })); });
   const rows: any[] = preview?.rows ?? [];
@@ -156,9 +161,9 @@ export function DataPage() {
           </div>
         )}
       </Card>
-      <Card title="Import history" pad={false}>
+      <QueryView query={history} label="import history"><Card title="Import history" pad={false}>
         <Table rows={history.data} rowKey={(r) => r.id} empty="No imports yet" columns={[{ header: 'When', cell: (r) => dateTime(r.created_at) }, { header: 'File', cell: (r) => r.file_name }, { header: 'Added', align: 'right', cell: (r) => r.created_count }, { header: 'Skipped', align: 'right', cell: (r) => r.skipped_count }, { header: 'Opening stock', cell: (r) => (r.opening_stock_applied ? 'Applied' : '—') }, { header: 'By', cell: (r) => r.imported_by_name }]} />
-      </Card>
+      </Card></QueryView>
       {can('data.export') && (
         <Card title="Export all business data">
           <p className="mb-3 text-sm text-slate-600">Your data belongs to your business. Download a complete copy at any time: products, stock movements, sales, payments, refunds, customers, credit, expenses, shifts and audit history.</p>
@@ -206,6 +211,7 @@ export function SyncPage() {
     <div>
       <PageHeader title="Synchronisation status" subtitle="Sales are always saved on this laptop first. They are copied to the Mansora cloud when the internet is available."
         actions={<Button variant="primary" disabled={busy} onClick={() => run(async () => { const r = await call('sync.run'); status.reload(); queue.reload(); if (!r.ok) throw new Error(r.error ?? 'Sync did not complete'); }, 'Everything is synced')}>{busy ? 'Syncing…' : 'Sync now'}</Button>} />
+      {!s && <QueryView query={status} label="sync status">{null}</QueryView>}
       {s && (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -219,13 +225,13 @@ export function SyncPage() {
           {s.unprotected > 0 && <Alert tone="warn" className="mb-3"><strong>{s.unprotected} change(s) exist only on this laptop.</strong> If the laptop is lost or damaged before they sync or are backed up, they cannot be recovered. Connect to the internet or make a backup.</Alert>}
         </>
       )}
-      <Card title="Recent sync queue" pad={false}>
+      <QueryView query={queue} label="sync queue"><Card title="Recent sync queue" pad={false}>
         <Table rows={queue.data} rowKey={(r) => r.seq} empty="Nothing has been recorded yet" columns={[
           { header: '#', cell: (r) => r.seq }, { header: 'What', cell: (r) => r.type }, { header: 'Recorded', cell: (r) => dateTime(r.occurred_at) },
           { header: 'Status', cell: (r) => (r.status === 'synced' ? <Badge tone="good">Synced</Badge> : r.status === 'rejected' ? <Badge tone="bad">Error</Badge> : <Badge tone="warn">Waiting</Badge>) },
           { header: 'Synced at', cell: (r) => dateTime(r.synced_at) }, { header: 'Note', cell: (r) => r.last_error ?? '' },
         ]} />
-      </Card>
+      </Card></QueryView>
       {state.user?.role === 'owner' && <SyncRepair onDone={() => { status.reload(); queue.reload(); }} />}
     </div>
   );
@@ -258,13 +264,13 @@ export function BackupPage() {
         {result && <Alert tone="good" className="mt-3 max-w-2xl">Backup created and checked: {result.summary.sales} sale(s), {result.summary.products} product(s). Saved to <code className="break-all">{result.path}</code>. {result.uploaded ? 'A copy was also stored in the Mansora cloud.' : 'No internet, so it was not copied to the cloud. Copy the file to a USB drive or another safe place.'}</Alert>}
       </Card>
       <AutoBackup enabled={!!status.data?.autoBackup} onChange={() => { status.reload(); list.reload(); }} />
-      <Card title="Backups on this laptop" pad={false}>
+      <QueryView query={list} label="backups"><Card title="Backups on this laptop" pad={false}>
         <Table rows={list.data} rowKey={(r) => r.id} empty="No backups yet" columns={[
           { header: 'Created', cell: (r) => dateTime(r.created_at) }, { header: 'Size', align: 'right', cell: (r) => `${(r.size_bytes / 1024).toFixed(0)} KB` },
           { header: 'Cloud copy', cell: (r) => (r.uploaded_at ? <Badge tone="good">Stored {dateTime(r.uploaded_at)}</Badge> : <Badge tone="warn">Local only</Badge>) }, { header: 'File', cell: (r) => <span className="break-all text-xs">{r.file_path}</span> },
           { header: '', align: 'right', cell: (r) => <Button size="sm" onClick={() => { setVerify(r); setVerifyPass(''); }}>Test this backup</Button> },
         ]} />
-      </Card>
+      </Card></QueryView>
       <Card title="Restoring onto a replacement laptop">
         <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-700">
           <li>Install Mansora Sales &amp; Stock on the new laptop. Do not activate it.</li>
@@ -274,7 +280,7 @@ export function BackupPage() {
         <p className="mt-2 text-xs text-slate-500">Anything recorded after the backup was made and never synced cannot be recovered. See the Backup and Recovery guide.</p>
       </Card>
       {verify && (
-        <Modal title="Test backup" open onClose={() => setVerify(null)} footer={<><Button onClick={() => setVerify(null)}>Close</Button><Button variant="primary" disabled={busy || !verifyPass} onClick={() => run(async () => setVerify({ ...verify, summary: await call('backup.verify', { id: verify.id, passphrase: verifyPass }) }))}>Open and check</Button></>}>
+        <Modal trackChanges={false} title="Test backup" open onClose={() => setVerify(null)} footer={<><Button dismiss onClick={() => setVerify(null)}>Close</Button><Button variant="primary" disabled={busy || !verifyPass} onClick={() => run(async () => setVerify({ ...verify, summary: await call('backup.verify', { id: verify.id, passphrase: verifyPass }) }))}>Open and check</Button></>}>
           <Field label="Backup passphrase"><Input type="password" value={verifyPass} onChange={(e) => setVerifyPass(e.target.value)} autoFocus /></Field>
           {verify.summary && <Alert tone="good" className="mt-3">The backup opens and passes its integrity checks. It contains {verify.summary.sales} sale(s) worth {money(verify.summary.salesTotal)}, {verify.summary.products} product(s), {verify.summary.users} staff login(s).</Alert>}
         </Modal>
@@ -308,7 +314,8 @@ function AutoBackup({ enabled, onChange }: { enabled: boolean; onChange: () => v
 
 // ---------------------------------------------------------------- Mansora support access
 export function SupportPage() {
-  const { data, reload } = useQuery<any>('support.list');
+  const supportQuery = useQuery<any>('support.list');
+  const { data, reload } = supportQuery;
   const [purpose, setPurpose] = useState('');
   const [hours, setHours] = useState('24');
   const { run, busy } = useAction();
@@ -324,16 +331,16 @@ export function SupportPage() {
         <p className="mt-2 text-xs text-slate-500">Access covers sales summaries only: totals, payment methods, best-selling products and stock counts. It never includes customer details or staff passwords. It takes effect the next time this laptop syncs.</p>
         <Button variant="primary" className="mt-3" disabled={busy || !purpose.trim()} onClick={() => run(async () => { await call('support.grant', { scope: 'reports', purpose, hours: Number(hours) }); setPurpose(''); reload(); call('sync.run').catch(() => {}); }, 'Access granted')}>Grant access</Button>
       </Card>
-      <Card title="Access I have granted" pad={false}>
+      <QueryView query={supportQuery} label="support access"><Card title="Access I have granted" pad={false}>
         <Table rows={data?.grants} rowKey={(r: any) => r.id} empty="You have never granted access" columns={[
           { header: 'Granted', cell: (g: any) => dateTime(g.created_at) }, { header: 'Purpose', cell: (g: any) => g.purpose }, { header: 'Until', cell: (g: any) => dateTime(g.expires_at) },
           { header: 'Status', cell: (g: any) => ({ active: <Badge tone="warn">Active</Badge>, expired: <Badge>Expired</Badge>, revoked: <Badge>Stopped</Badge> })[state(g)] },
           { header: '', align: 'right', cell: (g: any) => state(g) === 'active' && <Button size="sm" variant="danger" onClick={() => run(async () => { await call('support.revoke', { id: g.id }); reload(); call('sync.run').catch(() => {}); }, 'Access stopped')}>Stop access</Button> },
         ]} />
-      </Card>
-      <Card title="Every time Mansora looked at my data" pad={false}>
+      </Card></QueryView>
+      <QueryView query={supportQuery} label="support activity"><Card title="Every time Mansora looked at my data" pad={false}>
         <Table rows={data?.accessLog} rowKey={(r: any) => r.id} empty="Nobody at Mansora has viewed your data" columns={[{ header: 'When', cell: (l: any) => dateTime(l.occurred_at) }, { header: 'Who', cell: (l: any) => l.admin_name }, { header: 'What', cell: (l: any) => l.action }]} />
-      </Card>
+      </Card></QueryView>
     </div>
   );
 }
@@ -342,20 +349,21 @@ export function SupportPage() {
 export function AuditPage() {
   const [range, setRange] = useState({ from: daysAgo(7), to: today() });
   const [action, setAction] = useState('');
-  const { data } = useQuery<any[]>('audit.list', { ...range, action: action || undefined });
+  const auditQuery = useQuery<any[]>('audit.list', { ...range, action: action || undefined });
+  const { data } = auditQuery;
   const detail = (d: string) => { try { return Object.entries(JSON.parse(d)).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' · '); } catch { return d; } };
   return (
     <div>
       <PageHeader title="Audit history" subtitle="A permanent record of who did what. Entries cannot be edited or deleted."
-        actions={<ExportButtons title="Audit history" columns={['When', 'Who', 'Action', 'Record', 'Details']} rows={() => (data ?? []).map((a) => [dateTime(a.occurred_at), a.actor_name ?? 'System', a.action, a.entity_type ?? '', detail(a.detail)])} />} />
+        actions={<ExportButtons disabled={!data} title={`Audit history ${range.from} to ${range.to}`} columns={['When', 'Who', 'Action', 'Record', 'Details']} rows={() => (data ?? []).map((a) => [dateTime(a.occurred_at), a.actor_name ?? 'System', a.action, a.entity_type ?? '', detail(a.detail)])} />} />
       <div className="mb-3 flex flex-wrap items-center gap-3"><DateRange {...range} onChange={setRange} /><Input placeholder="Filter by action, e.g. refund" value={action} onChange={(e) => setAction(e.target.value)} className="w-64 no-print" aria-label="Filter by action" /></div>
-      <Card pad={false}>
+      <QueryView query={auditQuery} label="audit history"><Card pad={false}>
         <Table rows={data} rowKey={(r) => r.id} empty="No activity in this period" columns={[
           { header: 'When', cell: (a) => <span className="whitespace-nowrap">{dateTime(a.occurred_at)}</span> }, { header: 'Who', cell: (a) => a.actor_name ?? 'System' },
           { header: 'Action', cell: (a) => (a.action === 'permission.denied' ? <Badge tone="bad">{a.action}</Badge> : <code className="text-xs">{a.action}</code>) },
           { header: 'Details', cell: (a) => <span className="break-all text-xs text-slate-600">{detail(a.detail).slice(0, 300)}</span> },
         ]} />
-      </Card>
+      </Card></QueryView>
     </div>
   );
 }

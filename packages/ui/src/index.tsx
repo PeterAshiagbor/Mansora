@@ -1,14 +1,17 @@
 /**
  * Mansora Consulting design system: shared by platform administration and client workspaces.
  */
-import { cloneElement, createContext, isValidElement, useContext, useEffect, useId, useRef, type ButtonHTMLAttributes, type ComponentProps, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { cloneElement, createContext, isValidElement, useContext, useEffect, useId, useRef, useMemo, type ButtonHTMLAttributes, type ComponentProps, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { DialogDismiss, useNavigationGuard, useUnsavedChanges } from './drafts';
+import { useState } from 'react';
 
 export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
 
 const focus = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2';
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost'; size?: 'sm' | 'md' | 'lg' };
-export function Button({ variant = 'secondary', size = 'md', className, type = 'button', ...rest }: ButtonProps) {
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost'; size?: 'sm' | 'md' | 'lg'; dismiss?: boolean };
+export function Button({ variant = 'secondary', size = 'md', className, type = 'button', onClick, dismiss, ...rest }: ButtonProps) {
+  const guardedDismiss = useContext(DialogDismiss);
   const variants = {
     primary: 'bg-brand-700 text-white hover:bg-brand-800 border-transparent',
     secondary: 'bg-white text-slate-800 hover:bg-slate-50 border-slate-300',
@@ -16,7 +19,15 @@ export function Button({ variant = 'secondary', size = 'md', className, type = '
     ghost: 'bg-transparent text-slate-700 hover:bg-slate-100 border-transparent',
   };
   const sizes = { sm: 'px-2.5 py-1 text-sm', md: 'px-3.5 py-2 text-sm', lg: 'px-5 py-3 text-base' };
-  return <button type={type} className={cx('m-button inline-flex items-center justify-center gap-2 rounded-md border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50', focus, variants[variant], sizes[size], className)} {...rest} />;
+  return <button type={type} onClick={(event) => {
+    if (variant === 'primary' || type === 'submit') {
+      const scope = event.currentTarget.closest('[role="dialog"]') ?? event.currentTarget.closest('form') ?? event.currentTarget.closest('section');
+      const invalid = scope?.querySelector<HTMLInputElement>('input:invalid, select:invalid, textarea:invalid');
+      if (invalid) { event.preventDefault(); invalid.focus(); invalid.reportValidity(); return; }
+    }
+    if (dismiss && guardedDismiss) { guardedDismiss(() => onClick?.(event)); return; }
+    onClick?.(event);
+  }} className={cx('m-button inline-flex items-center justify-center gap-2 rounded-md border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50', focus, variants[variant], sizes[size], className)} {...rest} />;
 }
 
 export function Field({ label, hint, error, children, className }: { label: string; hint?: string; error?: string | null; children: ReactNode; className?: string }) {
@@ -48,13 +59,17 @@ export function Textarea({ className, ...rest }: TextareaHTMLAttributes<HTMLText
   return <textarea className={cx(control, className)} rows={3} {...rest} />;
 }
 
-export function Modal({ title, open, onClose, children, footer, wide }: { title: string; open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+export function Modal({ title, open, onClose, children, footer, wide, trackChanges = true }: { title: string; open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean; trackChanges?: boolean }) {
+  const [modified, setModified] = useState(false);
+  const navigate = useNavigationGuard();
+  useUnsavedChanges(open && trackChanges && modified, title);
+  const dismiss = (action: () => void) => trackChanges && modified ? navigate(action) : action();
   const ref = useRef<HTMLDivElement>(null);
   const id = useId();
   const previous = useRef<HTMLElement | null>(null);
   const wasOpen = useRef(false);
   const close = useRef(onClose);
-  close.current = onClose;
+  close.current = () => dismiss(onClose);
   // Capture the trigger before React mounts autoFocus inputs inside the dialog.
   if (open && !wasOpen.current) previous.current = document.activeElement as HTMLElement | null;
   wasOpen.current = open;
@@ -90,16 +105,16 @@ export function Modal({ title, open, onClose, children, footer, wide }: { title:
   }, [open]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} className={cx('m-dialog w-full rounded-lg bg-white shadow-xl outline-none', wide ? 'max-w-3xl' : 'max-w-lg')}>
+    <DialogDismiss.Provider value={dismiss}><div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && dismiss(onClose)}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} onChangeCapture={(event) => { if ((event.target as HTMLElement).closest('[role="dialog"]') === event.currentTarget) setModified(true); }} className={cx('m-dialog w-full rounded-lg bg-white shadow-xl outline-none', wide ? 'max-w-3xl' : 'max-w-lg')}>
         <div className="m-dialog-header flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2 id={id} className="text-base font-semibold text-slate-900">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className={cx('rounded p-1 text-slate-500 hover:bg-slate-100', focus)}>✕</button>
+          <button type="button" onClick={() => dismiss(onClose)} aria-label="Close" className={cx('rounded p-1 text-slate-500 hover:bg-slate-100', focus)}>✕</button>
         </div>
         <div className="m-dialog-body px-5 py-4" role="region" aria-label={`${title} content`} tabIndex={0}>{children}</div>
         {footer && <div className="m-dialog-footer flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3 rounded-b-lg">{footer}</div>}
       </div>
-    </div>
+    </div></DialogDismiss.Provider>
   );
 }
 
@@ -135,23 +150,37 @@ export interface Column<T> {
   cell: (row: T) => ReactNode;
   align?: 'left' | 'right';
   className?: string;
+  sortValue?: (row: T) => string | number | null | undefined;
 }
-export function Table<T>({ columns, rows, onRowClick, empty = 'Nothing to show yet', rowKey, caption }: { caption?: string; columns: Column<T>[]; rows: T[] | undefined; onRowClick?: (row: T) => void; empty?: string; rowKey?: (row: T, i: number) => string | number }) {
+export function Table<T>({ columns, rows, onRowClick, empty = 'Nothing to show yet', rowKey, caption, pageSize = 50 }: { caption?: string; columns: Column<T>[]; rows: T[] | undefined; onRowClick?: (row: T) => void; empty?: ReactNode; rowKey?: (row: T, i: number) => string | number; pageSize?: number }) {
   const contextCaption = useContext(TableCaption);
   const tableCaption = caption ?? contextCaption ?? columns.map((c) => c.header).join(", ");
+  const [page, setPage] = useState(0), [sort, setSort] = useState<{ header: string; descending: boolean } | null>(null);
+  useEffect(() => setPage(0), [rows]);
+  const accessor = sort ? columns.find((column) => column.header === sort.header)?.sortValue : undefined;
+  const ordered = useMemo(() => {
+    if (!rows || !accessor) return rows ?? [];
+    return [...rows].sort((a, b) => {
+      const x = accessor(a) ?? '', y = accessor(b) ?? '';
+      const direction = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'en', { numeric: true, sensitivity: 'base' });
+      return sort?.descending ? -direction : direction;
+    });
+  }, [rows, accessor, sort?.descending]);
+  const activePage = Math.min(page, Math.max(0, Math.ceil(ordered.length / pageSize) - 1));
+  const visible = ordered.slice(activePage * pageSize, (activePage + 1) * pageSize);
   return (
-    <div role="region" aria-label="Scrollable data table" tabIndex={0} className={cx("max-w-full overflow-x-auto", focus)}>
+    <div><div role="region" aria-label="Scrollable data table" tabIndex={0} className={cx("max-w-full overflow-x-auto", focus)}>
       <table className="m-table w-full text-sm">
         <caption className="sr-only">{tableCaption}</caption>
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
             {columns.map((c) => (
-              <th key={c.header} scope="col" className={cx('px-3 py-2', c.align === 'right' && 'text-right')}>{c.header}</th>
+              <th key={c.header} scope="col" aria-sort={sort?.header === c.header ? sort.descending ? 'descending' : 'ascending' : undefined} className={cx('px-3 py-2', c.align === 'right' && 'text-right')}>{c.sortValue ? <button type="button" className="inline-flex items-center gap-1 rounded hover:text-brand-800" onClick={() => { setSort({ header: c.header, descending: sort?.header === c.header ? !sort.descending : false }); setPage(0); }}>{c.header}<span aria-hidden="true">{sort?.header === c.header ? sort.descending ? '↓' : '↑' : '↕'}</span></button> : c.header}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {(rows ?? []).map((row, i) => (
+          {visible.map((row, i) => (
             <tr
               key={rowKey ? rowKey(row, i) : i}
               tabIndex={onRowClick ? 0 : undefined}
@@ -168,7 +197,7 @@ export function Table<T>({ columns, rows, onRowClick, empty = 'Nothing to show y
       </table>
       {rows && rows.length === 0 && <div className="px-3 py-8 text-center text-sm text-slate-500">{empty}</div>}
       {!rows && <div className="px-3 py-8 text-center text-sm text-slate-600">Loading…</div>}
-    </div>
+    </div>{ordered.length > pageSize && <p className="hidden print:block">This printout shows the current table page. Use the report’s Print / PDF button for all loaded rows.</p>}{ordered.length > pageSize && <div className="no-print flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-600"><span role="status">Showing {activePage * pageSize + 1}–{Math.min((activePage + 1) * pageSize, ordered.length)} of {ordered.length} loaded rows</span><div className="flex gap-2"><Button size="sm" disabled={activePage === 0} onClick={() => setPage(activePage - 1)}>Previous page</Button><Button size="sm" disabled={(activePage + 1) * pageSize >= ordered.length} onClick={() => setPage(activePage + 1)}>Next page</Button></div></div>}</div>
   );
 }
 
@@ -219,3 +248,5 @@ export { MansoraBrand } from './brand';
 
 export { WorkspaceShell, GuideBody, Icon, type Guide } from './workspace';
 export { CLIENT_GUIDES, ADMIN_GUIDES } from './guides';
+export { QueryView } from './query';
+export { DraftProvider, useNavigationGuard, useUnsavedChanges } from './drafts';

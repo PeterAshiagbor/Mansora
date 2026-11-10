@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { priceCart, settlePayments } from '@mansora/domain';
-import { Alert, Badge, Button, cx, Field, Input, Modal, Select } from '@mansora/ui';
+import { Alert, Badge, Button, cx, Field, Input, Modal, Select, QueryView, useUnsavedChanges, useNavigationGuard } from '@mansora/ui';
 import { ApprovalModal, call, METHOD, money, MoneyInput, printHtml, useAction, useApp, useQuery, useToast, uuid, type Approver } from '../lib';
 
 interface Product {
@@ -21,30 +21,41 @@ interface Line {
 export function Checkout() {
   const { can, state } = useApp();
   const toast = useToast();
+  const navigate = useNavigationGuard();
   const [saleId, setSaleId] = useState(uuid);
   const [lines, setLines] = useState<Line[]>([]);
+  const [quantityEdits, setQuantityEdits] = useState<Record<string, string>>({});
   const [requestingDiscount, setRequestingDiscount] = useState(false);
   const discountEntry = can('sale.discount') || requestingDiscount;
   const [cartDiscount, setCartDiscount] = useState<number | null>(0);
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [customerId, setCustomerId] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState<{ id: string; receiptNo: string; total: number; change: number } | null>(null);
+  useUnsavedChanges(lines.length > 0 && !done, 'the current basket');
   const searchRef = useRef<HTMLInputElement>(null);
   const shift = useQuery<any>('shift.current');
-  const categories = useQuery<any[]>('category.list').data ?? [];
-  const products = useQuery<Product[]>('product.list', { search, categoryId, limit: 60 }, [done]).data;
-  const customers = useQuery<any[]>('customer.list', {}).data ?? [];
+  const categoryQuery = useQuery<any[]>('category.list');
+  const categories = categoryQuery.data ?? [];
+  const productQuery = useQuery<Product[]>('product.list', { search, categoryId, limit: 60 }, [done]);
+  const products = productQuery.data;
+  const customerQuery = useQuery<any[]>('customer.list', { search: customerSearch });
+  const customers = customerQuery.data ?? [];
+  const quantityProblem = Object.values(quantityEdits).some((value) => value.trim() === '' || !Number.isSafeInteger(Number(value)) || Number(value) < 1);
+  const stockProblem = !state.business.allowNegativeStock && lines.some((line) => line.quantity > line.product.quantity);
 
   const add = useCallback((p: Product, qty = 1) => {
+    setQuantityEdits((values) => { const next = { ...values }; delete next[p.id]; return next; });
     setLines((ls) => {
       const i = ls.findIndex((l) => l.product.id === p.id);
       if (i >= 0) return ls.map((l, k) => (k === i ? { ...l, quantity: l.quantity + qty } : l));
       return [...ls, { product: p, quantity: qty, discount: 0 }];
     });
   }, []);
-  const setQty = (id: string, q: number) => setLines((ls) => (q <= 0 ? ls.filter((l) => l.product.id !== id) : ls.map((l) => (l.product.id === id ? { ...l, quantity: q } : l))));
+  const setQty = (id: string, q: number) => { setQuantityEdits((values) => { const next = { ...values }; delete next[id]; return next; }); setLines((ls) => (q <= 0 ? ls.filter((l) => l.product.id !== id) : ls.map((l) => (l.product.id === id ? { ...l, quantity: q } : l)))); };
 
   // Scans arrive as fast keystrokes ending in Enter. Process them strictly one after another so none is lost or mixed up.
   const scanQueue = useRef(Promise.resolve());
@@ -78,9 +89,12 @@ export function Checkout() {
 
   const reset = () => {
     setLines([]);
+    setQuantityEdits({});
     setCartDiscount(0);
     setRequestingDiscount(false);
     setCustomerId('');
+    setSelectedCustomer(null);
+    setCustomerSearch('');
     setDone(null);
     setSaleId(uuid());
     setSearch('');
@@ -90,12 +104,14 @@ export function Checkout() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'F2') (e.preventDefault(), searchRef.current?.focus());
-      if (e.key === 'F9' && lines.length && !paying && !done && cart && 'total' in cart) (e.preventDefault(), setPaying(true));
+      if (e.key === 'F9' && document.querySelector<HTMLInputElement>('section[aria-label="Basket"] input:invalid')) { e.preventDefault(); document.querySelector<HTMLInputElement>('section[aria-label="Basket"] input:invalid')?.reportValidity(); return; }
+      if (e.key === 'F9' && lines.length && !stockProblem && !quantityProblem && !paying && !done && cart && 'total' in cart) (e.preventDefault(), setPaying(true));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lines.length, paying, done, cart]);
+  }, [lines.length, stockProblem, quantityProblem, paying, done, cart]);
 
+  if (shift.data === undefined) return <QueryView query={shift} label="your current shift">{null}</QueryView>;
   if (shift.data === null) return <OpenShift onOpened={shift.reload} />;
 
   return (
@@ -109,29 +125,31 @@ export function Checkout() {
           <Chip active={!categoryId} onClick={() => setCategoryId(undefined)}>All</Chip>
           {categories.filter((c) => c.active).map((c) => <Chip key={c.id} active={categoryId === c.id} onClick={() => setCategoryId(c.id)}>{c.name}</Chip>)}
         </div>
-        <div className="mt-3 grid flex-1 auto-rows-min grid-cols-2 content-start gap-2 overflow-y-auto pr-1 lg:grid-cols-3 xl:grid-cols-4">
+        {categoryQuery.error && <QueryView query={categoryQuery} label="product categories">{null}</QueryView>}
+        <QueryView query={productQuery} label="products"><div className="mt-3 grid flex-1 auto-rows-min grid-cols-2 content-start gap-2 overflow-y-auto pr-1 lg:grid-cols-3 xl:grid-cols-4">
           {(products ?? []).map((p) => {
             const inBasket = lines.find((l) => l.product.id === p.id)?.quantity ?? 0;
             const left = p.quantity - inBasket;
             return (
-              <button key={p.id} type="button" onClick={() => add(p)} disabled={left <= 0}
+              <button key={p.id} type="button" onClick={() => add(p)} disabled={left <= 0 && !state.business.allowNegativeStock}
                 className="rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-brand-500 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50">
                 <div className="line-clamp-2 min-h-10 text-sm font-medium text-slate-900">{p.name}</div>
                 <div className="mt-1 flex items-end justify-between">
                   <span className="text-base font-semibold tabular-nums text-brand-800">{money(p.selling_price)}</span>
-                  <span className={cx('text-xs', left <= 0 ? 'font-semibold text-red-700' : 'text-slate-500')}>{left <= 0 ? 'Out of stock' : `${left} left`}</span>
+                  <span className={cx('text-xs', left <= 0 ? 'font-semibold text-red-700' : 'text-slate-500')}>{left <= 0 ? state.business.allowNegativeStock ? 'No stock recorded' : 'Out of stock' : `${left} left`}</span>
                 </div>
               </button>
             );
           })}
-          {products && products.length === 0 && <div className="col-span-full py-10 text-center text-sm text-slate-500">No products match. Add products under Stock → Products.</div>}
-        </div>
+          {products && products.length === 0 && <div className="col-span-full py-10 text-center text-sm text-slate-500">{search || categoryId ? 'No products match. Clear the search or choose All categories.' : 'No products are available. Ask the owner to add a catalogue and opening stock before selling.'}</div>}
+        </div></QueryView>
+        {products?.length === 60 && <p className="mt-2 text-xs text-slate-500">Showing up to 60 matches. Scan a barcode or refine the search to find another item.</p>}
       </section>
 
       <section aria-label="Basket" className="flex w-full shrink-0 flex-col xl:w-[26rem] rounded-lg border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
           <h2 className="text-sm font-semibold">Basket {lines.length > 0 && <span className="font-normal text-slate-500">· {lines.reduce((a, l) => a + l.quantity, 0)} item(s)</span>}</h2>
-          {lines.length > 0 && <Button size="sm" variant="ghost" onClick={reset}>Clear</Button>}
+          {lines.length > 0 && <Button size="sm" variant="ghost" onClick={() => navigate(reset)}>Clear</Button>}
         </div>
         <div className="flex-1 overflow-y-auto">
           {lines.length === 0 && <div className="px-4 py-12 text-center text-sm text-slate-500">Scan or choose a product to start a sale.</div>}
@@ -143,9 +161,9 @@ export function Checkout() {
               </div>
               <div className="mt-1 flex items-center gap-2">
                 <button type="button" aria-label={`Decrease ${l.product.name}`} className="h-8 w-8 rounded border border-slate-300 text-lg leading-none hover:bg-slate-100" onClick={() => setQty(l.product.id, l.quantity - 1)}>−</button>
-                <input aria-label={`Quantity of ${l.product.name}`} className="h-8 w-14 rounded border border-slate-300 text-center text-sm tabular-nums" value={l.quantity} inputMode="numeric"
-                  onChange={(e) => { const n = Number(e.target.value.replace(/\D/g, '')); setQty(l.product.id, n || 1); }} onFocus={(e) => e.target.select()} />
-                <button type="button" aria-label={`Increase ${l.product.name}`} className="h-8 w-8 rounded border border-slate-300 text-lg leading-none hover:bg-slate-100" onClick={() => setQty(l.product.id, l.quantity + 1)}>+</button>
+                <input type="number" min={1} step={1} required aria-label={`Quantity of ${l.product.name}`} className="h-8 w-14 rounded border border-slate-300 text-center text-sm tabular-nums" value={quantityEdits[l.product.id] ?? l.quantity} inputMode="numeric"
+                  onChange={(e) => { const value = e.target.value; setQuantityEdits((edits) => ({ ...edits, [l.product.id]: value })); const n = Number(value); if (value !== '' && Number.isSafeInteger(n) && n > 0) setLines((items) => items.map((item) => item.product.id === l.product.id ? { ...item, quantity: n } : item)); }} onFocus={(e) => e.target.select()} />
+                <button type="button" aria-label={`Increase ${l.product.name}`} disabled={!state.business.allowNegativeStock && l.quantity >= l.product.quantity} className="h-8 w-8 rounded border border-slate-300 text-lg leading-none hover:bg-slate-100 disabled:opacity-40" onClick={() => setQty(l.product.id, l.quantity + 1)}>+</button>
                 <span className="text-xs text-slate-500">× {money(l.product.selling_price)}</span>
                 {l.quantity > l.product.quantity && <Badge tone="bad">Only {l.product.quantity} in stock</Badge>}
                 {discountEntry && <label className="ml-1 flex items-center gap-1 text-xs text-slate-500">Disc.
@@ -160,12 +178,17 @@ export function Checkout() {
           <div className="grid grid-cols-2 gap-2">
             {discountEntry ? <Field label={can('sale.discount') ? 'Basket discount (GHS)' : 'Requested discount (GHS)'}><MoneyInput value={cartDiscount} onChange={setCartDiscount} aria-label="Basket discount" /></Field> : <Button onClick={() => setRequestingDiscount(true)}>Request discount</Button>}
             <Field label="Customer (optional)">
-              <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+              <Select value={customerId} onChange={(e) => { setCustomerId(e.target.value); setSelectedCustomer(customers.find((customer) => customer.id === e.target.value) ?? null); }}>
                 <option value="">Walk-in customer</option>
+                {selectedCustomer && !customers.some((customer) => customer.id === selectedCustomer.id) && <option value={selectedCustomer.id}>{selectedCustomer.name}</option>}
                 {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
             </Field>
           </div>
+          <details className="text-xs text-slate-600"><summary className="cursor-pointer py-1">Customer not listed? Search customers</summary><Input className="mt-2" aria-label="Find a customer" placeholder="Name or phone number" value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} />{customerQuery.loading && <p className="mt-1" role="status">Loading customer matches…</p>}{customerQuery.data?.length === 0 && <p className="mt-1">No customers match. Try another name or ask the owner to add the customer.</p>}{customers.length === 500 && <p className="mt-1">Showing up to 500 matches. Refine the name or phone number.</p>}</details>
+          {customerQuery.error && <QueryView query={customerQuery} label="customers">{null}</QueryView>}
+          {quantityProblem && <Alert tone="bad">Enter a whole-number quantity of at least 1 for each item. Use Remove to take an item out of the basket.</Alert>}
+          {stockProblem && <Alert tone="bad">One or more quantities exceed recorded stock. Reduce the quantity or ask the owner to receive or count the stock before taking payment.</Alert>}
           {!can('sale.discount') && requestingDiscount && <p className="text-sm text-amber-900">Discount requests need an authorised approver at payment. You cannot apply a discount yourself.</p>}
           {cart && 'error' in cart && <Alert tone="bad">{cart.error}</Alert>}
           {cart && 'total' in cart && (
@@ -178,12 +201,12 @@ export function Checkout() {
             <span className="text-sm font-medium text-slate-600">Total</span>
             <span className="text-4xl font-bold tabular-nums text-slate-900" data-testid="basket-total">{money(total)}</span>
           </div>
-          <Button variant="primary" size="lg" className="w-full !py-4 !text-lg" disabled={!cart || 'error' in cart} onClick={() => setPaying(true)}>Pay  (F9)</Button>
+          <Button variant="primary" size="lg" className="w-full !py-4 !text-lg" disabled={!cart || 'error' in cart || stockProblem || quantityProblem} onClick={() => setPaying(true)}>Pay  (F9)</Button>
         </div>
       </section>
 
       {paying && cart && 'total' in cart && (
-        <PayModal total={cart.total} needsDiscountApproval={cart.discountTotal > 0 && (!can('sale.discount') || (state.business.maxDiscountBps > 0 && state.user?.role !== 'owner' && cart.discountTotal * 10_000 > state.business.maxDiscountBps * cart.subtotal))} customerId={customerId} customerName={customers.find((c) => c.id === customerId)?.name}
+        <PayModal total={cart.total} needsDiscountApproval={cart.discountTotal > 0 && (!can('sale.discount') || (state.business.maxDiscountBps > 0 && state.user?.role !== 'owner' && cart.discountTotal * 10_000 > state.business.maxDiscountBps * cart.subtotal))} customerId={customerId} customerName={customers.find((c) => c.id === customerId)?.name ?? selectedCustomer?.name}
           onClose={() => setPaying(false)}
           submit={async (tenders, dueDate, approver) => {
             const res = await call('sale.complete', {
@@ -272,7 +295,7 @@ function PayModal({ total, customerId, customerName, needsDiscountApproval, onCl
   const rest = Math.max(0, total - nonCash);
   return (
     <>
-      <Modal title="Take payment" open={!approval} onClose={onClose} wide
+      <Modal trackChanges={false} title="Take payment" open={!approval} onClose={onClose} wide
         footer={<><Button onClick={onClose}>Back to basket</Button><Button variant="primary" size="lg" disabled={!!problem || busy} onClick={() => go()}>{busy ? 'Saving…' : 'Complete sale  (Enter)'}</Button></>}>
         <form onSubmit={(e) => { e.preventDefault(); go(); }}>
           <div className="mb-4 flex items-end justify-between rounded-lg bg-slate-900 px-5 py-4 text-white">

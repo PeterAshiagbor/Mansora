@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea } from '@mansora/ui';
+import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, QueryView, useUnsavedChanges } from '@mansora/ui';
 import { call, dateTime, ExportButtons, money, MoneyInput, plain, useAction, useApp, useQuery, uuid } from '../lib';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -19,7 +19,7 @@ export function StockPage() {
   return (
     <div>
       <PageHeader title="Stock" subtitle="Every change to stock is recorded as a movement. Quantities are never typed over."
-        actions={tab === 'overview' ? <ExportButtons title="Stock on hand" columns={['Product', 'SKU', 'In stock', 'Reorder level']} rows={() => (overview.data?.rows ?? []).map((r: any) => [r.name, r.sku ?? '', r.quantity, r.reorder_level])} /> : undefined} />
+        actions={tab === 'overview' ? <ExportButtons disabled={!overview.data} title="Current stock on hand" columns={['Product', 'SKU', 'In stock', 'Reorder level']} rows={() => (overview.data?.rows ?? []).map((r: any) => [r.name, r.sku ?? '', r.quantity, r.reorder_level])} /> : undefined} />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Stock overview' }, { id: 'movements', label: 'Stock movements' }, ...(can('stock.adjust') ? [{ id: 'count' as const, label: 'Stock count' }] : [])]} />
       {tab === 'overview' && (
         <>
@@ -30,7 +30,7 @@ export function StockPage() {
             {s?.valuation != null && <Stat label="Stock value (at cost)" value={money(s.valuation)} />}
           </div>
           <div className="mb-3 flex gap-2 no-print">{(['all', 'low', 'out'] as const).map((f) => <Button key={f} size="sm" variant={filter === f ? 'primary' : 'secondary'} onClick={() => setFilter(f)}>{{ all: 'All products', low: 'At or below reorder level', out: 'Out of stock' }[f]}</Button>)}</div>
-          <Card pad={false}>
+          <QueryView query={overview} label="stock levels"><Card pad={false}>
             <Table rows={overview.data?.rows} rowKey={(r: any) => r.id} empty="No products match"
               columns={[
                 { header: 'Product', cell: (r: any) => r.name },
@@ -40,13 +40,13 @@ export function StockPage() {
                 ...(s?.valuation != null ? [{ header: 'Avg cost', align: 'right' as const, cell: (r: any) => money(r.average_cost) }, { header: 'Value', align: 'right' as const, cell: (r: any) => money(Math.max(0, r.quantity) * r.average_cost) }] : []),
                 ...(can('stock.adjust') ? [{ header: '', align: 'right' as const, cell: (r: any) => <Button size="sm" onClick={() => setAdjust(r)}>Adjust</Button> }] : []),
               ]} />
-          </Card>
+          </Card></QueryView>
         </>
       )}
       {tab === 'movements' && (
         <>
           <Select value={moveType} onChange={(e) => setMoveType(e.target.value)} className="mb-3 w-64 no-print" aria-label="Movement type"><option value="">All movement types</option>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select>
-          <Card pad={false}>
+          <QueryView query={moves} label="stock movements"><Card pad={false}>
             <Table rows={moves.data} rowKey={(r) => r.id} empty="No stock movements yet"
               columns={[
                 { header: 'When', cell: (r) => dateTime(r.occurred_at) },
@@ -56,7 +56,7 @@ export function StockPage() {
                 { header: 'By', cell: (r) => r.actor_name },
                 { header: 'Reason', cell: (r) => r.reason ?? '' },
               ]} />
-          </Card>
+          </Card></QueryView>
         </>
       )}
       {tab === 'count' && <StockCount onDone={() => { overview.reload(); setTab('movements'); }} />}
@@ -71,11 +71,11 @@ function AdjustModal({ product, onClose, onDone }: { product: any; onClose: () =
   const [direction, setDirection] = useState('-');
   const [reason, setReason] = useState('');
   const { run, busy } = useAction();
-  const n = Math.floor(Number(qty) || 0);
+  const n = Number(qty);
   const delta = type === 'DAMAGE' || direction === '-' ? -n : n;
   return (
     <Modal title={`Adjust stock: ${product.name}`} open onClose={onClose}
-      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || n <= 0 || !reason.trim()} onClick={() => run(async () => { await call('stock.adjust', { productId: product.id, type, delta, reason }); onDone(); }, 'Stock adjusted')}>Record adjustment</Button></>}>
+      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !Number.isSafeInteger(n) || n <= 0 || !reason.trim()} onClick={() => run(async () => { await call('stock.adjust', { productId: product.id, type, delta, reason }); onDone(); }, 'Stock adjusted')}>Record adjustment</Button></>}>
       <div className="space-y-3">
         <p className="text-sm text-slate-600">Currently in stock: <strong>{product.quantity}</strong>{n > 0 && <> → <strong>{product.quantity + delta}</strong></>}</p>
         <Field label="What happened?"><Select value={type} onChange={(e) => setType(e.target.value)}><option value="DAMAGE">Damaged, expired or lost</option><option value="MANUAL_CORRECTION">Correction of a mistake</option></Select></Field>
@@ -90,27 +90,30 @@ function AdjustModal({ product, onClose, onDone }: { product: any; onClose: () =
 }
 
 function StockCount({ onDone }: { onDone: () => void }) {
-  const { data } = useQuery<any>('stock.overview', { filter: 'all' });
+  const countQuery = useQuery<any>('stock.overview', { filter: 'all' });
+  const { data } = countQuery;
   const [counted, setCounted] = useState<Record<string, string>>({});
   const [note, setNote] = useState('');
   const { run, busy } = useAction();
+  useUnsavedChanges(Object.values(counted).some((value) => value !== '') || !!note.trim(), 'the physical stock count');
   const rows: any[] = data?.rows ?? [];
-  const lines = rows.filter((r) => counted[r.id] !== undefined && counted[r.id] !== '').map((r) => ({ productId: r.id, counted: Math.max(0, Math.floor(Number(counted[r.id]) || 0)), system: r.quantity }));
+  const invalidCounts = Object.values(counted).some((value) => value !== '' && (!Number.isSafeInteger(Number(value)) || Number(value) < 0));
+  const lines = rows.filter((r) => counted[r.id] !== undefined && counted[r.id] !== '').map((r) => ({ productId: r.id, counted: Number(counted[r.id]), system: r.quantity }));
   const diffs = lines.filter((l) => l.counted !== l.system);
   return (
     <div>
       <Alert className="mb-3">Count the items on the shelf and type the number you counted. Leave a row empty if you did not count it. Only differences are recorded.</Alert>
-      <Card pad={false}>
+      <QueryView query={countQuery} label="stock to count"><Card pad={false}>
         <Table rows={rows} rowKey={(r) => r.id} columns={[
           { header: 'Product', cell: (r) => r.name },
           { header: 'System quantity', align: 'right', cell: (r) => r.quantity },
           { header: 'Counted', align: 'right', cell: (r) => <Input type="number" min={0} className="ml-auto w-24 text-right" aria-label={`Counted quantity of ${r.name}`} value={counted[r.id] ?? ''} onChange={(e) => setCounted({ ...counted, [r.id]: e.target.value })} /> },
           { header: 'Difference', align: 'right', cell: (r) => { const l = lines.find((x) => x.productId === r.id); if (!l || l.counted === l.system) return ''; const d = l.counted - l.system; return <Badge tone={d < 0 ? 'bad' : 'info'}>{d > 0 ? '+' : ''}{d}</Badge>; } },
         ]} />
-      </Card>
+      </Card></QueryView>
       <div className="mt-3 flex items-end gap-3">
         <Field label="Note" className="flex-1"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Month-end count" /></Field>
-        <Button variant="primary" disabled={busy || lines.length === 0} onClick={() => run(async () => { const r = await call('stock.count', { note: note || null, lines: lines.map(({ productId, counted }) => ({ productId, counted })) }); setCounted({}); onDone(); return r; }, `Stock count saved: ${diffs.length} adjustment(s)`)}>
+        <Button variant="primary" disabled={busy || !!countQuery.error || !data || invalidCounts || lines.length === 0} onClick={() => run(async () => { const r = await call('stock.count', { note: note || null, lines: lines.map(({ productId, counted }) => ({ productId, counted })) }); setCounted({}); onDone(); return r; }, `Stock count saved: ${diffs.length} adjustment(s)`)}>
           Save count ({lines.length} counted, {diffs.length} different)
         </Button>
       </div>
@@ -132,21 +135,21 @@ export function PurchasesPage() {
         actions={tab === 'purchases' ? <Button variant="primary" onClick={() => setReceiving(true)}>Receive stock</Button> : <Button variant="primary" onClick={() => setEdit({ name: '', phone: '', notes: '' })}>Add supplier</Button>} />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'purchases', label: 'Purchases received' }, { id: 'suppliers', label: 'Suppliers' }]} />
       {tab === 'purchases' && (
-        <Card pad={false}>
+        <QueryView query={purchases} label="purchases"><Card pad={false}>
           <Table rows={purchases.data} rowKey={(r) => r.id} onRowClick={(r) => setView(r.id)} empty="No purchases recorded yet"
             columns={[{ header: 'Received', cell: (r) => dateTime(r.received_at) }, { header: 'Supplier', cell: (r) => r.supplier_name ?? '—' }, { header: 'Reference', cell: (r) => r.reference ?? '' }, { header: 'Items', align: 'right', cell: (r) => r.item_count }, { header: 'Total cost', align: 'right', cell: (r) => money(r.total_cost) }, { header: 'Recorded by', cell: (r) => r.created_by_name }]} />
-        </Card>
+        </Card></QueryView>
       )}
       {tab === 'suppliers' && (
-        <Card pad={false}>
+        <QueryView query={suppliers} label="suppliers"><Card pad={false}>
           <Table rows={suppliers.data} rowKey={(r) => r.id} onRowClick={setEdit} empty="No suppliers yet" columns={[{ header: 'Name', cell: (r) => r.name }, { header: 'Phone', cell: (r) => r.phone ?? '' }, { header: 'Notes', cell: (r) => r.notes ?? '' }]} />
-        </Card>
+        </Card></QueryView>
       )}
       {receiving && <ReceiveModal suppliers={suppliers.data ?? []} onClose={() => setReceiving(false)} onDone={() => { setReceiving(false); purchases.reload(); }} />}
       {view && <PurchaseView id={view} onClose={() => setView(null)} />}
       {edit && (
         <Modal title={edit.id ? 'Edit supplier' : 'Add supplier'} open onClose={() => setEdit(null)}
-          footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('supplier.save', { id: edit.id, name: edit.name, phone: edit.phone, notes: edit.notes }); setEdit(null); suppliers.reload(); }, 'Supplier saved')}>Save</Button></>}>
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('supplier.save', { id: edit.id, name: edit.name, phone: edit.phone, notes: edit.notes }); setEdit(null); suppliers.reload(); }, 'Supplier saved')}>Save</Button></>}>
           <div className="space-y-3">
             <Field label="Supplier name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <Field label="Phone"><Input value={edit.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
@@ -159,8 +162,9 @@ export function PurchasesPage() {
 }
 
 function PurchaseView({ id, onClose }: { id: string; onClose: () => void }) {
-  const { data } = useQuery<any>('purchase.get', { id });
-  if (!data) return null;
+  const purchaseDetail = useQuery<any>('purchase.get', { id });
+  const { data } = purchaseDetail;
+  if (!data) return <Modal title="Purchase details" open trackChanges={false} onClose={onClose}><QueryView query={purchaseDetail} label="purchase details">{null}</QueryView></Modal>;
   return (
     <Modal title={`Purchase ${data.purchase.reference ?? ''}`} open onClose={onClose} wide>
       <p className="mb-2 text-sm text-slate-600">{dateTime(data.purchase.received_at)} · {data.purchase.supplier_name ?? 'No supplier'} · Total {money(data.purchase.total_cost)}</p>
@@ -171,18 +175,21 @@ function PurchaseView({ id, onClose }: { id: string; onClose: () => void }) {
 
 function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClose: () => void; onDone: () => void }) {
   const [id] = useState(uuid);
-  const products = useQuery<any[]>('product.list', { limit: 1000 }).data ?? [];
+  const productOptions = useQuery<any[]>('product.list', { limit: 1000 });
+  const products = productOptions.data ?? [];
   const [supplierId, setSupplierId] = useState('');
   const [reference, setReference] = useState('');
   const [items, setItems] = useState<{ productId: string; quantity: string; unitCost: number | null }[]>([{ productId: '', quantity: '', unitCost: null }]);
   const { run, busy } = useAction();
   const set = (i: number, patch: Partial<(typeof items)[number]>) => setItems(items.map((x, k) => (k === i ? { ...x, ...patch } : x)));
-  const valid = items.filter((i) => i.productId && Number(i.quantity) > 0 && i.unitCost != null);
-  const total = valid.reduce((a, i) => a + Math.floor(Number(i.quantity)) * (i.unitCost ?? 0), 0);
+  const valid = items.filter((i) => i.productId && Number.isSafeInteger(Number(i.quantity)) && Number(i.quantity) > 0 && i.unitCost != null);
+  const total = valid.reduce((a, i) => a + Number(i.quantity) * (i.unitCost ?? 0), 0);
   return (
     <Modal title="Receive stock" open onClose={onClose} wide
-      footer={<><span className="mr-auto self-center text-sm">Total cost: <strong>{plain(total)}</strong></span><Button onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={busy || valid.length === 0 || valid.length !== items.length} onClick={() => run(async () => { await call('purchase.receive', { id, supplierId: supplierId || null, reference: reference || null, items: valid.map((i) => ({ productId: i.productId, quantity: Math.floor(Number(i.quantity)), unitCost: i.unitCost })) }); onDone(); }, 'Stock received')}>Receive into stock</Button></>}>
+      footer={<><span className="mr-auto self-center text-sm">Total cost: <strong>{money(total)}</strong></span><Button dismiss onClick={onClose}>Cancel</Button>
+        <Button variant="primary" disabled={busy || valid.length === 0 || valid.length !== items.length} onClick={() => run(async () => { await call('purchase.receive', { id, supplierId: supplierId || null, reference: reference || null, items: valid.map((i) => ({ productId: i.productId, quantity: Number(i.quantity), unitCost: i.unitCost })) }); onDone(); }, 'Stock received')}>Receive into stock</Button></>}>
+      {productOptions.error && <QueryView query={productOptions} label="products for this receipt">{null}</QueryView>}
+      <p className="mb-3 text-xs leading-relaxed text-slate-600">Enter whole selling units and their unit purchase cost. A carton must be converted to its individual items before receiving.</p>
       <div className="mb-3 grid grid-cols-2 gap-3">
         <Field label="Supplier"><Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">No supplier</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
         <Field label="Invoice / waybill number"><Input value={reference} onChange={(e) => setReference(e.target.value)} /></Field>

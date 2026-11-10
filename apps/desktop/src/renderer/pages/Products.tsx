@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { unitCostFromCarton } from '@mansora/domain';
-import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table } from '@mansora/ui';
+import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, QueryView } from '@mansora/ui';
 import { call, ExportButtons, marginLabel, money, MoneyInput, plain, useAction, useApp, useQuery } from '../lib';
 
 export function ProductsPage() {
@@ -8,13 +8,14 @@ export function ProductsPage() {
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState(false);
   const [edit, setEdit] = useState<any | null>(null);
-  const { data, reload } = useQuery<any[]>('product.list', { search, includeInactive: inactive, limit: 1000 });
+  const productsQuery = useQuery<any[]>('product.list', { search, includeInactive: inactive, limit: 1000 });
+  const { data, reload } = productsQuery;
   const cost = can('product.cost');
   return (
     <div>
-      <PageHeader title="Products" subtitle={data ? `${data.length} product(s)` : undefined}
+      <PageHeader title="Products" subtitle={data ? data.length === 1000 ? 'Showing the first 1,000 matching products. Refine your search to find more.' : `${data.length} matching product(s)` : undefined}
         actions={<>
-          <ExportButtons title="Products" columns={['Name', 'SKU', 'Barcode', 'Category', 'Selling price', ...(cost ? ['Cost price', 'Gross margin (%)'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price), marginLabel(p.selling_price, p.cost_price)] : []), p.quantity])} />
+          <ExportButtons disabled={!data} title="Products — loaded matching catalogue" columns={['Name', 'SKU', 'Barcode', 'Category', 'Selling price', ...(cost ? ['Cost price', 'Gross margin (%)'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price), marginLabel(p.selling_price, p.cost_price)] : []), p.quantity])} />
           {can('data.import') && <Button onClick={() => go('data')}>Upload Excel / CSV</Button>}
           {can('product.manage') && <Button variant="primary" onClick={() => setEdit({})}>Add product</Button>}
         </>} />
@@ -22,19 +23,19 @@ export function ProductsPage() {
         <Input placeholder="Search by name, SKU or barcode" value={search} onChange={(e) => setSearch(e.target.value)} className="w-80" aria-label="Search products" />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={inactive} onChange={(e) => setInactive(e.target.checked)} /> Show inactive</label>
       </div>
-      <Card pad={false}>
-        <Table rows={data} rowKey={(r) => r.id} onRowClick={can('product.manage') ? setEdit : undefined} empty="No products yet. Add one, or import a list under Import & export."
+      <QueryView query={productsQuery} label="products"><Card pad={false}>
+        <Table rows={data} rowKey={(r) => r.id} onRowClick={can('product.manage') ? setEdit : undefined} empty={search.trim() ? 'No products match this search. Try a name, SKU or barcode, or clear the search.' : can('product.manage') ? 'Your catalogue is empty. Choose Add product or Upload Excel / CSV to begin.' : 'No products are available. Ask the owner to add products and opening stock.'}
           columns={[
-            { header: 'Product', cell: (p) => <><span className="font-medium">{p.name}</span>{!p.active && <> <Badge>Inactive</Badge></>}</> },
+            { header: 'Product', sortValue: (p) => p.name, cell: (p) => <><span className="font-medium">{p.name}</span>{!p.active && <> <Badge>Inactive</Badge></>}</> },
             { header: 'SKU', cell: (p) => p.sku ?? '' },
             { header: 'Barcode', cell: (p) => p.barcode ?? '' },
             { header: 'Category', cell: (p) => p.category_name ?? '' },
             ...(cost ? [{ header: 'Cost', align: 'right' as const, cell: (p: any) => money(p.cost_price) }] : []),
-            { header: 'Selling price', align: 'right', cell: (p) => money(p.selling_price) },
+            { header: 'Selling price', sortValue: (p) => p.selling_price, align: 'right', cell: (p) => money(p.selling_price) },
             ...(cost ? [{ header: 'Gross margin', align: 'right' as const, cell: (p: any) => marginLabel(p.selling_price, p.cost_price) }] : []),
-            { header: 'In stock', align: 'right', cell: (p) => (p.quantity <= 0 ? <Badge tone="bad">{p.quantity} · Out of stock</Badge> : p.quantity <= p.reorder_level ? <Badge tone="warn">{p.quantity} · Low stock</Badge> : p.quantity) },
+            { header: 'In stock', sortValue: (p) => p.quantity, align: 'right', cell: (p) => (p.quantity <= 0 ? <Badge tone="bad">{p.quantity} · Out of stock</Badge> : p.quantity <= p.reorder_level ? <Badge tone="warn">{p.quantity} · Low stock</Badge> : p.quantity) },
           ]} />
-      </Card>
+      </Card></QueryView>
       {edit && <ProductForm product={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }} />}
     </div>
   );
@@ -43,10 +44,11 @@ export function ProductsPage() {
 function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () => void; onSaved: () => void }) {
   const { can } = useApp();
   const isNew = !product.id;
-  const categories = useQuery<any[]>('category.list').data ?? [];
+  const categoryOptions = useQuery<any[]>('category.list');
+  const categories = categoryOptions.data ?? [];
   const [f, setF] = useState({
     name: product.name ?? '', sku: product.sku ?? '', barcode: product.barcode ?? '', categoryId: product.category_id ?? '', unit: product.unit ?? 'each',
-    costPrice: (product.cost_price ?? 0) as number | null, sellingPrice: (product.selling_price ?? null) as number | null, reorderLevel: String(product.reorder_level ?? 0), active: product.active !== 0, openingStock: '',
+    costPrice: (product.cost_price ?? null) as number | null, sellingPrice: (product.selling_price ?? null) as number | null, reorderLevel: String(product.reorder_level ?? 0), active: product.active !== 0, openingStock: '',
   });
   const [cartonCost, setCartonCost] = useState<number | null>(null);
   const [cartonUnits, setCartonUnits] = useState('');
@@ -64,7 +66,8 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
   }, 'Product saved');
   return (
     <Modal title={isNew ? 'Add product' : 'Edit product'} open onClose={onClose} wide
-      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !f.name.trim() || f.sellingPrice == null} onClick={save}>Save</Button></>}>
+      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !f.name.trim() || f.sellingPrice == null || (cost && f.costPrice == null)} onClick={save}>Save</Button></>}>
+      {categoryOptions.error && <QueryView query={categoryOptions} label="categories">{null}</QueryView>}
       <form className="grid grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <h3 className="col-span-2 text-xs font-semibold uppercase tracking-wide text-slate-500">1. Product details</h3>
         <Field label="Product name" className="col-span-2"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
@@ -74,7 +77,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
         <Field label="Unit of measure"><Input value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Field>
         <h3 className="col-span-2 mt-2 border-t border-slate-100 pt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">2. Pricing &amp; cost</h3>
         <Field label="Selling price (GHS)"><MoneyInput value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
-        {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : undefined}><MoneyInput value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
+        {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : 'Enter a verified unit cost. Use 0 only when the item genuinely has no cost.'}><MoneyInput required value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
         {cost && <fieldset className="col-span-2 rounded-lg border border-brand-200 bg-brand-50/40 p-4">
           <legend className="px-1 text-sm font-medium">Calculate cost from a carton</legend>
           <div className="grid grid-cols-2 gap-3">
@@ -98,18 +101,19 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
 }
 
 export function CategoriesPage() {
-  const { data, reload } = useQuery<any[]>('category.list');
+  const categoryQuery = useQuery<any[]>('category.list');
+  const { data, reload } = categoryQuery;
   const [edit, setEdit] = useState<any | null>(null);
   const { run, busy } = useAction();
   return (
     <div className="max-w-2xl">
       <PageHeader title="Categories" subtitle="Group products to find them faster at checkout." actions={<Button variant="primary" onClick={() => setEdit({ name: '', active: 1 })}>Add category</Button>} />
-      <Card pad={false}>
+      <QueryView query={categoryQuery} label="categories"><Card pad={false}>
         <Table rows={data} rowKey={(r) => r.id} onRowClick={setEdit} empty="No categories yet" columns={[{ header: 'Name', cell: (c) => c.name }, { header: 'Status', cell: (c) => (c.active ? <Badge tone="good">Active</Badge> : <Badge>Hidden</Badge>) }]} />
-      </Card>
+      </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? 'Edit category' : 'Add category'} open onClose={() => setEdit(null)}
-          footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('category.save', { id: edit.id, name: edit.name, active: !!edit.active }); setEdit(null); reload(); }, 'Category saved')}>Save</Button></>}>
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('category.save', { id: edit.id, name: edit.name, active: !!edit.active }); setEdit(null); reload(); }, 'Category saved')}>Save</Button></>}>
           <div className="space-y-3">
             <Field label="Category name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked ? 1 : 0 })} /> Active</label>

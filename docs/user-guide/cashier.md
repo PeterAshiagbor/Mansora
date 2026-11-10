@@ -20,8 +20,11 @@ If the receipt does not print, the sale is still saved. Reprint it from **Sales 
 
 ## Things that need a manager
 
-A discount, a refund, a credit sale and taking cash out of the till ask for a
-manager's username and password. Call your manager to type them in.
+Your permissions determine which actions require approval. If you cannot apply
+discounts, choose **Request discount**; an authorised approver enters their own
+credentials at payment. Above the owner's configured discount ceiling, only the
+owner can approve. Refunds, credit and cash movements also enforce their relevant
+permissions. Never ask someone to share their password with you.
 
 ## Refunds
 
@@ -42,3 +45,16 @@ waiting. They are sent automatically when the internet returns.
 
 Change prices or costs, delete a sale, see profit reports or manage staff. This
 is by design.
+
+## If a screen or payment fails
+
+A failed read shows **Retry**. Changing a date or search clears old results
+while the new view loads. A failed payment keeps your entries and basket so you
+can correct the problem; check Sales history before retrying if you are unsure
+whether the transaction completed. Do not ring up a second basket just because
+printing failed.
+
+Leaving an unfinished basket or edited form asks whether to keep working or
+discard the entries. Completed sales are not deleted by this choice. Unsubmitted
+entries are not saved financial records; session expiry or restart does not
+recover them. Use **How to use this page** for task guidance.
