@@ -47,3 +47,4 @@ software needed an answer to function, a conservative default was implemented.
 | A-10 | Fewer packages than the spec's suggested layout (`domain` holds types, validation, permissions and the sync protocol) | They change together; splitting would add ceremony with no isolation benefit yet |
 | A-11 | Development browser host for the desktop UI | Lets the real engine and UI be driven by automated browser tests without Electron |
 | A-12 | Activation codes and device tokens stored only as SHA-256 hashes | A database leak does not yield usable credentials |
+| A-18 | Correlation IDs are bounded opaque strings; metrics/reporting are opt-in and errors expose type/code only | Avoid payload/credential leakage and metric-label growth. Metrics reset per process; error delivery is bounded/best-effort, with deployment access/retention decisions still open. See `docs/operations/observability.md` |
