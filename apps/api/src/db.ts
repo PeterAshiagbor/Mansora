@@ -87,9 +87,11 @@ export async function connectPostgres(connectionString: string): Promise<Databas
 /** Embedded PostgreSQL (PGlite) for automated tests and the local demo. Same SQL, same row-level security. */
 export async function connectEmbedded(dataDir?: string): Promise<Database> {
   const { PGlite } = await import('@electric-sql/pglite');
+  // Match node-postgres, where we keep DATE columns as YYYY-MM-DD text.
   const db = await PGlite.create(dataDir);
+  const parsers = { 1082: (v: string) => v };
   return new Database({
-    tx: (fn) => db.transaction((t) => fn(async (sql, params) => normalise((await t.query(sql, params as any[])).rows as any[]))) as Promise<any>,
+    tx: (fn) => db.transaction((t) => fn(async (sql, params) => normalise((await t.query(sql, params as any[], { parsers })).rows as any[]))) as Promise<any>,
     exec: async (sql) => void (await db.exec(sql)),
     close: () => db.close(),
   });

@@ -10,6 +10,8 @@ const ago = (iso?: string | null) => {
   return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} day(s) ago`;
 };
 const STATUS_TONE: Record<string, 'good' | 'warn' | 'bad' | 'neutral' | 'info'> = { active: 'good', onboarding: 'info', suspended: 'warn', closed: 'neutral', trial: 'info', past_due: 'bad', cancelled: 'neutral' };
+/** Dates arrive as YYYY-MM-DD; tolerate a full timestamp so a driver difference can never show raw ISO text. */
+const day = (d?: string | null) => (d ? String(d).slice(0, 10) : null);
 const today = () => new Date().toISOString().slice(0, 10);
 
 function useAction() {
@@ -182,7 +184,7 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
           <Table rows={d.onboarding} rowKey={(r: any) => r.id} onRowClick={(r: any) => go('client', r.id)} empty="No clients are being onboarded" columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Progress', cell: (r: any) => <Progress done={r.done} total={r.total} /> }]} />
         </Card>
         <Card title="Renewals due in the next 30 days" pad={false}>
-          <Table rows={d.renewalsDue} rowKey={(r: any) => r.id} onRowClick={(r: any) => go('client', r.id)} empty="No renewals due" columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Plan', cell: (r: any) => r.plan_name }, { header: 'Renewal', cell: (r: any) => r.renewal_date }, { header: 'Status', cell: (r: any) => <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge> }]} />
+          <Table rows={d.renewalsDue} rowKey={(r: any) => r.id} onRowClick={(r: any) => go('client', r.id)} empty="No renewals due" columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Plan', cell: (r: any) => r.plan_name }, { header: 'Renewal', cell: (r: any) => day(r.renewal_date) }, { header: 'Status', cell: (r: any) => <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge> }]} />
         </Card>
         <Card title="Clients per plan" pad={false}><Table rows={d.plans} empty="No plans yet" columns={[{ header: 'Plan', cell: (r: any) => r.name }, { header: 'Clients', align: 'right', cell: (r: any) => r.clients }]} /></Card>
       </div>
@@ -294,8 +296,8 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
               {device && <Button size="sm" variant="danger" disabled={act.busy} onClick={() => confirm('Deactivate this laptop? It will keep working offline but can no longer sync until re-activated.') && act.run(async () => { await api('POST', `/v1/admin/devices/${device.id}/revoke`); reload(); })}>Deactivate laptop</Button>}
             </div>
           </Card>
-          <Card title="Service plan" actions={<Button size="sm" onClick={() => setSub({ planId: c.plan_id ?? plans[0]?.id ?? '', status: c.subscription_status ?? 'trial', renewalDate: c.renewal_date ?? '' })}>Change</Button>}>
-            {c.plan_name ? <p className="text-sm"><strong>{c.plan_name}</strong> · <Badge tone={STATUS_TONE[c.subscription_status]}>{c.subscription_status}</Badge> · renews {c.renewal_date ?? 'not set'}</p> : <p className="text-sm text-slate-500">No plan assigned</p>}
+          <Card title="Service plan" actions={<Button size="sm" onClick={() => setSub({ planId: c.plan_id ?? plans[0]?.id ?? '', status: c.subscription_status ?? 'trial', renewalDate: day(c.renewal_date) ?? '' })}>Change</Button>}>
+            {c.plan_name ? <p className="text-sm"><strong>{c.plan_name}</strong> · <Badge tone={STATUS_TONE[c.subscription_status]}>{c.subscription_status}</Badge> · renews {day(c.renewal_date) ?? 'not set'}</p> : <p className="text-sm text-slate-500">No plan assigned</p>}
             <p className="mt-2 text-xs text-slate-500">Payments are recorded administratively. Changing the status here never stops a shop from selling.</p>
           </Card>
         </div>

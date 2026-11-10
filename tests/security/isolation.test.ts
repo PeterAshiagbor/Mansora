@@ -179,3 +179,11 @@ describe('onboarding and plans', () => {
     expect((await cloud.api('GET', '/v1/admin/overview')).body.renewalsDue.some((r: any) => r.id === A.id)).toBe(true);
   });
 });
+
+describe('date columns', () => {
+  it('stay plain YYYY-MM-DD text, as with a real PostgreSQL server', async () => {
+    const plan = (await cloud.api('POST', '/v1/admin/plans', { name: 'Dates plan', price: 100, billingPeriod: 'monthly' })).body.id;
+    await cloud.api('PUT', `/v1/admin/clients/${A.id}/subscription`, { planId: plan, status: 'active', renewalDate: '2026-11-25' });
+    expect((await cloud.api('GET', `/v1/admin/clients/${A.id}`)).body.client.renewal_date).toBe('2026-11-25');
+  });
+});
