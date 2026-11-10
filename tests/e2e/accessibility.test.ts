@@ -75,7 +75,7 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
     await shop.getByLabel('Opening cash float (GHS)', { exact: true }).fill('0');
     await shop.getByRole('button', { name: 'Open shift', exact: true }).click();
     await shop.getByLabel('Search or scan product').waitFor();
-    const names = ['Getting started', 'New sale', 'Sales history', 'Cashier shifts', 'Customers', 'Credit & repayments', 'Products', 'Categories', 'Stock', 'Purchases & suppliers', 'Dashboard', 'Reports', 'Expenses', 'Staff', 'Settings', 'Import & export', 'Sync status', 'Backup & recovery', 'Mansora access', 'Audit history', 'Help & getting started'];
+    const names = ['Getting started', 'Billing & payments', 'New sale', 'Sales history', 'Cashier shifts', 'Customers', 'Credit & repayments', 'Products', 'Categories', 'Stock', 'Purchases & suppliers', 'Dashboard', 'Reports', 'Expenses', 'Staff', 'Settings', 'Import & export', 'Sync status', 'Backup & recovery', 'Mansora access', 'Audit history', 'Help & getting started'];
     for (const zoom of [1, 2]) {
       await shop.setViewportSize({ width: 1366 / zoom, height: 768 / zoom });
       for (const name of names) {
@@ -106,7 +106,7 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
     await admin.getByRole('button', { name: 'Sign out', exact: true }).waitFor();
     for (const zoom of [1, 2]) {
       await admin.setViewportSize({ width: 1366 / zoom, height: 768 / zoom });
-      for (const name of ['Overview', 'Clients', 'Service plans', 'Audit log', 'Account security']) {
+      for (const name of ['Overview', 'Clients', 'Service plans', 'Collections', 'Subscriptions', 'Invoices', 'Payments', 'Revenue reports', 'Payment settings', 'Audit log', 'Account security']) {
         await nav(admin, name); await scan(admin, `Admin ${name} zoom ${zoom}`);
       }
       await nav(admin, 'Clients');
@@ -147,6 +147,12 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
     await shop.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
     await scan(shop, 'Desktop payment dialog zoom 2');
     await shop.getByRole('dialog').getByRole('button', { name: 'Back to basket', exact: true }).click();
+    // Exercise the discard confirmation before the next test leaves this basket.
+    await nav(shop, 'Products');
+    const discard = shop.getByRole('dialog', { name: 'Discard unsaved changes?', exact: true });
+    await discard.waitFor();
+    await discard.getByRole('button', { name: 'Discard changes', exact: true }).click();
+    await shop.getByRole('heading', { name: 'Products', exact: true }).waitFor();
     await nav(admin, 'Clients');
     await admin.getByRole('row').filter({ hasText: 'Accessibility test business' }).click();
     await admin.getByRole('button', { name: 'Edit', exact: true }).click();

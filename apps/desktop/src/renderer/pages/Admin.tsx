@@ -280,7 +280,7 @@ export function BackupPage() {
         <p className="mt-2 text-xs text-slate-500">Anything recorded after the backup was made and never synced cannot be recovered. See the Backup and Recovery guide.</p>
       </Card>
       {verify && (
-        <Modal title="Test backup" open onClose={() => setVerify(null)} footer={<><Button dismiss onClick={() => setVerify(null)}>Close</Button><Button variant="primary" disabled={busy || !verifyPass} onClick={() => run(async () => setVerify({ ...verify, summary: await call('backup.verify', { id: verify.id, passphrase: verifyPass }) }))}>Open and check</Button></>}>
+        <Modal trackChanges={false} title="Test backup" open onClose={() => setVerify(null)} footer={<><Button dismiss onClick={() => setVerify(null)}>Close</Button><Button variant="primary" disabled={busy || !verifyPass} onClick={() => run(async () => setVerify({ ...verify, summary: await call('backup.verify', { id: verify.id, passphrase: verifyPass }) }))}>Open and check</Button></>}>
           <Field label="Backup passphrase"><Input type="password" value={verifyPass} onChange={(e) => setVerifyPass(e.target.value)} autoFocus /></Field>
           {verify.summary && <Alert tone="good" className="mt-3">The backup opens and passes its integrity checks. It contains {verify.summary.sales} sale(s) worth {money(verify.summary.salesTotal)}, {verify.summary.products} product(s), {verify.summary.users} staff login(s).</Alert>}
         </Modal>

@@ -49,7 +49,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C2–C11 (backup storage, containers, performance, accessibility, admin dashboard, observability, legal drafts, workflow tests, carton costing, branding) | Codex | **Merged** via the integration review (commit `f49b1aa`) | PRs #13–#22 |
 | C12 hosted sample interface preview | Codex | **Merged** (`769981d`) | PR #24 (base is an old Codex branch, so GitHub may still show it open) |
 | C13 accounting-style workspace and page guides | Codex | **Merged** (`769981d`) | PR #25 (same note) |
-| C14 client readiness | Codex — active | **Claimed; fixing and retesting on latest default.** Refund regression fixed locally; 15 targeted browser tests pass on the pre-billing C14 state. Not merged; full current-default checks pending | `codex/C14-client-readiness`, PR #26 |
+| C14 client readiness | Codex — active | **220 local tests pass on latest default.** Rebased and retargeted PR #26; screenshots and billing data inventory updated. Not merged; latest CI pending | `codex/C14-client-readiness`, PR #26 |
 | Billing / System A (plans, subscriptions, invoices, payments, reminders, reconciliation, revenue, client Billing screen) | Claude | **Merged**, sandbox provider only. No real money has moved | commit `1e46b33` |
 | Team walkthrough artifact and `scripts/capture-walkthrough.ts` | Claude | Done; retake screenshots after any UI change | `519cab0` |
 | C15 email delivery adapter | unclaimed | Blocked on an email provider choice (owner) | – |
@@ -86,6 +86,14 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 12:09 UTC — Codex (C14 acceptance pass, C18 next)
+- **Source:** PR #26 targets default directly, rebased onto `698ce49`. No protected core/sync/billing implementation, migration, bridge, infrastructure or lockfile changes relative to current default.
+- **Fixed final regressions:** backup verification no longer treats its passphrase as an unsaved business edit; the accessibility scenario explicitly tests and confirms discarding its staged basket before subsequent keyboard navigation. Earlier nested-refund and post-save-client warnings are fixed. No assertion/timeout weakened.
+- **Verified:** full real-engine/API/browser regression **220/220 tests in 31 files**, typecheck, build, separate legal inventory gate and production audit (zero vulnerabilities). Accessibility now covers all 22 client and 11 admin pages, including billing, at normal/200% equivalent viewport. Nine new acceptance scenarios verify saved records and recovery, not mocked success. Local synthetic screenshot/video evidence: `/workspace/mansora-client-readiness`.
+- **Content:** regenerated all walkthrough screenshots from the running app, preserving billing. Capture credentials generated per run. Corrected privacy/negative-stock/approval claims. Legal drafts now cover all 757 migrated fields, including 235 billing additions; no retention policy chosen and no billing engine edited. Details: `docs/operations/client-readiness.md` and `docs/onboarding/client-handover.md`.
+- **CI after prior push:** `e69559a` security/core, API container, sample preview and Windows installer/smoke passed; main test job failed the same two browser cases above, now fixed and locally green. Claim commit `698ce49` had no PR-triggered workflow runs returned by the connector (not evidence of success). This follow-up revision's CI is checked immediately after pushing; completion remains contingent on merged-commit CI.
+- **Next/not done:** C14 merge and latest CI, then separately claimed C18 billing-aware preview generation/publication. Live private Site is still C13/version 3. No live money, production acceptance, hardware/signing/legal approval or provider/default choice is implied. Owner questions and C15–C17 remain as recorded.
 
 ### 2026-11-10 11:58 UTC — Codex (active work / claim)
 - **Read and claimed:** C14 remains mine; C18 claims the billing-aware refresh of the existing private preview. C15–C17 remain unclaimed/blocked as recorded. I have not edited Claude's billing engine, migration, provider adapters or protected core files.
