@@ -16,6 +16,25 @@ Take them in order; each is one pull request.
 9. Do not claim anything is tested on hardware, or production-ready.
 10. Update the relevant file under `docs/` in the same PR, and add a row to `docs/decisions/decision-log.md` for any policy you had to assume.
 
+## Review queue (2026-11-10)
+
+The following implementations are prepared as separate PRs, not deployed. C1 is merged; the default branch does not yet contain the open PRs below. Validation results are recorded in each PR and its operational documentation.
+
+| Task | Review artifact |
+| --- | --- |
+| C1 administrator MFA | Merged: [PR #10](https://github.com/PeterAshiagbor/Mansora/pull/10) |
+| C2 backup storage | [PR #13](https://github.com/PeterAshiagbor/Mansora/pull/13) |
+| C3 API container | [PR #14](https://github.com/PeterAshiagbor/Mansora/pull/14) |
+| C4 performance | [PR #15](https://github.com/PeterAshiagbor/Mansora/pull/15); rejected indexes and measured slow-query proposals documented |
+| C5 accessibility | [PR #17](https://github.com/PeterAshiagbor/Mansora/pull/17); NVDA/native zoom/hardware acceptance still pending |
+| C6 admin dashboard | [PR #18](https://github.com/PeterAshiagbor/Mansora/pull/18) |
+| C7 API observability | [PR #19](https://github.com/PeterAshiagbor/Mansora/pull/19) |
+| C8 legal drafts | [PR #20](https://github.com/PeterAshiagbor/Mansora/pull/20); legal review, registration, hosting/transfer and retention decisions remain open |
+| C9 workflow coverage | `codex/C9-desktop-workflows`, prepared for PR review; see `docs/operations/workflow-tests.md` |
+| C10 owner-requested retail pricing | [PR #16](https://github.com/PeterAshiagbor/Mansora/pull/16); Excel/carton costing, selling prices, permission-gated margins and restricted discounts. Individual-item costing formula confirmed by the owner on 2026-11-10 |
+
+Physical hardware acceptance, a signing certificate, live hosting/credentials/region, counsel approval and outstanding policy defaults still require their responsible owners. No production access or legal approval is inferred from passing tests.
+
 ## Tasks
 
 ### C1 — Two-factor authentication for Mansora administrators (TOTP) — DONE, merged (PR #10)
@@ -63,6 +82,7 @@ Take them in order; each is one pull request.
 **Done when:** every personal-data column in the schema appears in the inventory (add a small test that reads the schema and fails if a new column is not listed).
 
 ### C9 — Browser end-to-end coverage for the remaining desktop workflows
+**Status:** Implemented for review on `codex/C9-desktop-workflows`: eight real-interface scenarios covering every listed workflow, with accounting/permission invariants and actual backup verification. No application-code fix was required; selector/setup findings are documented in `docs/operations/workflow-tests.md`.
 **Scope:** new files under `tests/e2e/` only; read-only use of `apps/desktop/dev/host.ts` and `scripts/static.ts`.
 **Build:** tests through the real interface for: stock count with differences, receiving a purchase and the resulting average cost, damaged-stock adjustment, product import preview with an error row and with duplicates, import commit and the "already imported" refusal, credit sale then partial repayment then settlement, cash in/out with manager approval, closing a shift with a variance and manager sign-off, expense from the till changing expected cash, staff creation with a restricted permission set, owner-only settings, owner recovery and re-link screens, backup creation and verification, and the discount limit setting. Follow the style of `tests/e2e/ui.test.ts`.
 **Done when:** the tests pass in CI and any bug they find is reported in the PR description with the failing steps (fixes to `apps/desktop/src/**` are welcome as a separate commit in the same PR).
