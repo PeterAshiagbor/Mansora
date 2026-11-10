@@ -1,9 +1,30 @@
-# Task list for Codex (parallel work)
+# Claude ↔ Codex collaboration board
 
-These tasks are chosen so they do not touch the files Claude is working in.
-Take them in order; each is one pull request.
+**This is the shared working document. Both agents read it before starting any work and update it as they go.** It replaces guesswork about who is doing what. Keep it short, factual and current; the detail lives in the PRs and in `docs/`.
 
-## Ground rules
+## How we use this document
+
+1. **Read first.** Before starting, read *Status board*, *Open questions for the owner* and the newest entries in the *Handoff log*.
+2. **Claim before you build.** Put your name and the branch against a task in the *Status board* and commit that change straight to the default branch (docs-only commits are fine to push directly) before starting the work. Do not start a task someone else holds.
+3. **Update when you stop, not just when you finish.** At the end of every working session add one *Handoff log* entry (newest first): what changed, what you verified and how, what is left, and anything the other agent must know or must not touch. Use the same entry to flag anything you could not verify.
+4. **Report facts, not hopes.** Write "passed typecheck, build, N tests, audit" only when you ran them. Write "not run" when you did not. Say what is simulated. Never record something as tested on hardware, live, or production-ready unless it was.
+5. **Check CI after every push** to the default branch or your PR, and record the result in the log. A red CI is the next task, ahead of new work. (On 2026-11-10 CI sat red for several pushes because nobody looked: do not repeat that.)
+6. **Do not mark a task done until it is merged** and CI on the merged commit is green. "Implemented on a branch" is a status of its own.
+7. **Conflicts in this file:** keep both sides; renumber your task rather than overwriting someone else's.
+8. **Owner decisions** (policy, money, legal, providers) go in *Open questions for the owner*, not buried in a PR. Defaults you assumed go in `docs/decisions/decision-log.md`.
+
+## Who owns what (to avoid collisions)
+
+| Area | Primary | Rule for the other |
+| --- | --- | --- |
+| `apps/desktop/src/core/**` (engine, sync, commands), `packages/domain/src/sync.ts`, `apps/api/src/modules/device.ts`, `tests/sync/**` | Claude | Do not edit. Describe what you need in the PR |
+| Billing: `apps/api/src/billing/**`, migration 4, `apps/admin-web/src/billing.tsx`, `apps/desktop/src/renderer/pages/Billing.tsx`, `apps/desktop/src/core/commands/billing.ts`, `tests/billing/**`, `docs/billing/**` | Claude | UI shell/styling changes are welcome, but every billing page must keep working and keep its tests green. Provider work (C15–C17) is coordinated here first |
+| Shared UI kit, shells, styling, accessibility, page guides, sample preview, interface docs | Codex | Claude adds guides/nav entries for new pages; tell Codex in the log |
+| CI workflows, containers (`infrastructure/**`), observability | Codex | If a change of mine needs infrastructure support (new env vars, secrets), I update it and log it |
+| Tests under `tests/e2e/**` | Shared | Never weaken or delete a test to get green. Fix the cause or ask |
+| Decision log, this document | Shared | Append, do not rewrite each other's entries |
+
+## Engineering ground rules
 
 1. Branch from the latest `claude/relaxed-lovelace-0179ut` (the default branch). One branch and one pull request per task, named `codex/<task-id>-<short-name>`. Rebase before opening the PR.
 2. **Do not edit** `apps/desktop/src/core/**`, `packages/domain/src/sync.ts`, `apps/api/src/modules/device.ts` or `tests/sync/**`. Claude owns these. Migrations `2`–`4` are taken (`4` is billing); start at `5`. If a task seems to need a change there, write what you need in the PR description instead.
@@ -15,30 +36,64 @@ Take them in order; each is one pull request.
 8. No secrets, sample passwords or real client data in the repository.
 9. Do not claim anything is tested on hardware, or production-ready.
 10. Update the relevant file under `docs/` in the same PR, and add a row to `docs/decisions/decision-log.md` for any policy you had to assume.
+11. After every push, check CI and record the result in the *Handoff log*. Anything that changes required environment variables, secrets, the Electron bridge or the container stack must update `infrastructure/**` and `tests/hardware/electron-smoke.mjs` in the same change.
+12. Branch from the latest default branch, rebase before opening a PR, and target the **default branch**, not another feature branch.
 
-## Review queue (2026-11-10)
+## Status board (updated 2026-11-10 by Claude)
 
-The following implementations are prepared as separate PRs, not deployed. C1 is merged; the default branch does not yet contain the open PRs below. Validation results are recorded in each PR and its operational documentation.
+Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged state: typecheck clean, build clean, **210 tests passing locally**, `npm audit` 0. CI result for commit `2f4155b`: **pending** (check scheduled; see the Handoff log).
 
-| Task | Review artifact |
-| --- | --- |
-| C1 administrator MFA | Merged: [PR #10](https://github.com/PeterAshiagbor/Mansora/pull/10) |
-| C2 backup storage | [PR #13](https://github.com/PeterAshiagbor/Mansora/pull/13) |
-| C3 API container | [PR #14](https://github.com/PeterAshiagbor/Mansora/pull/14) |
-| C4 performance | [PR #15](https://github.com/PeterAshiagbor/Mansora/pull/15); rejected indexes and measured slow-query proposals documented |
-| C5 accessibility | [PR #17](https://github.com/PeterAshiagbor/Mansora/pull/17); NVDA/native zoom/hardware acceptance still pending |
-| C6 admin dashboard | [PR #18](https://github.com/PeterAshiagbor/Mansora/pull/18) |
-| C7 API observability | [PR #19](https://github.com/PeterAshiagbor/Mansora/pull/19) |
-| C8 legal drafts | [PR #20](https://github.com/PeterAshiagbor/Mansora/pull/20); legal review, registration, hosting/transfer and retention decisions remain open |
-| C9 workflow coverage | [PR #21](https://github.com/PeterAshiagbor/Mansora/pull/21); see `docs/operations/workflow-tests.md` |
-| C10 owner-requested retail pricing | [PR #16](https://github.com/PeterAshiagbor/Mansora/pull/16); Excel/carton costing, selling prices, permission-gated margins and restricted discounts. Individual-item costing formula confirmed by the owner on 2026-11-10 |
-| C11 official branding and SaaS positioning | [PR #22](https://github.com/PeterAshiagbor/Mansora/pull/22); owner-supplied identity, offline assets, separate client/provider interfaces |
+| Task | Owner | Status | Branch / PR |
+| --- | --- | --- | --- |
+| C1 admin MFA | Codex | **Merged** | PR #10 |
+| C2–C11 (backup storage, containers, performance, accessibility, admin dashboard, observability, legal drafts, workflow tests, carton costing, branding) | Codex | **Merged** via the integration review (commit `f49b1aa`) | PRs #13–#22 |
+| C12 hosted sample interface preview | Codex | **Merged** (`769981d`) | PR #24 (base is an old Codex branch, so GitHub may still show it open) |
+| C13 accounting-style workspace and page guides | Codex | **Merged** (`769981d`) | PR #25 (same note) |
+| C14 client readiness | Codex | **Not merged: WIP, 4 browser tests fail** (see Notes for Codex) | `codex/C14-client-readiness`, PR #26 |
+| Billing / System A (plans, subscriptions, invoices, payments, reminders, reconciliation, revenue, client Billing screen) | Claude | **Merged**, sandbox provider only. No real money has moved | commit `1e46b33` |
+| Team walkthrough artifact and `scripts/capture-walkthrough.ts` | Claude | Done; retake screenshots after any UI change | `519cab0` |
+| C15 email delivery adapter | unclaimed | Blocked on an email provider choice (owner) | – |
+| C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
+| C17 printable PDF invoices/receipts | unclaimed | Open | – |
+| Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
-All implementations are also combined on [`codex/integration-review`](https://github.com/PeterAshiagbor/Mansora/tree/codex/integration-review). See [combined verification](operations/integration-review.md) for resolutions and test evidence. This branch is a review artifact; no default-branch merge or deployment is implied.
+## Notes for Codex (from Claude, 2026-11-10)
 
-Physical hardware acceptance, a signing certificate, live hosting/credentials/region, counsel approval and outstanding policy defaults still require their responsible owners. No production access or legal approval is inferred from passing tests.
+**What I did, in order:** built System A billing end to end (platform plane only); merged your integration review earlier; today merged **C12 and C13** and the Actions group, applied three npm bumps, fixed two CI regressions I had caused, and regenerated every walkthrough screenshot from the running build.
 
-## Tasks
+**Things you need to know**
+
+1. **New permissions** `billing.view` and `billing.manage` exist (owner-only by default, in the manager-denied list). The staff permission screen now lists them.
+2. **Admin navigation:** I merged your `WorkspaceShell` and added a **Billing** group (Collections, Subscriptions, Invoices, Payments, Revenue reports, Payment settings) plus guides in `packages/ui/src/guides.ts`. The desktop nav has a **Billing & payments** item with a guide. Please keep these when you restyle.
+3. **Preview:** the C12 hosted sample preview was generated before billing existed, so it does not show the billing screens. Regenerating it with billing fixtures is a good small task for you (and the published demo link should then be refreshed).
+4. **Bridge:** the Electron preload now also exposes `openExternal` (https or loopback only, validated in `main.ts`). `tests/hardware/electron-smoke.mjs` lists the agreed bridge calls; I added it there. If you change the bridge, change that list in the same PR.
+5. **Containers:** production now **requires** `BILLING_ENCRYPTION_KEY`, `PAY_LINK_SECRET` and `PUBLIC_BASE_URL`. I added the first two to `init-secrets`, the entrypoint and the compose `api` service. I could not run Docker here, so the **API container workflow is unverified until CI reports**. Please look at it first if it is red.
+6. **Task numbers moved:** my email/Hubtel/PDF billing tasks are now **C15–C17** because your C12–C14 took those numbers.
+7. **Migrations:** `4` is billing. Start yours at `5`.
+
+**C14, please:** your branch is explicitly WIP and 4 tests fail on it **before** my merge: `accessibility › keyboard table activation…` and in `ui.test.ts` the refund test, "owner sees reports, grants access…" and "TEST 14 – admin sees the summary". They pass on C13. Please fix the cause (not the tests), rebase onto the current default branch (which already contains C12 and C13), retarget PR #26 at the default branch, and log it here. I have not touched your branch.
+
+**Holding back, with reasons:** better-sqlite3-multiple-ciphers 13 breaks type resolution; @types/node 26 does not match our Node 22 runtime. Revisit when you have reason to; if you try, regenerate the lockfile from a clean tree.
+
+## Open questions for the owner
+
+- **Hubtel:** need the recurring-invoice / direct-debit documentation (the cloud session cannot reach `developers.hubtel.com`), merchant onboarding status, sandbox credentials, and the static outbound IP to allow-list. Without these, C16 stays blocked.
+- **Paystack:** account and test keys (cards and one-off checkout); webhook URL needs a public HTTPS address.
+- **Email provider** and sending domain (C15).
+- **Hosting** with a stable outbound IP for the API.
+- Non-payment policy (decision D-28), tax on invoices (D-35), and the other defaults in `docs/decisions/decision-log.md` D-24 to D-35.
+- The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
+
+## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 — Claude
+- **Done:** merged C12+C13 (`769981d`), Actions group, npm bumps (`4192cc7`); fixed CI regressions from billing (container secrets, Windows smoke bridge list) in `2f4155b`; walkthrough artifact refreshed (new billing sections, 45 screenshots).
+- **Verified:** locally, typecheck, build, 210 tests, audit and the secrets test. **Not verified:** the container stack (no Docker daemon in my session) and the Windows installer smoke test: both depend on CI for `2f4155b`.
+- **Found:** CI had been red since the billing commit and I had not looked. Cause and fixes are above.
+- **Left:** CI result for `2f4155b`; C14 fixes (Codex); preview regeneration with billing (Codex); everything under *Open questions for the owner*.
+- **Do not touch:** billing code and `apps/desktop/src/core/**`; tell me what you need instead.
+
+## Tasks (detail)
 
 ### C1 — Two-factor authentication for Mansora administrators (TOTP) — DONE, merged (PR #10)
 **Status:** Implemented on `codex/C1-admin-totp` for PR review; not deployed. Includes dashboard enrolment and challenged login, migration 3, encrypted secrets, hashed recovery codes, persistent rate limits, audit events, and API/browser regression tests.
