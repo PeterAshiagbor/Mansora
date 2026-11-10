@@ -56,7 +56,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
 | C18 hosted preview refresh with billing | Codex — done | **Published version 4**, now anyone-with-link. PR #27 merged as `1ecb47f`; merged CI green on rerun attempt 2 (initial run cancelled by the claim commit) | Planned `codex/C18-billing-preview` |
-| C19 interface deployment readiness | Codex — active | **Initial C19 merge green, version 5 live.** Final-review focus/draft fix passes 13 targeted tests; follow-up CI and publication pending | `codex/C19-interface-deployment-readiness` |
+| C19 interface deployment readiness | Codex — done | PRs #28/#29 merged; all exact merged workflows green. **231 tests pass; shared version 6 is live. Interface acceptance complete.** | `codex/C19-interface-deployment-readiness` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -87,6 +87,14 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 13:03 UTC — Codex (C14/C18/C19 complete; shared version 6)
+- **Owner's scope:** readiness means an interface ready for deployment. C19 interface acceptance is complete; hardware/provider/signing/legal operations are separate release work and were not substituted for UI completion. All interface fixes are merged into the shared default branch for Claude.
+- **Exact C19 evidence:** PR #28 merge `0ffff1c` and PR #29 merge `7537e616f9241ef94e60d6d92f98708b0643b733` each have all-green exact merged workflows. Final source passes **231 tests in 32 files**, typecheck/build, PostgreSQL 16 sync, production audit, Windows packaging/smoke, API container, security/core and preview generation. Eleven new real-API/browser cases cover failed reads/writes, invalid fields, preserved entries, drafts, report recovery, actual printable invoices and focus-safe billing dialogs. No previous assertion/timeout weakened.
+- **Live/shared:** https://mansora-saas-demo.bgtpk74dbt.chatgpt.site — **version 6**, public/anyone-with-link per owner request; ChatGPT users and signed-out visitors can view it (explained before sharing change). Deployment `appgdep_6af3146636d4819188165e39628a84b4` succeeded. Published Site source `55bd0a50810841064f90b7eadd4c2762577e6010`, built from pushed Mansora `61716641409048737810e8814efbcd31323d65a2`; all 69 output assets verified before packaging. No live provider, real client data or authentication secrets. Hosted browser QA unavailable because required Sites browser tool is absent; actual application browser acceptance and generated fixture/asset checks are separate evidence.
+- **Earlier checks:** C14 `86f4c03` merged CI green; C18 `1ecb47f` merged CI green on attempt 2 after initial concurrency cancellation; claim `d2c724a` green. Tasks were marked done after their exact merged checks passed, not on the strength of previous branches.
+- **Ownership:** C19 frontend claim is released back to Claude. Billing engine/adapters/migrations, sync, permission policy, bridge, infrastructure, dependencies and protected billing tests were not changed. C15–C17 and owner/provider decisions remain as recorded; interface acceptance approves none of those financial/legal defaults.
+- **Records:** `docs/operations/interface-deployment-readiness.md`, `docs/operations/interface-preview.md`, `docs/onboarding/client-handover.md`. This completion commit updates documentation only; application code and published assets are unchanged. Its automatic CI is checked after pushing separately from the already-green final C19 merge; do not infer that a new documentation run finished before it did.
 
 ### 2026-11-10 12:53 UTC — Codex (C19 final-review focus fix)
 - **Initial C19:** PR #28 merged `0ffff1cbf22b7206f8dac08df037196cbf7ac03e`; all four exact merged workflows are green (230 tests, PostgreSQL sync, audit, Windows smoke, container/security/preview). Shared public Site version 5 is live: deployment `appgdep_6af3116d83248191bea213833cc9ed5c` succeeded, Site source `30d6920f906533a76a59ccac0a76fbbb22283e60`, built from Mansora `6e59e7514afa4313e9c20814eb7c035227b32b5f`.
@@ -258,4 +266,4 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 ### C19 — Interface ready for deployment
 **Owner:** Codex, claimed under the owner's clarified scope.
 **Scope:** Frontend states, navigation, validation, draft handling and client-facing copy, including billing UI. Do not change billing engine/provider/permission policy. Coordinate the temporary billing-UI file ownership in the handoff above.
-**Done when:** identified UI gaps fixed, browser acceptance and CI green, merged source and shared preview updated, and interface-specific readiness report records verified outcomes and remaining limitations.
+**Completed:** identified UI gaps fixed, real-API/browser acceptance and all merged CI green, merged source and shared version 6 updated. The interface-specific report records verified outcomes and the hosted-browser verification limit.

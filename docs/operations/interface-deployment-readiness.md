@@ -22,20 +22,25 @@ adapters, financial calculations and permission policies are unchanged.
 | Honest financial copy | Unknown provider capability remains visibly blocked. Invoice revenue is not called profit. For an uncertain manual-payment response, the form advises checking payment history before recording the money again. |
 | Shared review | The preview is now anyone-with-link, as requested. ChatGPT users and signed-out visitors can review the synthetic interface. App sessions and demo edits do not grant production access. |
 
-## Evidence
+## Verified interface acceptance
 
-Eleven new real-API/browser acceptance scenarios verify failed reads and saves,
-invalid fields, discard protection, preserved input, separate drafts, report
-recovery printable invoice behavior and focus-safe billing drafts. They supplement the existing billing,
-retail, security, role and accessibility regression tests; no previous assertion
-or timeout was removed. The walkthrough screenshots are regenerated from the
-running application.
+The deployment-interface pass is complete. **231 tests in 32 files pass**, plus
+typecheck/build and all PR/merged workflows: PostgreSQL 16 sync, production audit,
+Windows packaging/smoke, API container, security/core and generated preview.
+Eleven new real-API/browser scenarios verify failed reads and saves, invalid
+fields, discard protection, preserved entries, separate drafts, report recovery,
+actual printable invoices and focus-safe billing forms. Existing billing,
+retail, security, role and accessibility assertions/timeouts were not weakened.
+Walkthrough screenshots were regenerated from the running application.
 
-Initial C19 full regression passes: **230 tests in 32 files**, plus typecheck/build
-and all PR/merged workflows. A final-review focus/draft fix passes 13 targeted
-billing tests; its new full CI includes 231 tests. This
-record will identify the verified source and publication at handoff. The last
-published preview is version 5; the focus follow-up is published separately.
+C19 merged through PR #28 (`0ffff1c`) and the final focus fix in PR #29
+(`7537e616f9241ef94e60d6d92f98708b0643b733`). The shared preview is **version 6**, deployment
+`appgdep_6af3146636d4819188165e39628a84b4` (`succeeded`), built from pushed Mansora
+`61716641409048737810e8814efbcd31323d65a2`. Site source: `55bd0a50810841064f90b7eadd4c2762577e6010`.
+All 69 output assets were verified before packaging. Sharing is confirmed
+public/anyone-with-link; no ChatGPT sign-in is required. This completion handoff
+changes documentation only; the verified application and published assets are
+unchanged.
 
 ## Meaning of the preview
 

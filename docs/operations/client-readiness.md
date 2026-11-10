@@ -7,9 +7,9 @@ constitute hardware, live-payment, legal or commercial acceptance.
 
 ## Publication and source
 
-PR #26 merged into default as `86f4c03` after all PR checks passed. Merged-commit CI is being verified.
-The hosted private sample preview now shows C14 and billing (Site version 4);
-C18 tracks its source merge and publication receipt. The preview uses isolated synthetic fixtures and
+PR #26 merged into default as `86f4c03` after all PR checks passed. Merged-commit CI passed.
+The shared sample preview now shows C14 and billing (Site version 6);
+C18 and C19 source merges and publication are complete. The preview uses isolated synthetic fixtures and
 is distinct from the persistent encrypted desktop application. The default branch and the refreshed hosted preview contain C14.
 
 ## Changes and acceptance evidence
@@ -63,8 +63,8 @@ columns. Production dependency audit reports zero vulnerabilities.
   choices remain owner/operator work. Sandbox billing does not charge real money.
 - Retention, privacy, tax, cancellation and non-payment policies remain draft or
   unapproved; inventory coverage does not establish legal approval.
-- C14 and C18 require merged-commit CI before task completion. The private Site
-  deployment succeeded; exact source/version is in the interface-preview record.
+- C14, C18 and C19 have green merged-commit CI. The shared Site deployment
+  succeeded; exact source/version is in the interface-preview record.
 
 The owner clarified that readiness means an interface ready for deployment.
 [C19 interface acceptance](interface-deployment-readiness.md) tracks the focused
