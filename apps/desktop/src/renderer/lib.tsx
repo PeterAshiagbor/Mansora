@@ -90,16 +90,22 @@ export async function fileToBase64(file: File): Promise<string> {
 }
 
 export function useQuery<T = any>(command: string, input: unknown = {}, deps: unknown[] = []) {
-  const [data, setData] = useState<T | undefined>();
-  const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const key = JSON.stringify(input);
+  const requestKey = JSON.stringify([command, key, tick, deps]);
+  const [result, setResult] = useState<{ key: string; data?: T; error?: string }>({ key: '' });
   useEffect(() => {
     let live = true;
-    call<T>(command, input).then((d) => live && (setData(d), setError(null)), (e) => live && setError(e.message));
-    return () => void (live = false);
+    setResult({ key: requestKey });
+    const deadline = setTimeout(() => { if (live) { live = false; setResult({ key: requestKey, error: 'This is taking longer than expected. Check the application and retry this read.' }); } }, 30_000);
+    call<T>(command, input).then(
+      (data) => { clearTimeout(deadline); if (live) setResult({ key: requestKey, data }); },
+      (error) => { clearTimeout(deadline); if (live) setResult({ key: requestKey, error: error.message ?? 'The information could not be loaded.' }); },
+    );
+    return () => { live = false; clearTimeout(deadline); };
   }, [command, key, tick, ...deps]);
-  return { data, error, reload: useCallback(() => setTick((t) => t + 1), []) };
+  const current = result.key === requestKey ? result : undefined;
+  return { data: current?.data, error: current?.error ?? null, loading: !current?.error && current?.data === undefined, reload: useCallback(() => setTick((t) => t + 1), []) };
 }
 
 // ---------- session ----------
@@ -120,15 +126,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<{ id: number; message: string; tone: 'good' | 'bad' }[]>([]);
   const push = useCallback((message: string, tone: 'good' | 'bad' = 'good') => {
     const id = Date.now() + Math.random();
-    setItems((x) => [...x, { id, message, tone }]);
-    setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), tone === 'bad' ? 7000 : 3500);
+    setItems((x) => tone === 'bad' && x.some((item) => item.message === message && item.tone === tone) ? x : [...x, { id, message, tone }].slice(-3));
+    if (tone !== 'bad') setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), 5000);
   }, []);
   return (
     <ToastCtx.Provider value={push}>
       {children}
       <div aria-live="polite" className="pointer-events-none fixed right-4 top-4 z-50 flex w-80 flex-col gap-2 no-print">
         {items.map((i) => (
-          <div key={i.id} role={i.tone === 'bad' ? 'alert' : 'status'} className={cx('rounded-md px-4 py-3 text-sm font-medium text-white shadow-lg', i.tone === 'bad' ? 'bg-red-700' : 'bg-slate-900')}>{i.message}</div>
+          <div key={i.id} role={i.tone === 'bad' ? 'alert' : 'status'} className={cx('pointer-events-auto rounded-md px-4 py-3 text-sm font-medium text-white shadow-lg', i.tone === 'bad' ? 'bg-red-700' : 'bg-slate-900')}><div className="flex items-start gap-3"><span className="flex-1">{i.message}</span>{i.tone === 'bad' && <button type="button" aria-label="Dismiss error" className="rounded px-1 focus-visible:outline-2 focus-visible:outline-white" onClick={() => setItems((items) => items.filter((item) => item.id !== i.id))}>✕</button>}</div></div>
         ))}
       </div>
     </ToastCtx.Provider>
@@ -139,7 +145,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export function useAction() {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const running = useRef(false);
   const run = useCallback(async <T,>(fn: () => Promise<T>, success?: string): Promise<T | undefined> => {
+    if (running.current) return undefined;
+    running.current = true;
     setBusy(true);
     try {
       const out = await fn();
@@ -149,6 +158,7 @@ export function useAction() {
       toast(e.message ?? 'Something went wrong', 'bad');
       return undefined;
     } finally {
+      running.current = false;
       setBusy(false);
     }
   }, [toast]);
@@ -175,6 +185,12 @@ export const uuid = () => crypto.randomUUID();
 export function MoneyInput({ value, onChange, ...rest }: { value: number | null; onChange: (pesewas: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   const [text, setText] = useState(value == null ? '' : plain(value).replace(/,/g, ''));
   const last = useRef(value);
+  const input = useRef<HTMLInputElement>(null);
+  let invalid = false;
+  if (text.trim()) {
+    try { invalid = parseGHS(text) < 0; } catch { invalid = true; }
+  }
+  useEffect(() => { input.current?.setCustomValidity(invalid ? 'Enter a non-negative amount with at most two decimal places, for example 12.50.' : ''); }, [invalid]);
   useEffect(() => {
     if (value !== last.current) {
       last.current = value;
@@ -183,8 +199,10 @@ export function MoneyInput({ value, onChange, ...rest }: { value: number | null;
   }, [value]);
   return (
     <Input
+      ref={input}
       inputMode="decimal"
       placeholder="0.00"
+      aria-invalid={invalid || undefined}
       value={text}
       onChange={(e) => {
         setText(e.target.value);
@@ -196,6 +214,7 @@ export function MoneyInput({ value, onChange, ...rest }: { value: number | null;
           parsed = null;
         }
         last.current = parsed;
+        e.currentTarget.setCustomValidity(e.target.value.trim() && parsed == null ? 'Enter a non-negative amount with at most two decimal places, for example 12.50.' : '');
         onChange(parsed);
       }}
       {...rest}
@@ -227,8 +246,8 @@ export function ApprovalModal({ open, reason, onCancel, onApprove }: { open: boo
     if (open) (setUsername(''), setPassword(''));
   }, [open]);
   return (
-    <Modal title="Manager approval needed" open={open} onClose={onCancel}
-      footer={<><Button onClick={onCancel}>Cancel</Button><Button variant="primary" disabled={!username || !password} onClick={() => onApprove({ username, password })}>Approve</Button></>}>
+    <Modal trackChanges={false} title="Manager approval needed" open={open} onClose={onCancel}
+      footer={<><Button dismiss onClick={onCancel}>Cancel</Button><Button variant="primary" disabled={!username || !password} onClick={() => onApprove({ username, password })}>Approve</Button></>}>
       <form onSubmit={(e) => { e.preventDefault(); if (username && password) onApprove({ username, password }); }} className="space-y-3">
         <p className="text-sm text-slate-700">{reason} A manager or the owner must sign to approve.</p>
         <Field label="Manager username"><Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" /></Field>

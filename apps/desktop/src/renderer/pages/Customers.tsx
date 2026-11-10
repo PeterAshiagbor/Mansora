@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Textarea } from '@mansora/ui';
+import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Textarea, QueryView } from '@mansora/ui';
 import { call, dateTime, ExportButtons, METHOD, money, MoneyInput, plain, useAction, useQuery, uuid } from '../lib';
 
 export function CustomersPage() {
   const [search, setSearch] = useState('');
-  const { data, reload } = useQuery<any[]>('customer.list', { search });
+  const customersQuery = useQuery<any[]>('customer.list', { search });
+  const { data, reload } = customersQuery;
   const [edit, setEdit] = useState<any | null>(null);
   const [view, setView] = useState<string | null>(null);
   const { run, busy } = useAction();
@@ -12,11 +13,12 @@ export function CustomersPage() {
     <div>
       <PageHeader title="Customers" subtitle="Customer details are optional. Only collect what you need." actions={<Button variant="primary" onClick={() => setEdit({ name: '', phone: '', email: '', notes: '' })}>Add customer</Button>} />
       <Input placeholder="Search by name or phone" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3 w-80" aria-label="Search customers" />
-      <Card pad={false}>
-        <Table rows={data} rowKey={(r) => r.id} onRowClick={(r) => setView(r.id)} empty="No customers yet"
-          columns={[{ header: 'Name', cell: (c) => <span className="font-medium">{c.name}</span> }, { header: 'Phone', cell: (c) => c.phone ?? '' }, { header: 'Owes', align: 'right', cell: (c) => (c.outstanding ? <Badge tone="warn">{money(c.outstanding)}</Badge> : '—') },
+      {data?.length === 500 && <p className="mb-3 text-xs text-slate-600">Showing the first 500 matches. Refine the name or phone search to find another customer.</p>}
+      <QueryView query={customersQuery} label="customers"><Card pad={false}>
+        <Table rows={data} rowKey={(r) => r.id} onRowClick={(r) => setView(r.id)} empty={search.trim() ? 'No customers match. Try another name or phone number.' : 'No customers yet. Add a customer when you need contact details or credit tracking. Walk-in sales do not require one.'}
+          columns={[{ header: 'Name', sortValue: (c) => c.name, cell: (c) => <span className="font-medium">{c.name}</span> }, { header: 'Phone', cell: (c) => c.phone ?? '' }, { header: 'Owes', sortValue: (c) => c.outstanding, align: 'right', cell: (c) => (c.outstanding ? <Badge tone="warn">{money(c.outstanding)}</Badge> : '—') },
             { header: '', align: 'right', cell: (c) => <Button size="sm" onClick={(e) => { e.stopPropagation(); setEdit(c); }}>Edit</Button> }]} />
-      </Card>
+      </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? 'Edit customer' : 'Add customer'} open onClose={() => setEdit(null)}
           footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('customer.save', { id: edit.id, name: edit.name, phone: edit.phone, email: edit.email ?? '', notes: edit.notes }); setEdit(null); reload(); }, 'Customer saved')}>Save</Button></>}>
@@ -36,8 +38,9 @@ export function CustomersPage() {
 }
 
 function CustomerView({ id, onClose }: { id: string; onClose: () => void }) {
-  const { data } = useQuery<any>('customer.get', { id });
-  if (!data) return null;
+  const customerDetail = useQuery<any>('customer.get', { id });
+  const { data } = customerDetail;
+  if (!data) return <Modal title="Customer details" open trackChanges={false} onClose={onClose}><QueryView query={customerDetail} label="customer details">{null}</QueryView></Modal>;
   const owed = data.credit.reduce((a: number, c: any) => a + c.outstanding_balance, 0);
   return (
     <Modal title={data.customer.name} open onClose={onClose} wide>
@@ -54,7 +57,8 @@ function CustomerView({ id, onClose }: { id: string; onClose: () => void }) {
 
 export function CreditPage() {
   const [status, setStatus] = useState<'open' | 'all'>('open');
-  const { data, reload } = useQuery<any>('credit.list', { status });
+  const creditQuery = useQuery<any>('credit.list', { status });
+  const { data, reload } = creditQuery;
   const [repay, setRepay] = useState<any | null>(null);
   return (
     <div>
@@ -66,7 +70,7 @@ export function CreditPage() {
         <Stat label="Open credit records" value={data?.accounts.filter((a: any) => a.status === 'open').length ?? '…'} />
       </div>
       <div className="mb-3 flex gap-2 no-print"><Button size="sm" variant={status === 'open' ? 'primary' : 'secondary'} onClick={() => setStatus('open')}>Still owing</Button><Button size="sm" variant={status === 'all' ? 'primary' : 'secondary'} onClick={() => setStatus('all')}>All, including settled</Button></div>
-      <Card pad={false}>
+      <QueryView query={creditQuery} label="customer credit"><Card pad={false}>
         <Table rows={data?.accounts} rowKey={(r: any) => r.id} empty="Nobody owes anything"
           columns={[
             { header: 'Customer', cell: (a: any) => <><span className="font-medium">{a.customer_name}</span>{a.customer_phone && <span className="text-slate-500"> · {a.customer_phone}</span>}</> },
@@ -76,7 +80,7 @@ export function CreditPage() {
             { header: 'Due', cell: (a: any) => (a.overdue ? <Badge tone="bad">Overdue {a.due_date}</Badge> : a.status === 'settled' ? <Badge tone="good">Settled</Badge> : a.due_date ?? '') },
             { header: '', align: 'right', cell: (a: any) => a.status === 'open' && <Button size="sm" variant="primary" onClick={() => setRepay(a)}>Receive payment</Button> },
           ]} />
-      </Card>
+      </Card></QueryView>
       <Card title="Recent repayments" pad={false} className="mt-4">
         <Table rows={data?.recentRepayments} empty="No repayments yet" columns={[{ header: 'Date', cell: (r: any) => dateTime(r.created_at) }, { header: 'Customer', cell: (r: any) => r.customer_name }, { header: 'Method', cell: (r: any) => METHOD[r.method] }, { header: 'Received by', cell: (r: any) => r.received_by_name }, { header: 'Amount', align: 'right', cell: (r: any) => money(r.amount) }]} />
       </Card>
@@ -94,7 +98,7 @@ function RepayModal({ account, onClose, onDone }: { account: any; onClose: () =>
   const tooMuch = (amount ?? 0) > account.outstanding_balance;
   return (
     <Modal title={`Repayment from ${account.customer_name}`} open onClose={onClose}
-      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !amount || tooMuch} onClick={() => run(async () => { await call('credit.repay', { id, creditAccountId: account.id, amount, method, reference: reference || null }); onDone(); }, 'Repayment recorded')}>Record repayment</Button></>}>
+      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !amount || tooMuch} onClick={() => run(async () => { await call('credit.repay', { id, creditAccountId: account.id, amount, method, reference: reference || null }); onDone(); }, 'Repayment recorded')}>Record repayment</Button></>}>
       <div className="space-y-3">
         <p className="text-sm text-slate-600">Owes <strong>{money(account.outstanding_balance)}</strong> on receipt {account.receipt_no}.</p>
         <Field label="Amount received (GHS)" error={tooMuch ? 'This is more than the amount owed' : null}><MoneyInput value={amount} onChange={setAmount} autoFocus /></Field>

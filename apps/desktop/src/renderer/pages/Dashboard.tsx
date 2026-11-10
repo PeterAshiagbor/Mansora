@@ -1,16 +1,19 @@
-import { Alert, Badge, Button, Card, Icon, PageHeader, Stat, Table } from '@mansora/ui';
+import { Alert, Badge, Button, Card, Icon, PageHeader, Stat, Table, QueryView } from '@mansora/ui';
+import { FirstUsePrompt } from './GettingStarted';
 import { SalesActivity } from '../components/SalesActivity';
 import { dateTime, METHOD, money, monthStart, today, useApp, useQuery } from '../lib';
 
 export function Dashboard() {
   const { state, go, can } = useApp();
-  const { data: d } = useQuery<any>('report.dashboard');
+  const dashboard = useQuery<any>('report.dashboard');
+  const { data: d } = dashboard;
   const sync = useQuery<any>('sync.status').data;
-  if (!d) return <p className="text-slate-500">Loading…</p>;
+  if (!d) return <QueryView query={dashboard} label="dashboard">{null}</QueryView>;
   const own = d.scope === 'own';
   return (
     <div>
       <PageHeader title="Dashboard" subtitle={`Good day, ${state.user?.name.split(' ')[0]}. ${own ? 'Here is your sales activity today.' : 'Here is how your business is doing today.'}`} actions={can('sale.create') && <Button variant="primary" onClick={() => go('checkout')}><Icon name="plus" />Create a sale</Button>} />
+      {state.user?.role === 'owner' && <FirstUsePrompt />}
       {sync?.tenantStatus === 'suspended' && <Alert tone="warn" className="mb-4">Your Mansora service plan needs attention. Please contact Mansora. You can keep selling as normal.</Alert>}
       {sync && sync.unprotected > 0 && sync.state === 'offline' && (
         <Alert tone="warn" className="mb-4">{sync.unprotected} recent change(s) exist only on this laptop. They will be protected when the internet returns, or when you make a backup.</Alert>
@@ -53,8 +56,8 @@ export function Dashboard() {
 
 function DashboardActivity() {
   const { go } = useApp();
-  const { data, error } = useQuery<any>('report.sales', { from: monthStart(), to: today() });
-  if (error) return <Alert className="mt-5" tone="warn">Sales activity could not load: {error}</Alert>;
-  if (!data) return null;
+  const activityQuery = useQuery<any>('report.sales', { from: monthStart(), to: today() });
+  const { data } = activityQuery;
+  if (!data) return <QueryView query={activityQuery} label="sales activity">{null}</QueryView>;
   return <div className="mt-5"><Card title="Sales activity this month" actions={<button className="text-xs font-medium text-brand-700 hover:underline" onClick={() => go('reports')}>Open full reports →</button>}><SalesActivity rows={data.daily} /></Card></div>;
 }

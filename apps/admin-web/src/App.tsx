@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES } from '@mansora/ui';
+import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView } from '@mansora/ui';
 import { api, getToken, setToken, useApi } from './api';
 import { Collections, Invoices, PaymentSettings, Payments, RevenueReports, Subscriptions } from './billing';
 
@@ -33,7 +33,10 @@ function useAction() {
   return { run, busy, error };
 }
 
-export function App() {
+export function App() { return <DraftProvider><AdminApplication /></DraftProvider>; }
+
+function AdminApplication() {
+  const navigate = useNavigationGuard();
   const [signedIn, setSignedIn] = useState(!!getToken());
   const [page, setPage] = useState<{ id: string; param?: string }>({ id: 'overview' });
   useEffect(() => {
@@ -42,7 +45,11 @@ export function App() {
     return () => window.removeEventListener('mansora:signed-out', out);
   }, []);
   if (!signedIn) return <Login onDone={() => setSignedIn(true)} />;
-  const go = (id: string, param?: string) => setPage({ id, param });
+  const go = (id: string, param?: string, afterSave = false) => {
+    if (page.id === id && page.param === param) return;
+    if (afterSave) setPage({ id, param });
+    else navigate(() => setPage({ id, param }));
+  };
   const groups = [
     { group: 'Workspace', items: [{ id: 'overview', label: 'Overview', icon: 'home' }, { id: 'clients', label: 'Clients', icon: 'users' }, { id: 'plans', label: 'Service plans', icon: 'wallet' }] },
     { group: 'Billing', items: [{ id: 'collections', label: 'Collections', icon: 'wallet' }, { id: 'subscriptions', label: 'Subscriptions', icon: 'sync' }, { id: 'invoices', label: 'Invoices', icon: 'file' }, { id: 'payments', label: 'Payments', icon: 'sale' }, { id: 'revenue', label: 'Revenue reports', icon: 'chart' }, { id: 'paysettings', label: 'Payment settings', icon: 'settings' }] },
@@ -103,15 +110,15 @@ function Login({ onDone }: { onDone: () => void }) {
 }
 
 function AccountSecurity() {
-  const { data, error: loadError, reload } = useApi<{ enabled: boolean; recoveryCodesRemaining: number }>('/v1/admin/totp');
+  const securityQuery = useApi<{ enabled: boolean; recoveryCodesRemaining: number }>('/v1/admin/totp');
+  const { data, reload } = securityQuery;
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [enrolment, setEnrolment] = useState<{ secret: string; uri: string; expiresAt: string } | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [disabling, setDisabling] = useState(false);
   const { run, busy, error } = useAction();
-  if (loadError) return <Alert tone="bad">{loadError.message}</Alert>;
-  if (!data) return <p>Loading…</p>;
+  if (!data) return <QueryView query={securityQuery} label="account security">{null}</QueryView>;
   return <div className="max-w-2xl space-y-4">
     <PageHeader title="Account security" subtitle="Protect your Mansora administrator account with an authenticator app." />
     {error && <Alert tone="bad">{error}</Alert>}
@@ -160,9 +167,9 @@ function AccountSecurity() {
 }
 
 function Overview({ go }: { go: (id: string, param?: string) => void }) {
-  const { data: d, error } = useApi<any>('/v1/admin/overview');
-  if (error) return <Alert tone="bad">{error.message}</Alert>;
-  if (!d) return <p className="text-slate-500">Loading…</p>;
+  const overviewQuery = useApi<any>('/v1/admin/overview');
+  const { data: d } = overviewQuery;
+  if (!d) return <QueryView query={overviewQuery} label="platform overview">{null}</QueryView>;
   const n = (list: any[], status: string) => list.find((x) => x.status === status)?.count ?? 0;
   const total = d.clientsByStatus.reduce((a: number, c: any) => a + c.count, 0);
   return (
@@ -218,8 +225,9 @@ function ClientFields({ f, setF }: { f: any; setF: (f: any) => void }) {
   );
 }
 
-function Clients({ go }: { go: (id: string, param?: string) => void }) {
-  const { data, reload } = useApi<any[]>('/v1/admin/clients');
+function Clients({ go }: { go: (id: string, param?: string, afterSave?: boolean) => void }) {
+  const clientsQuery = useApi<any[]>('/v1/admin/clients');
+  const { data, reload } = clientsQuery;
   const plans = useApi<any[]>('/v1/admin/plans').data ?? [];
   const [adding, setAdding] = useState<any | null>(null);
   const { run, busy, error } = useAction();
@@ -237,7 +245,7 @@ function Clients({ go }: { go: (id: string, param?: string) => void }) {
           <option value="all">All statuses</option>{['onboarding', 'active', 'suspended', 'closed'].map((value) => <option key={value} value={value}>{value}</option>)}
         </Select>
       </div>
-      <Card pad={false}>
+      <QueryView query={clientsQuery} label="clients"><Card pad={false}>
         <Table rows={filtered} rowKey={(r) => r.id} onRowClick={(r) => go('client', r.id)} empty={query || status !== 'all' ? 'No clients match these filters' : 'No clients yet'}
           columns={[
             { header: 'Business', cell: (c) => <><div className="font-medium">{c.name}</div><div className="text-xs text-slate-500">{c.owner_name} · {c.business_type}</div></> },
@@ -249,10 +257,10 @@ function Clients({ go }: { go: (id: string, param?: string) => void }) {
             { header: 'Unsynced', align: 'right', cell: (c) => c.pending_count ?? '—' },
             { header: 'Version', cell: (c) => c.app_version ?? '—' },
           ]} />
-      </Card>
+      </Card></QueryView>
       {adding && (
         <Modal title="Add client" open onClose={() => setAdding(null)} wide
-          footer={<><Button onClick={() => setAdding(null)}>Cancel</Button><Button variant="primary" disabled={busy || !adding.name.trim() || !adding.ownerName.trim()} onClick={() => run(async () => { const r = await api('POST', '/v1/admin/clients', { ...adding, planId: adding.planId || null }); setAdding(null); reload(); go('client', r.id); })}>Create client</Button></>}>
+          footer={<><Button onClick={() => setAdding(null)}>Cancel</Button><Button variant="primary" disabled={busy || !adding.name.trim() || !adding.ownerName.trim()} onClick={() => run(async () => { const r = await api('POST', '/v1/admin/clients', { ...adding, planId: adding.planId || null }); setAdding(null); reload(); go('client', r.id, true); })}>Create client</Button></>}>
           {error && <Alert tone="bad" className="mb-3">{error}</Alert>}
           <ClientFields f={adding} setF={setAdding} />
           <Field label="Service plan" className="mt-3"><Select value={adding.planId} onChange={(e) => setAdding({ ...adding, planId: e.target.value })}><option value="">Decide later</option>{plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
@@ -263,7 +271,8 @@ function Clients({ go }: { go: (id: string, param?: string) => void }) {
 }
 
 function Client({ id, go }: { id: string; go: (id: string, param?: string) => void }) {
-  const { data, reload, error } = useApi<any>(`/v1/admin/clients/${id}`);
+  const clientQuery = useApi<any>(`/v1/admin/clients/${id}`);
+  const { data, reload } = clientQuery;
   const plans = useApi<any[]>('/v1/admin/plans').data ?? [];
   const [edit, setEdit] = useState<any | null>(null);
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
@@ -274,8 +283,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
   const [tab, setTab] = useState<'overview' | 'audit'>('overview');
   const [stepOverrides, setStepOverrides] = useState<Record<string, boolean>>({});
   useEffect(() => setStepOverrides({}), [data]);
-  if (error) return <Alert tone="bad">{error.message}</Alert>;
-  if (!data) return <p className="text-slate-500">Loading…</p>;
+  if (!data) return <QueryView query={clientQuery} label="client details">{null}</QueryView>;
   const c = data.client;
   const device = data.devices.find((d: any) => d.status === 'active');
   return (
@@ -289,6 +297,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
       {act.error && <Alert tone="bad" className="mb-3">{act.error}</Alert>}
       <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Onboarding checklist" pad={false} actions={<Progress done={c.steps_done} total={c.steps_total} />}>
+          <p className="border-b border-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">Tick a step only after checking it with the client. Confirm go-live marks an onboarding client as active; this checklist does not automatically verify hardware, training, contracts or privacy arrangements.</p>
           <ul>
             {data.onboarding.map((s: any, i: number) => (
               <li key={s.step} className="flex items-center gap-3 border-b border-slate-100 px-4 py-2 last:border-0">
@@ -410,11 +419,12 @@ function SupportAccess({ id, grants }: { id: string; grants: any[] }) {
 }
 
 function Plans() {
-  const { data, reload } = useApi<any[]>('/v1/admin/plans');
+  const plansQuery = useApi<any[]>('/v1/admin/plans');
+  const { data, reload } = plansQuery;
   const [edit, setEdit] = useState<any | null>(null);
   const { run, busy, error } = useAction();
   const save = () => run(async () => {
-    const body = { name: edit.name, price: parseGHS(edit.price || '0'), billingPeriod: edit.billingPeriod, includedSupport: edit.includedSupport, active: edit.active };
+    const body = { name: edit.name, price: parseGHS(edit.price), billingPeriod: edit.billingPeriod, includedSupport: edit.includedSupport, active: edit.active };
     await (edit.id ? api('PUT', `/v1/admin/plans/${edit.id}`, body) : api('POST', '/v1/admin/plans', body));
     setEdit(null);
     reload();
@@ -422,17 +432,17 @@ function Plans() {
   return (
     <div>
       <PageHeader title="Service plans" subtitle="Plans are recorded and managed here. Payments are not collected automatically in this version." actions={<Button variant="primary" onClick={() => setEdit({ name: '', price: '', billingPeriod: 'monthly', includedSupport: '', active: true })}>Add plan</Button>} />
-      <Card pad={false}>
+      <QueryView query={plansQuery} label="service plans"><Card pad={false}>
         <Table rows={data} rowKey={(r) => r.id} empty="No plans yet" onRowClick={(p) => setEdit({ id: p.id, name: p.name, price: formatGHS(p.price, false).replace(/,/g, ''), billingPeriod: p.billing_period, includedSupport: p.included_support, active: p.active })}
           columns={[{ header: 'Plan', cell: (p) => <span className="font-medium">{p.name}</span> }, { header: 'Billing', cell: (p) => `${formatGHS(p.price)} ${p.billing_period}` }, { header: 'Included support', cell: (p) => p.included_support }, { header: 'Clients', align: 'right', cell: (p) => p.active_clients }, { header: 'Status', cell: (p) => (p.active ? <Badge tone="good">Offered</Badge> : <Badge>Retired</Badge>) }]} />
-      </Card>
+      </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? 'Edit plan' : 'Add plan'} open onClose={() => setEdit(null)} footer={<><Button onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={save}>Save</Button></>}>
           {error && <Alert tone="bad" className="mb-3">{error}</Alert>}
           <div className="space-y-3">
             <Field label="Plan name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Billing amount (GHS)"><Input inputMode="decimal" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} placeholder="0.00" /></Field>
+              <Field label="Billing amount (GHS)" hint="Enter 0 only for an intentional free plan."><Input required pattern="[0-9]+(\.[0-9]{1,2})?" title="Enter a non-negative amount with up to two decimal places." inputMode="decimal" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} placeholder="0.00" /></Field>
               <Field label="Billing period"><Select value={edit.billingPeriod} onChange={(e) => setEdit({ ...edit, billingPeriod: e.target.value })}><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></Select></Field>
             </div>
             <Field label="Included support services"><Textarea value={edit.includedSupport} onChange={(e) => setEdit({ ...edit, includedSupport: e.target.value })} /></Field>
@@ -445,15 +455,15 @@ function Plans() {
 }
 
 function Audit({ tenantId }: { tenantId?: string } = {}) {
-  const { data, error } = useApi<any[]>(`/v1/admin/audit${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`);
+  const auditQuery = useApi<any[]>(`/v1/admin/audit${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`);
+  const { data } = auditQuery;
   return (
     <div>
       {!tenantId && <PageHeader title="Audit log" subtitle="Everything Mansora administrators do, including every attempt to view client data." />}
-      {error && <Alert tone="bad">{error.message}</Alert>}
-      <Card title={tenantId ? "Client audit history" : undefined} pad={false}>
+      <QueryView query={auditQuery} label="audit history"><Card title={tenantId ? "Client audit history" : undefined} pad={false}>
         <Table rows={data} rowKey={(r) => r.id} empty="No activity yet"
           columns={[{ header: 'When', cell: (l) => <span className="whitespace-nowrap">{when(l.occurred_at)}</span> }, { header: 'Administrator', cell: (l) => l.admin_name ?? 'System' }, { header: 'Action', cell: (l) => (l.action === 'support.access_denied' ? <Badge tone="bad">{l.action}</Badge> : <code className="text-xs">{l.action}</code>) }, { header: 'Client', cell: (l) => l.tenant_name ?? '' }, { header: 'Details', cell: (l) => <span className="break-all text-xs text-slate-600">{l.detail === '{}' ? '' : l.detail}</span> }]} />
-      </Card>
+      </Card></QueryView>
     </div>
   );
 }

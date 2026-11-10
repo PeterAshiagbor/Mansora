@@ -191,6 +191,11 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 **Scope:** Shared workspace shell/components/styles, client and provider interfaces, authorised report presentation, page guides, sample preview regeneration and regression coverage. No engine or schema changes.
 **Evidence:** See [accounting UX](operations/accounting-ux.md).
 
+### C14 — End-to-end client UI and content readiness
+**Status:** In progress on `codex/C14-client-readiness`, rebased onto the latest default branch, preserving billing. The owner requested a substantive client-readiness build and visibility for Claude. Current C14 source is pushed for review before deployment; the live sample preview still shows C13 until acceptance checks pass.
+**Scope:** Actual client/provider UI behaviour, setup and handover content, recovery states, validation, unsaved-work protection, long lists and real-engine end-to-end evidence. No production engine, migration, hosting policy or permission policy changes.
+**Evidence:** [Client readiness report](operations/client-readiness.md), which explicitly distinguishes completed checks from pending work.
+
 ### C15 — Email delivery adapter for billing messages
 **Scope:** new file under `apps/api/src/billing/` implementing `EmailAdapter` (see `core.ts`), wired in `createBillingFromEnv`; tests with a local fake SMTP/API server. Needs an email provider decision (Mansora blocker B5), so build against a provider-neutral SMTP or HTTP interface and keep `NoEmail` as the default when unconfigured.
 **Done when:** queued notifications are delivered and marked `sent`/`failed`; failures retry without duplicating; no message body is logged; `docs/billing/provider-onboarding.md` is updated.
@@ -205,3 +210,4 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 **Owner:** Codex, claimed before implementation.
 **Scope:** Existing preview builder/adapters and interface documentation, with synthetic sandbox billing fixtures. Keep the same Site identity/access; include client Billing and all provider billing screens. No live charge, provider onboarding, credentials, protected billing engine change or new payment policy.
 **Acceptance:** Generate from the merged current application; verify every displayed billing read and disabled write, no secret/real-client data, refresh the existing published URL, and record source/deployment/CI evidence here.
+
