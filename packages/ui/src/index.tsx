@@ -108,7 +108,7 @@ const TableCaption = createContext<string | undefined>(undefined);
 
 export function Card({ title, actions, children, className, pad = true }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; pad?: boolean }) {
   return (
-    <section className={cx('rounded-lg border border-slate-200 bg-white', className)}>
+    <section className={cx('min-w-0 rounded-lg border border-slate-200 bg-white', className)}>
       {(title || actions) && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
           <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
@@ -123,7 +123,7 @@ export function Card({ title, actions, children, className, pad = true }: { titl
 export function Stat({ label, value, hint, tone = 'default' }: { label: string; value: ReactNode; hint?: ReactNode; tone?: 'default' | 'good' | 'warn' | 'bad' }) {
   const tones = { default: 'text-slate-900', good: 'text-emerald-700', warn: 'text-amber-700', bad: 'text-red-700' };
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-4">
       <div className="break-words text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
       <div className={cx('mt-1 text-2xl font-semibold tabular-nums', tones[tone])}>{value}</div>
       {hint && <div className="mt-1 text-xs text-slate-500">{hint}</div>}

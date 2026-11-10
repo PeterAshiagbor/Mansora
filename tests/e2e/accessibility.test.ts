@@ -25,6 +25,8 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
     await host.engine.execute(null, 'activation.activate', { apiUrl: cloud.url, code: client.code, deviceName: 'Accessibility fixture', owner });
     const token = (await host.engine.execute(null, 'auth.login', owner)).token;
     await host.engine.execute(token, 'product.save', { name: 'Keyboard product', sellingPrice: 500, costPrice: 300, openingStock: 10, reorderLevel: 5 });
+    // Force a wide intrinsic table so grid cards must shrink and scroll their contents.
+    await host.engine.execute(token, 'product.save', { name: 'Long' + 'x'.repeat(100), sku: 'S'.repeat(60), sellingPrice: 700, costPrice: 500, openingStock: 2, reorderLevel: 5 });
     await host.engine.execute(token, 'customer.save', { name: 'Test customer' });
     web = await serveStatic(join(root, 'apps/admin-web/dist'), 0, { '/config.js': `window.MANSORA_API_URL = ${JSON.stringify(cloud.url)};` });
     await cloud.app.close();
