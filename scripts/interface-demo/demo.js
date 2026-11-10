@@ -74,7 +74,7 @@
       const key = url.pathname + (params.size ? `?${params}` : '');
       let data = provider[key];
       if (url.pathname === '/v1/admin/billing/invoices') {
-        data = provider[url.pathname].filter((row) => (!params.get('status') || row.status === params.get('status')) && (!params.get('q') || [row.number, row.client_name].some((v) => String(v ?? '').toLowerCase().includes(params.get('q').toLowerCase()))));
+        data = provider[url.pathname].filter((row) => (!params.get('tenantId') || row.tenant_id === params.get('tenantId')) && (!params.get('status') || row.status === params.get('status') || row.display_status === params.get('status')) && (!params.get('q') || [row.number, row.client].some((v) => String(v ?? '').toLowerCase().includes(params.get('q').toLowerCase()))));
       } else if (url.pathname.startsWith('/v1/admin/billing/reports/') && data === undefined) {
         return new Response(JSON.stringify({ code: 'INTERFACE_DEMO', message: `This preview contains billing reports for ${fixture.reportRange.from} to ${fixture.reportRange.to} only. Custom periods and CSV downloads require the application.` }), { status: 409, headers: { 'content-type': 'application/json' } });
       } else if (!url.pathname.startsWith('/v1/admin/billing/') && data === undefined) {

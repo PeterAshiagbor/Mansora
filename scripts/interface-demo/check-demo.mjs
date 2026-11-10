@@ -41,6 +41,8 @@ for (const command of ['billing.pay', 'billing.mandate.setup', 'billing.cancel',
 for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) assert.equal((await context.window.fetch('/v1/admin/billing/settings', { method })).status, 409);
 const invoices = await (await context.window.fetch('/v1/admin/billing/invoices?q=no-such-sample-invoice')).json();
 assert.equal(invoices.length, 0, 'Invoice search does not mislabel the original list');
+assert.equal((await (await context.window.fetch('/v1/admin/billing/invoices?q=Sample%20General')).json()).length, 1, 'Invoice search matches client names');
+assert.equal((await (await context.window.fetch('/v1/admin/billing/invoices?status=paid')).json()).length, 1, 'Invoice status filter is effective');
 assert.equal((await context.window.fetch('/v1/admin/billing/reports/summary?from=1900-01-01&to=1900-02-01')).status, 409);
 for (const path of ['/collections?filter=all', '/subscriptions', '/invoices', '/payments', '/providers', '/settings', '/merchant-accounts']) assert.equal((await context.window.fetch('/v1/admin/billing' + path)).status, 200, path);
 
