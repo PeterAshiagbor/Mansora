@@ -20,6 +20,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     cloud = await startCloud(); const client = await cloud.createClient('Deployment interface shop'); clientId = client.id;
     host = await startDevHost({ dataDir: tempDir(), port: 0, dbKey: randomUUID() });
     await host.engine.execute(null, 'activation.activate', { apiUrl: cloud.url, code: client.code, deviceName: 'UI acceptance', owner });
+    expect((await cloud.api('PUT', `/v1/admin/clients/${clientId}`, { name: 'Deployment interface shop', ownerName: owner.name, email: 'deployment@sample.example', status: 'active' })).status).toBe(200);
     planId = await mkPlan(cloud, { name: 'Deployment plan', price: 30000 });
     const sub = await subscribe(cloud, clientId, planId, { paymentMethod: 'manual' });
     expect((await cloud.api('POST', `/v1/admin/billing/invoices/${sub.invoiceId}/payment`, { amount: 30000, method: 'bank', reference: 'SYNTHETIC-UI-ONLY' })).status).toBe(200);
@@ -145,6 +146,29 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     const [popup] = await Promise.all([admin.waitForEvent('popup'), invoice.getByRole('button', { name: 'Open printable invoice', exact: true }).click()]);
     await popup.getByText('Deployment interface shop', { exact: false }).first().waitFor(); expect(await popup.evaluate(() => window.opener === null)).toBe(true); await popup.close();
     await invoice.getByRole('button', { name: 'Close', exact: true }).last().click(); expect(errors).toEqual([]);
+  });
+
+  it('does not refresh away a billing draft when focus returns after a provider visit', async () => {
+    cloud.clock.now = new Date(Date.now() + 35 * 86_400_000);
+    expect((await cloud.api('POST', '/v1/admin/billing/run/cycle')).status).toBe(200);
+    expect((await cloud.api('GET', `/v1/admin/billing/invoices?tenantId=${clientId}`)).body.some((i: any) => i.outstanding > 0)).toBe(true);
+    // Model the native browser-opening boundary without navigating to the provider.
+    await shop.evaluate(() => { window.open = (() => ({ opener: null, closed: false })) as any; });
+    await shop.getByRole('button', { name: 'Set up automatic payments', exact: true }).click();
+    let modal = shop.getByRole('dialog', { name: 'Set up automatic payments', exact: true });
+    await modal.getByRole('checkbox', { name: /I agree that Mansora may collect/ }).check();
+    const [started] = await Promise.all([shop.waitForResponse((r: any) => r.url().endsWith('/invoke') && r.request().postDataJSON()?.command === 'billing.mandate.start'), modal.getByRole('button', { name: 'Continue to secure page', exact: true }).click()]);
+    const result = await started.json(); expect(result.ok, result.error?.message).toBe(true);
+    await modal.waitFor({ state: 'detached' });
+    await shop.getByRole('button', { name: 'Set up automatic payments', exact: true }).click();
+    modal = shop.getByRole('dialog', { name: 'Set up automatic payments', exact: true });
+    const agree = modal.getByRole('checkbox', { name: /I agree that Mansora may collect/ }); await agree.check();
+    let summaryReads = 0;
+    await shop.route('**/invoke', (r: any) => { if (r.request().postDataJSON()?.command === 'billing.summary') summaryReads++; return r.continue(); });
+    await shop.evaluate(async () => { window.dispatchEvent(new Event('focus')); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    expect(await modal.isVisible()).toBe(true); expect(await agree.isChecked()).toBe(true); expect(summaryReads).toBe(0);
+    await modal.getByRole('button', { name: 'Cancel', exact: true }).click(); await shop.getByRole('dialog', { name: 'Discard unsaved changes?', exact: true }).getByRole('button', { name: 'Discard changes', exact: true }).click();
+    await shop.unroute('**/invoke'); expect(errors).toEqual([]);
   });
 
 });
