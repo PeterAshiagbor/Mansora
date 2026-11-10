@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fail, mulDivRound, PAYMENT_METHODS, priceCart, refundLineAmount, SETTLEMENT_METHODS, settlePayments, splitRefund, sum } from '@mansora/domain';
+import { fail, PAYMENT_METHODS, priceCart, refundLineAmount, SETTLEMENT_METHODS, settlePayments, splitRefund, sum } from '@mansora/domain';
 import { dayBounds, defineCommands, zApprover, zId, zMoney, zOptText, zQty, zRange, zText, type Ctx } from '../engine';
 import { renderReceiptHtml } from '../receipt';
 import { moveStock, nextNumber, openShift, requireOpenShift } from '../stock';
@@ -73,7 +73,7 @@ export const salesCommands = defineCommands({
       if (cart.discountTotal > 0) {
         // Optional owner-set ceiling (percent of the basket before discount). Above it, only the owner may approve.
         const maxBps = Number(ctx.setting('max_discount_bps') ?? 0);
-        if (maxBps > 0 && mulDivRound(cart.discountTotal, 10_000, cart.subtotal) > maxBps) {
+        if (maxBps > 0 && BigInt(cart.discountTotal) * 10_000n > BigInt(maxBps) * BigInt(cart.subtotal)) {
           const approverId = input.approver ? ctx.engine.verifyCredentials(input.approver.username, input.approver.password).id : ctx.user.id;
           if (ctx.engine.loadUser(approverId)?.role !== 'owner') fail('OWNER_APPROVAL_REQUIRED', `Discounts above ${maxBps / 100}% need the owner's approval`, { maxBps });
           discountApprovedBy = approverId;

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { DomainError, formatGHS, parseGHS, type Permission } from '@mansora/domain';
+import { DomainError, formatGHS, grossMarginBps, parseGHS, type Permission } from '@mansora/domain';
 import { Button, cx, Field, Input, Modal } from '@mansora/ui';
 
 export interface FileOut {
@@ -242,4 +242,10 @@ export function ExportButtons({ title, columns, rows }: { title: string; columns
       <Button size="sm" onClick={() => window.print()}>Print / PDF</Button>
     </>
   );
+}
+
+/** Catalogue gross margin; callers must enforce product.cost before displaying it. */
+export function marginLabel(price: number, cost: number): string {
+  const bps = grossMarginBps(price, cost);
+  return bps == null ? '—' : `${(bps / 100).toFixed(2)}%`;
 }
