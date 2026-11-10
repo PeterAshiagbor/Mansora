@@ -482,4 +482,194 @@ CREATE INDEX admin_totp_challenges_expiry ON admin_totp_challenges(expires_at);
 GRANT SELECT, INSERT, UPDATE, DELETE ON admin_totp, admin_totp_recovery_codes, admin_totp_challenges TO mansora_platform;
 `,
   },
+  {
+    id: 4,
+    name: 'billing',
+    sql: `
+-- Billing, System A: Mansora collects from its own clients. Platform plane only: no tenant-plane (business data) tables are touched,
+-- and the mansora_tenant role gets no access to any of these.
+ALTER TABLE service_plans
+  ADD COLUMN description text NOT NULL DEFAULT '',
+  ADD COLUMN category text NOT NULL DEFAULT 'subscription',
+  ADD COLUMN annual_price bigint CHECK (annual_price IS NULL OR annual_price >= 0),
+  ADD COLUMN currency text NOT NULL DEFAULT 'GHS' CHECK (currency = 'GHS'),
+  ADD COLUMN trial_days integer NOT NULL DEFAULT 0 CHECK (trial_days >= 0),
+  ADD COLUMN setup_fee bigint NOT NULL DEFAULT 0 CHECK (setup_fee >= 0),
+  ADD COLUMN effective_from date,
+  ADD COLUMN renewal_policy text NOT NULL DEFAULT '',
+  ADD COLUMN cancellation_policy text NOT NULL DEFAULT '',
+  ADD COLUMN addons text NOT NULL DEFAULT '[]';
+
+ALTER TABLE client_subscriptions DROP CONSTRAINT IF EXISTS client_subscriptions_status_check;
+ALTER TABLE client_subscriptions
+  ADD COLUMN agreed_amount bigint CHECK (agreed_amount IS NULL OR agreed_amount >= 0),
+  ADD COLUMN billing_frequency text NOT NULL DEFAULT 'monthly' CHECK (billing_frequency IN ('monthly','quarterly','yearly')),
+  ADD COLUMN start_date date,
+  ADD COLUMN billing_anchor date,
+  ADD COLUMN payment_method text CHECK (payment_method IN ('momo','card','bank','manual')),
+  ADD COLUMN mandate_id uuid,
+  ADD COLUMN activation_policy text NOT NULL DEFAULT 'first_payment' CHECK (activation_policy IN ('first_payment','mandate')),
+  ADD COLUMN discount_bps integer NOT NULL DEFAULT 0 CHECK (discount_bps BETWEEN 0 AND 10000),
+  ADD COLUMN discount_note text,
+  ADD COLUMN proration_enabled boolean NOT NULL DEFAULT false,
+  ADD COLUMN cancel_requested_at timestamptz,
+  ADD COLUMN cancel_reason text,
+  ADD COLUMN cancel_at_period_end boolean NOT NULL DEFAULT false,
+  ADD COLUMN paused_at timestamptz,
+  ADD COLUMN cancelled_at timestamptz,
+  ADD COLUMN last_payment_at timestamptz;
+ALTER TABLE client_subscriptions ADD CONSTRAINT client_subscriptions_status_check
+  CHECK (status IN ('draft','awaiting_approval','trial','active','payment_due','payment_failed','overdue','past_due','paused','cancelled','expired'));
+
+CREATE TABLE billing_accounts (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL UNIQUE REFERENCES tenants(id),
+  billing_name text NOT NULL, billing_email text, billing_phone text, address text, tax_id text,
+  vat_registered boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Who the money settles to. Credentials never live here: they are server environment variables. System B (a business collecting
+-- from its own customers) uses owner_type 'tenant' and must never share a row, mandate or settlement with Mansora's own.
+CREATE TABLE merchant_payment_accounts (
+  id uuid PRIMARY KEY, owner_type text NOT NULL CHECK (owner_type IN ('mansora','tenant')),
+  tenant_id uuid REFERENCES tenants(id), provider text NOT NULL, display_name text NOT NULL,
+  status text NOT NULL DEFAULT 'pending_verification' CHECK (status IN ('pending_verification','active','disabled')),
+  settlement_note text, created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK ((owner_type = 'mansora' AND tenant_id IS NULL) OR (owner_type = 'tenant' AND tenant_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX merchant_accounts_mansora_provider ON merchant_payment_accounts(provider) WHERE owner_type = 'mansora';
+CREATE UNIQUE INDEX merchant_accounts_tenant_provider ON merchant_payment_accounts(tenant_id, provider) WHERE owner_type = 'tenant';
+
+CREATE TABLE payment_mandates (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES tenants(id), subscription_id uuid REFERENCES client_subscriptions(id),
+  provider text NOT NULL, method text NOT NULL CHECK (method IN ('momo','card','bank')),
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','cancelled','failed','expired')),
+  provider_ref text, token_encrypted text, masked text, max_amount bigint NOT NULL CHECK (max_amount >= 0), frequency text NOT NULL,
+  consent_text text NOT NULL, consent_at timestamptz NOT NULL, approved_at timestamptz, cancelled_at timestamptz, cancel_reason text,
+  sandbox boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX mandates_one_active ON payment_mandates(tenant_id) WHERE status = 'active';
+ALTER TABLE client_subscriptions ADD CONSTRAINT client_subscriptions_mandate_fk FOREIGN KEY (mandate_id) REFERENCES payment_mandates(id);
+
+CREATE TABLE document_sequences (kind text NOT NULL, year integer NOT NULL, last integer NOT NULL, PRIMARY KEY (kind, year));
+
+CREATE TABLE invoices (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES tenants(id), subscription_id uuid REFERENCES client_subscriptions(id),
+  number text UNIQUE,
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','partially_paid','paid','disputed','cancelled','written_off')),
+  status_before_dispute text, is_initial boolean NOT NULL DEFAULT false,
+  issue_date date, due_date date, period_start date, period_end date,
+  currency text NOT NULL DEFAULT 'GHS' CHECK (currency = 'GHS'),
+  subtotal bigint NOT NULL DEFAULT 0, discount_total bigint NOT NULL DEFAULT 0,
+  tax_bps integer NOT NULL DEFAULT 0 CHECK (tax_bps BETWEEN 0 AND 10000), tax_total bigint NOT NULL DEFAULT 0,
+  total bigint NOT NULL DEFAULT 0 CHECK (total >= 0),
+  amount_paid bigint NOT NULL DEFAULT 0 CHECK (amount_paid >= 0), amount_refunded bigint NOT NULL DEFAULT 0 CHECK (amount_refunded >= 0),
+  amount_credited bigint NOT NULL DEFAULT 0 CHECK (amount_credited >= 0), amount_written_off bigint NOT NULL DEFAULT 0 CHECK (amount_written_off >= 0),
+  notes text, idempotency_key text UNIQUE, merchant_account_id uuid REFERENCES merchant_payment_accounts(id),
+  created_by uuid REFERENCES admins(id), created_at timestamptz NOT NULL DEFAULT now(),
+  sent_at timestamptz, viewed_at timestamptz, paid_at timestamptz, cancelled_at timestamptz,
+  CHECK (amount_refunded <= amount_paid)
+);
+CREATE INDEX invoices_tenant ON invoices(tenant_id, status);
+CREATE INDEX invoices_due ON invoices(due_date) WHERE status IN ('sent','partially_paid','disputed');
+
+CREATE TABLE invoice_line_items (
+  id uuid PRIMARY KEY, invoice_id uuid NOT NULL REFERENCES invoices(id), position integer NOT NULL, description text NOT NULL,
+  service_code text NOT NULL DEFAULT 'other', quantity integer NOT NULL CHECK (quantity > 0), unit_price bigint NOT NULL CHECK (unit_price >= 0),
+  discount bigint NOT NULL DEFAULT 0 CHECK (discount >= 0), line_total bigint NOT NULL CHECK (line_total >= 0)
+);
+
+CREATE TABLE payment_attempts (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES tenants(id), invoice_id uuid NOT NULL REFERENCES invoices(id),
+  mandate_id uuid REFERENCES payment_mandates(id), provider text NOT NULL,
+  kind text NOT NULL CHECK (kind IN ('checkout','mandate_setup','mandate_charge')),
+  amount bigint NOT NULL CHECK (amount > 0), currency text NOT NULL DEFAULT 'GHS',
+  status text NOT NULL DEFAULT 'initiated' CHECK (status IN ('initiated','awaiting_customer','pending','successful','failed','cancelled')),
+  reference text NOT NULL UNIQUE, idempotency_key text NOT NULL UNIQUE, attempt_no integer NOT NULL DEFAULT 1,
+  checkout_url text, provider_txn_id text, failure_reason text, sandbox boolean NOT NULL DEFAULT false,
+  requested_by text NOT NULL DEFAULT 'system',
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz
+);
+-- The database itself refuses a second in-flight payment request for the same invoice, so concurrent scheduler runs cannot double-charge.
+CREATE UNIQUE INDEX payment_attempts_one_in_flight ON payment_attempts(invoice_id) WHERE status IN ('initiated','awaiting_customer','pending');
+
+CREATE TABLE settlements (
+  id uuid PRIMARY KEY, provider text NOT NULL, merchant_account_id uuid REFERENCES merchant_payment_accounts(id), reference text NOT NULL,
+  settled_on date NOT NULL, gross bigint NOT NULL, fees bigint NOT NULL DEFAULT 0, net bigint NOT NULL,
+  created_by uuid REFERENCES admins(id), created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (provider, reference), CHECK (net = gross - fees)
+);
+
+CREATE TABLE billing_payments (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES tenants(id),
+  method text NOT NULL CHECK (method IN ('momo','card','bank','cash','other')), provider text,
+  attempt_id uuid UNIQUE REFERENCES payment_attempts(id), provider_txn_id text, reference text,
+  amount bigint NOT NULL CHECK (amount > 0), fee bigint NOT NULL DEFAULT 0 CHECK (fee >= 0),
+  amount_refunded bigint NOT NULL DEFAULT 0 CHECK (amount_refunded >= 0), currency text NOT NULL DEFAULT 'GHS',
+  status text NOT NULL DEFAULT 'successful' CHECK (status IN ('successful','partially_refunded','refunded','disputed')),
+  sandbox boolean NOT NULL DEFAULT false, received_at timestamptz NOT NULL, receipt_number text NOT NULL UNIQUE,
+  recorded_by uuid REFERENCES admins(id), notes text, settlement_id uuid REFERENCES settlements(id),
+  created_at timestamptz NOT NULL DEFAULT now(), CHECK (amount_refunded <= amount)
+);
+CREATE UNIQUE INDEX billing_payments_provider_txn ON billing_payments(provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL;
+CREATE INDEX billing_payments_tenant_time ON billing_payments(tenant_id, received_at);
+
+CREATE TABLE payment_allocations (
+  id uuid PRIMARY KEY, payment_id uuid NOT NULL REFERENCES billing_payments(id), invoice_id uuid NOT NULL REFERENCES invoices(id),
+  amount bigint NOT NULL CHECK (amount > 0), refunded bigint NOT NULL DEFAULT 0 CHECK (refunded >= 0 AND refunded <= amount), UNIQUE (payment_id, invoice_id)
+);
+CREATE TABLE billing_refunds (
+  id uuid PRIMARY KEY, payment_id uuid NOT NULL REFERENCES billing_payments(id), amount bigint NOT NULL CHECK (amount > 0), reason text NOT NULL,
+  status text NOT NULL DEFAULT 'completed' CHECK (status IN ('pending_provider','completed','failed')), provider_ref text,
+  created_by uuid REFERENCES admins(id), created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE credit_notes (
+  id uuid PRIMARY KEY, invoice_id uuid NOT NULL REFERENCES invoices(id), number text NOT NULL UNIQUE, amount bigint NOT NULL CHECK (amount > 0),
+  reason text NOT NULL, created_by uuid REFERENCES admins(id), created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE disputes (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES tenants(id), invoice_id uuid NOT NULL REFERENCES invoices(id),
+  payment_id uuid REFERENCES billing_payments(id), reason text NOT NULL, status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
+  resolution text, opened_by text NOT NULL, opened_at timestamptz NOT NULL DEFAULT now(), resolved_at timestamptz
+);
+CREATE UNIQUE INDEX disputes_one_open ON disputes(invoice_id) WHERE status = 'open';
+
+CREATE TABLE notifications (
+  id uuid PRIMARY KEY, tenant_id uuid REFERENCES tenants(id), channel text NOT NULL DEFAULT 'email', to_address text,
+  subject text NOT NULL, body text NOT NULL, status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','sent','failed','skipped')),
+  error text, invoice_id uuid REFERENCES invoices(id), kind text NOT NULL DEFAULT 'general',
+  created_at timestamptz NOT NULL DEFAULT now(), sent_at timestamptz
+);
+CREATE TABLE collection_reminders (
+  id uuid PRIMARY KEY, invoice_id uuid NOT NULL REFERENCES invoices(id), step text NOT NULL, due_on date NOT NULL,
+  status text NOT NULL CHECK (status IN ('sent','skipped','failed')), notification_id uuid REFERENCES notifications(id),
+  created_at timestamptz NOT NULL DEFAULT now(), UNIQUE (invoice_id, step)
+);
+
+-- Every provider event ever received. The unique key is what makes a repeated delivery harmless.
+CREATE TABLE billing_events (
+  id uuid PRIMARY KEY, provider text NOT NULL, event_id text NOT NULL, type text NOT NULL, payload text NOT NULL,
+  outcome text NOT NULL DEFAULT 'received', detail text, received_at timestamptz NOT NULL DEFAULT now(), UNIQUE (provider, event_id)
+);
+CREATE TABLE billing_audit_logs (
+  id uuid PRIMARY KEY, actor_type text NOT NULL, actor_id text, action text NOT NULL, entity_type text NOT NULL, entity_id text,
+  tenant_id uuid, detail text NOT NULL DEFAULT '{}', occurred_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX billing_audit_entity ON billing_audit_logs(entity_type, entity_id);
+CREATE FUNCTION billing_audit_immutable() RETURNS trigger AS $fn$ BEGIN RAISE EXCEPTION 'billing audit records cannot be changed or deleted'; END $fn$ LANGUAGE plpgsql;
+CREATE TRIGGER billing_audit_no_change BEFORE UPDATE OR DELETE ON billing_audit_logs FOR EACH ROW EXECUTE FUNCTION billing_audit_immutable();
+
+CREATE TABLE billing_exceptions (
+  id uuid PRIMARY KEY, dedupe_key text NOT NULL UNIQUE, kind text NOT NULL, tenant_id uuid, invoice_id uuid, payment_id uuid, attempt_id uuid,
+  detail text NOT NULL, status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')), resolution text,
+  resolved_by uuid REFERENCES admins(id), resolved_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE billing_settings (key text PRIMARY KEY, value text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now());
+
+GRANT SELECT, INSERT, UPDATE ON billing_accounts, merchant_payment_accounts, payment_mandates, document_sequences, invoices, payment_attempts,
+  settlements, billing_payments, billing_refunds, disputes, notifications, collection_reminders, billing_events, billing_exceptions, billing_settings TO mansora_platform;
+GRANT SELECT, INSERT, DELETE ON invoice_line_items TO mansora_platform;
+GRANT SELECT, INSERT, UPDATE ON payment_allocations TO mansora_platform;
+GRANT SELECT, INSERT ON credit_notes, billing_audit_logs TO mansora_platform;
+`,
+  },
 ];

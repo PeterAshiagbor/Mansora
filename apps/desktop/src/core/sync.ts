@@ -15,7 +15,7 @@ function pendingCount(engine: Engine): number {
   return (engine.db.prepare(`SELECT COUNT(*) AS n FROM outbox WHERE status = 'pending'`).get() as { n: number }).n;
 }
 
-async function call(engine: Engine, path: string, init: RequestInit): Promise<any> {
+export async function call(engine: Engine, path: string, init: RequestInit): Promise<any> {
   const res = await engine.fetch(`${engine.meta('api_url')}${path}`, {
     ...init,
     headers: { authorization: `Bearer ${engine.meta('device_token')}`, ...(init.body && typeof init.body === 'string' ? { 'content-type': 'application/json' } : {}), ...init.headers },

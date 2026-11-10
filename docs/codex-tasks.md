@@ -6,8 +6,8 @@ Take them in order; each is one pull request.
 ## Ground rules
 
 1. Branch from the latest `claude/relaxed-lovelace-0179ut` (the default branch). One branch and one pull request per task, named `codex/<task-id>-<short-name>`. Rebase before opening the PR.
-2. **Do not edit** `apps/desktop/src/core/**`, `packages/domain/src/sync.ts`, `apps/api/src/modules/device.ts` or `tests/sync/**`. Claude owns these. Migration `id: 2` is already taken; start at `3`. If a task seems to need a change there, write what you need in the PR description instead.
-3. Never edit a released migration. Add `id: 2`, `3`, … to `apps/api/src/migrations/index.ts`. New tenant tables need the same row-level-security block as the existing ones; new platform tables need a `GRANT` to `mansora_platform` only.
+2. **Do not edit** `apps/desktop/src/core/**`, `packages/domain/src/sync.ts`, `apps/api/src/modules/device.ts` or `tests/sync/**`. Claude owns these. Migrations `2`–`4` are taken (`4` is billing); start at `5`. If a task seems to need a change there, write what you need in the PR description instead.
+3. Never edit a released migration. Add `id: 5`, `6`, … to `apps/api/src/migrations/index.ts`. New tenant tables need the same row-level-security block as the existing ones; new platform tables need a `GRANT` to `mansora_platform` only.
 4. All database access goes through `db.platform()` or `db.tenant()`. Admin code must never read a business table outside the consent-checked report path.
 5. Money is integer pesewas. No floating-point money.
 6. Every task ships tests. `npm run typecheck`, `npm run build`, `npm test` and `npm audit` must pass. Do not skip, weaken or delete existing tests.
@@ -111,3 +111,14 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 **Scope:** Shared brand assets/tokens/component, desktop and admin shells/sign-in, local asset serving, desktop icon configuration and branding browser tests.
 **Evidence:** See [branding](operations/branding.md). The provider brand accompanies client workspace names; receipt merchant identities remain client businesses. No subscription enforcement or legal terms are inferred from the branding.
 
+
+
+### C12 — Email delivery adapter for billing messages
+**Scope:** new file under `apps/api/src/billing/` implementing `EmailAdapter` (see `core.ts`), wired in `createBillingFromEnv`; tests with a local fake SMTP/API server. Needs an email provider decision (Mansora blocker B5), so build against a provider-neutral SMTP or HTTP interface and keep `NoEmail` as the default when unconfigured.
+**Done when:** queued notifications are delivered and marked `sent`/`failed`; failures retry without duplicating; no message body is logged; `docs/billing/provider-onboarding.md` is updated.
+
+### C13 — Hubtel adapter (only after Hubtel confirms)
+**Blocked** until Mansora supplies Hubtel's written confirmation of the recurring Mobile Money API, mandate rules, fees and sandbox credentials (blocker B4). Do not guess endpoints. Implement `providers/hubtel.ts` against the sandbox, with capability flags set only to what is confirmed, plus contract tests with a local fake.
+
+### C14 — Printable PDF invoices and receipts
+**Scope:** `apps/api/src/billing/documents.ts`. The current output is printable HTML. Add server-side PDF only if it needs no heavy new dependency (otherwise keep HTML print). Tests compare totals, numbers and issuer details.

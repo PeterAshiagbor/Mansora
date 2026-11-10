@@ -5,6 +5,7 @@ import { ZodError } from 'zod';
 import type { Database } from './db';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
+import { createBillingFromEnv, registerBillingRoutes, type Billing } from './billing';
 import { HttpError } from './security';
 import { BackupStorageError, FileStorage, type BackupStorage } from './storage';
 import { installObservability, loggerOptions, requestId, safeError, type ObservabilityOptions } from './observability';
@@ -20,6 +21,8 @@ export interface AppOptions extends Omit<AppContext, 'backupStorage'>, Observabi
   backupStorage?: BackupStorage;
   adminOrigins?: string[];
   logger?: boolean;
+  /** Billing and payment collection. Created from the environment when not supplied. */
+  billing?: Billing;
   /** Explicit proxy addresses/CIDRs only; forwarded headers are untrusted by default. */
   trustProxy?: string[];
 }
@@ -59,5 +62,6 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.setNotFoundHandler((req, reply) => reply.code(404).send({ code: 'NOT_FOUND', message: 'Not found', requestId: req.id }));
   registerDeviceRoutes(app, context);
   registerAdminRoutes(app, context);
+  registerBillingRoutes(app, opts.billing ?? createBillingFromEnv(opts.db).billing);
   return app;
 }

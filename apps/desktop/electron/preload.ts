@@ -9,5 +9,6 @@ contextBridge.exposeInMainWorld('mansora', {
   print: (html: string) => ipcRenderer.invoke('mansora:print', html),
   savePdf: (html: string, fileName: string) => ipcRenderer.invoke('mansora:savePdf', html, fileName),
   saveFile: (file: { fileName: string; mime: string; contentBase64: string }) => ipcRenderer.invoke('mansora:saveFile', file),
+  openExternal: (url: string) => ipcRenderer.invoke('mansora:openExternal', url),
   restore: (passphrase: string) => ipcRenderer.invoke('mansora:restore', passphrase),
 });

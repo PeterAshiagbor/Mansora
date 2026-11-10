@@ -1,8 +1,12 @@
+import { randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../apps/api/src/app';
 import { connectEmbedded, connectPostgres, type Database } from '../apps/api/src/db';
 import { createAdmin } from '../apps/api/src/modules/admin';
+import { NoEmail, type Billing } from '../apps/api/src/billing';
+import { createProviders } from '../apps/api/src/billing/providers/registry';
+import type { SandboxProvider } from '../apps/api/src/billing/providers/sandbox';
 import { tempDir } from './helpers';
 
 export const ADMIN = { email: 'admin@mansora.test', name: 'Mansora Admin', password: 'admin-password-123' };
@@ -14,6 +18,10 @@ export interface Cloud {
   adminToken: string;
   api: <T = any>(method: string, path: string, body?: unknown, token?: string | null) => Promise<{ status: number; body: T }>;
   createClient: (name: string) => Promise<{ id: string; code: string }>;
+  /** Billing wiring: a controllable clock and the sandbox provider (no real money). */
+  billing: Billing;
+  sandbox: SandboxProvider;
+  clock: { now: Date };
   close: () => Promise<void>;
 }
 
@@ -23,9 +31,15 @@ export async function startCloud(): Promise<Cloud> {
   const db = process.env.TEST_DATABASE_URL ? await connectPostgres(process.env.TEST_DATABASE_URL) : await connectEmbedded();
   await db.migrate();
   await db.platform((q) => createAdmin(q, ADMIN));
-  const app = await buildApp({ db, backupDir: tempDir('mansora-cloud-backups-') });
+  const clock = { now: new Date() };
+  const env = { publicBaseUrl: 'http://127.0.0.1:0', payLinkSecret: 'test-pay-link-secret', encryptionKey: randomBytes(32), adminEmail: 'billing-admin@mansora.test' };
+  const { registry, sandbox } = createProviders({ allowSandbox: true, publicBaseUrl: env.publicBaseUrl });
+  const billing: Billing = { db, providers: registry, email: new NoEmail(), env, now: () => clock.now };
+  const app = await buildApp({ db, backupDir: tempDir('mansora-cloud-backups-'), billing });
   await app.listen({ port: 0, host: '127.0.0.1' });
   const url = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
+  env.publicBaseUrl = url;
+  sandbox!.baseUrl = url;
   let adminToken = '';
   const api: Cloud['api'] = async (method, path, body, token) => {
     const t = token === undefined ? adminToken : token;
@@ -45,7 +59,7 @@ export async function startCloud(): Promise<Cloud> {
   };
   adminToken = (await api('POST', '/v1/admin/login', { email: ADMIN.email, password: ADMIN.password }, null)).body.token;
   return {
-    url, db, app, adminToken, api,
+    url, db, app, adminToken, api, billing, sandbox: sandbox!, clock,
     createClient: async (name) => {
       const { body } = await api('POST', '/v1/admin/clients', { name, ownerName: 'Owner of ' + name, phone: '0240000000', address: 'Accra' });
       const code = (await api('POST', `/v1/admin/clients/${body.id}/activation-codes`)).body.code;

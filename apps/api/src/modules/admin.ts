@@ -218,7 +218,14 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   });
 
   // ----- Module C: service plans -----
-  const planBody = z.object({ name: text(80), price: z.number().int().nonnegative(), billingPeriod: z.enum(['monthly', 'quarterly', 'yearly']), includedSupport: z.string().max(1000).default(''), active: z.boolean().default(true) });
+  const planBody = z.object({
+    name: text(80), price: z.number().int().nonnegative(), billingPeriod: z.enum(['monthly', 'quarterly', 'yearly']), includedSupport: z.string().max(1000).default(''), active: z.boolean().default(true),
+    description: z.string().max(1000).default(''), category: z.enum(['subscription', 'support', 'consultancy', 'managed']).default('subscription'),
+    annualPrice: z.number().int().nonnegative().nullish().transform((v) => v ?? null), trialDays: z.number().int().min(0).max(365).default(0), setupFee: z.number().int().nonnegative().default(0),
+    effectiveFrom: zDate.nullish().transform((v) => v ?? null), renewalPolicy: z.string().max(500).default(''), cancellationPolicy: z.string().max(500).default(''),
+    addons: z.array(z.object({ name: z.string().trim().min(1).max(80), price: z.number().int().nonnegative() })).max(20).default([]),
+  });
+  const planValues = (b: z.infer<typeof planBody>) => [b.name, b.price, b.billingPeriod, b.includedSupport, b.active, b.description, b.category, b.annualPrice, b.trialDays, b.setupFee, b.effectiveFrom, b.renewalPolicy, b.cancellationPolicy, JSON.stringify(b.addons)];
   app.get('/v1/admin/plans', async (req) => {
     await admin(req);
     return db.platform((q) => q(`SELECT p.*, (SELECT COUNT(*) FROM client_subscriptions s WHERE s.plan_id = p.id AND s.status IN ('trial','active')) AS active_clients FROM service_plans p ORDER BY p.price`));
@@ -228,7 +235,8 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const b = planBody.parse(req.body);
     const id = randomUUID();
     await db.platform(async (q) => {
-      await q(`INSERT INTO service_plans (id, name, price, billing_period, included_support, active) VALUES ($1, $2, $3, $4, $5, $6)`, [id, b.name, b.price, b.billingPeriod, b.includedSupport, b.active]);
+      await q(`INSERT INTO service_plans (id, name, price, billing_period, included_support, active, description, category, annual_price, trial_days, setup_fee, effective_from, renewal_policy, cancellation_policy, addons)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, [id, ...planValues(b)]);
       await audit(q, a, 'plan.created', null, { id, ...b });
     });
     return { id };
@@ -238,7 +246,8 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const { id } = zId.parse(req.params);
     const b = planBody.parse(req.body);
     await db.platform(async (q) => {
-      const r = await q(`UPDATE service_plans SET name = $2, price = $3, billing_period = $4, included_support = $5, active = $6 WHERE id = $1 RETURNING id`, [id, b.name, b.price, b.billingPeriod, b.includedSupport, b.active]);
+      const r = await q(`UPDATE service_plans SET name = $2, price = $3, billing_period = $4, included_support = $5, active = $6, description = $7, category = $8, annual_price = $9, trial_days = $10, setup_fee = $11,
+        effective_from = $12, renewal_policy = $13, cancellation_policy = $14, addons = $15 WHERE id = $1 RETURNING id`, [id, ...planValues(b)]);
       if (!r.length) httpError(404, 'NOT_FOUND', 'Plan not found');
       await audit(q, a, 'plan.updated', null, { id, ...b });
     });
@@ -277,7 +286,8 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         const done = step === 'create_account';
         await q(`INSERT INTO onboarding_steps (tenant_id, step, completed_at, completed_by) VALUES ($1, $2, $3, $4)`, [id, step, done ? new Date().toISOString() : null, done ? a.id : null]);
       }
-      if (b.planId) await q(`INSERT INTO client_subscriptions (id, tenant_id, plan_id, status) VALUES ($1, $2, $3, 'trial')`, [randomUUID(), id, b.planId]);
+      // A new client starts with a draft subscription at the plan's price. It is activated through Subscriptions, which invoices it.
+      if (b.planId) await q(`INSERT INTO client_subscriptions (id, tenant_id, plan_id, status, agreed_amount, billing_frequency) SELECT $1, $2, p.id, 'draft', p.price, p.billing_period FROM service_plans p WHERE p.id = $3`, [randomUUID(), id, b.planId]);
       await audit(q, a, 'client.created', id, { name: b.name });
     });
     return { id };
@@ -337,8 +347,12 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const b = z.object({ planId: z.string().uuid(), status: z.enum(['trial', 'active', 'past_due', 'cancelled']), renewalDate: zDate.nullish() }).parse(req.body);
     await db.platform(async (q) => {
       await q(
-        `INSERT INTO client_subscriptions (id, tenant_id, plan_id, status, renewal_date) VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (tenant_id) DO UPDATE SET plan_id = EXCLUDED.plan_id, status = EXCLUDED.status, renewal_date = EXCLUDED.renewal_date, updated_at = now()`,
+        // Kept for compatibility. It fills in the billing fields so a subscription set up this way can still be invoiced by the billing cycle.
+        `INSERT INTO client_subscriptions (id, tenant_id, plan_id, status, renewal_date, agreed_amount, billing_frequency, billing_anchor, start_date)
+         SELECT $1, $2, p.id, $4, $5::date, p.price, p.billing_period, $5::date, COALESCE($5::date, CURRENT_DATE) FROM service_plans p WHERE p.id = $3
+         ON CONFLICT (tenant_id) DO UPDATE SET plan_id = EXCLUDED.plan_id, status = EXCLUDED.status, renewal_date = EXCLUDED.renewal_date, updated_at = now(),
+           agreed_amount = COALESCE(client_subscriptions.agreed_amount, EXCLUDED.agreed_amount), billing_frequency = EXCLUDED.billing_frequency,
+           billing_anchor = COALESCE(EXCLUDED.billing_anchor, client_subscriptions.billing_anchor), start_date = COALESCE(client_subscriptions.start_date, EXCLUDED.start_date)`,
         [randomUUID(), id, b.planId, b.status, b.renewalDate ?? null],
       );
       await audit(q, a, 'subscription.updated', id, b);

@@ -103,6 +103,15 @@ function registerIpc(): void {
     return { ok: true };
   });
   /** Restore a backup onto a laptop that has not been activated yet (never over live data). */
+  // Payment pages open in the client's own browser. Only https (or a local test server) is allowed, never file: or custom schemes.
+  handle('mansora:openExternal', async (_e, url: unknown) => {
+    let u: URL;
+    try { u = new URL(String(url)); } catch { return { ok: false, message: 'That link is not valid' }; }
+    const local = u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+    if (u.protocol !== 'https:' && !local) return { ok: false, message: 'Only secure links can be opened' };
+    await shell.openExternal(u.toString());
+    return { ok: true };
+  });
   handle('mansora:restore', async (_e, passphrase: string) => {
     if (engine.activated) return { ok: false, message: 'This laptop already holds a business. Restore is only possible on a fresh installation.' };
     const pick = await dialog.showOpenDialog(win!, { properties: ['openFile'], filters: [{ name: 'Mansora backup', extensions: ['mbk'] }] });

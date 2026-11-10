@@ -12,6 +12,7 @@ interface Bridge {
   print?(html: string): Promise<{ ok: boolean; message?: string }>;
   savePdf?(html: string, fileName: string): Promise<{ ok: boolean; message?: string }>;
   saveFile?(file: FileOut): Promise<{ ok: boolean; message?: string }>;
+  openExternal?(url: string): Promise<{ ok: boolean; message?: string }>;
   restore?(passphrase: string): Promise<{ ok: boolean; message?: string; summary?: { businessName: string; sales: number; products: number } }>;
 }
 declare global {
@@ -25,10 +26,16 @@ const bridge: Bridge = window.mansora ?? {
   invoke: async (command, input) => (await fetch('/invoke', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ command, input }) })).json(),
 };
 
+export async function openExternal(url: string): Promise<void> {
+  if (bridge.openExternal) {
+    const r = await bridge.openExternal(url);
+    if (!r.ok) throw new DomainError('CANNOT_OPEN', r.message ?? 'Could not open the link');
+  } else window.open(url, '_blank', 'noopener');
+}
 export const canRestore = () => !!bridge.restore;
 export const restoreBackup = (passphrase: string) => bridge.restore!(passphrase);
 
-const READ_ONLY = /\.(list|get|status|queue|current|overview|movements|lookup|receipt|dashboard|sales|profit|stock|state|preview|history|template|table)$/;
+const READ_ONLY = /\.(list|get|status|queue|current|overview|movements|lookup|receipt|dashboard|sales|profit|stock|state|preview|history|template|table|summary|document)$/;
 
 export async function call<T = any>(command: string, input: unknown = {}): Promise<T> {
   const res = await bridge.invoke(command, input);

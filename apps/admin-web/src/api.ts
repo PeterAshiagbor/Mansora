@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-const BASE: string = (window as any).MANSORA_API_URL ?? 'http://localhost:4000';
+export const BASE: string = (window as any).MANSORA_API_URL ?? 'http://localhost:4000';
 const KEY = 'mansora-admin-token';
 
 // The token lives in sessionStorage: it is gone when the browser tab closes, and the server expires it after 12 hours.

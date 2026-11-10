@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
 import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea } from '@mansora/ui';
 import { api, getToken, setToken, useApi } from './api';
+import { Collections, Invoices, PaymentSettings, Payments, RevenueReports, Subscriptions } from './billing';
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 const ago = (iso?: string | null) => {
@@ -42,7 +43,7 @@ export function App() {
   }, []);
   if (!signedIn) return <Login onDone={() => setSignedIn(true)} />;
   const go = (id: string, param?: string) => setPage({ id, param });
-  const nav = [['overview', 'Overview'], ['clients', 'Clients'], ['plans', 'Service plans'], ['audit', 'Audit log'], ['security', 'Account security']];
+  const nav = [['overview', 'Overview'], ['clients', 'Clients'], ['plans', 'Service plans'], ['collections', 'Collections'], ['subscriptions', 'Subscriptions'], ['invoices', 'Invoices'], ['payments', 'Payments'], ['revenue', 'Revenue reports'], ['paysettings', 'Payment settings'], ['audit', 'Audit log'], ['security', 'Account security']];
   return (
     <div className="flex h-full">
       <nav aria-label="Main" className="flex w-52 shrink-0 flex-col overflow-y-auto bg-brand-900 text-brand-100">
@@ -60,6 +61,12 @@ export function App() {
         {page.id === 'clients' && <Clients go={go} />}
         {page.id === 'client' && page.param && <Client id={page.param} go={go} />}
         {page.id === 'plans' && <Plans />}
+        {page.id === 'collections' && <Collections go={go} />}
+        {page.id === 'subscriptions' && <Subscriptions go={go} />}
+        {page.id === 'invoices' && <Invoices />}
+        {page.id === 'payments' && <Payments />}
+        {page.id === 'revenue' && <RevenueReports />}
+        {page.id === 'paysettings' && <PaymentSettings />}
         {page.id === 'audit' && <Audit />}
         {page.id === 'security' && <AccountSecurity />}
       </main>

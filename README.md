@@ -17,7 +17,7 @@ is done, what is not, and the evidence.
 | --- | --- | --- |
 | Shop laptop app | `apps/desktop` | Electron + React. Sells, tracks stock, credit, shifts, expenses and reports with **no internet**. Local encrypted SQLite. |
 | Cloud API | `apps/api` | Fastify + PostgreSQL. Device activation, idempotent sync, client administration, consent-based support access. |
-| Admin dashboard | `apps/admin-web` | React. Mansora's client directory, onboarding, plans, health and audit. |
+| Admin dashboard | `apps/admin-web` | React. Mansora's client directory, onboarding, plans, health, audit, **subscriptions, invoices, payments, collections and revenue reports**. |
 | Business rules | `packages/domain` | Money, pricing, refunds, cash reconciliation, costing, permissions and the sync contract. No UI, no database. |
 | UI kit | `packages/ui` | Mansora brand and accessible components shared by both interfaces. |
 | Tests | `tests` | Unit, integration, sync, security and browser end-to-end tests. |
@@ -76,5 +76,6 @@ giving an installer to a client. Details: [docs/installation](docs/installation/
 - [Local development](docs/installation/local-development.md) · [Production deployment](docs/installation/production-deployment.md)
 - [Client onboarding](docs/onboarding/client-onboarding.md) · [Hardware test script](docs/onboarding/hardware-test-script.md)
 - [Cashier guide](docs/user-guide/cashier.md) · [Owner guide](docs/user-guide/owner.md) · [Mansora administrator guide](docs/operations/admin-guide.md)
+- [Payment collection and subscriptions: architecture](docs/billing/architecture.md) · [Provider checklist and integration blockers](docs/billing/provider-onboarding.md) · [Billing runbook](docs/billing/runbook.md)
 - [Security audit and hardening](docs/security-audit.md)
 - [Backup and recovery](docs/disaster-recovery/backup-and-recovery.md) · [Incident response](docs/operations/incident-response.md) · [Releases](docs/operations/release.md)

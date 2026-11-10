@@ -10,6 +10,7 @@ import { PurchasesPage, StockPage } from './pages/Stock';
 import { CreditPage, CustomersPage } from './pages/Customers';
 import { ExpensesPage, ShiftsPage } from './pages/Shifts';
 import { ReportsPage } from './pages/Reports';
+import { BillingPage } from './pages/Billing';
 import { AuditPage, BackupPage, DataPage, SettingsPage, StaffPage, SupportPage, SyncPage } from './pages/Admin';
 
 interface NavItem {
@@ -57,6 +58,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { id: 'staff', label: 'Staff', perm: 'staff.manage', render: () => <StaffPage /> },
       { id: 'settings', label: 'Settings', render: () => <SettingsPage /> },
       { id: 'data', label: 'Import & export', perm: 'data.import', render: () => <DataPage /> },
+      { id: 'billing', label: 'Billing & payments', perm: 'billing.view', render: () => <BillingPage /> },
       { id: 'sync', label: 'Sync status', render: () => <SyncPage /> },
       { id: 'backup', label: 'Backup & recovery', perm: 'backup.manage', render: () => <BackupPage /> },
       { id: 'support', label: 'Mansora access', perm: 'support.grant', render: () => <SupportPage /> },

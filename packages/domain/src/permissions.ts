@@ -25,6 +25,8 @@ export const PERMISSIONS = {
   'backup.manage': 'Create and restore backups',
   'audit.view': 'View audit history',
   'support.grant': 'Grant or revoke Mansora support access',
+  'billing.view': 'View the Mansora subscription, invoices and receipts',
+  'billing.manage': 'Pay Mansora invoices and manage automatic payments',
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -33,7 +35,7 @@ export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
 export const ROLES = ['owner', 'manager', 'cashier'] as const;
 export type Role = (typeof ROLES)[number];
 
-const MANAGER_DENIED: Permission[] = ['staff.manage', 'settings.manage', 'support.grant', 'data.export', 'backup.manage', 'audit.view'];
+const MANAGER_DENIED: Permission[] = ['staff.manage', 'settings.manage', 'support.grant', 'data.export', 'backup.manage', 'audit.view', 'billing.view', 'billing.manage'];
 
 /** Default permissions a role starts with. Owners can adjust manager/cashier permissions per person. */
 export const ROLE_DEFAULTS: Record<Role, Permission[]> = {

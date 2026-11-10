@@ -33,10 +33,12 @@ production cloud exists; and the legal, privacy and commercial items are open.
 - Sync status, encrypted backup with verification, restore onto a fresh laptop
 - Owner password recovery with a one-time code; rebuilding a replacement laptop from cloud data; re-linking a restored laptop; re-sending synced records
 - Owner-controlled Mansora access with a visible access log; audit history
+- **Billing & payments** screen (owner only by default): plan, fee, what is due, pay now through the provider's own page, set up or cancel automatic payments, ask to cancel, invoices and receipts to print or save; shows the last known state when offline
 
 **Cloud API and admin dashboard**
-- Client directory, 12-step onboarding checklist, service plans and subscriptions (recorded, not collected), activation codes, laptop deactivation
+- Client directory, 12-step onboarding checklist, service plans, and subscriptions, activation codes, laptop deactivation
 - Client health: last sync, unsynced count, app version, last backup, connectivity, "data may be incomplete" flag
+- **Revenue collection (System A):** plans with trial/setup fee/policies, subscription lifecycle, invoices (idempotent per period), payments, refunds, credit notes, write-offs, disputes, provider payouts, reminders, retries, reconciliation, collections table, revenue reports and CSV exports, payment settings. Provider adapters: sandbox (tests), Paystack (cards and one-off checkout, fake-server verified), Hubtel (blocked stub). See [billing architecture](billing/architecture.md)
 - Idempotent sync ingest; encrypted backup storage
 - Consent-gated sales summary; platform overview with no client financial data; administrator audit log
 
@@ -74,7 +76,7 @@ CI (GitHub Actions, run 42702980256): the Linux job passes typecheck, build, all
 4. **No production cloud**, monitoring, error reporting or backup schedule.
 5. Owner password recovery, rebuilding a laptop from cloud data, re-linking a restored laptop and re-sending records are built and tested in software, **not rehearsed on physical laptops**.
 6. Automatic daily backups exist but are off until the owner switches them on, and only run while the app is open.
-7. **Subscription expiry is not enforced** (policy undecided).
+7. **Subscription expiry is not enforced** (policy undecided). Billing never suspends a client automatically.
 8. **One administrator role, no two-factor authentication.**
 9. **Receipts**: no logo, no online sharing; PDF uses the printer page size.
 10. **Whole-unit quantities only**; no price override at the till; no discount limits.
@@ -82,7 +84,9 @@ CI (GitHub Actions, run 42702980256): the Linux job passes typecheck, build, all
 12. **Remote permission changes** from the cloud are not implemented; staff are managed on the laptop.
 13. **Accessibility** has had no formal audit; it has labels, focus handling and keyboard support but has not been tested with a screen reader.
 14. **Performance** has not been measured with a large catalogue (tens of thousands of products).
-15. `npm audit` reports no known vulnerabilities (two transitive packages are pinned to patched versions by overrides).
+15. **Payments (System A) are built but have never moved real money.** Verified only against a sandbox provider and a local fake Paystack server. There is no live Paystack or Hubtel account, no confirmed Hubtel recurring Mobile Money API, and no email provider, so reminders are queued, not delivered. See [integration blockers](billing/provider-onboarding.md).
+16. Billing invoices and receipts are printable HTML, not PDF files; reports export as CSV, not native Excel. System B (clients collecting from their own customers) is **not built**.
+17. `npm audit` reports no known vulnerabilities (two transitive packages are pinned to patched versions by overrides).
 
 ## Remaining work
 

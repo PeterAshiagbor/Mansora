@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { authCommands } from './commands/auth';
+import { billingCommands } from './commands/billing';
 import { catalogCommands } from './commands/catalog';
 import { peopleCommands } from './commands/people';
 import { reportCommands } from './commands/reports';
@@ -16,7 +17,7 @@ export * from './backup';
 export { renderReceiptHtml } from './receipt';
 export { runScheduledBackup } from './commands/system';
 
-export const ALL_COMMANDS = { ...authCommands, ...catalogCommands, ...salesCommands, ...peopleCommands, ...reportCommands, ...systemCommands };
+export const ALL_COMMANDS = { ...authCommands, ...catalogCommands, ...salesCommands, ...peopleCommands, ...reportCommands, ...systemCommands, ...billingCommands };
 export type CommandName = keyof typeof ALL_COMMANDS;
 
 export function createEngine(opts: EngineOptions & { dbKey?: string | null }): Engine {
