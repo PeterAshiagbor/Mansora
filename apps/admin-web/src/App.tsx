@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea } from '@mansora/ui';
+import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea } from '@mansora/ui';
 import { api, getToken, setToken, useApi } from './api';
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : '—');
@@ -43,15 +43,15 @@ export function App() {
   const nav = [['overview', 'Overview'], ['clients', 'Clients'], ['plans', 'Service plans'], ['audit', 'Audit log'], ['security', 'Account security']];
   return (
     <div className="flex h-full">
-      <nav aria-label="Main" className="flex w-52 shrink-0 flex-col overflow-y-auto bg-slate-900 text-slate-200">
-        <div className="px-4 py-4"><div className="text-[11px] font-semibold uppercase tracking-widest text-brand-300">Mansora</div><div className="text-base font-semibold text-white">Client administration</div></div>
+      <nav aria-label="Main" className="flex w-52 shrink-0 flex-col overflow-y-auto bg-brand-900 text-brand-100">
+        <div className="px-4 py-4"><MansoraBrand compact inverse /><div className="mt-4 border-t border-brand-700 pt-3 text-sm font-semibold text-white">Platform administration</div></div>
         <div className="flex-1 px-2">
           {nav.map(([id, label]) => (
             <button key={id} type="button" onClick={() => go(id)} aria-current={page.id === id || (id === 'clients' && page.id === 'client') ? 'page' : undefined}
-              className={cx('mb-0.5 block w-full rounded-md px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-white', page.id === id || (id === 'clients' && page.id === 'client') ? 'bg-white font-semibold text-slate-900' : 'hover:bg-slate-800')}>{label}</button>
+              className={cx('mb-0.5 block w-full rounded-md px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-white', page.id === id || (id === 'clients' && page.id === 'client') ? 'bg-white font-semibold text-brand-900' : 'hover:bg-brand-800')}>{label}</button>
           ))}
         </div>
-        <button type="button" className="m-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-800" onClick={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>Sign out</button>
+        <button type="button" className="m-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-brand-800" onClick={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>Sign out</button>
       </nav>
       <main className="min-w-0 flex-1 overflow-y-auto p-6" key={page.id + (page.param ?? '')}>
         {page.id === 'overview' && <Overview go={go} />}
@@ -81,9 +81,9 @@ function Login({ onDone }: { onDone: () => void }) {
     onDone();
   });
   return (
-    <div className="flex min-h-full items-center justify-center bg-slate-900 p-6">
+    <div className="flex min-h-full items-center justify-center bg-brand-900 p-6">
       <form className="w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
-        <div><div className="text-xs font-semibold uppercase tracking-widest text-brand-700">Mansora</div><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
+        <div><div className="mb-5"><MansoraBrand /></div><p className="mb-1 text-sm font-medium text-brand-700">Platform administration</p><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
         {error && <Alert tone="bad">{error}</Alert>}
         {challenge ? <>
           <p className="text-sm text-slate-600">Enter a code from your authenticator app, or one of your unused recovery codes. This sign-in challenge expires after five minutes.</p>

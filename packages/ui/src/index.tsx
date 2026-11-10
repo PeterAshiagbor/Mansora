@@ -1,6 +1,5 @@
 /**
- * Provisional Mansora design system: restrained, high-contrast, keyboard-friendly.
- * To be re-skinned once the final Mansora logo and colours are supplied.
+ * Mansora Consulting design system: shared by platform administration and client workspaces.
  */
 import { cloneElement, createContext, isValidElement, useContext, useEffect, useId, useRef, type ButtonHTMLAttributes, type ComponentProps, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
@@ -215,3 +214,5 @@ export function Alert({ tone = 'info', children, className }: { tone?: 'info' | 
   const tones = { info: 'border-sky-200 bg-sky-50 text-sky-900', warn: 'border-amber-300 bg-amber-50 text-amber-900', bad: 'border-red-300 bg-red-50 text-red-900', good: 'border-emerald-300 bg-emerald-50 text-emerald-900' };
   return <div role={tone === 'bad' ? 'alert' : 'status'} className={cx('rounded-md border px-3 py-2 text-sm', tones[tone], className)}>{children}</div>;
 }
+
+export { MansoraBrand } from './brand';

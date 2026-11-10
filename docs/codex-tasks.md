@@ -102,3 +102,9 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 **Priority:** Owner request on 2026-11-09/10, ahead of the remaining C5–C9 work.
 **Status:** Implemented for review on `codex/C10-carton-costing`: Excel carton columns and preview validation, product carton calculator, permission-gated catalogue gross margins and selling-price labels, explicit cashier discount requests, durable approval lockouts and exact owner-ceiling comparisons. See `docs/operations/product-pricing.md`.
 **Scope exception:** The owner's explicit costing/import and discount-restriction requirements need shared costing helpers and narrow importer/engine/sales changes under `apps/desktop/src/core/`; this feature PR keeps those changes separate from C4/C5. No sync protocol, sync tests or released migrations change.
+
+### C11 — Official Mansora branding and SaaS positioning
+**Status:** Implemented for review on `codex/C11-mansora-branding`; owner requested the branding from https://mansora-consulting.com and confirmed Mansora provides the SaaS platform to client businesses.
+**Scope:** Shared brand assets/tokens/component, desktop and admin shells/sign-in, local asset serving, desktop icon configuration and branding browser tests.
+**Evidence:** See [branding](operations/branding.md). The provider brand accompanies client workspace names; receipt merchant identities remain client businesses. No subscription enforcement or legal terms are inferred from the branding.
+

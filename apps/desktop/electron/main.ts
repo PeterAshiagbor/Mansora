@@ -130,7 +130,8 @@ function createWindow(): void {
     height: 768,
     minWidth: 1100,
     minHeight: 640,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#fffaf1',
+    icon: join(__dirname, '..', 'renderer', 'mansora-icon.png'),
     title: 'Mansora Sales & Stock',
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true, devTools: !app.isPackaged, spellcheck: false },
   });

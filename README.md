@@ -1,8 +1,9 @@
 # Mansora Sales & Stock Platform
 
 Offline-first point of sale, inventory and business operations software for small
-businesses in Ghana, distributed and supported by Mansora Consulting and Business
-Solutions.
+businesses in Ghana. A SaaS platform provided to client businesses by **Mansora
+Consulting & Business Solutions**. Mansora administers the platform; each client
+retains its own business identity, staff and workspace.
 
 **Status: version 0.1 — foundation and core workflows built and tested in
 software. Not yet production-ready.** No physical scanner, printer or Windows
@@ -18,7 +19,7 @@ is done, what is not, and the evidence.
 | Cloud API | `apps/api` | Fastify + PostgreSQL. Device activation, idempotent sync, client administration, consent-based support access. |
 | Admin dashboard | `apps/admin-web` | React. Mansora's client directory, onboarding, plans, health and audit. |
 | Business rules | `packages/domain` | Money, pricing, refunds, cash reconciliation, costing, permissions and the sync contract. No UI, no database. |
-| UI kit | `packages/ui` | Provisional design system shared by both interfaces. |
+| UI kit | `packages/ui` | Mansora brand and accessible components shared by both interfaces. |
 | Tests | `tests` | Unit, integration, sync, security and browser end-to-end tests. |
 
 ## Try it on one machine

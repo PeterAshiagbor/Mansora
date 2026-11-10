@@ -4,11 +4,12 @@
 
 The specification (section 26) lists decisions Mansora must approve. Where the
 software needed an answer to function, a conservative default was implemented.
-**None of these is agreed policy.** Each is isolated so it can be changed.
+Defaults remain proposals unless the status explicitly records owner confirmation.
+Each is isolated so it can be changed.
 
 | # | Topic (spec ref) | Default implemented | Where to change | Status |
 | --- | --- | --- | --- | --- |
-| D-01 | Brand identity (A) | Provisional deep-teal palette, product name "Mansora Sales & Stock", no logo | `@theme` blocks in the two `styles.css`; `packages/ui` | Awaiting assets |
+| D-01 | Brand identity (A) | Official mansora-consulting.com logo, purple/gold palette, DM Sans body and Georgia headings; Mansora is the SaaS provider, client names identify their workspaces and receipts | `packages/ui/src/brand.css`, `brand.tsx`; `docs/operations/branding.md` | Owner supplied website and confirmed SaaS provider positioning in this session |
 | D-02 | Supported hardware (B) | None declared. Windows print queue + HID scanner input are implemented but untested on devices | `tests/hardware/README.md` | Awaiting hardware |
 | D-03 | Costing method (D) | Moving weighted-average cost, re-averaged on purchases and restocked returns; cost snapshotted per sale line | `packages/domain/src/costing.ts`, `apps/desktop/src/core/stock.ts` | Awaiting approval |
 | D-04 | Negative stock (E) | Blocked. An owner-only setting can allow it; changes are audited | `business.update`, `moveStock()` | Awaiting approval |
@@ -20,7 +21,7 @@ software needed an answer to function, a conservative default was implemented.
 | D-10 | Subscription expiry offline (I) | **No enforcement.** Suspending an account is recorded and shown to the shop as a notice; selling and syncing continue | `GET /v1/sync/pull`, dashboard alert | Policy must be defined before any enforcement is built |
 | D-11 | Customer data (J) | Name required; phone, email and notes optional. Customer records sync to the cloud; Mansora support access never includes them | `customer.save`, report endpoint | Awaiting privacy review |
 | D-12 | Hosting and privacy (K) | Nothing chosen. Act 843 review, hosting region, retention and processing agreements are not done | — | Blocks production |
-| D-13 | Ownership (L) | Not a software matter. Repository is under the client's GitHub account | — | Awaiting written agreement |
+| D-13 | Ownership (L) | Mansora provides the SaaS platform to client businesses. Software IP, contractual responsibilities and data rights still need written terms | `docs/legal/` | Provider positioning confirmed by owner; legal terms await review |
 | D-14 | Quantities | Whole units only. Goods sold by weight must be stocked in a small unit (e.g. grams) | `assertQuantity()` | Awaiting approval |
 | D-15 | Prices at checkout | Always the catalogue price; no price override at the till, only discounts | `sale.complete` | Awaiting approval |
 | D-16 | Support access scope | One scope, "reports": sales totals, payment methods, top products, stock counts. 1 hour to 3 days, owner-granted, revocable | `support.grant`, report endpoint | Awaiting approval |
