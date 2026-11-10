@@ -30,8 +30,11 @@ The following implementations are prepared as separate PRs, not deployed. C1 is 
 | C6 admin dashboard | [PR #18](https://github.com/PeterAshiagbor/Mansora/pull/18) |
 | C7 API observability | [PR #19](https://github.com/PeterAshiagbor/Mansora/pull/19) |
 | C8 legal drafts | [PR #20](https://github.com/PeterAshiagbor/Mansora/pull/20); legal review, registration, hosting/transfer and retention decisions remain open |
-| C9 workflow coverage | `codex/C9-desktop-workflows`, prepared for PR review; see `docs/operations/workflow-tests.md` |
+| C9 workflow coverage | [PR #21](https://github.com/PeterAshiagbor/Mansora/pull/21); see `docs/operations/workflow-tests.md` |
 | C10 owner-requested retail pricing | [PR #16](https://github.com/PeterAshiagbor/Mansora/pull/16); Excel/carton costing, selling prices, permission-gated margins and restricted discounts. Individual-item costing formula confirmed by the owner on 2026-11-10 |
+| C11 official branding and SaaS positioning | [PR #22](https://github.com/PeterAshiagbor/Mansora/pull/22); owner-supplied identity, offline assets, separate client/provider interfaces |
+
+All implementations are also combined on [`codex/integration-review`](https://github.com/PeterAshiagbor/Mansora/tree/codex/integration-review). See [combined verification](operations/integration-review.md) for resolutions and test evidence. This branch is a review artifact; no default-branch merge or deployment is implied.
 
 Physical hardware acceptance, a signing certificate, live hosting/credentials/region, counsel approval and outstanding policy defaults still require their responsible owners. No production access or legal approval is inferred from passing tests.
 

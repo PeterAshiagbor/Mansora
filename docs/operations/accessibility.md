@@ -26,3 +26,9 @@ Keyboard interaction checks exercise table Space activation, modal initial focus
 ## Remaining checks
 
 **Windows NVDA screen-reader testing: not done.** A person using NVDA should verify reading order, field descriptions, table captions and row actions, tab announcements, modal announcements and focus return in the packaged Windows app. Also pending: Windows high-contrast/forced-colour mode, native browser/Electron zoom and OS scaling, other screen readers, touch targets on physical devices, and representative shop data with unusually long names or very large tables. Those checks need the corresponding runtime or hardware and must not be inferred from a passing axe scan.
+
+## Combined review branch
+
+The integration review additionally scans the C6 client audit tab and laptop
+deactivation dialog at both viewports, using the C11 purple/gold palette and
+locally bundled fonts. It preserves all C5 keyboard and contrast checks.

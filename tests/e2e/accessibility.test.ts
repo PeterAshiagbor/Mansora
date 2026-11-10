@@ -110,6 +110,16 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
       await admin.getByRole('row').filter({ hasText: 'Accessibility test business' }).click();
       await admin.getByRole('heading', { name: 'Accessibility test business', exact: true }).waitFor();
       await scan(admin, `Admin client detail zoom ${zoom}`);
+      const tabs = admin.getByRole('tab');
+      for (let i = 1; i < await tabs.count(); i++) {
+        await tabs.nth(i).click(); await scan(admin, `Admin client detail tab ${i} zoom ${zoom}`);
+      }
+      if (await tabs.count()) await tabs.first().click();
+      const deactivate = admin.getByRole('button', { name: 'Deactivate laptop', exact: true });
+      if (await deactivate.count()) {
+        await deactivate.click(); await scan(admin, `Admin deactivate laptop dialog zoom ${zoom}`);
+        await admin.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+      }
     }
     expect(failures, JSON.stringify(failures, null, 2)).toEqual([]);
   });
