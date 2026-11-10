@@ -70,3 +70,9 @@ Take them in order; each is one pull request.
 ## Not for Codex (Claude is doing these)
 
 Choosing the discount-limit value (Mansora's policy) · signed auto-updates (waiting on a certificate) · Windows packaging in CI.
+
+
+### C11 — Official Mansora branding and SaaS positioning
+**Status:** Implemented for review on `codex/C11-mansora-branding`; owner requested the branding from https://mansora-consulting.com and confirmed Mansora provides the SaaS platform to client businesses.
+**Scope:** Shared brand assets/tokens/component, desktop and admin shells/sign-in, local asset serving, desktop icon configuration and branding browser tests.
+**Evidence:** See [branding](operations/branding.md). The provider brand accompanies client workspace names; receipt merchant identities remain client businesses. No subscription enforcement or legal terms are inferred from the branding.
