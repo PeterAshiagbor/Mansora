@@ -56,7 +56,7 @@ credentials, the encrypted laptop engine and local PGlite API.
 The C11-only branch separately passed all 104 tests, typecheck, build and audit.
 Combined screenshots are reviewed at 1366 × 768 and the 683 × 384 CSS viewport
 equivalent to the available layout at 200% zoom. Neither native zoom nor NVDA
-is claimed. GitHub CI separately checks Linux browser workflows, PostgreSQL 16,
+is claimed. All combined GitHub CI checks passed. CI checked Linux browser workflows, PostgreSQL 16,
 Windows unsigned packaging/shell smoke tests and the API container stack.
 
 ## Outstanding owner-dependent work

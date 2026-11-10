@@ -16,7 +16,7 @@ export function Button({ variant = 'secondary', size = 'md', className, type = '
     ghost: 'bg-transparent text-slate-700 hover:bg-slate-100 border-transparent',
   };
   const sizes = { sm: 'px-2.5 py-1 text-sm', md: 'px-3.5 py-2 text-sm', lg: 'px-5 py-3 text-base' };
-  return <button type={type} className={cx('inline-flex items-center justify-center gap-2 rounded-md border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50', focus, variants[variant], sizes[size], className)} {...rest} />;
+  return <button type={type} className={cx('m-button inline-flex items-center justify-center gap-2 rounded-md border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50', focus, variants[variant], sizes[size], className)} {...rest} />;
 }
 
 export function Field({ label, hint, error, children, className }: { label: string; hint?: string; error?: string | null; children: ReactNode; className?: string }) {
@@ -37,7 +37,7 @@ export function Field({ label, hint, error, children, className }: { label: stri
   );
 }
 
-const control = cx('block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 disabled:bg-slate-100', 'focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30');
+const control = cx('m-control block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 disabled:bg-slate-100', 'focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30');
 export function Input({ className, ...rest }: ComponentProps<'input'>) {
   return <input className={cx(control, className)} {...rest} />;
 }
@@ -90,14 +90,14 @@ export function Modal({ title, open, onClose, children, footer, wide }: { title:
   }, [open]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} className={cx('w-full rounded-lg bg-white shadow-xl outline-none', wide ? 'max-w-3xl' : 'max-w-lg')}>
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+    <div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} className={cx('m-dialog w-full rounded-lg bg-white shadow-xl outline-none', wide ? 'max-w-3xl' : 'max-w-lg')}>
+        <div className="m-dialog-header flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2 id={id} className="text-base font-semibold text-slate-900">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className={cx('rounded p-1 text-slate-500 hover:bg-slate-100', focus)}>✕</button>
         </div>
-        <div className="px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3 rounded-b-lg">{footer}</div>}
+        <div className="m-dialog-body px-5 py-4" role="region" aria-label={`${title} content`} tabIndex={0}>{children}</div>
+        {footer && <div className="m-dialog-footer flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3 rounded-b-lg">{footer}</div>}
       </div>
     </div>
   );
@@ -107,14 +107,14 @@ const TableCaption = createContext<string | undefined>(undefined);
 
 export function Card({ title, actions, children, className, pad = true }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; pad?: boolean }) {
   return (
-    <section className={cx('min-w-0 rounded-lg border border-slate-200 bg-white', className)}>
+    <section className={cx('m-card min-w-0 rounded-lg border border-slate-200 bg-white', className)}>
       {(title || actions) && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
+        <div className="m-card-header flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
           <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
           <div className="flex flex-wrap items-center gap-2">{actions}</div>
         </div>
       )}
-      <TableCaption.Provider value={typeof title === 'string' ? title : undefined}><div className={pad ? 'p-4' : ''}>{children}</div></TableCaption.Provider>
+      <TableCaption.Provider value={typeof title === 'string' ? title : undefined}><div className={pad ? 'm-card-body p-4' : ''}>{children}</div></TableCaption.Provider>
     </section>
   );
 }
@@ -122,10 +122,10 @@ export function Card({ title, actions, children, className, pad = true }: { titl
 export function Stat({ label, value, hint, tone = 'default' }: { label: string; value: ReactNode; hint?: ReactNode; tone?: 'default' | 'good' | 'warn' | 'bad' }) {
   const tones = { default: 'text-slate-900', good: 'text-emerald-700', warn: 'text-amber-700', bad: 'text-red-700' };
   return (
-    <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-4">
-      <div className="break-words text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
-      <div className={cx('mt-1 text-2xl font-semibold tabular-nums', tones[tone])}>{value}</div>
-      {hint && <div className="mt-1 text-xs text-slate-500">{hint}</div>}
+    <div className="m-stat min-w-0 rounded-lg border border-slate-200 bg-white p-4">
+      <div className="m-stat-label break-words text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
+      <div className={cx('m-stat-value mt-1 text-2xl font-semibold tabular-nums', tones[tone])}>{value}</div>
+      {hint && <div className="m-stat-hint mt-1 text-xs text-slate-500">{hint}</div>}
     </div>
   );
 }
@@ -141,7 +141,7 @@ export function Table<T>({ columns, rows, onRowClick, empty = 'Nothing to show y
   const tableCaption = caption ?? contextCaption ?? columns.map((c) => c.header).join(", ");
   return (
     <div role="region" aria-label="Scrollable data table" tabIndex={0} className={cx("max-w-full overflow-x-auto", focus)}>
-      <table className="w-full text-sm">
+      <table className="m-table w-full text-sm">
         <caption className="sr-only">{tableCaption}</caption>
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -179,7 +179,7 @@ export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'good
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="m-page-header mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
         {subtitle && <p className="mt-0.5 text-sm text-slate-600">{subtitle}</p>}
@@ -216,3 +216,6 @@ export function Alert({ tone = 'info', children, className }: { tone?: 'info' | 
 }
 
 export { MansoraBrand } from './brand';
+
+export { WorkspaceShell, GuideBody, Icon, type Guide } from './workspace';
+export { CLIENT_GUIDES, ADMIN_GUIDES } from './guides';

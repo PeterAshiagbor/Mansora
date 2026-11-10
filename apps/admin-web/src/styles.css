@@ -1,13 +1,14 @@
 @import 'tailwindcss';
 @import '../../../packages/ui/src/brand.css';
+@import '../../../packages/ui/src/workspace.css';
 @source '../../../packages/ui/src';
 
 
 html, body, #root { height: 100%; }
-body { @apply bg-mansora-cream text-mansora-ink antialiased; font-family: var(--font-sans); }
+body { @apply bg-workspace text-mansora-ink antialiased; font-family: var(--font-sans); }
 
 button:focus-visible, a[href]:focus-visible, [tabindex="0"]:focus-visible {
   outline: 2px solid var(--color-brand-600);
   outline-offset: 2px;
 }
-nav button:focus-visible { outline-color: white; outline-offset: -2px; }
+nav button:focus-visible { outline-color: var(--color-brand-700); outline-offset: -2px; }

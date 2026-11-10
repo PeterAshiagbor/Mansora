@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
-import { Alert, Button, cx, Field, Input, MansoraBrand } from '@mansora/ui';
+import { Alert, Button, cx, Field, Input, MansoraBrand, WorkspaceShell, CLIENT_GUIDES } from '@mansora/ui';
 import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
 import { Checkout } from './pages/Checkout';
 import { Dashboard } from './pages/Dashboard';
+import { HelpPage } from './pages/Help';
 import { SalesPage } from './pages/Sales';
 import { CategoriesPage, ProductsPage } from './pages/Products';
 import { PurchasesPage, StockPage } from './pages/Stock';
@@ -20,6 +21,7 @@ interface NavItem {
   render: (param?: string) => ReactNode;
 }
 const NAV: { group: string; items: NavItem[] }[] = [
+  { group: 'Workspace', items: [{ id: 'dashboard', label: 'Dashboard', render: () => <Dashboard /> }] },
   {
     group: 'Sell',
     items: [
@@ -47,7 +49,6 @@ const NAV: { group: string; items: NavItem[] }[] = [
   {
     group: 'Business',
     items: [
-      { id: 'dashboard', label: 'Dashboard', render: () => <Dashboard /> },
       { id: 'reports', label: 'Reports', perm: 'report.sales', render: () => <ReportsPage /> },
       { id: 'expenses', label: 'Expenses', perm: 'expense.manage', render: () => <ExpensesPage /> },
     ],
@@ -63,6 +64,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { id: 'backup', label: 'Backup & recovery', perm: 'backup.manage', render: () => <BackupPage /> },
       { id: 'support', label: 'Mansora access', perm: 'support.grant', render: () => <SupportPage /> },
       { id: 'audit', label: 'Audit history', perm: 'audit.view', render: () => <AuditPage /> },
+      { id: 'help', label: 'Help & getting started', render: () => <HelpPage /> },
     ],
   },
 ];
@@ -253,48 +255,14 @@ function Restore({ onDone }: { onDone: () => Promise<void> }) {
   );
 }
 
+const NAV_ICONS: Record<string, string> = { dashboard: 'home', checkout: 'sale', sales: 'file', shifts: 'wallet', customers: 'users', credit: 'wallet', products: 'box', categories: 'box', stock: 'box', purchases: 'sale', reports: 'chart', expenses: 'wallet', staff: 'users', settings: 'settings', data: 'file', sync: 'sync', backup: 'shield', support: 'shield', audit: 'file', help: 'help' };
 function Shell({ page }: { page: { id: string; param?: string } }) {
   const { state, can, go, refresh } = useApp();
-  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.perm || can(i.perm)) })).filter((g) => g.items.length);
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.perm || can(i.perm)).map((item) => ({ ...item, icon: NAV_ICONS[item.id] })) })).filter((g) => g.items.length);
   const all = groups.flatMap((g) => g.items);
   const current = all.find((i) => i.id === page.id) ?? all[0];
   const { run } = useAction();
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex min-h-0 flex-1">
-        <nav aria-label="Main" className="no-print flex w-52 shrink-0 flex-col overflow-y-auto bg-brand-900 text-brand-100">
-          <div className="px-4 py-4">
-            <MansoraBrand compact inverse />
-            <div className="mt-4 border-t border-brand-700 pt-3">
-              <div className="text-xs text-brand-200">Client workspace</div>
-              <div className="truncate text-sm font-semibold text-white" title={state.business.name}>{state.business.name}</div>
-            </div>
-          </div>
-          <div className="flex-1 space-y-3 px-2 pb-4">
-            {groups.map((g) => (
-              <div key={g.group}>
-                <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-brand-300">{g.group}</div>
-                {g.items.map((i) => (
-                  <button key={i.id} type="button" onClick={() => go(i.id)} aria-current={current.id === i.id ? 'page' : undefined}
-                    className={cx('block w-full rounded-md px-2 py-1.5 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-white', current.id === i.id ? 'bg-white font-semibold text-brand-900' : 'text-brand-100 hover:bg-brand-800')}>
-                    {i.label}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-brand-800 p-2">
-            <button type="button" className="block w-full rounded-md px-2 py-1.5 text-left text-sm text-brand-100 hover:bg-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-              onClick={() => run(async () => { await call('auth.logout'); await refresh(); })}>
-              Lock / sign out
-            </button>
-          </div>
-        </nav>
-        <main className="min-w-0 flex-1 overflow-y-auto p-5 print:overflow-visible print:p-0" key={current.id + (page.param ?? '')}>{current.render(page.param)}</main>
-      </div>
-      <StatusBar />
-    </div>
-  );
+  return <div className="flex h-full flex-col"><div className="min-h-0 flex-1"><WorkspaceShell groups={groups} current={current} onNavigate={go} workspace={state.business.name} workspaceLabel="Client workspace" user={state.user?.name ?? 'Staff'} userRole={state.user?.role} guide={CLIENT_GUIDES[current.id]} signOutLabel="Lock / sign out" onSignOut={() => run(async () => { await call('auth.logout'); await refresh(); })}><div key={current.id + (page.param ?? '')}>{current.render(page.param)}</div></WorkspaceShell></div><StatusBar /></div>;
 }
 
 function StatusBar() {

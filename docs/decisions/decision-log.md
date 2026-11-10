@@ -9,7 +9,7 @@ Each is isolated so it can be changed.
 
 | # | Topic (spec ref) | Default implemented | Where to change | Status |
 | --- | --- | --- | --- | --- |
-| D-01 | Brand identity (A) | Official mansora-consulting.com logo, purple/gold palette, DM Sans body and Georgia headings; Mansora is the SaaS provider, client names identify their workspaces and receipts | `packages/ui/src/brand.css`, `brand.tsx`; `docs/operations/branding.md` | Owner supplied website and confirmed SaaS provider positioning in this session |
+| D-01 | Brand identity (A) | Official mansora-consulting.com logo, purple/gold palette, DM Sans interface and Georgia wordmark; Mansora is the SaaS provider, client names identify their workspaces and receipts | `packages/ui/src/brand.css`, `brand.tsx`; `docs/operations/branding.md` | Owner supplied website and confirmed SaaS provider positioning in this session |
 | D-02 | Supported hardware (B) | None declared. Windows print queue + HID scanner input are implemented but untested on devices | `tests/hardware/README.md` | Awaiting hardware |
 | D-03 | Costing method (D) | Moving weighted-average cost, re-averaged on purchases and restocked returns; cost snapshotted per sale line | `packages/domain/src/costing.ts`, `apps/desktop/src/core/stock.ts` | Awaiting approval |
 | D-04 | Negative stock (E) | Blocked. An owner-only setting can allow it; changes are audited | `business.update`, `moveStock()` | Awaiting approval |

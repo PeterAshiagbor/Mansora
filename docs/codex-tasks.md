@@ -112,13 +112,22 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 **Evidence:** See [branding](operations/branding.md). The provider brand accompanies client workspace names; receipt merchant identities remain client businesses. No subscription enforcement or legal terms are inferred from the branding.
 
 
+### C12 — Hosted sample interface preview
+**Status:** Published the [private sample demo](https://mansora-saas-demo.bgtpk74dbt.chatgpt.site) through Sites. Implemented on `codex/C12-hosted-demo`, based on the combined integration branch because it previews all prepared tasks. Owner requested hosting without supplying a Vercel project.
+**Scope:** New preview builder, isolated static browser adapters and preview documentation. No production engine, API, migration, permission or billing behavior changes.
+**Evidence:** See [interface preview](operations/interface-preview.md). Both current interfaces are used with generated synthetic records; temporary sample edits are explicit, live writes are blocked.
 
-### C12 — Email delivery adapter for billing messages
+### C13 — Professional accounting-style UX, reports and page guidance
+**Status:** Implemented on `codex/C13-accounting-ux`, based on C12 so the same hosted demo can show the combined application. Owner requested familiar accounting UX, professionalism, more reporting and how-to help.
+**Scope:** Shared workspace shell/components/styles, client and provider interfaces, authorised report presentation, page guides, sample preview regeneration and regression coverage. No engine or schema changes.
+**Evidence:** See [accounting UX](operations/accounting-ux.md).
+
+### C15 — Email delivery adapter for billing messages
 **Scope:** new file under `apps/api/src/billing/` implementing `EmailAdapter` (see `core.ts`), wired in `createBillingFromEnv`; tests with a local fake SMTP/API server. Needs an email provider decision (Mansora blocker B5), so build against a provider-neutral SMTP or HTTP interface and keep `NoEmail` as the default when unconfigured.
 **Done when:** queued notifications are delivered and marked `sent`/`failed`; failures retry without duplicating; no message body is logged; `docs/billing/provider-onboarding.md` is updated.
 
-### C13 — Hubtel adapter (only after Hubtel confirms)
+### C16 — Hubtel adapter (only after Hubtel confirms)
 **Blocked** until Mansora supplies Hubtel's written confirmation of the recurring Mobile Money API, mandate rules, fees and sandbox credentials (blocker B4). Do not guess endpoints. Implement `providers/hubtel.ts` against the sandbox, with capability flags set only to what is confirmed, plus contract tests with a local fake.
 
-### C14 — Printable PDF invoices and receipts
+### C17 — Printable PDF invoices and receipts
 **Scope:** `apps/api/src/billing/documents.ts`. The current output is printable HTML. Add server-side PDF only if it needs no heavy new dependency (otherwise keep HTML print). Tests compare totals, numbers and issuer details.
