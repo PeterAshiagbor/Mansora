@@ -1,0 +1,50 @@
+# Hosted interface preview
+
+The owner requested a hosted demo while the application remains in development.
+The sample-only static preview uses the current, built desktop and administrator
+interfaces. It does not expose the development host or connect a public browser
+to real client data. It is separate from production hosting decisions.
+
+Build both interfaces, then run:
+
+```bash
+npm run build
+npx tsx scripts/build-interface-demo.ts /absolute/path/to/preview
+node scripts/interface-demo/check-demo.mjs /absolute/path/to/preview/dist
+```
+
+The builder creates fresh, synthetic records through a temporary real API and
+encrypted desktop engine. It captures an allowlist of display responses, checks
+that generated credentials and credential fields are absent, then removes the
+temporary stores. It never copies a user's existing data directory. The static
+output contains no production endpoint or authentication credentials.
+
+The landing page links to the client workspace and platform administration.
+The client preview starts as the sample owner; its toolbar can switch to the
+cashier view or re-enter after locking the screen. Inside the demo there is no
+login requirement. The hosting service may require the owner's ChatGPT sign-in
+because the Site is private by default; hosting access is separate from the
+simulated application session.
+
+Navigation, tables, forms, carton calculation and selling-price/margin display
+use the actual application code. Product, category, customer, supplier and
+business-setting edits are temporary browser-memory changes. Reload resets
+them. Reports show the original fixture snapshot. Transactions, imports,
+backups, sync, staff/account changes and administrator writes return an explicit
+preview-only explanation; they never pretend to persist or submit live data.
+Excel templates can be downloaded; Excel uploads are tested in the real desktop
+suite and are not processed in this static preview.
+
+`scripts/interface-demo/check-demo.mjs` verifies fixture identities, filtering,
+temporary edits, blocked mutations, every provider read, zero backend requests
+and generated asset paths. The underlying combined application separately passed
+153 browser/integration/security tests and all CI, including Windows packaging,
+PostgreSQL 16 and the API container. The managed Sites environment has no
+`cua_repl.js` browser tool, so hosted browser QA is unverified; the sample adapter
+and files are checked without claiming a browser run on the hosted Site.
+
+The hosting project identity lives in the separate Site checkout's
+`.openai/hosting.json`. The Site's own source repository contains the exact
+static output, demo sources and a provenance record pointing to the Mansora
+source commit. Updates rebuild from the desired Mansora branch, sync that Site
+repository and deploy a new version while preserving the Site identity/access.

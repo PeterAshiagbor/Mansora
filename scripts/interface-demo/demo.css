@@ -1,0 +1,9 @@
+.interface-demo { display:flex;flex-direction:column; }
+.interface-demo #root { flex:1;min-height:0;height:auto; }
+.demo-toolbar { flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px;background:#fffaf1;border-bottom:2px solid #c48b17;color:#38145c;font:13px/1.5 'DM Sans',system-ui,sans-serif; }
+.demo-toolbar a { color:#38145c;text-decoration:underline;font-weight:600; }
+.demo-toolbar button,.demo-toolbar select { border:1px solid #dbc5ec;border-radius:5px;background:#fff;padding:3px 7px;color:#38145c;cursor:pointer; }
+.demo-toolbar :focus-visible { outline:2px solid #5c2d85;outline-offset:2px; }
+.demo-note { font-size:11px;font-weight:700;letter-spacing:.04em; }
+.demo-help { flex-basis:100%;font-size:11px;color:#5e5269; }
+@media(max-width:700px){.demo-toolbar{gap:6px;padding:6px 10px}.demo-help{display:none}.interface-demo #root{overflow:auto;min-width:600px}.interface-demo{overflow-x:auto}}

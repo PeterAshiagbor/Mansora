@@ -111,3 +111,8 @@ Choosing the discount-limit value (Mansora's policy) · signed auto-updates (wai
 **Scope:** Shared brand assets/tokens/component, desktop and admin shells/sign-in, local asset serving, desktop icon configuration and branding browser tests.
 **Evidence:** See [branding](operations/branding.md). The provider brand accompanies client workspace names; receipt merchant identities remain client businesses. No subscription enforcement or legal terms are inferred from the branding.
 
+
+### C12 — Hosted sample interface preview
+**Status:** Owner requested a hosted demo without supplying a Vercel project. Implemented on `codex/C12-hosted-demo`, based on the combined integration branch because it previews all prepared tasks.
+**Scope:** New preview builder, isolated static browser adapters and preview documentation. No production engine, API, migration, permission or billing behavior changes.
+**Evidence:** See [interface preview](operations/interface-preview.md). Both current interfaces are used with generated synthetic records; temporary sample edits are explicit, live writes are blocked.
