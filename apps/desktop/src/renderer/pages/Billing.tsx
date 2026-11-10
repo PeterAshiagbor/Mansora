@@ -16,12 +16,12 @@ export function BillingPage() {
   const [cancelAuth, setCancelAuth] = useState(false);
   const [cancelSub, setCancelSub] = useState(false);
   const [waiting, setWaiting] = useState(false);
-  // After paying in the browser the client comes back to this window: refresh so the new status is shown.
+  // Refresh on return from the provider only while no editable dialog is open.
   useEffect(() => {
-    const onFocus = () => { if (waiting) { q.reload(); } };
+    const onFocus = () => { if (waiting && !setup && !cancelAuth && !cancelSub) { q.reload(); } };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [waiting, q.reload]);
+  }, [waiting, setup, cancelAuth, cancelSub, q.reload]);
   if (q.error) return <><PageHeader title="Billing & payments" /><Alert tone="warn">{q.error}</Alert><Button className="mt-3" onClick={q.reload}>Try again</Button></>;
   const d = q.data;
   if (!d) return <p className="text-slate-500">Loading…</p>;

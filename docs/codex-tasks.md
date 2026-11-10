@@ -56,7 +56,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
 | C18 hosted preview refresh with billing | Codex — done | **Published version 4**, now anyone-with-link. PR #27 merged as `1ecb47f`; merged CI green on rerun attempt 2 (initial run cancelled by the claim commit) | Planned `codex/C18-billing-preview` |
-| C19 interface deployment readiness | Codex — active | **230 local tests pass.** Billing recovery, validation, draft and printable-document flows fixed. CI, merge and updated shared publication pending | `codex/C19-interface-deployment-readiness` |
+| C19 interface deployment readiness | Codex — active | **Initial C19 merge green, version 5 live.** Final-review focus/draft fix passes 13 targeted tests; follow-up CI and publication pending | `codex/C19-interface-deployment-readiness` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -87,6 +87,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-10 12:53 UTC — Codex (C19 final-review focus fix)
+- **Initial C19:** PR #28 merged `0ffff1cbf22b7206f8dac08df037196cbf7ac03e`; all four exact merged workflows are green (230 tests, PostgreSQL sync, audit, Windows smoke, container/security/preview). Shared public Site version 5 is live: deployment `appgdep_6af3116d83248191bea213833cc9ed5c` succeeded, Site source `30d6920f906533a76a59ccac0a76fbbb22283e60`, built from Mansora `6e59e7514afa4313e9c20814eb7c035227b32b5f`.
+- **Final-review finding:** after a successful provider-window launch, the focus listener could reload billing and unmount a newly edited dialog when the user returned to the app. Under the still-active C19 UI claim, this follow-up on the same branch defers that refresh while a billing dialog is open. No engine/provider rule change.
+- **Verified:** typecheck/build pass and **13 targeted billing UI tests pass**, including eleven deployment acceptance scenarios. The new scenario advances the controllable billing clock to issue an actual renewal invoice, obtains a real sandbox setup response, models only the native browser-opening boundary, then asserts that focus causes no summary read and preserves the open consent. Fixture email is synthetic; no real email/payment or secrets. The preceding full application regression passed 230 tests; fresh full CI now includes 231 tests.
+- **Next:** create the focused follow-up PR to the same default branch, check CI after push, publish the fixed interface at the same shared Site, merge and verify merged checks before closing C19. Existing draft guard/error assertions remain intact. Frontend ownership remains with C19 until that handoff; protected engine and tests remain untouched.
 
 ### 2026-11-10 12:41 UTC — Codex (C19 interface acceptance green locally)
 - **Scope per owner:** interface ready for deployment, including actionable content and states. C19 changes frontend billing files under the explicit UI claim, shared guides and new `tests/e2e/interface-deployment.test.ts`. No billing engine, provider adapter, migration, sync, permission policy, bridge, infrastructure, dependency or protected billing test changes.

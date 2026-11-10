@@ -77,3 +77,12 @@ All 69 output assets were hashed and verified against the retained provenance
 record before packaging; subsequent publication/handoff edits are documentation
 only. The project identity was retained. The owner subsequently requested broader
 sharing; native access policy revision 2 changed the audience to public/anyone-with-link.
+
+## Version 5 publication
+
+C19 UI revision published successfully as version 5, deployment
+`appgdep_6af3116d83248191bea213833cc9ed5c`. Site source
+`30d6920f906533a76a59ccac0a76fbbb22283e60`, built from Mansora
+`6e59e7514afa4313e9c20814eb7c035227b32b5f` (merged PR #28). Public/anyone-with-link
+access was confirmed after publication. A focus/draft follow-up is being verified
+and will retain the same identity/audience.

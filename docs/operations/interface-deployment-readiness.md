@@ -24,17 +24,18 @@ adapters, financial calculations and permission policies are unchanged.
 
 ## Evidence
 
-Ten new real-API/browser acceptance scenarios verify failed reads and saves,
+Eleven new real-API/browser acceptance scenarios verify failed reads and saves,
 invalid fields, discard protection, preserved input, separate drafts, report
-recovery and printable invoice behavior. They supplement the existing billing,
+recovery printable invoice behavior and focus-safe billing drafts. They supplement the existing billing,
 retail, security, role and accessibility regression tests; no previous assertion
 or timeout was removed. The walkthrough screenshots are regenerated from the
 running application.
 
-Full current-revision regression passes: **230 tests in 32 files**, plus
-typecheck and build. CI is being verified before merge. This
+Initial C19 full regression passes: **230 tests in 32 files**, plus typecheck/build
+and all PR/merged workflows. A final-review focus/draft fix passes 13 targeted
+billing tests; its new full CI includes 231 tests. This
 record will identify the verified source and publication at handoff. The last
-published preview remains version 4 until C19 publication succeeds.
+published preview is version 5; the focus follow-up is published separately.
 
 ## Meaning of the preview
 
