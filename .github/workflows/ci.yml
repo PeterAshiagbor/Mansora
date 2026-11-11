@@ -15,6 +15,7 @@ jobs:
   test:
     name: Typecheck, build and test
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -35,7 +36,14 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run typecheck
       - run: npm run build
+      - name: Use canonical Ubuntu package mirrors for browser dependencies
+        run: |
+          for ci_mirror_file in /etc/apt/apt-mirrors*.txt; do
+            if [ -f "$ci_mirror_file" ]; then sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$ci_mirror_file"; fi
+          done
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' | sudo tee /etc/apt/apt.conf.d/80-mansora-ci-network >/dev/null
       - name: Install browser for end-to-end tests
+        timeout-minutes: 10
         run: npm install --no-save playwright && npx playwright install --with-deps chromium
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
