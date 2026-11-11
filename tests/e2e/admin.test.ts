@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -37,7 +38,7 @@ describe.skipIf(!pw || !built)('administrator dashboard CRUD', () => {
     if (web) await new Promise<void>((resolve) => web.server.close(() => resolve()));
     await app?.close(); await cloud?.close();
   });
-  const nav = (name: string) => page.getByRole('navigation').getByRole('button', { name, exact: true }).click();
+  const nav = (name: string) => navigate(page, name);
   async function login() {
     await page.getByLabel('Email', { exact: true }).fill(ADMIN.email);
     await page.getByLabel('Password', { exact: true }).fill(ADMIN.password);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, Modal, PageHeader, QueryView, Select, Stat, Table, Tabs, Textarea, useUnsavedChanges } from '@mansora/ui';
+import { ActionMenu, Alert, Badge, Button, Card, cx, Field, Input, Modal, PageHeader, QueryView, Select, Stat, Table, Tabs, Textarea, useUnsavedChanges } from '@mansora/ui';
 import { api, BASE, getToken, useApi } from './api';
 
 // ------------------------------------------------------------------ shared
@@ -101,7 +101,7 @@ export function RevenueReports() {
   return (
     <div>
       <PageHeader title="Revenue reports" subtitle="Cash received is kept separate from what has been invoiced. Test (sandbox) payments are never counted."
-        actions={<>{exp('collections', 'Export collections')}{exp('invoices', 'Export invoices')}{exp('payments', 'Export payments')}{exp('revenue_by_month', 'Export by month')}{exp('ageing', 'Export ageing')}</>} />
+        actions={<ActionMenu label="Export reports">{exp('collections', 'Export collections')}{exp('invoices', 'Export invoices')}{exp('payments', 'Export payments')}{exp('revenue_by_month', 'Export by month')}{exp('ageing', 'Export ageing')}</ActionMenu>} />
       <Msg a={act} />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Input type="date" aria-label="From" value={range.from} max={range.to} onChange={(e) => e.target.value && setRange({ ...range, from: e.target.value })} className="w-40" />

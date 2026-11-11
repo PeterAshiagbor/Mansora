@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
@@ -17,7 +18,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/desktop/dist/renderer/index.
   const evidence = process.env.MANSORA_READINESS_EVIDENCE;
   const read = (sql: string, ...values: any[]) => host.engine.db.prepare(sql).get(...values) as any;
   const balance = () => read("SELECT b.quantity, b.average_cost FROM stock_balances b JOIN products p ON p.id = b.product_id WHERE p.sku = 'READY-1'");
-  const nav = (name: string) => page.getByRole('navigation').getByRole('button', { name, exact: true }).click();
+  const nav = (name: string) => navigate(page, name);
   async function screenshot(name: string) { if (evidence) await page.screenshot({ path: join(evidence, name + '.png'), fullPage: false }); }
   beforeAll(async () => {
     cloud = await startCloud(); const client = await cloud.createClient('Client readiness business');
@@ -51,6 +52,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/desktop/dist/renderer/index.
     await page.getByRole('button', { name: 'Add product', exact: true }).click();
     const form = page.getByRole('dialog', { name: 'Add product', exact: true });
     await form.getByLabel('Product name').fill('Readiness product');
+    await form.getByText('More product details', { exact: true }).click();
     await form.getByLabel('SKU / item code').fill('READY-1');
     await form.getByLabel('Selling price (GHS)').fill('12');
     await form.getByLabel('Cost price (GHS)').fill('not-an-amount');

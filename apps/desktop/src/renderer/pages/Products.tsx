@@ -69,17 +69,11 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
       footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !f.name.trim() || f.sellingPrice == null || (cost && f.costPrice == null)} onClick={save}>Save</Button></>}>
       {categoryOptions.error && <QueryView query={categoryOptions} label="categories">{null}</QueryView>}
       <form className="grid grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
-        <h3 className="col-span-2 text-xs font-semibold uppercase tracking-wide text-slate-500">1. Product details</h3>
         <Field label="Product name" className="col-span-2"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
-        <Field label="Barcode" hint="Click here and scan the item"><Input value={f.barcode} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field>
-        <Field label="SKU / item code"><Input value={f.sku} onChange={(e) => setF({ ...f, sku: e.target.value })} /></Field>
-        <Field label="Category"><Select value={f.categoryId} onChange={(e) => setF({ ...f, categoryId: e.target.value })}><option value="">No category</option>{categories.filter((c) => c.active || c.id === f.categoryId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
-        <Field label="Unit of measure"><Input value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Field>
-        <h3 className="col-span-2 mt-2 border-t border-slate-100 pt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">2. Pricing &amp; cost</h3>
+        <Field label="Barcode" className="col-span-2" hint="Click here and scan the item"><Input value={f.barcode} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field>
         <Field label="Selling price (GHS)"><MoneyInput value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
         {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : 'Enter a verified unit cost. Use 0 only when the item genuinely has no cost.'}><MoneyInput required value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
-        {cost && <fieldset className="col-span-2 rounded-lg border border-brand-200 bg-brand-50/40 p-4">
-          <legend className="px-1 text-sm font-medium">Calculate cost from a carton</legend>
+        {cost && <details className="m-form-details"><summary>Calculate cost from a carton</summary><div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Carton purchase cost (GHS)"><MoneyInput value={cartonCost} onChange={setCartonCost} /></Field>
             <Field label="Selling units per carton" hint="Use 1 if you sell the whole carton."><Input type="number" min={1} step={1} value={cartonUnits} onChange={(e) => setCartonUnits(e.target.value)} /></Field>
@@ -87,12 +81,16 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
           <p className="my-2 text-sm" aria-live="polite">Unit cost: {derivedCost == null ? 'Enter carton cost and quantity' : money(derivedCost)}</p>
           <Button disabled={derivedCost == null} onClick={() => setF({ ...f, costPrice: derivedCost })}>Use calculated unit cost</Button>
           <p className="mt-2 text-xs text-slate-600">Rounded to the nearest pesewa. Quantities and selling price are per selling unit. This calculator does not record a purchase or change stock.</p>
-        </fieldset>}
+        </div></details>}
         {cost && <p className="col-span-2 rounded-lg bg-slate-50 px-4 py-3 text-sm">Gross margin: {f.sellingPrice == null || f.costPrice == null ? '—' : marginLabel(f.sellingPrice, f.costPrice)} <span className="text-slate-600">(selling price − cost) ÷ selling price; before discounts and expenses.</span></p>}
-        <h3 className="col-span-2 mt-2 border-t border-slate-100 pt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">3. Stock settings</h3>
+        {isNew && can('stock.adjust') && <Field label="Opening stock" className="col-span-2" hint="Quantity on the shelf right now"><Input type="number" min={0} value={f.openingStock} onChange={(e) => setF({ ...f, openingStock: e.target.value })} /></Field>}
+        <details className="m-form-details"><summary>More product details</summary><div className="grid grid-cols-2 gap-4">
+        <Field label="SKU / item code"><Input value={f.sku} onChange={(e) => setF({ ...f, sku: e.target.value })} /></Field>
+        <Field label="Category"><Select value={f.categoryId} onChange={(e) => setF({ ...f, categoryId: e.target.value })}><option value="">No category</option>{categories.filter((c) => c.active || c.id === f.categoryId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
+        <Field label="Unit of measure"><Input value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Field>
         <Field label="Reorder level" hint="Warn when stock falls to this quantity"><Input type="number" min={0} value={f.reorderLevel} onChange={(e) => setF({ ...f, reorderLevel: e.target.value })} /></Field>
-        {isNew && can('stock.adjust') && <Field label="Opening stock" hint="Quantity on the shelf right now"><Input type="number" min={0} value={f.openingStock} onChange={(e) => setF({ ...f, openingStock: e.target.value })} /></Field>}
         {!isNew && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Active (shown at checkout)</label>}
+        </div></details>
         {!isNew && <p className="col-span-2 text-xs text-slate-500">Stock quantity is changed through purchases, stock counts and adjustments under Stock, so that every change is recorded.</p>}
         <button type="submit" hidden />
       </form>

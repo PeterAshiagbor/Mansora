@@ -23,7 +23,11 @@ export function Button({ variant = 'secondary', size = 'md', className, type = '
     if (variant === 'primary' || type === 'submit') {
       const scope = event.currentTarget.closest('[role="dialog"]') ?? event.currentTarget.closest('form') ?? event.currentTarget.closest('section');
       const invalid = scope?.querySelector<HTMLInputElement>('input:invalid, select:invalid, textarea:invalid');
-      if (invalid) { event.preventDefault(); invalid.focus(); invalid.reportValidity(); return; }
+      if (invalid) {
+        event.preventDefault();
+        for (let detail = invalid.closest('details'); detail; detail = detail.parentElement?.closest('details') ?? null) detail.open = true;
+        invalid.focus(); invalid.reportValidity(); return;
+      }
     }
     if (dismiss && guardedDismiss) { guardedDismiss(() => onClick?.(event)); return; }
     onClick?.(event);
@@ -246,7 +250,7 @@ export function Alert({ tone = 'info', children, className }: { tone?: 'info' | 
 
 export { MansoraBrand } from './brand';
 
-export { WorkspaceShell, GuideBody, Icon, type Guide } from './workspace';
+export { WorkspaceShell, GuideBody, Icon, Disclosure, ActionMenu, type Guide } from './workspace';
 export { CLIENT_GUIDES, ADMIN_GUIDES } from './guides';
 export { QueryView } from './query';
 export { DraftProvider, useNavigationGuard, useUnsavedChanges } from './drafts';

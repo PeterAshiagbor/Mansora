@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
@@ -63,7 +64,7 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
     const unlabelledTables = await page.locator('table').evaluateAll((tables: HTMLTableElement[]) => tables.filter((table) => !table.caption?.textContent?.trim() && !table.getAttribute('aria-label') && !table.getAttribute('aria-labelledby')).length);
     expect(unlabelledTables, `${name}: table labels`).toBe(0);
   }
-  const nav = (page: any, name: string) => page.getByRole('navigation').getByRole('button', { name, exact: true }).click();
+  const nav = navigate;
   it('checks every desktop page and tab, login and a modal at normal size and 200% zoom equivalent viewport', async () => {
     await scan(shop, 'Desktop sign in');
     await shop.getByLabel('Username', { exact: true }).fill(owner.username);

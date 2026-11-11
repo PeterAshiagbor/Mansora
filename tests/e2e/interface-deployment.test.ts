@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
@@ -15,7 +16,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   let cloud: Cloud, app: Awaited<ReturnType<typeof buildApp>>, web: Awaited<ReturnType<typeof serveStatic>>, host: Awaited<ReturnType<typeof startDevHost>>, browser: any, admin: any, shop: any;
   let clientId: string, planId: string;
   const owner = { name: 'Deployment fixture', username: 'owner', password: randomUUID() }, errors: string[] = [];
-  const nav = (page: any, name: string) => page.getByRole('navigation').getByRole('button', { name, exact: true }).click();
+  const nav = navigate;
   beforeAll(async () => {
     cloud = await startCloud(); const client = await cloud.createClient('Deployment interface shop'); clientId = client.id;
     host = await startDevHost({ dataDir: tempDir(), port: 0, dbKey: randomUUID() });
@@ -133,7 +134,9 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     await admin.route('**/v1/admin/billing/reports/summary?*', (r: any) => refuse ? r.fulfill({ status: 503, json: { message: 'Synthetic revenue read unavailable' } }) : r.continue());
     await nav(admin, 'Revenue reports'); await admin.getByText('Synthetic revenue read unavailable', { exact: true }).waitFor();
     expect(await admin.getByLabel('From', { exact: true }).isVisible()).toBe(true); expect(await admin.getByLabel('To', { exact: true }).isVisible()).toBe(true);
+    await admin.getByText('Export reports', { exact: true }).click();
     expect(await admin.getByRole('button', { name: 'Export invoices', exact: true }).isDisabled()).toBe(true);
+    await admin.keyboard.press('Escape');
     refuse = false; await admin.getByRole('button', { name: 'Retry', exact: true }).click(); await admin.getByText('Monthly recurring revenue', { exact: true }).waitFor();
     await admin.unroute('**/v1/admin/billing/reports/summary?*');
   });

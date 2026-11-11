@@ -17,6 +17,7 @@ const paths: Record<string, string> = {
   search: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 6 6',
   plus: 'M12 5v14M5 12h14',
   logout: 'M9 4H4v16h5m6-13 5 5-5 5m-7-5h12',
+  chevron: 'm6 9 6 6 6-6',
 };
 export function Icon({ name, className }: { name: string; className?: string }) {
   return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={cx('shrink-0', className)}><path d={paths[name] ?? paths.file} /></svg>;
@@ -26,15 +27,40 @@ export interface Guide { title: string; intro: string; steps: string[]; notes?: 
 export function GuideBody({ guide }: { guide: Guide }) {
   return <div className="space-y-5"><p className="text-sm leading-relaxed text-slate-600">{guide.intro}</p><ol className="space-y-4">{guide.steps.map((step, i) => <li key={step} className="flex gap-3 text-sm leading-relaxed"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-800">{i + 1}</span><span>{step}</span></li>)}</ol>{guide.notes?.length && <div className="rounded-lg border border-brand-200 bg-brand-50 p-4"><h3 className="mb-2 text-sm font-semibold text-brand-900">Good to know</h3><ul className="list-disc space-y-2 pl-4 text-sm leading-relaxed text-slate-700">{guide.notes.map((note) => <li key={note}>{note}</li>)}</ul></div>}</div>;
 }
-export function WorkspaceShell({ groups, current, onNavigate, workspace, workspaceLabel, user, userRole, guide, onSignOut, signOutLabel = 'Sign out', children }: {
+export function Disclosure({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <details className="m-disclosure" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}><summary><span><strong>{title}</strong>{description && <small>{description}</small>}</span><Icon name="chevron" /></summary>{open && <div className="m-disclosure-body">{children}</div>}</details>;
+}
+
+export function ActionMenu({ label, children }: { label: string; children: ReactNode }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); ref.current?.querySelector('summary')?.focus(); } };
+    document.addEventListener('pointerdown', outside); document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
+  }, [open]);
+  return <details ref={ref} className="m-action-menu no-print" open={open}><summary aria-label={label} onClick={(event) => { event.preventDefault(); setOpen(!open); }}>{label}<Icon name="chevron" /></summary>{open && <div role="group" aria-label={`${label} options`} onClick={() => setOpen(false)}>{children}</div>}</details>;
+}
+
+export function WorkspaceShell({ groups, primaryIds, current, onNavigate, workspace, workspaceLabel, user, userRole, guide, onSignOut, signOutLabel = 'Sign out', children }: {
   groups: { group: string; items: WorkspaceItem[] }[]; current: WorkspaceItem; onNavigate: (id: string) => void;
+  primaryIds: string[];
   workspace: string; workspaceLabel: string; user: string; userRole?: string; guide?: Guide;
   onSignOut: () => void; signOutLabel?: string; children: ReactNode;
 }) {
   const navigation = useRef<HTMLDivElement>(null);
-  useEffect(() => { navigation.current?.querySelector('[aria-current=page]')?.scrollIntoView({ block: 'nearest' }); }, [current.id]);
   const [finding, setFinding] = useState(false), [query, setQuery] = useState(''), [help, setHelp] = useState(false);
   const pages = useMemo(() => groups.flatMap((g) => g.items.map((item) => ({ ...item, group: g.group }))), [groups]);
+  const primary = primaryIds.flatMap((id) => pages.filter((item) => item.id === id));
+  const secondary = groups.map((group) => ({ ...group, items: group.items.filter((item) => !primaryIds.includes(item.id)) })).filter((group) => group.items.length);
+  const selectedGroup = secondary.find((group) => group.items.some((item) => item.id === current.id))?.group ?? null;
+  const [toolsOpen, setToolsOpen] = useState(!!selectedGroup), [openGroup, setOpenGroup] = useState<string | null>(selectedGroup);
+  useEffect(() => { setToolsOpen(!!selectedGroup); setOpenGroup(selectedGroup); }, [current.id, selectedGroup]);
+  useEffect(() => { navigation.current?.querySelector('[aria-current=page]')?.scrollIntoView({ block: 'nearest' }); }, [current.id, toolsOpen, openGroup]);
+  const pageButton = (item: WorkspaceItem) => <button key={item.id} type="button" aria-current={current.id === item.id ? 'page' : undefined} onClick={() => onNavigate(item.id)} className={cx('m-nav-item', current.id === item.id && 'm-nav-active')}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>;
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && !document.querySelector('[role=dialog]')) { e.preventDefault(); setQuery(''); setFinding(true); } };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
@@ -45,7 +71,10 @@ export function WorkspaceShell({ groups, current, onNavigate, workspace, workspa
     <nav aria-label="Main" className="m-sidebar no-print">
       <div className="m-sidebar-brand"><MansoraBrand compact /></div>
       <div className="m-company"><span>{workspaceLabel}</span><strong title={workspace}>{workspace}</strong></div>
-      <div className="m-nav-groups" ref={navigation}>{groups.map((group) => <div key={group.group} className="m-nav-group"><p>{group.group}</p>{group.items.map((item) => <button key={item.id} type="button" aria-current={current.id === item.id ? 'page' : undefined} onClick={() => onNavigate(item.id)} className={cx('m-nav-item', current.id === item.id && 'm-nav-active')}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>)}</div>)}</div>
+      <div className="m-nav-groups" ref={navigation}>
+        <div className="m-nav-group"><p>Daily work</p>{primary.map(pageButton)}</div>
+        {secondary.length > 0 && <details className="m-nav-tools" open={toolsOpen}><summary aria-label="More tools" onClick={(event) => { event.preventDefault(); setToolsOpen(!toolsOpen); }}><Icon name="settings" /><span>More tools</span><Icon name="chevron" /></summary><p className="m-nav-hint">Open a section, or use Find a page.</p>{secondary.map((group) => <details key={group.group} data-nav-group={group.group} className="m-nav-section" open={openGroup === group.group}><summary aria-label={`${group.group} tools`} onClick={(event) => { event.preventDefault(); setOpenGroup(openGroup === group.group ? null : group.group); }}><span>{group.group}</span><Icon name="chevron" /></summary><div>{group.items.map(pageButton)}</div></details>)}</details>}
+      </div>
       <div className="m-sidebar-footer"><button className="m-nav-item" type="button" onClick={onSignOut}><Icon name="logout" /><span>{signOutLabel}</span></button><div className="m-provider-note">Provided by Mansora<span>Sales &amp; Stock platform</span></div></div>
     </nav>
     <div className="m-workspace-body">

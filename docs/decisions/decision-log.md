@@ -74,3 +74,10 @@ Each is isolated so it can be changed.
 | A-22 | Providers sit behind one adapter interface with declared capabilities; the sandbox adapter is excluded from revenue and refused in production unless explicitly allowed | The rest of billing never assumes a provider can do something it cannot |
 | A-23 | Billing audit log is append-only (no UPDATE/DELETE privilege plus a trigger) | Financial history cannot be rewritten by application code |
 | A-24 | Desktop billing screen proxies the server and shows the last known state offline, clearly marked; no payment credential ever reaches the laptop | Offline-first without pretending a payment happened |
+
+### UI defaults requested on 2026-11-11
+
+| ID | Decision | Reason / boundary |
+| --- | --- | --- |
+| U-01 | Start with five permitted daily-work pages; reveal secondary groups on demand, one at a time | Implements the owner's explicit request for most features without showing them all at once. Does not change permissions, data or financial policy. Full permitted-page search remains available. |
+| U-02 | Dashboard breakdowns start closed; product optional sections retain mounted fields; exports use a contextual menu | Reduces simultaneous choices without losing work or capabilities. Invalid hidden fields are revealed before focusing them. |

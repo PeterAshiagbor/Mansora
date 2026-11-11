@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -49,7 +50,7 @@ describe.skipIf(!pw || !existsSync(join(dist, 'index.html')))('administrator TOT
   it('enrols, shows recovery codes once, challenges password login and disables with reauthentication', async () => {
     await page.goto(web.url);
     await passwordLogin();
-    await page.getByRole('button', { name: 'Account security', exact: true }).click();
+    await navigate(page, 'Account security');
     await page.getByLabel('Current password').fill(ADMIN.password);
     await page.getByRole('button', { name: 'Set up authenticator' }).click();
     const secret = await page.getByTestId('totp-secret').innerText();
@@ -73,7 +74,7 @@ describe.skipIf(!pw || !existsSync(join(dist, 'index.html')))('administrator TOT
     expect(await page.evaluate(() => sessionStorage.getItem('mansora-admin-token'))).toBeNull();
     await page.getByLabel('Authenticator or recovery code').fill(totpCode(secret, Date.now() + 30_000));
     await page.getByRole('button', { name: 'Verify and sign in' }).click();
-    await page.getByRole('button', { name: 'Account security', exact: true }).click();
+    await navigate(page, 'Account security');
     await page.getByRole('button', { name: 'Disable two-factor authentication', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Current password').fill(ADMIN.password);
@@ -81,7 +82,7 @@ describe.skipIf(!pw || !existsSync(join(dist, 'index.html')))('administrator TOT
     await dialog.getByRole('button', { name: 'Confirm disable' }).click();
     await page.getByRole('heading', { name: 'Administrator sign in' }).waitFor();
     await passwordLogin();
-    await page.getByRole('button', { name: 'Account security', exact: true }).click();
+    await navigate(page, 'Account security');
     await page.getByText('Not enabled', { exact: true }).waitFor();
     expect(errors).toEqual([]);
   });
