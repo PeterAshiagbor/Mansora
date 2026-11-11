@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Input, Modal, cx } from './index';
 import { MansoraBrand } from './brand';
 
@@ -52,16 +52,10 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
   onSignOut: () => void; signOutLabel?: string; children: ReactNode;
 }) {
   const navigation = useRef<HTMLDivElement>(null);
-  const navId = useId();
-  const mobileToggle = useRef<HTMLButtonElement>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const closeNavigation = () => { setMobileOpen(false); if (mobileToggle.current?.getClientRects().length) mobileToggle.current.focus(); };
-  useEffect(() => {
-    if (!mobileOpen) return;
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !document.querySelector('[role=dialog]')) closeNavigation(); };
-    window.addEventListener('keydown', escape);
-    return () => window.removeEventListener('keydown', escape);
-  }, [mobileOpen]);
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 760px)').matches);
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => { const media = window.matchMedia('(max-width: 760px)'); const update = () => { setCompact(media.matches); if (!media.matches) setMenuOpen(false); }; media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
+  const navigatePage = (id: string) => { setMenuOpen(false); onNavigate(id); };
   const [finding, setFinding] = useState(false), [query, setQuery] = useState(''), [help, setHelp] = useState(false);
   const pages = useMemo(() => groups.flatMap((g) => g.items.map((item) => ({ ...item, group: g.group }))), [groups]);
   const primary = primaryIds.flatMap((id) => pages.filter((item) => item.id === id));
@@ -70,16 +64,13 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
   const [toolsOpen, setToolsOpen] = useState(!!selectedGroup), [openGroup, setOpenGroup] = useState<string | null>(selectedGroup);
   useLayoutEffect(() => { setToolsOpen(!!selectedGroup); setOpenGroup(selectedGroup); }, [current.id, selectedGroup]);
   useEffect(() => { navigation.current?.querySelector('[aria-current=page]')?.scrollIntoView({ block: 'nearest' }); }, [current.id, toolsOpen, openGroup]);
-  const pageButton = (item: WorkspaceItem) => <button key={item.id} type="button" aria-current={current.id === item.id ? 'page' : undefined} onClick={() => { onNavigate(item.id); if (mobileOpen) closeNavigation(); }} className={cx('m-nav-item', current.id === item.id && 'm-nav-active')}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>;
+  const pageButton = (item: WorkspaceItem) => <button key={item.id} type="button" aria-current={current.id === item.id ? 'page' : undefined} onClick={() => navigatePage(item.id)} className={cx('m-nav-item', current.id === item.id && 'm-nav-active')}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>;
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && !document.querySelector('[role=dialog]')) { e.preventDefault(); setQuery(''); setFinding(true); } };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, []);
   const results = pages.filter((item) => `${item.label} ${item.group}`.toLowerCase().includes(query.toLowerCase()));
-  return <div className="m-workspace">
-    <a className="m-skip no-print" href="#workspace-main">Skip to page content</a>
-    <button ref={mobileToggle} type="button" className="m-mobile-navigation no-print" aria-expanded={mobileOpen} aria-controls={navId} onClick={() => setMobileOpen(!mobileOpen)}><Icon name="chevron" /><span>{mobileOpen ? 'Close navigation' : 'Open navigation'}</span><strong>{current.label}</strong></button>
-    <nav id={navId} aria-label="Main" className="m-sidebar no-print" data-mobile-open={mobileOpen}>
+  const sidebar = (<nav aria-label="Main" className="m-sidebar no-print">
       <div className="m-sidebar-brand"><MansoraBrand compact /></div>
       <div className="m-company"><span>{workspaceLabel}</span><strong title={workspace}>{workspace}</strong></div>
       <div className="m-nav-groups" ref={navigation}>
@@ -87,12 +78,25 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
         {secondary.length > 0 && <details className="m-nav-tools" open={toolsOpen}><summary aria-label="More tools" onClick={(event) => { event.preventDefault(); setToolsOpen(!toolsOpen); }}><Icon name="settings" /><span>More tools</span><Icon name="chevron" /></summary><p className="m-nav-hint">Open a section, or use Find a page.</p>{secondary.map((group) => <details key={group.group} data-nav-group={group.group} className="m-nav-section" open={openGroup === group.group}><summary aria-label={`${group.group} tools`} onClick={(event) => { event.preventDefault(); setOpenGroup(openGroup === group.group ? null : group.group); }}><span>{group.group}</span><Icon name="chevron" /></summary><div>{group.items.map(pageButton)}</div></details>)}</details>}
       </div>
       <div className="m-sidebar-footer"><button className="m-nav-item" type="button" onClick={onSignOut}><Icon name="logout" /><span>{signOutLabel}</span></button><div className="m-provider-note">Provided by Mansora<span>Sales &amp; Stock platform</span></div></div>
-    </nav>
+    </nav>);
+  return <div className="m-workspace">
+    <a className="m-skip no-print" href="#workspace-main">Skip to page content</a>
+    {!compact && sidebar}
+    {compact && menuOpen && <Modal title="Workspace navigation" trackChanges={false} open onClose={() => setMenuOpen(false)}><div className="m-mobile-drawer">{sidebar}</div></Modal>}
     <div className="m-workspace-body">
-      <header className="m-topbar no-print"><div className="m-breadcrumb"><span>{workspaceLabel}</span><span aria-hidden="true">/</span><strong>{current.label}</strong></div><button type="button" className="m-page-search" onClick={() => { setQuery(''); setFinding(true); }}><Icon name="search" /><span>Find a page</span><kbd>Ctrl K</kbd></button><div className="m-user"><span className="m-avatar" aria-hidden="true">{user.split(' ').map((x) => x[0]).slice(0, 2).join('')}</span><div><strong>{user}</strong><span>{userRole}</span></div></div></header>
+      <header className="m-topbar no-print"><button type="button" className="m-mobile-menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Icon name="settings" />Menu</button><div className="m-breadcrumb"><span>{workspaceLabel}</span><span aria-hidden="true">/</span><strong>{current.label}</strong></div><button type="button" className="m-page-search" onClick={() => { setQuery(''); setFinding(true); }}><Icon name="search" /><span>Find a page</span><kbd>Ctrl K</kbd></button><div className="m-user"><span className="m-avatar" aria-hidden="true">{user.split(' ').map((x) => x[0]).slice(0, 2).join('')}</span><div><strong>{user}</strong><span>{userRole}</span></div></div></header>
       <div className="m-content-scroll"><div className="m-page-tools no-print">{guide && <button type="button" onClick={() => setHelp(true)}><Icon name="help" />How to use this page</button>}</div><main id="workspace-main" tabIndex={-1} className="m-main" key={current.id}>{children}</main></div>
+      {compact && <nav aria-label="Quick tasks" className="m-mobile-shortcuts no-print">{primary.slice(0, 4).map(item => <button type="button" key={item.id} aria-current={item.id === current.id ? 'page' : undefined} onClick={() => navigatePage(item.id)}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>)}</nav>}
     </div>
-    {finding && <Modal title="Find a page" trackChanges={false} open onClose={() => setFinding(false)}><Input aria-label="Find a page" placeholder="Search sales, products, reports…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && results[0]) { e.preventDefault(); onNavigate(results[0].id); setFinding(false); } if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.m-search-result')?.focus(); } }} autoFocus /><div className="mt-3 max-h-80 overflow-y-auto">{results.map((item) => <button type="button" className="m-search-result" key={item.id} onClick={() => { onNavigate(item.id); setFinding(false); }}><Icon name={item.icon ?? 'file'} /><span>{item.label}<small>{item.group}</small></span><span aria-hidden="true">↗</span></button>)}{!results.length && <p className="py-6 text-center text-sm text-slate-600">No matching pages. Try a different name.</p>}</div></Modal>}
+    {finding && <Modal title="Find a page" trackChanges={false} open onClose={() => setFinding(false)}><Input aria-label="Find a page" placeholder="Search sales, products, reports…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && results[0]) { e.preventDefault(); navigatePage(results[0].id); setFinding(false); } if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.m-search-result')?.focus(); } }} autoFocus /><div className="mt-3 max-h-80 overflow-y-auto">{results.map((item) => <button type="button" className="m-search-result" key={item.id} onClick={() => { navigatePage(item.id); setFinding(false); }}><Icon name={item.icon ?? 'file'} /><span>{item.label}<small>{item.group}</small></span><span aria-hidden="true">↗</span></button>)}{!results.length && <p className="py-6 text-center text-sm text-slate-600">No matching pages. Try a different name.</p>}</div></Modal>}
     {help && guide && <Modal title={`How to use: ${guide.title}`} open onClose={() => setHelp(false)} wide footer={<Button variant="primary" onClick={() => setHelp(false)}>Got it</Button>}><GuideBody guide={guide} /></Modal>}
   </div>;
+}
+
+export function WorkflowSteps({ steps, current }: { steps: string[]; current: number }) {
+  return <ol className="m-workflow-steps" aria-label="Progress">{steps.map((step, index) => <li key={step} aria-current={index === current ? 'step' : undefined}><span aria-hidden="true">{index < current ? '✓' : index + 1} · </span>{step}</li>)}</ol>;
+}
+
+export function AuthLayout({ children, platform = false }: { children: ReactNode; platform?: boolean }) {
+  return <div className="m-auth-layout"><aside className="m-auth-story" aria-label="About Mansora"><strong>MANSORA</strong><h2>{platform ? 'Your clients.\nClearly managed.' : 'Your business.\nUnder control.'}</h2><p>{platform ? 'Onboard clients, review service health and manage subscription collections from one place.' : 'A clearer way to sell, manage stock and understand your numbers.'}</p><p>{platform ? 'Client financial data stays protected by scoped consent and recorded access.' : 'From the carton you buy to the individual items you sell, keep a clear trail of your daily work.'}</p><small>Mansora Consulting &amp; Business Solutions</small></aside><div className="m-auth-panel">{children}</div></div>;
 }

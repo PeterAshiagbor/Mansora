@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TaskLinks } from '../components/TaskLinks';
 import { unitCostFromCarton } from '@mansora/domain';
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, QueryView } from '@mansora/ui';
 import { call, ExportButtons, marginLabel, money, MoneyInput, plain, useAction, useApp, useQuery } from '../lib';
@@ -19,7 +20,8 @@ export function ProductsPage() {
           {can('data.import') && <Button onClick={() => go('data')}>Upload Excel / CSV</Button>}
           {can('product.manage') && <Button variant="primary" onClick={() => setEdit({})}>Add product</Button>}
         </>} />
-      <div className="mb-3 flex items-center gap-3 no-print">
+      <TaskLinks group="inventory" current="products" />
+      <div className="mb-3 flex flex-wrap items-center gap-3 no-print">
         <Input placeholder="Search by name, SKU or barcode" value={search} onChange={(e) => setSearch(e.target.value)} className="w-80" aria-label="Search products" />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={inactive} onChange={(e) => setInactive(e.target.checked)} /> Show inactive</label>
       </div>
@@ -68,7 +70,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
     <Modal title={isNew ? 'Add product' : 'Edit product'} open onClose={onClose} wide
       footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !f.name.trim() || f.sellingPrice == null || (cost && f.costPrice == null)} onClick={save}>Save</Button></>}>
       {categoryOptions.error && <QueryView query={categoryOptions} label="categories">{null}</QueryView>}
-      <form className="grid grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
+      <div className="m-product-editor"><form className="grid grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <Field label="Product name" className="col-span-2"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
         <Field label="Barcode" className="col-span-2" hint="Click here and scan the item"><Input value={f.barcode} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field>
         <Field label="Selling price (GHS)"><MoneyInput value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
@@ -82,7 +84,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
           <Button disabled={derivedCost == null} onClick={() => setF({ ...f, costPrice: derivedCost })}>Use calculated unit cost</Button>
           <p className="mt-2 text-xs text-slate-600">Rounded to the nearest pesewa. Quantities and selling price are per selling unit. This calculator does not record a purchase or change stock.</p>
         </div></details>}
-        {cost && <p className="col-span-2 rounded-lg bg-slate-50 px-4 py-3 text-sm">Gross margin: {f.sellingPrice == null || f.costPrice == null ? '—' : marginLabel(f.sellingPrice, f.costPrice)} <span className="text-slate-600">(selling price − cost) ÷ selling price; before discounts and expenses.</span></p>}
+
         {isNew && can('stock.adjust') && <Field label="Opening stock" className="col-span-2" hint="Quantity on the shelf right now"><Input type="number" min={0} value={f.openingStock} onChange={(e) => setF({ ...f, openingStock: e.target.value })} /></Field>}
         <details className="m-form-details"><summary>More product details</summary><div className="grid grid-cols-2 gap-4">
         <Field label="SKU / item code"><Input value={f.sku} onChange={(e) => setF({ ...f, sku: e.target.value })} /></Field>
@@ -93,7 +95,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
         </div></details>
         {!isNew && <p className="col-span-2 text-xs text-slate-500">Stock quantity is changed through purchases, stock counts and adjustments under Stock, so that every change is recorded.</p>}
         <button type="submit" hidden />
-      </form>
+      </form><aside className="m-product-context" aria-label="Pricing and stock context"><h3 className="text-base font-semibold">At this selling price</h3>{cost && <><p className="text-2xl font-semibold">Gross margin: {f.sellingPrice == null || f.costPrice == null ? '—' : marginLabel(f.sellingPrice, f.costPrice)}</p><p className="text-sm leading-relaxed text-slate-600">(selling price − cost) ÷ selling price; before discounts and expenses.</p></>}<p className="text-sm leading-relaxed text-slate-600">Buy by the carton and track individual selling units. The calculator previews a unit cost; use the button to apply it.</p><p className="text-sm leading-relaxed text-slate-600">Opening quantities need a physical check. Later changes belong in purchases, counts or adjustments, so every movement is recorded.</p></aside></div>
     </Modal>
   );
 }

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { TaskLinks } from '../components/TaskLinks';
+import { unitCostFromCarton } from '@mansora/domain';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, QueryView, useUnsavedChanges } from '@mansora/ui';
 import { call, dateTime, ExportButtons, money, MoneyInput, plain, useAction, useApp, useQuery, uuid } from '../lib';
 
@@ -7,9 +9,9 @@ const TYPE_LABEL: Record<string, string> = {
   STOCK_COUNT_ADJUSTMENT: 'Stock count', MANUAL_CORRECTION: 'Manual correction',
 };
 
-export function StockPage() {
+export function StockPage({ initialTab = 'overview' }: { initialTab?: 'overview' | 'count' }) {
   const { can } = useApp();
-  const [tab, setTab] = useState<'overview' | 'movements' | 'count'>('overview');
+  const [tab, setTab] = useState<'overview' | 'movements' | 'count'>(initialTab === 'count' && can('stock.adjust') ? 'count' : 'overview');
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all');
   const [adjust, setAdjust] = useState<any | null>(null);
   const overview = useQuery<any>('stock.overview', { filter });
@@ -20,6 +22,7 @@ export function StockPage() {
     <div>
       <PageHeader title="Stock" subtitle="Every change to stock is recorded as a movement. Quantities are never typed over."
         actions={tab === 'overview' ? <ExportButtons disabled={!overview.data} title="Current stock on hand" columns={['Product', 'SKU', 'In stock', 'Reorder level']} rows={() => (overview.data?.rows ?? []).map((r: any) => [r.name, r.sku ?? '', r.quantity, r.reorder_level])} /> : undefined} />
+      <TaskLinks group="inventory" current="stock" />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Stock overview' }, { id: 'movements', label: 'Stock movements' }, ...(can('stock.adjust') ? [{ id: 'count' as const, label: 'Stock count' }] : [])]} />
       {tab === 'overview' && (
         <>
@@ -133,6 +136,7 @@ export function PurchasesPage() {
     <div>
       <PageHeader title="Purchases & suppliers" subtitle="Record stock you receive. This adds to stock and updates the average cost."
         actions={tab === 'purchases' ? <Button variant="primary" onClick={() => setReceiving(true)}>Receive stock</Button> : <Button variant="primary" onClick={() => setEdit({ name: '', phone: '', notes: '' })}>Add supplier</Button>} />
+      <TaskLinks group="inventory" current="purchases" />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'purchases', label: 'Purchases received' }, { id: 'suppliers', label: 'Suppliers' }]} />
       {tab === 'purchases' && (
         <QueryView query={purchases} label="purchases"><Card pad={false}>
@@ -195,14 +199,33 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
         <Field label="Invoice / waybill number"><Input value={reference} onChange={(e) => setReference(e.target.value)} /></Field>
       </div>
       {items.map((it, i) => (
-        <div key={i} className="mb-2 grid grid-cols-[1fr_6rem_8rem_2rem] items-end gap-2">
+        <div key={i} className="m-receive-line mb-4">
           <Field label={i === 0 ? 'Product' : ''}><Select value={it.productId} aria-label="Product" onChange={(e) => { const p = products.find((x) => x.id === e.target.value); set(i, { productId: e.target.value, unitCost: it.unitCost ?? p?.cost_price ?? null }); }}><option value="">Choose product…</option>{products.filter((p) => p.id === it.productId || !items.some((x) => x.productId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
           <Field label={i === 0 ? 'Quantity' : ''}><Input type="number" min={1} aria-label="Quantity" value={it.quantity} onChange={(e) => set(i, { quantity: e.target.value })} /></Field>
           <Field label={i === 0 ? 'Unit cost (GHS)' : ''}><MoneyInput value={it.unitCost} aria-label="Unit cost" onChange={(v) => set(i, { unitCost: v })} /></Field>
           <button type="button" aria-label="Remove line" className="mb-2 text-red-700" onClick={() => setItems(items.length > 1 ? items.filter((_, k) => k !== i) : items)}>✕</button>
+          <CartonReceiptCalculator onApply={(quantity, unitCost) => set(i, { quantity: String(quantity), unitCost })} />
         </div>
       ))}
       <Button size="sm" onClick={() => setItems([...items, { productId: '', quantity: '', unitCost: null }])}>Add another product</Button>
     </Modal>
   );
+}
+
+function CartonReceiptCalculator({ onApply }: { onApply: (quantity: number, unitCost: number) => void }) {
+  const [cartons, setCartons] = useState('');
+  const [units, setUnits] = useState('');
+  const [cost, setCost] = useState<number | null>(null);
+  const count = Number(cartons), perCarton = Number(units), quantity = count * perCarton;
+  const valid = Number.isSafeInteger(count) && count > 0 && Number.isSafeInteger(perCarton) && perCarton > 0 && Number.isSafeInteger(quantity) && cost != null && Number.isSafeInteger(cost) && cost >= 0;
+  const unitCost = valid ? unitCostFromCarton(cost!, perCarton) : null;
+  const total = unitCost == null ? null : unitCost * quantity;
+  return <details className="m-form-details"><summary>Receiving cartons? Calculate selling units</summary><div className="space-y-4"><div className="grid grid-cols-3 gap-3">
+    <Field label="Cartons received"><Input type="number" min={1} step={1} value={cartons} onChange={e => setCartons(e.target.value)} /></Field>
+    <Field label="Units per carton"><Input type="number" min={1} step={1} value={units} onChange={e => setUnits(e.target.value)} /></Field>
+    <Field label="Cost per carton (GHS)"><MoneyInput value={cost} onChange={setCost} /></Field>
+  </div><p className="text-sm" aria-live="polite">{unitCost == null ? 'Enter the carton quantity, selling units and purchase cost.' : `${quantity} individual units · ${money(unitCost)} per unit · recorded cost ${money(total)}`}</p>
+  <p className="text-xs leading-relaxed text-slate-600">Unit cost rounds to the nearest pesewa. The recorded cost uses this rounded unit cost and can differ slightly from the supplier’s carton total. Review before applying.</p>
+  <Button disabled={unitCost == null || !Number.isSafeInteger(total)} onClick={() => onApply(quantity, unitCost!)}>Apply carton quantities & cost</Button>
+  </div></details>;
 }

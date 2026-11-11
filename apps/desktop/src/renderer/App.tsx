@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
-import { Alert, Button, cx, Field, Input, MansoraBrand, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard } from '@mansora/ui';
+import { Alert, Button, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard } from '@mansora/ui';
 import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
 import { Checkout } from './pages/Checkout';
 import { Dashboard } from './pages/Dashboard';
@@ -43,7 +43,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { id: 'products', label: 'Products', perm: 'product.view', render: () => <ProductsPage /> },
       { id: 'categories', label: 'Categories', perm: 'product.manage', render: () => <CategoriesPage /> },
-      { id: 'stock', label: 'Stock', perm: 'stock.view', render: () => <StockPage /> },
+      { id: 'stock', label: 'Stock', perm: 'stock.view', render: (p) => <StockPage initialTab={p === 'count' ? 'count' : 'overview'} /> },
       { id: 'purchases', label: 'Purchases & suppliers', perm: 'purchase.manage', render: () => <PurchasesPage /> },
     ],
   },
@@ -114,7 +114,7 @@ function ClientApplication() {
 
 function AuthFrame({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="m-auth-frame flex min-h-full items-center justify-center bg-brand-900 p-6">
+    <AuthLayout>
       <div className="m-auth-card w-full max-w-md rounded-xl bg-white p-8 shadow-2xl">
         <div className="mb-6">
           <div className="mb-5"><MansoraBrand /></div>
@@ -123,7 +123,7 @@ function AuthFrame({ title, subtitle, children }: { title: string; subtitle: str
         </div>
         {children}
       </div>
-    </div>
+    </AuthLayout>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure } from '@mansora/ui';
+import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, AuthLayout, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure } from '@mansora/ui';
 import { api, getToken, setToken, useApi } from './api';
 import { Collections, Invoices, PaymentSettings, Payments, RevenueReports, Subscriptions } from './billing';
 
@@ -90,7 +90,7 @@ function Login({ onDone }: { onDone: () => void }) {
     onDone();
   });
   return (
-    <div className="m-auth-frame flex min-h-full items-center justify-center bg-brand-900 p-6">
+    <AuthLayout platform>
       <form className="m-auth-card w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
         <div><div className="mb-5"><MansoraBrand /></div><p className="mb-1 text-sm font-medium text-brand-700">Platform administration</p><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
         {error && <Alert tone="bad">{error}</Alert>}
@@ -105,7 +105,7 @@ function Login({ onDone }: { onDone: () => void }) {
           <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !email || !password}>Sign in</Button>
         </>}
       </form>
-    </div>
+    </AuthLayout>
   );
 }
 
@@ -175,14 +175,13 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
   return (
     <div>
       <PageHeader title="Overview" subtitle="Your client portfolio, onboarding progress and service health. Client financial data stays in its own workspace." actions={<Button variant="primary" onClick={() => go('clients')}>View client directory</Button>} />
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <Stat label="Client businesses" value={total} />
+      <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-3">
+        <Stat label="Client businesses" value={total} hint={`${n(d.clientsByStatus, 'onboarding')} being onboarded · ${n(d.subscriptionsByStatus, 'active') + n(d.subscriptionsByStatus, 'trial')} active plans`} />
         <Stat label="Live" value={n(d.clientsByStatus, 'active')} tone="good" />
-        <Stat label="Being onboarded" value={n(d.clientsByStatus, 'onboarding')} />
-        <Stat label="Active plans" value={n(d.subscriptionsByStatus, 'active') + n(d.subscriptionsByStatus, 'trial')} />
         <Stat label="Need attention" value={d.needsAttention.length} tone={d.needsAttention.length ? 'warn' : 'good'} />
       </div>
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="m-task-links"><Button onClick={() => go('collections')}>Review collections</Button><Button onClick={() => go('invoices')}>Review invoices</Button><Button onClick={() => go('security')}>Account security</Button></div>
+      <div>
         <Card title="Live clients needing support attention" pad={false}>
           <Table rows={d.needsAttention} rowKey={(r: any) => r.id} onRowClick={(r: any) => go('client', r.id)} empty="All live clients are syncing and backed up"
             columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Last sync', cell: (r: any) => ago(r.last_sync_at) }, { header: 'Unsynced', align: 'right', cell: (r: any) => r.pending_count ?? '—' }, { header: 'Last backup', cell: (r: any) => ago(r.last_backup_at) }]} />

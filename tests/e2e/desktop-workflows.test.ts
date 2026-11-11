@@ -180,6 +180,7 @@ describe.skipIf(!pw || !built)('remaining desktop workflows through the real int
     await page.getByRole('button').filter({ hasText: 'Workflow product' }).click();
     await page.getByLabel(/^Customer \(optional\)/).selectOption({ label: 'Workflow customer' });
     await page.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
+    await page.getByRole('button', { name: 'Credit', exact: true }).click();
     await page.getByLabel('Credit amount', { exact: true }).fill('10');
     await page.getByRole('button', { name: /Complete sale/ }).click();
     await page.getByRole('dialog', { name: 'Manager approval needed', exact: true }).waitFor();

@@ -32,7 +32,7 @@ describe.skipIf(!pw || !built)('generated preview on phone screens', () => {
   for (const [path, destination] of [['client', 'Products'], ['admin', 'Clients']]) {
     it(`${path} keeps navigation, page content and keyboard focus usable at 390px`, async () => {
       await page.goto(`${web.url}/${path}/index.html`);
-      const toggle = page.getByRole('button', { name: /Open navigation/ });
+      const toggle = page.getByRole('button', { name: 'Menu', exact: true });
       await toggle.waitFor();
       const nav = page.getByRole('navigation', { name: 'Main' });
       expect(await nav.isVisible()).toBe(false);
@@ -50,7 +50,7 @@ describe.skipIf(!pw || !built)('generated preview on phone screens', () => {
       const violations = await page.evaluate(async () => (await (window as any).axe.run()).violations.filter((v: any) => ['serious', 'critical'].includes(v.impact)));
       expect(violations).toEqual([]);
       await page.setViewportSize({ width: 1366, height: 768 });
-      expect(await nav.isVisible()).toBe(true);
+      await nav.waitFor({ state: 'visible' });
       expect(await toggle.isVisible()).toBe(false);
       await page.setViewportSize({ width: 390, height: 844 });
     });
