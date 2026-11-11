@@ -81,3 +81,5 @@ Each is isolated so it can be changed.
 | --- | --- | --- |
 | U-01 | Start with five permitted daily-work pages; reveal secondary groups on demand, one at a time | Implements the owner's explicit request for most features without showing them all at once. Does not change permissions, data or financial policy. Full permitted-page search remains available. |
 | U-02 | Dashboard breakdowns start closed; product optional sections retain mounted fields; exports use a contextual menu | Reduces simultaneous choices without losing work or capabilities. Invalid hidden fields are revealed before focusing them. |
+
+| U-03 | Railway test deployment | One web service plus dedicated PostgreSQL and a persistent `/data` volume; one replica. The two privately supplied tester emails identify the existing owner of separate sample businesses, with generated manager/cashier accounts for role testing. No email invitations, real charges, platform-admin elevation or policy changes are implied | `scripts/railway`, `scripts/staging`, `docs/operations/railway-staging.md` | Railway and test identities requested by owner on 2026-11-11; test-only implementation choices recorded for review |

@@ -1,14 +1,19 @@
 /** Explicit, idempotent provisioning. Never resets an existing test business. */
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, chmodSync } from 'node:fs';
-import { resolve, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { openEngine, syncNow } from '../../apps/desktop/src/core';
 import { stagingConfig, loadWorkspaces, workspaceKey, type StagingConfig, type WorkspaceRecord } from './config';
-export interface TestAccount { workspace: string; username: string; role: string; password: string }
-export async function provisionStaging(config: StagingConfig, admin: { email: string; password: string }) {
+export interface TestAccount { workspace: string; username: string; role: string; password: string; email?: string }
+import { testerEmails } from './accounts';
+export { testerEmails, loadLoginAliases } from './accounts';
+export async function provisionStaging(config: StagingConfig, admin: { email: string; password: string }, emails: string[] = []) {
+  const identities = testerEmails(emails.length ? JSON.stringify(emails) : undefined);
   mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
-  if (existsSync(join(config.dataDir, 'workspaces.json'))) { const opened = loadWorkspaces(config); for (const w of opened) w.engine.db.close(); return { existing: true }; }
+  if (existsSync(join(config.dataDir, 'workspaces.json'))) {
+    const saved = JSON.parse(readFileSync(join(config.dataDir, 'test-accounts.json'), 'utf8')) as TestAccount[];
+    if (identities.some(email => !saved.some(a => a.email === email))) throw new Error('Tester identities changed after provisioning. Review the existing accounts; passwords will not be reset automatically.');
+    const opened = loadWorkspaces(config); for (const w of opened) w.engine.db.close(); return { existing: true }; }
   let token = '';
   const phase = (name: string) => console.log('Staging setup: ' + name);
   const api = async (method: string, path: string, payload?: unknown) => {
@@ -31,10 +36,12 @@ export async function provisionStaging(config: StagingConfig, admin: { email: st
       phase(id + ' encrypted store');
       const engine = openEngine({ dataDir: directory, dbKey: workspaceKey(config.key, id), appVersion: '0.1.0-team-staging' });
       try {
-        const password = randomBytes(24).toString('base64url'); accounts.push({ workspace: id, username: 'owner', role: 'owner', password });
+        const email = identities[id === 'shop-a' ? 0 : 1];
+        const username = email ? 'tester-' + createHash('sha256').update(email).digest('hex').slice(0, 12) : 'owner';
+        const password = randomBytes(24).toString('base64url'); accounts.push({ workspace: id, username, role: 'owner', password, ...(email ? { email } : {}) });
         phase(id + ' activation');
-        await engine.execute(null, 'activation.activate', { apiUrl: config.apiUrl, code, deviceName: `${label} shared browser gateway`, owner: { name: 'Test owner', username: 'owner', password } });
-        const session = (await engine.execute(null, 'auth.login', { username: 'owner', password })).token;
+        await engine.execute(null, 'activation.activate', { apiUrl: config.apiUrl, code, deviceName: `${label} shared browser gateway`, owner: { name: email ? email.split('@')[0].slice(0, 100) : 'Test owner', username, password } });
+        const session = (await engine.execute(null, 'auth.login', { username, password })).token;
         phase(id + ' test records');
         for (const role of ['manager', 'cashier']) { const staffPassword = randomBytes(24).toString('base64url'); await engine.execute(session, 'staff.save', { name: `Test ${role}`, username: role, role, password: staffPassword }); accounts.push({ workspace: id, username: role, role, password: staffPassword }); }
         await engine.execute(session, 'product.save', { name: 'Test item — sample only', sku: 'TEAM-SAMPLE-1', sellingPrice: 1200, costPrice: 600, openingStock: 50, reorderLevel: 5 });
@@ -48,11 +55,4 @@ export async function provisionStaging(config: StagingConfig, admin: { email: st
     const temporary = join(config.dataDir, 'workspaces.json.pending'); writeFileSync(temporary, JSON.stringify(records, null, 2) + '\n', { flag: 'wx', mode: 0o600 }); renameSync(temporary, join(config.dataDir, 'workspaces.json'));
     return { existing: false };
   } finally { await api('POST', '/v1/admin/logout').catch(() => {}); }
-}
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  void (async () => {
-    const config = stagingConfig(); const password = readFileSync(process.env.ADMIN_PASSWORD_FILE ?? '/run/secrets/admin_password', 'utf8').trim(); const email = process.env.ADMIN_EMAIL;
-    if (!email || !password) throw new Error('Private administrator bootstrap configuration is required.');
-    await provisionStaging(config, { email, password }); console.log('Team staging is provisioned. Tester credentials are in the private staging volume; existing data and passwords were preserved.');
-  })().catch((error) => { console.error('Staging error category: ' + (error instanceof Error ? error.name : 'Unknown') + (typeof error?.code === 'string' && /^[A-Z0-9_]+$/.test(error.code) ? ' (' + error.code + ')' : '')); console.error('Staging provisioning failed. Inspect service health and private configuration; no existing business is reset automatically.'); process.exitCode = 1; });
 }

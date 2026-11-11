@@ -1,0 +1,2 @@
+import { build } from 'esbuild';
+await build({ entryPoints: { server: 'scripts/railway/server.ts', smoke: 'scripts/railway/smoke.ts' }, outdir: 'dist/railway', outExtension: { '.js': '.cjs' }, bundle: true, platform: 'node', format: 'cjs', target: 'node22', external: ['better-sqlite3-multiple-ciphers', '@electric-sql/pglite', 'pg-native'], alias: { '@mansora/domain': './packages/domain/src/index.ts' }, logLevel: 'info' });

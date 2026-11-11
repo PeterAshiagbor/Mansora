@@ -1,0 +1,40 @@
+name: mansora-railway-acceptance
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: railway
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: [railway_postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U postgres -d railway']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  web:
+    image: mansora-railway:local
+    build:
+      context: ../..
+      dockerfile: infrastructure/railway/Dockerfile
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER, SETUID, SETGID]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:size=128m,mode=1777']
+    stop_grace_period: 45s
+    ports: ['127.0.0.1:8080:8080']
+    environment:
+      DATABASE_URL: ${RAILWAY_TEST_DATABASE_URL:?Generate the private CI database reference first}
+      STAGING_ORIGIN: http://127.0.0.1:8080
+      RAILWAY_VOLUME_MOUNT_PATH: /data
+      STAGING_TESTER_EMAILS: '["first@example.test","second@example.test"]'
+    volumes: [railway_data:/data]
+    depends_on:
+      postgres: {condition: service_healthy}
+volumes:
+  railway_data:
+  railway_postgres:
+secrets:
+  postgres_password: {file: ../.secrets/postgres_password}

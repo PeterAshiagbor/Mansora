@@ -1,0 +1,34 @@
+name: Railway deployment acceptance
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  persistent-railway-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_FILE: infrastructure/railway/compose.test.yml
+      COMPOSE_ENV_FILES: infrastructure/.secrets/railway-test.env
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+      - run: node infrastructure/init-secrets.mjs && node infrastructure/railway/ci-config.mjs
+      - name: Build and start the exact Railway image against real PostgreSQL
+        run: docker compose up --build --wait --wait-timeout 300
+      - name: Check saved records, two assigned email logins, roles and Excel as non-root
+        run: docker compose exec -T --user 1000:1000 web node /app/railway/smoke.cjs
+      - name: Recreate containers and retain keys, credentials, records and migrations
+        run: |
+          docker compose down
+          docker compose up --wait --wait-timeout 300
+          docker compose exec -T --user 1000:1000 web node /app/railway/smoke.cjs --existing
+      - name: Safe startup diagnostics
+        if: failure()
+        run: docker compose logs --no-color web
+      - name: Remove disposable CI volumes only
+        if: always()
+        run: docker compose down --volumes --remove-orphans

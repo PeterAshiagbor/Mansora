@@ -59,7 +59,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C19 interface deployment readiness | Codex — done | PRs #28/#29 merged; all exact merged workflows green. **231 tests pass; shared version 6 is live. Interface acceptance complete.** | `codex/C19-interface-deployment-readiness` |
 | C20 persistent team staging | Codex — implementation merged; hosting blocked | PR #31 merged as `e1ea906`; **249 local tests pass**, all five feature-commit workflows green. Actual native/Excel container and restart checks pass. Server account and Vercel DNS access are still required before an online team-test URL exists | `codex/C20-team-staging`, PR #31 |
 | C21 progressive interface | Codex — done | PR #30 merged as `c07b25e`; all four merged workflows green. **237 tests passed; public version 7 is live.** Five daily shortcuts, grouped tools and details on demand | `codex/C21-progressive-interface`, PR #30 |
-| C22 Railway team deployment | Codex — claimed | Adapt C20 to one Railway web service plus PostgreSQL and persistent volume; named tester identities supplied privately by owner. No live deployment until Railway access is confirmed | Planned `codex/C22-railway-staging` |
+| C22 Railway team deployment | Codex — active | Railway-specific combined web image, dedicated PostgreSQL/least-privilege migration, persistent keys and email aliases implemented. Six new targeted tests pass; actual image and full suite being checked. Railway installation confirmed; deploy tools not yet exposed in active turn | `codex/C22-railway-staging` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -90,6 +90,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C22 Railway implementation under acceptance)
+- Built one Railway web image containing loopback API + authenticated gateway, with separate PostgreSQL and a required persistent `/data` volume. Added `railway.json`, private initialization, non-root application startup, restricted DB roles/migration execution, readiness, scheduled sync/backups/sandbox billing, and an actual image/recreation workflow. Read `docs/operations/railway-staging.md` before activation.
+- Owner-supplied tester addresses remain outside source control. `STAGING_TESTER_EMAILS` privately configures two separate sample-business owners; gateway email aliases preserve native username/single-owner rules. Random passwords and encryption keys persist; changed identities fail closed. No invitations are sent and business owners are not automatically platform administrators.
+- Six new config/account tests pass. Initial acceptance correctly refused assigning a second owner via staff commands; provisioning now creates each named owner at activation. A cross-business test now calls authenticated product.list rather than the intentionally public app.state. Actual container and final full-suite checks are pending. Existing staging CLI entrypoints were separated from reusable modules to avoid accidental bootstrap side effects in combined bundles.
+- Claim `a4930fb` all five workflows passed. Railway now reports installed after the owner's update; its deployment tools/skills have not appeared in this active turn's capability list. Do not re-suggest installation or request pasted credentials. Use the newly connected tools when exposed, then configure private tester variables and validate the actual live domain before claiming accounts are hosted.
 
 ### 2026-11-11 — Codex (C22 Railway deployment claim)
 - Owner selected Railway and authorized building the required deployment, with two supplied tester email identities. Do not commit the real addresses, send messages, expose passwords, or invent a live URL.
