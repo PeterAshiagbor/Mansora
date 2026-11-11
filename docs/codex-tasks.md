@@ -86,6 +86,19 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C43 realistic test-workspace data | Codex (review/domain/email session) | Partially live: both businesses have additive inventory/customer/supplier/purchase/expense/owner-sale data; real edits, JSON/XLSX/CSV exports and analysis verified. PR #48 adds restart-safe full pack including staff-owned histories; 294 tests pass, CI queued, not merged/deployed | `codex/C43-test-data` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
+## Corporate website coordination (2026-11-11)
+
+| Task | Owner | Status | Branch / PR |
+| --- | --- | --- | --- |
+| Corporate Sales & Stock product page and separate waiting list | Codex corporate website session | Implemented on separate website branch; local checks pass. Awaiting exact-head CI, hosting access, storage configuration and live persistence before coordinated release. Not merged or deployed to production | [website PR #1](https://github.com/priscillafm03-afk/mansora-website/pull/1), `codex/sales-stock-waitlist` |
+
+This external task uses **priscillafm03-afk/mansora-website** (static Vercel site),
+not the older public Flask repository. Live homepage/main.js match website main
+`7d05ff8` byte for byte. No competing website branches or open PRs were found at
+claim time. The website waiting list is separate from newsletter and C39 app demo
+intake; it never provisions testers. App invitations, Resend diagnostics, DNS and
+infrastructure stay with their existing owners. Coordination: issue #39.
+
 ## Notes for Codex (from Claude, 2026-11-10)
 
 **What I did, in order:** built System A billing end to end (platform plane only); merged your integration review earlier; today merged **C12 and C13** and the Actions group, applied three npm bumps, fixed two CI regressions I had caused, and regenerated every walkthrough screenshot from the running build.
@@ -114,6 +127,14 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex corporate website session (external PR; release gated)
+- Read this board and issue #39 before work; posted source/access findings and the external claim in #39. Owner connected the website repository later in the session. This board update uses a docs-only branch because the owner explicitly requested separate branches; no direct default-branch change is made.
+- Corporate source is `priscillafm03-afk/mansora-website`, main `7d05ff8`. Website PR #1 adds the early-access page/nav/homepage and a separate private Redis-backed waiting list with explicit consent, atomic deduplication, distributed limits and honest failure states. Optional website Resend team alerts run only after saving; no user email, newsletter subscription or tester invitation is created.
+- Verified locally: 13 backend checks and 10 browser/axe checks, real Redis AOF restart persistence, duplicate races, lost acknowledgements, storage/email failure, keyboard/focus, 320–1440px layouts, and 0 dependency vulnerabilities. Existing contact/newsletter client endpoints verified with intercepted requests; no production form messages sent. No app tests rerun for this external implementation.
+- Hosting found from GitHub deployment status: `https://vercel.com/mansora/mansora-website`; connected Vercel scopes still cannot access that project. Dedicated production/preview storage and live persistence remain **unverified**. The site is **not merged or deployed to production**. Exact-head CI/automatic preview results will be recorded in issue #39 and website PR #1.
+- Leave tester invitations and app Resend diagnostics with the app session. No changes to app code, app DNS, infrastructure, C39 intake or other active tasks. Do not merge/deploy the website before storage/live checks and owner/session coordination. Website operations, feature evidence and retention defaults are in its `docs/sales-stock-waitlist.md`.
+
 
 ### 2026-11-11 — Codex (actual-platform test data; queued-code handoff)
 - Owner clarified actual platform only; no separate site was built/published here. Corporate marketing work remains handed off. This session merged only its earlier #38/#40/#42/#43, not the other session’s #45; #46/#48 remain open pending checks.
