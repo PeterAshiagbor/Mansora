@@ -31,3 +31,5 @@ The PR/task-board handoff records exact test counts, sources, screenshots and ro
 Existing financial, browser, accessibility, tenant-isolation and provider tests remain. Browser fixtures now follow the new visible task choices before asserting the same financial results. Accessibility still visits every report tab and additionally checks all payment-entry modes.
 
 Native Figma completion still requires more tool access. Real payment/email activation, legal/policy decisions and hardware/signing remain independently tracked; this UI release does not imply those gates are complete. C15 communications and C25/C26 domain/preview work belong to the other active session.
+
+Final integration checks: typecheck/build pass, full dependency audit reports zero vulnerabilities, and all 19 focused real-workflow/accessibility/phone-preview tests pass after removing obsolete C26 rail-hiding rules. All 49 screenshots were regenerated successfully from the rebased application. The full-suite and exact merged/deployment results are recorded in the task-board handoff when observed.
