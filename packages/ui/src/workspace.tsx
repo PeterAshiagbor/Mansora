@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Input, Modal, cx } from './index';
 import { MansoraBrand } from './brand';
 
@@ -52,6 +52,16 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
   onSignOut: () => void; signOutLabel?: string; children: ReactNode;
 }) {
   const navigation = useRef<HTMLDivElement>(null);
+  const navId = useId();
+  const mobileToggle = useRef<HTMLButtonElement>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const closeNavigation = () => { setMobileOpen(false); if (mobileToggle.current?.getClientRects().length) mobileToggle.current.focus(); };
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !document.querySelector('[role=dialog]')) closeNavigation(); };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [mobileOpen]);
   const [finding, setFinding] = useState(false), [query, setQuery] = useState(''), [help, setHelp] = useState(false);
   const pages = useMemo(() => groups.flatMap((g) => g.items.map((item) => ({ ...item, group: g.group }))), [groups]);
   const primary = primaryIds.flatMap((id) => pages.filter((item) => item.id === id));
@@ -60,7 +70,7 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
   const [toolsOpen, setToolsOpen] = useState(!!selectedGroup), [openGroup, setOpenGroup] = useState<string | null>(selectedGroup);
   useLayoutEffect(() => { setToolsOpen(!!selectedGroup); setOpenGroup(selectedGroup); }, [current.id, selectedGroup]);
   useEffect(() => { navigation.current?.querySelector('[aria-current=page]')?.scrollIntoView({ block: 'nearest' }); }, [current.id, toolsOpen, openGroup]);
-  const pageButton = (item: WorkspaceItem) => <button key={item.id} type="button" aria-current={current.id === item.id ? 'page' : undefined} onClick={() => onNavigate(item.id)} className={cx('m-nav-item', current.id === item.id && 'm-nav-active')}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>;
+  const pageButton = (item: WorkspaceItem) => <button key={item.id} type="button" aria-current={current.id === item.id ? 'page' : undefined} onClick={() => { onNavigate(item.id); if (mobileOpen) closeNavigation(); }} className={cx('m-nav-item', current.id === item.id && 'm-nav-active')}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>;
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && !document.querySelector('[role=dialog]')) { e.preventDefault(); setQuery(''); setFinding(true); } };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
@@ -68,7 +78,8 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
   const results = pages.filter((item) => `${item.label} ${item.group}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="m-workspace">
     <a className="m-skip no-print" href="#workspace-main">Skip to page content</a>
-    <nav aria-label="Main" className="m-sidebar no-print">
+    <button ref={mobileToggle} type="button" className="m-mobile-navigation no-print" aria-expanded={mobileOpen} aria-controls={navId} onClick={() => setMobileOpen(!mobileOpen)}><Icon name="chevron" /><span>{mobileOpen ? 'Close navigation' : 'Open navigation'}</span><strong>{current.label}</strong></button>
+    <nav id={navId} aria-label="Main" className="m-sidebar no-print" data-mobile-open={mobileOpen}>
       <div className="m-sidebar-brand"><MansoraBrand compact /></div>
       <div className="m-company"><span>{workspaceLabel}</span><strong title={workspace}>{workspace}</strong></div>
       <div className="m-nav-groups" ref={navigation}>
