@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
@@ -125,7 +126,7 @@ describe.skipIf(!pw || !built)('Mansora provider branding and client workspace i
     const guide = page.getByRole('dialog', { name: 'How to use: Reports', exact: true });
     await guide.getByText('Net sales = sales after discounts less refunds.', { exact: false }).waitFor();
     await guide.getByRole('button', { name: 'Got it', exact: true }).click();
-    await page.getByRole('navigation').getByRole('button', { name: 'Help & getting started', exact: true }).click();
+    await navigate(page, 'Help & getting started');
     await page.getByLabel('Search help guides', { exact: true }).fill('carton');
     await page.locator('section').filter({ has: page.getByRole('heading', { name: 'Products', exact: true }) }).getByRole('button', { name: 'Read guide', exact: true }).click();
     const productGuide = page.getByRole('dialog', { name: 'How to use: Products', exact: true });

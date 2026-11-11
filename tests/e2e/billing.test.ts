@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -37,7 +38,7 @@ describe.skipIf(!pw || !existsSync(join(dist, 'index.html')))('administrator bil
     if (web) await new Promise<void>((resolve) => web.server.close(() => resolve()));
     await cloud?.db.close();
   });
-  const nav = (name: string) => page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click();
+  const nav = (name: string) => navigate(page, name);
 
   it('shows who owes what, records a payment against the invoice and reports it as revenue', async () => {
     await page.goto(web.url);

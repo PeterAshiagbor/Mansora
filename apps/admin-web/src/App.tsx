@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView } from '@mansora/ui';
+import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure } from '@mansora/ui';
 import { api, getToken, setToken, useApi } from './api';
 import { Collections, Invoices, PaymentSettings, Payments, RevenueReports, Subscriptions } from './billing';
 
@@ -56,7 +56,7 @@ function AdminApplication() {
     { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'security', label: 'Account security', icon: 'shield' }] },
   ];
   const current = groups.flatMap((g) => g.items).find((item) => item.id === (page.id === 'client' ? 'clients' : page.id))!;
-  return <WorkspaceShell groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>
+  return <WorkspaceShell primaryIds={['overview', 'clients', 'collections', 'invoices', 'payments']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>
       <div key={page.id + (page.param ?? '')}>
         {page.id === 'overview' && <Overview go={go} />}
         {page.id === 'clients' && <Clients go={go} />}
@@ -187,6 +187,8 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
           <Table rows={d.needsAttention} rowKey={(r: any) => r.id} onRowClick={(r: any) => go('client', r.id)} empty="All live clients are syncing and backed up"
             columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Last sync', cell: (r: any) => ago(r.last_sync_at) }, { header: 'Unsynced', align: 'right', cell: (r: any) => r.pending_count ?? '—' }, { header: 'Last backup', cell: (r: any) => ago(r.last_backup_at) }]} />
         </Card>
+      </div>
+      <Disclosure title="Onboarding & plan details" description="Setup progress, upcoming renewals and clients per plan"><div className="grid gap-4 xl:grid-cols-2">
         <Card title="Onboarding in progress" pad={false}>
           <Table rows={d.onboarding} rowKey={(r: any) => r.id} onRowClick={(r: any) => go('client', r.id)} empty="No clients are being onboarded" columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Progress', cell: (r: any) => <Progress done={r.done} total={r.total} /> }]} />
         </Card>
@@ -194,7 +196,7 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
           <Table rows={d.renewalsDue} rowKey={(r: any) => r.id} onRowClick={(r: any) => go('client', r.id)} empty="No renewals due" columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Plan', cell: (r: any) => r.plan_name }, { header: 'Renewal', cell: (r: any) => day(r.renewal_date) }, { header: 'Status', cell: (r: any) => <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge> }]} />
         </Card>
         <Card title="Clients per plan" pad={false}><Table rows={d.plans} empty="No plans yet" columns={[{ header: 'Plan', cell: (r: any) => r.name }, { header: 'Clients', align: 'right', cell: (r: any) => r.clients }]} /></Card>
-      </div>
+      </div></Disclosure>
     </div>
   );
 }

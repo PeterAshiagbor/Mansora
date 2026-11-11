@@ -1,4 +1,4 @@
-import { Alert, Badge, Button, Card, Icon, PageHeader, Stat, Table, QueryView } from '@mansora/ui';
+import { Alert, Badge, Button, Card, Icon, PageHeader, Stat, Table, QueryView, Disclosure } from '@mansora/ui';
 import { FirstUsePrompt } from './GettingStarted';
 import { SalesActivity } from '../components/SalesActivity';
 import { dateTime, METHOD, money, monthStart, today, useApp, useQuery } from '../lib';
@@ -24,17 +24,12 @@ export function Dashboard() {
         {d.outstandingCredit != null && <Stat label="Customer credit outstanding" value={money(d.outstandingCredit)} tone={d.outstandingCredit > 0 ? 'warn' : 'default'} />}
         {d.lowStock && <Stat label="Low or out of stock" value={d.lowStock.length >= 10 ? '10+' : d.lowStock.length} tone={d.lowStock.length ? 'warn' : 'good'} hint="products at or below reorder level" />}
       </div>
-      <p className="m-section-label">Your next steps</p>
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[
-        { id: 'checkout', label: 'Make a sale', detail: 'Open your selling workspace', icon: 'sale', allowed: can('sale.create') },
-        { id: 'products', label: 'Manage products', detail: 'Prices, costs and catalogue', icon: 'box', allowed: can('product.manage') },
-        { id: 'credit', label: 'Review customer balances', detail: 'Follow up unpaid credit', icon: 'wallet', allowed: can('credit.repayment') },
-        { id: 'reports', label: 'Review reports', detail: 'Sales, collections and performance', icon: 'chart', allowed: can('report.sales') },
-        { id: 'shifts', label: 'Review your shift', detail: 'Count and reconcile your till', icon: 'wallet', allowed: !can('report.sales') && can('shift.own') },
-      ].filter((action) => action.allowed).map((action) => <button type="button" className="m-action-tile" key={action.id} onClick={() => go(action.id)}><span><Icon name={action.icon} /></span><span><strong>{action.label}</strong><small>{action.detail}</small></span></button>)}</div>
+      <div className="mt-5"><Card title="Recent transactions" pad={false} actions={<Button size="sm" variant="ghost" onClick={() => go('sales')}>View sales history</Button>}>
+        <Table caption="Latest transactions, up to five" rows={d.recent.slice(0, 5)} empty="No sales yet" onRowClick={(r: any) => go('sales', r.id)} columns={[{ header: 'Receipt', cell: (r: any) => r.receipt_no }, { header: 'Time', cell: (r: any) => dateTime(r.created_at) }, { header: 'Cashier', cell: (r: any) => r.cashier_name }, { header: 'Total', align: 'right', cell: (r: any) => money(r.total) }]} />
+      </Card></div>
+      <Disclosure title="Daily breakdown" description="Sales activity, payment methods and products running low">
       {can('report.sales') && <DashboardActivity />}
-      <p className="m-section-label">Daily operations</p>
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="mt-5 grid gap-5 xl:grid-cols-2">
         {d.payments && (
           <Card title="Payment mix today" pad={false}>
             <Table rows={d.payments} empty="No sales yet today" columns={[{ header: 'Method', cell: (r: any) => METHOD[r.method] ?? r.method }, { header: 'Payments', cell: (r: any) => r.count, align: 'right' }, { header: 'Amount', cell: (r: any) => money(r.total), align: 'right' }]} />
@@ -46,10 +41,8 @@ export function Dashboard() {
             <Table rows={d.lowStock} empty="Stock levels look healthy" columns={[{ header: 'Product', cell: (r: any) => r.name }, { header: 'In stock', align: 'right', cell: (r: any) => (r.quantity <= 0 ? <Badge tone="bad">Out</Badge> : r.quantity) }, { header: 'Reorder at', align: 'right', cell: (r: any) => r.reorder_level }]} />
           </Card>
         )}
-        <Card title="Recent transactions" pad={false} className={d.payments ? '' : 'xl:col-span-2'}>
-          <Table rows={d.recent} empty="No sales yet" onRowClick={(r: any) => go('sales', r.id)} columns={[{ header: 'Receipt', cell: (r: any) => r.receipt_no }, { header: 'Time', cell: (r: any) => dateTime(r.created_at) }, { header: 'Cashier', cell: (r: any) => r.cashier_name }, { header: 'Total', align: 'right', cell: (r: any) => money(r.total) }]} />
-        </Card>
       </div>
+      </Disclosure>
     </div>
   );
 }

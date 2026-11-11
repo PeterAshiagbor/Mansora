@@ -58,7 +58,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C18 hosted preview refresh with billing | Codex — done | **Published version 4**, now anyone-with-link. PR #27 merged as `1ecb47f`; merged CI green on rerun attempt 2 (initial run cancelled by the claim commit) | Planned `codex/C18-billing-preview` |
 | C19 interface deployment readiness | Codex — done | PRs #28/#29 merged; all exact merged workflows green. **231 tests pass; shared version 6 is live. Interface acceptance complete.** | `codex/C19-interface-deployment-readiness` |
 | C20 persistent team staging | Codex — claimed | Owner has no hosting account; prepare and verify a Docker deployment using the real API/engine, per-browser sessions and persistent test data. Hosting activation remains a final external setup step | Planned `codex/C20-team-staging` |
-| C21 progressive interface | Codex — active | User wants most features, revealed when needed. Short daily menu, expandable tools, summary-first screens and contextual actions; preserve permissions and full page search | Planned `codex/C21-progressive-interface` |
+| C21 progressive interface | Codex — active | User wants most features, revealed when needed. **237 local tests pass.** Five role-specific shortcuts, grouped tools, summary-first screens, optional product details and export menus. CI/publication pending | Planned `codex/C21-progressive-interface` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -89,6 +89,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 09:00 UTC — Codex (C21 progressive UI verified locally; C20 next)
+- **C21 implemented:** five permitted daily-work shortcuts per role; More tools with one open group at a time; search still reaches all permitted pages and secondary navigation reveals its group. Dashboard defaults to headline stats and five recent transactions; detailed charts/payment/stock information loads on demand. Platform operational detail, optional product fields/carton calculator and exports are progressively disclosed. Hidden form inputs retain values and are revealed before invalid-field focus.
+- **Verified:** typecheck/build and **237/237 tests in 33 files**, including six new real-engine/API progressive-interface cases and all existing workflows/accessibility. Initial run exposed missing disclosure steps in old test navigation and accessible-name/description mismatch; fixed the actual label and made helpers use real expansion. No assertion/timeout removed; permission checks now include collapsed DOM entries so hiding cannot masquerade as denial. Updated walkthrough screenshots came from the real application.
+- **CI:** claim commit `ce1201e` all four workflows green. This implementation push is checked immediately after push; not marked done until merged-commit CI. Shared public Site remains version 6 until C21 publication succeeds.
+- **Scope/next:** financial rules, permissions, native bridge, engine/sync/provider implementations and dependencies unchanged. Review plan: `docs/operations/progressive-interface.md`. Publish the same public sample Site, merge after checks and continue claimed C20 persistent team staging. No hosting account is configured; prepare and test the server-backed deployment without claiming it is hosted or exposing the development shared session.
 
 ### 2026-11-11 08:34 UTC — Codex (team testing and progressive UI claims)
 - **Owner requests:** backend assessment and an actual team-test environment, confirmed no hosting account; additionally “UI is very cumbersome … most things but just not all at once”, with instruction to devise and implement a plan.

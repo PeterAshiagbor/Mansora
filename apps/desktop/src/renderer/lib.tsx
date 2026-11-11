@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { DomainError, formatGHS, grossMarginBps, parseGHS, type Permission } from '@mansora/domain';
-import { Button, cx, Field, Input, Modal } from '@mansora/ui';
+import { ActionMenu, Button, cx, Field, Input, Modal } from '@mansora/ui';
 import { tableReportHtml } from './reporting';
 
 export interface FileOut {
@@ -264,11 +264,11 @@ export function ExportButtons({ title, columns, rows, disabled = false }: { titl
   const { state } = useApp();
   const go = (format: 'csv' | 'xlsx') => run(async () => saveFile(await call('export.table', { title, format, columns, rows: rows() })));
   return (
-    <>
+    <ActionMenu label="Export & print">
       <Button size="sm" title="Export all loaded rows for this view" disabled={busy || disabled} onClick={() => go('xlsx')}>Excel</Button>
       <Button size="sm" title="Export all loaded rows for this view" disabled={busy || disabled} onClick={() => go('csv')}>CSV</Button>
       <Button size="sm" title="Print all loaded rows, including other table pages" disabled={busy || disabled} onClick={() => run(async () => printHtml(tableReportHtml({ title, columns, rows: rows(), businessName: state.business.name })))}>Print / PDF</Button>
-    </>
+    </ActionMenu>
   );
 }
 

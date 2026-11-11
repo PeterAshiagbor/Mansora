@@ -1,3 +1,4 @@
+import { navigate } from '../tests/e2e/navigation';
 /**
  * Regenerates docs/screenshots from the REAL running build (laptop app, admin dashboard, cloud API on
  * embedded PostgreSQL, sandbox payment provider) using clearly-labelled SAMPLE data. Nothing is mocked.
@@ -144,7 +145,7 @@ const signIn = async (u: string) => {
   await shop.getByRole('button', { name: 'Sign in' }).click();
   await shop.getByRole('button', { name: 'Lock / sign out' }).waitFor();
 };
-const nav = async (name: string) => { await shop.getByRole('navigation').getByRole('button', { name, exact: true }).click(); await shop.waitForTimeout(500); };
+const nav = async (name: string) => { await navigate(shop, name); await shop.waitForTimeout(500); };
 const settle = (p: any) => p.waitForTimeout(600);
 
 // 01 sign-in screen
@@ -203,7 +204,7 @@ await admin.goto(web.url);
 await admin.getByLabel('Email', { exact: true }).fill(ADMIN.email);
 await admin.getByLabel('Password', { exact: true }).fill(ADMIN.password);
 await admin.getByRole('button', { name: 'Sign in', exact: true }).click();
-const anav = async (name: string) => { await admin.getByRole('navigation', { name: 'Main' }).getByRole('button', { name, exact: true }).click(); await admin.waitForTimeout(700); };
+const anav = async (name: string) => { await navigate(admin, name); await admin.waitForTimeout(700); };
 await anav('Overview'); await settle(admin); await shot(admin, '30-admin-overview');
 await anav('Clients'); await shot(admin, '31-admin-clients');
 await admin.getByText('Sample Mini Mart (SAMPLE DATA)').first().click(); await settle(admin);

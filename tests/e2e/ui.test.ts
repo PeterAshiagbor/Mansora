@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 /**
  * End-to-end test through the real user interface (Chromium), the real local
  * engine and the real API: onboarding a client, activating a laptop, a full
@@ -66,7 +67,7 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
     await shop.getByLabel('Password', { exact: true }).fill(password);
     await shop.getByRole('button', { name: 'Sign in' }).click();
   };
-  const nav = (name: string) => shop.getByRole('navigation').getByRole('button', { name, exact: true }).click();
+  const nav = (name: string) => navigate(shop, name);
   let code = '';
 
   it('Mansora creates a client and an activation code in the dashboard', async () => {
@@ -121,7 +122,7 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
 
   it('TEST 01/02 - a cashier completes a sale by barcode scan with keyboard only', async () => {
     await signIn('kojo', 'cashier-pass-9');
-    const items = await shop.getByRole('navigation').getByRole('button').allInnerTexts();
+    const items = await shop.getByRole('navigation').getByRole('button', { includeHidden: true }).allInnerTexts();
     for (const hidden of ['Reports', 'Staff', 'Audit history', 'Stock', 'Import & export', 'Backup & recovery']) expect(items).not.toContain(hidden);
     await nav('New sale');
     await shop.getByLabel('Opening cash float (GHS)').fill('100');
@@ -187,7 +188,7 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
     await admin.getByText('The owner has allowed report access').waitFor();
     await admin.getByRole('button', { name: 'View sales summary' }).click();
     await admin.getByText('GHS 53.00').waitFor();
-    await admin.getByRole('button', { name: 'Audit log' }).click();
+    await navigate(admin, 'Audit log');
     await admin.getByText('support.report_viewed').first().waitFor();
     await admin.getByText('support.access_denied').first().waitFor();
     expect(errors).toEqual([]);

@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync, rmSync } from 'node:fs';
@@ -36,7 +37,7 @@ afterAll(async () => {
   await cloud?.close();
   rmSync(dir, { recursive: true, force: true });
 });
-const nav = (name: string) => page.getByRole('navigation').getByRole('button', { name, exact: true }).click();
+const nav = (name: string) => navigate(page, name);
 const signIn = async (who: typeof owner) => {
   await page.getByLabel('Username', { exact: true }).fill(who.username);
   await page.getByLabel('Password', { exact: true }).fill(who.password);
@@ -50,6 +51,7 @@ it('calculates carton costs, shows margin, uploads Excel and restricts cashier d
   const form = page.getByRole('dialog');
   await form.getByLabel('Product name').fill('Carton calculator item');
   await form.getByLabel('Selling price (GHS)', { exact: true }).fill('6.00');
+  await form.getByText('Calculate cost from a carton', { exact: true }).click();
   await form.getByLabel('Carton purchase cost (GHS)', { exact: true }).fill('100.00');
   await form.getByLabel('Selling units per carton').fill('24');
   await form.getByText('Unit cost: GHS 4.17', { exact: true }).waitFor();

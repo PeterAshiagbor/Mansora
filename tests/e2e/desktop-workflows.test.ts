@@ -1,3 +1,4 @@
+import { navigate } from './navigation';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync, rmSync } from 'node:fs';
@@ -32,7 +33,7 @@ describe.skipIf(!pw || !built)('remaining desktop workflows through the real int
     if (host) { await new Promise<void>((resolve) => host.server.close(() => resolve())); host.engine.db.close(); }
     await cloud?.close(); rmSync(directory, { recursive: true, force: true });
   });
-  const nav = (name: string) => page.getByRole('navigation').getByRole('button', { name, exact: true }).click();
+  const nav = (name: string) => navigate(page, name);
   const read = (sql: string, ...params: unknown[]): any => host.engine.db.prepare(sql).get(...params);
   const balance = () => read('SELECT quantity, average_cost FROM stock_balances WHERE product_id = ?', productId);
   async function signIn(who: typeof owner) {
@@ -100,6 +101,7 @@ describe.skipIf(!pw || !built)('remaining desktop workflows through the real int
     await nav('Products'); await page.getByRole('button', { name: 'Add product', exact: true }).click();
     const product = page.getByRole('dialog', { name: 'Add product', exact: true });
     await product.getByLabel('Product name').fill('Workflow product');
+    await product.getByText('More product details', { exact: true }).click();
     await product.getByLabel('SKU / item code').fill('FLOW-1');
     await product.getByLabel(/^Barcode/).fill('WF-001');
     await product.getByLabel('Selling price (GHS)').fill('10');
@@ -169,7 +171,7 @@ describe.skipIf(!pw || !built)('remaining desktop workflows through the real int
 
   it('sells on approved credit and records partial cash repayment then settlement', async () => {
     await signOut(); await signIn(cashier);
-    expect(await page.getByRole('navigation').getByRole('button', { name: 'Staff', exact: true }).count()).toBe(0);
+    expect(await page.getByRole('navigation').getByRole('button', { name: 'Staff', exact: true, includeHidden: true }).count()).toBe(0);
     await nav('Products'); expect(await page.getByRole('button', { name: 'Add product', exact: true }).count()).toBe(0);
     expect(await page.getByRole('columnheader', { name: 'Cost', exact: true }).count()).toBe(0);
     await nav('Settings'); expect(await page.getByLabel(/^Discount limit/).count()).toBe(0);
