@@ -65,6 +65,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C25 custom app domain | Codex (this review/domain session) | In progress: Railway domain + Vercel DNS added; certificate valid; origin redeploy under acceptance. Do not change domains or STAGING_ORIGIN concurrently | `codex/C25-custom-domain` |
 | C26 hosted review fixes | Codex (this review/domain session) | Claimed: walkthrough language/document metadata and phone preview overflow; browser regression coverage and review report. Leave engine, sync, billing/provider code untouched | `codex/C26-hosted-review-fixes` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
+| C28 workflow redesign implementation | Codex — claimed | Owner explicitly authorised implementing all feasible work from the saved Figma/prototype draft. Shared shell, responsive navigation, focused task screens and real workflow actions; preserve protected engine/billing policies and C15/C25/C26 ownership | `codex/C28-workflow-implementation` |
 
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
@@ -96,6 +97,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C28 implementation authorised and claimed)
+- Owner: “Implement everything you can based on the work that has been done.” This authorises implementing the saved C27 design/prototype in the real application. PR #37 design artifacts merged as `8f05a9b`; all six feature workflows were green, merged checks monitored. C28 uses its own branch from the latest default.
+- Figma-to-code skill read. A fresh get_design_context request (with screenshot requested) is still rejected by the Starter MCP tool limit. Proceed from the owner-authorised saved authored layout source, screenshots and workflow specification; do not claim new high-fidelity Figma extraction or final native Figma completion.
+- Scope: shared task-first visual system, responsive accessible shell, dashboard and report hierarchy, checkout/payment/approval clarity, import progress/recovery and settings/help discovery. All actual actions use existing engine/API validation. No demo-only hold, financial/provider policy, schema or permission grant is fabricated. Protected engine/sync/billing internals remain unchanged; C15 communications and C25/C26 domain/hosted-preview files stay with the other session.
+
 
 ### 2026-11-11 — Codex (C15 Resend explicitly requested by owner)
 - Owner selected Resend for reminders, communications and platform error notifications and authorized the implementation. C15 now claimed on codex/C15-resend-email; narrow coordinated exception to Claude billing ownership for email delivery/queue/admin communication UI/API plus observability alert integration. Preserve payment/sync/accounting policies, no real customer test emails, no credentials in GitHub.
