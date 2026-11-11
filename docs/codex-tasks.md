@@ -128,6 +128,11 @@ infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (newest first; append, never rewrite)
 
+### 2026-11-11 — Codex corporate website session (shorter label and bespoke sample tour)
+- Owner asked for a shorter page name. Website PR #1 now labels the page/navigation **Sales & Inventory** with headline **Manage sales. Track stock.** Product identity/consent stays Mansora Sales & Stock; no app rename or application changes.
+- Added a keyboard-accessible dashboard/checkout/stock tour using committed synthetic sample screenshots, a clearly labelled public sample-interface link, section shortcuts and a three-step pilot explanation. Direct form focus from CTAs fixes the longer introduction hiding the form below the phone viewport.
+- Current local verification: **11 browser checks pass**, including axe at 320–1440px and actual Redis persistence/restart. Unchanged backend previously passed 13 checks. No live client data used. Waiting for exact-head CI and normal automatic Vercel preview of website commit `a293bee`; production/storage access remains gated as below. No merge or production deployment.
+
 ### 2026-11-11 — Codex corporate website session (external PR; release gated)
 - Read this board and issue #39 before work; posted source/access findings and the external claim in #39. Owner connected the website repository later in the session. This board update uses a docs-only branch because the owner explicitly requested separate branches; no direct default-branch change is made.
 - Corporate source is `priscillafm03-afk/mansora-website`, main `7d05ff8`. Website PR #1 adds the early-access page/nav/homepage and a separate private Redis-backed waiting list with explicit consent, atomic deduplication, distributed limits and honest failure states. Optional website Resend team alerts run only after saving; no user email, newsletter subscription or tester invitation is created.
