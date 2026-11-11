@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ADMIN, startCloud, type Cloud } from '../cloud';
 import { tempDir } from '../helpers';
 import { provisionStaging, type TestAccount } from '../../scripts/staging/bootstrap';
@@ -64,10 +64,47 @@ describe('persistent authenticated team staging gateway', () => {
   it('sets Secure cookies on HTTPS staging and bounds malformed/oversized requests', async () => {
     const secure = await startStagingGateway({ ...config, origin: 'https://staging.example.com', workspaces, port: 0, maxBodyBytes: 1024 });
     try {
+      const headers = await fetch(secure.url + '/client/shop-a/'); expect(headers.headers.get('strict-transport-security')).toBe('max-age=31536000'); expect(headers.headers.get('x-robots-tag')).toContain('noindex'); expect(headers.headers.get('permissions-policy')).toContain('microphone=()'); expect(headers.headers.get('cross-origin-resource-policy')).toBe('same-origin');
+      expect((await fetch(gateway.url + '/')).headers.get('strict-transport-security')).toBeNull();
       const a = account('owner'); const r = await fetch(`${secure.url}/client/shop-a/invoke`, { method: 'POST', headers: { origin: secure.publicOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ command: 'auth.login', input: { username: a.username, password: a.password } }) }); expect(r.headers.get('set-cookie')?.includes('; Secure')).toBe(true);
       const malformed = await fetch(`${secure.url}/client/shop-a/invoke`, { method: 'POST', headers: { origin: secure.publicOrigin, 'content-type': 'application/json' }, body: '{' }); expect(malformed.status).toBe(400);
       const large = await fetch(`${secure.url}/client/shop-a/invoke`, { method: 'POST', headers: { origin: secure.publicOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ value: 'x'.repeat(2048) }) }); expect(large.status).toBe(413);
     } finally { await secure.close(); }
+  });
+  it('rejects unsafe owner workbooks while preserving cashier and anonymous permission boundaries', async () => {
+    const bad = { fileName: 'unsafe.xlsx', contentBase64: Buffer.from('not a workbook').toString('base64') };
+    const denied = await invoke('shop-a', 'import.preview', bad, cashierCookie); expect(denied.data.error.code).toBe('PERMISSION_DENIED');
+    expect((await invoke('shop-a', 'import.preview', bad)).data.error.code).toBe('NOT_SIGNED_IN');
+    const owner = await invoke('shop-a', 'import.preview', bad, ownerCookie); expect(owner.status).toBe(400); expect(owner.data.error.code).toBe('UNSAFE_SPREADSHEET');
+  });
+  it('processes only one authorised spreadsheet at a time and releases the slot', async () => {
+    const template = (await invoke('shop-a', 'import.template', { format: 'xlsx' }, ownerCookie)).data.data;
+    const input = { fileName: template.fileName, contentBase64: template.contentBase64 };
+    let release!: () => void, started!: () => void;
+    const held = new Promise<void>(r => { release = r; }), arrived = new Promise<void>(r => { started = r; });
+    const engine = workspaces[0].engine, original = engine.execute.bind(engine);
+    const spy = vi.spyOn(engine, 'execute').mockImplementation(async (token, command, payload) => { if (command === 'import.preview') { started(); await held; } return original(token, command, payload); });
+    let pending: ReturnType<typeof invoke> | undefined;
+    try {
+      pending = invoke('shop-a', 'import.preview', input, ownerCookie); await arrived;
+      const busy = await invoke('shop-a', 'import.preview', input, ownerCookie); expect(busy.status).toBe(429); expect(busy.data.error.code).toBe('IMPORT_BUSY');
+      release(); expect((await pending).data.ok).toBe(true);
+    } finally { release(); await pending; spy.mockRestore(); }
+    expect((await invoke('shop-a', 'import.preview', input, ownerCookie)).data.ok).toBe(true);
+  });
+  it('bounds active handlers without blocking health probes and releases capacity', async () => {
+    let started!: () => void, release!: () => void;
+    const arrived = new Promise<void>(r => { started = r; }), held = new Promise<void>(r => { release = r; });
+    const upstream = createServer(async (_request, response) => { started(); await held; response.end('done'); });
+    await new Promise<void>(r => upstream.listen(0, '127.0.0.1', r));
+    const bounded = await startStagingGateway({ ...config, workspaces, apiUrl: `http://127.0.0.1:${(upstream.address() as any).port}`, maxConcurrentRequests: 1, port: 0 });
+    let pending: Promise<Response> | undefined;
+    try {
+      pending = fetch(bounded.url + '/api/hold'); await arrived;
+      const busy = await fetch(bounded.url + '/client/shop-a/'); expect(busy.status).toBe(503); expect(busy.headers.get('retry-after')).toBe('2');
+      expect((await fetch(bounded.url + '/healthz')).status).toBe(200);
+      release(); expect((await pending).status).toBe(200); expect((await fetch(bounded.url + '/client/shop-a/')).status).toBe(200);
+    } finally { release(); await pending; await bounded.close(); await new Promise<void>(r => upstream.close(() => r())); }
   });
   it('logout affects only its own browser and restart preserves encrypted records', async () => {
     await invoke('shop-a', 'auth.logout', {}, ownerCookie); expect((await invoke('shop-a', 'app.state', {}, cashierCookie)).data.data.user.role).toBe('cashier');

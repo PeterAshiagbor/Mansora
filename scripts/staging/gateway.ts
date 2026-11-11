@@ -3,7 +3,8 @@ import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, resolve, sep } from 'node:path';
-import { DomainError } from '@mansora/domain';
+import { can, DomainError } from '@mansora/domain';
+import { guardSpreadsheet, SpreadsheetGuardError } from './import-guard';
 import type { Engine } from '../../apps/desktop/src/core';
 
 export interface StagingWorkspace { id: string; label: string; engine: Engine }
@@ -11,6 +12,7 @@ export interface GatewayOptions {
   origin: string; apiUrl: string; workspaces: StagingWorkspace[];
   clientDir: string; adminDir: string; port?: number; host?: string;
   loginAliases?: Record<string, Record<string, string>>; readiness?: () => Promise<boolean>;
+  maxConcurrentRequests?: number;
   maxBodyBytes?: number; sessionTtlMs?: number; now?: () => number;
 }
 class HttpError extends Error { constructor(public status: number, public code: string, message: string) { super(message); } }
@@ -41,6 +43,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
   if (!file(opts.clientDir, 'index.html') || !file(opts.adminDir, 'index.html')) throw new Error('Build both interfaces before starting staging.');
   for (const w of opts.workspaces) if (!w.engine.activated) throw new Error(`Workspace ${w.id} is not provisioned.`);
   const workspaces = new Map(opts.workspaces.map(w => [w.id, w]));
+  let activeRequests = 0, activeImports = 0;
   const sessions = new Map<string, { workspace: string; token: string; expires: number }>();
   const budgets = new Map<string, { count: number; expires: number }>();
   const now = opts.now ?? Date.now, limit = opts.maxBodyBytes ?? 16 * 1024 * 1024;
@@ -57,8 +60,13 @@ export async function startStagingGateway(opts: GatewayOptions) {
   const json = (res: ServerResponse, status: number, data: unknown) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); };
   const server = createServer(async (req, res) => {
     res.setHeader('cache-control', 'no-store'); res.setHeader('x-content-type-options', 'nosniff'); res.setHeader('referrer-policy', 'no-referrer'); res.setHeader('x-frame-options', 'DENY');
+    res.setHeader('x-robots-tag', 'noindex, nofollow, noarchive'); res.setHeader('permissions-policy', 'geolocation=(), microphone=()'); res.setHeader('cross-origin-resource-policy', 'same-origin');
+    if (origin.protocol === 'https:') res.setHeader('strict-transport-security', 'max-age=31536000');
     res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    const counted = req.url !== '/healthz'; let admitted = false;
     try {
+      if (counted && activeRequests >= (opts.maxConcurrentRequests ?? 16)) { res.setHeader('retry-after', '2'); throw new HttpError(503, 'SERVER_BUSY', 'The test server is busy. Please retry shortly.'); }
+      if (counted) { activeRequests++; admitted = true; }
       if (!req.url?.startsWith('/') || req.url.startsWith('//')) throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.');
       const url = new URL(req.url, origin), path = decodeURIComponent(url.pathname);
       if (path.includes('\\') || path.includes('\0')) throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.');
@@ -109,7 +117,14 @@ export async function startStagingGateway(opts: GatewayOptions) {
           if (command === 'auth.login') {
             budget('ip:' + req.socket.remoteAddress, 60, 60_000); budget(`user:${workspace.id}:${String(input?.username ?? '').toLowerCase().slice(0, 80)}`, 20, 15 * 60_000);
           }
+          let importing = false;
           try {
+            const importingCommand = ['import.preview', 'import.commit'].includes(command);
+            const importActor = importingCommand ? (await workspace.engine.execute(session?.token ?? null, 'app.state')).user : null;
+            if (importingCommand && can(importActor, 'data.import')) {
+              if (activeImports) { res.setHeader('retry-after', '2'); throw new HttpError(429, 'IMPORT_BUSY', 'Another spreadsheet is being processed. Please retry shortly.'); }
+              activeImports++; importing = true; guardSpreadsheet(input);
+            }
             if (command === 'auth.logout') { if (session) clear(id); cookie(res, workspace.id, null); return json(res, 200, { ok: true, data: { ok: true } }); }
             const data = await workspace.engine.execute(session?.token ?? null, command, input);
             if (command === 'auth.login') {
@@ -121,9 +136,10 @@ export async function startStagingGateway(opts: GatewayOptions) {
             }
             return json(res, 200, { ok: true, data });
           } catch (e) {
+            if (e instanceof SpreadsheetGuardError) throw new HttpError(e.status, e.code, e.message);
             if (e instanceof DomainError) { if (e.code === 'SESSION_LOCKED') { if (session) clear(id); cookie(res, workspace.id, null); } return json(res, 200, { ok: false, error: { code: e.code, message: e.message, details: e.details } }); }
             throw e;
-          }
+          } finally { if (importing) activeImports--; }
         }
         if (req.method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
         if (tail === 'bridge.js') {
@@ -145,8 +161,9 @@ export async function startStagingGateway(opts: GatewayOptions) {
       const status = e instanceof HttpError ? e.status : 502, code = e instanceof HttpError ? e.code : 'STAGING_UNAVAILABLE';
       const message = e instanceof HttpError ? e.message : 'The test service could not complete this request. Check saved records before retrying a transaction.';
       if (!res.headersSent) json(res, status, { ok: false, error: { code, message }, message }); else res.end();
-    }
+    } finally { if (admitted) activeRequests--; }
   });
+  server.maxConnections = 128; server.maxHeadersCount = 100; server.maxRequestsPerSocket = 100; server.keepAliveTimeout = 5_000;
   server.requestTimeout = 30_000; server.headersTimeout = 10_000;
   await new Promise<void>((done, reject) => { server.once('error', reject); server.listen(opts.port ?? 4500, opts.host ?? '127.0.0.1', done); });
   const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
