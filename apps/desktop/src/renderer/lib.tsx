@@ -133,7 +133,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed right-4 top-4 z-50 flex w-80 flex-col gap-2 no-print">
+      <div aria-live="polite" className="pointer-events-none fixed right-4 top-20 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 no-print sm:top-4">
         {items.map((i) => (
           <div key={i.id} role={i.tone === 'bad' ? 'alert' : 'status'} className={cx('pointer-events-auto rounded-md px-4 py-3 text-sm font-medium text-white shadow-lg', i.tone === 'bad' ? 'bg-red-700' : 'bg-slate-900')}><div className="flex items-start gap-3"><span className="flex-1">{i.message}</span>{i.tone === 'bad' && <button type="button" aria-label="Dismiss error" className="rounded px-1 focus-visible:outline-2 focus-visible:outline-white" onClick={() => setItems((items) => items.filter((item) => item.id !== i.id))}>✕</button>}</div></div>
         ))}

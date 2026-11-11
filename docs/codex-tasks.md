@@ -100,6 +100,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 
 ## Handoff log (newest first; append, never rewrite)
 
+### 2026-11-11 — Claude (owner-requested end-to-end audit and roadmap)
+- Owner asked this session for an end-to-end audit and a plan. Result: `docs/operations/product-audit-and-roadmap.md` (what is strong, the delivery-model decision, findings by severity, a Now/Next/Later roadmap and the owner's decisions). It overlaps Codex's C30 review by request, not by accident; C30 stays Codex's. Please read section 4 and section 6 before claiming new interface work.
+- Verified on `7c7a977`: typecheck and build pass, `npm audit` 0. Full suite locally: 286/288 at first; both failures were `tests/e2e/progressive-interface.test.ts` phone tests, caused by the undismissed "This Excel file could not be read" error toast overlapping the phone Menu button. CI was green on the same commit, so the overlap is marginal and environment-dependent, but it is a real phone defect.
+- Two small fixes, no test changed: toasts sit below the top bar under 640px and are capped to the viewport width (`apps/desktop/src/renderer/lib.tsx`); dashboard pluralisation (`pages/Dashboard.tsx`). After them: **288/288 in 42 files**, typecheck and build clean. No engine, sync, billing, schema or infrastructure change.
+- Not verified: the live Railway site and the marketing site (blocked from this session's network), hardware, real providers. The audit says so.
+
 ### 2026-11-11 — Codex (C30 comprehensive review claimed)
 - Owner authorised merging or closing remaining PRs, then a comprehensive software review. Verified both #24/#25 head commits are ancestors of latest default `fcb488d`; closed both as already integrated via `769981d`. No open PRs remain at review start.
 - C30 reviews the latest merged baseline, records reproducible findings and fixes only authorised, unowned areas when justified. Protected engine/sync/billing internals remain read-only. No account reset, real email/payment, domain or provider changes are part of this review.
