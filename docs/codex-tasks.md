@@ -47,8 +47,8 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | --- | --- | --- | --- |
 | C1 admin MFA | Codex | **Merged** | PR #10 |
 | C2–C11 (backup storage, containers, performance, accessibility, admin dashboard, observability, legal drafts, workflow tests, carton costing, branding) | Codex | **Merged** via the integration review (commit `f49b1aa`) | PRs #13–#22 |
-| C12 hosted sample interface preview | Codex | **Merged** (`769981d`) | PR #24 (base is an old Codex branch, so GitHub may still show it open) |
-| C13 accounting-style workspace and page guides | Codex | **Merged** (`769981d`) | PR #25 (same note) |
+| C12 hosted sample interface preview | Codex | **Merged** (`769981d`) | PR #24 closed as integrated (C30 ancestry verified) |
+| C13 accounting-style workspace and page guides | Codex | **Merged** (`769981d`) | PR #25 closed as integrated (C30 ancestry verified) |
 | C14 client readiness | Codex — done | **Merged PR #26** as `86f4c03`; all merged-commit workflows green, including 220 tests. Interface deployment refinement continues separately as C19 | `codex/C14-client-readiness`, PR #26 |
 | Billing / System A (plans, subscriptions, invoices, payments, reminders, reconciliation, revenue, client Billing screen) | Claude | **Merged**, sandbox provider only. No real money has moved | commit `1e46b33` |
 | Team walkthrough artifact and `scripts/capture-walkthrough.ts` | Claude | Done; retake screenshots after any UI change | `519cab0` |
@@ -66,7 +66,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C26 hosted review fixes | Codex (this review/domain session) | Claimed: walkthrough language/document metadata and phone preview overflow; browser regression coverage and review report. Leave engine, sync, billing/provider code untouched | `codex/C26-hosted-review-fixes` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
 | C28 workflow redesign implementation | Codex — done | PR #41 merged as `e1c0d92`; all six exact merged workflows green, 283 local tests pass. Public sample version 9 published; Railway SUCCESS and both client/operator live browser acceptance pass | `codex/C28-workflow-implementation` |
-| C30 comprehensive software review | Codex — claimed | Owner requested closing legacy PRs and a comprehensive review. Review latest merged software, current CI/live health, workflows, security, permissions, data integrity, accessibility and operational readiness. Preserve C29 invitation/provider ownership and protected engine/billing files | `codex/C30-comprehensive-review` |
+| C30 comprehensive software review | Codex — review complete, evidence prepared | Legacy #24/#25 closed as integrated. 288 tests and live API/browser checks pass; four confirmed findings with reproduction and acceptance criteria. Findings remain open; see `docs/reviews/c30-software-review.md` | `codex/C30-comprehensive-review` |
 
 | C29 friendly test access and invitations | Codex (review/domain/email session) | Claimed on owner request: readable unique owner passphrases, crash-safe private rotation and invitation delivery to assigned tester emails, narrow sign-in usability changes. Do not alter initial password variables concurrently; sending/rotation waits for Resend availability | `codex/C29-test-invitations` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
@@ -99,6 +99,14 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C30 comprehensive review results)
+- Reviewed merged C29 application `fcb488d` plus documentation-only claim `7c7a977`. Typecheck/build pass, full dependency audit zero vulnerabilities, **288 tests / 42 files pass with Chromium and no skips**. All six exact claim workflows green, including real PostgreSQL sync and packaged Windows smoke.
+- `docs/reviews/c30-software-review.md` records four confirmed findings: **F01 P1** later-period refunds disagree across provider revenue headline/client/service breakdowns; **F02 P2** impossible dates return 500 and reversed ranges return successful empty results; **F03 P2** Railway omits structured logging/metrics/error-webhook runtime options; **F04 P2** Railway ignores S3 backup settings and always uses its local `/data` fallback. No application behaviour was changed or finding claimed fixed. F01/F02 touch Claude-owned billing code; coordinate before edits. F03/F04 touch the Railway entrypoint also used by active C29 work; no concurrent edits made.
+- Added a runnable local-only audit probe and synthetic observed JSON under `docs/reviews/c30/`. It uses real API invoice/manual-payment/refund routes, demonstrates November receipt / December refund reconciliation mismatch, and checks invalid/reversed dates. No external provider request, email or live financial write.
+- Actual live acceptance passes 10 HTTPS/API checks (existing records only, secure cookies, owner/cashier permissions, tenant/session isolation, Excel template/preview, billing/admin API/logout) plus Chromium both owners/15 client pages/report tabs/390px drawer/help/logout and operator/10 pages. No uncaught browser exception or HTTP 5xx observed. Private credential handoff removed after acceptance; no passwords rotated/messages sent.
+- Closed #24/#25 only after proving both heads are ancestors of default via `769981d`. No PRs were open immediately afterward. A new concurrent invitation-diagnostics PR #43 appeared and was merged by its owning session during review. Rebased the evidence branch onto `6a3a893` without changing its implementation. Its changes are outside the tested review snapshot.
+
 
 ### 2026-11-11 — Codex (C30 comprehensive review claimed)
 - Owner authorised merging or closing remaining PRs, then a comprehensive software review. Verified both #24/#25 head commits are ancestors of latest default `fcb488d`; closed both as already integrated via `769981d`. No open PRs remain at review start.
