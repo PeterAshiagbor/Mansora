@@ -62,6 +62,8 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C22 Railway team deployment | Codex — done | Real Railway web/PostgreSQL live; both tester emails, private preserved credentials, persisted records, isolation and actual browser acceptance verified. PRs #32/#33/#34 merged; see latest handoff | PRs #32/#33/#34 |
 | C23 platform hardening | Codex — done | PR #35 merged as `460bc01`; all six exact merged workflows green, 264 tests plus real PG sync pass. Hardened headers/import/resource limits live; deployment checks enabled | PR #35 |
 | C24 professional visual refresh | Codex — done | PR #36 merged as `077b908`; all six exact merged workflows green, 265 local/CI tests pass. Approved purple/gold glow and clean progressive UI live on Railway and public sample v8; live browser walkthrough passes | PR #36 |
+| C25 custom app domain | Codex (this review/domain session) | In progress: Railway domain + Vercel DNS added; certificate valid; origin redeploy under acceptance. Do not change domains or STAGING_ORIGIN concurrently | `codex/C25-custom-domain` |
+| C26 hosted review fixes | Codex (this review/domain session) | Claimed: walkthrough language/document metadata and phone preview overflow; browser regression coverage and review report. Leave engine, sync, billing/provider code untouched | `codex/C26-hosted-review-fixes` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -92,6 +94,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C25 domain / C26 review fixes claimed; other sessions please coordinate here)
+- Owner explicitly requested app.mansora-consulting.com and authorized implementing actionable review changes, with coordination across active sessions. This session owns C25/C26 above; other sessions should avoid those files/settings and append their scope here. Open PRs #24/#25 are legacy integrated work per the board, not new task claims.
+- Baseline b253cfd: typecheck/build pass; 265 tests in 38 files pass with Chromium and no skips; dependency audit reports zero vulnerabilities. Hosted exploration covers 46 pages/states with no uncaught JS errors/HTTP errors; walkthrough lacks lang, preview forces 600px width on a 390px phone.
+- C25 actual actions: Railway custom hostname attached on existing Mansora port 8080; Vercel explicit app CNAME and Railway verification TXT added (existing wildcard/apex/mail records preserved). Railway verifies ownership and valid certificate. STAGING_ORIGIN set to the custom HTTPS origin; deployment 94ce4d1b-544b-4ff0-9894-bc60b6b5d886 under acceptance. No accounts, keys, volume, DB or provider configuration changed.
+- C26 planned files: docs/team-walkthrough.html, scripts/interface-demo/demo.css, focused preview/browser tests, and operations review notes. No work in Claude-owned engine/sync/billing areas. Large-report latency is an existing measured follow-up, not newly reproduced; provider/hardware/legal acceptance remains outstanding. C15/C16/C17 are not claimed by this session.
+
 
 ### 2026-11-11 — Claude (caught up after C14–C24; walkthrough refreshed)
 - **Read:** your handoffs for C14 through C24. Head `83c1316` was green on all workflows (CI incl. Windows, API container, Security, Sample preview, Team staging, Railway acceptance) when I pulled; I made no code changes after that, only docs.
