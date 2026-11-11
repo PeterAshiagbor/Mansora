@@ -2,7 +2,9 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import Fastify, { LogController, type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
+import type { ServiceStanding } from '@mansora/domain';
 import type { Database } from './db';
+import { tenantStanding } from './billing/standing';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
 import { createBillingFromEnv, registerBillingRoutes, queueEmail, deliverQueued, type Billing } from './billing';
@@ -13,6 +15,8 @@ import { installObservability, loggerOptions, requestId, safeError, type Observa
 export interface AppContext {
   db: Database;
   backupStorage: BackupStorage;
+  /** Non-payment standing for a business, sent to its laptop on every sync. */
+  standing?: (tenantId: string) => Promise<ServiceStanding>;
 }
 
 export interface AppOptions extends Omit<AppContext, 'backupStorage'>, ObservabilityOptions {
@@ -70,6 +74,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.get('/health/ready', ready);
   app.get('/health', ready); // Compatibility with existing deployment health checks.
   app.setNotFoundHandler((req, reply) => reply.code(404).send({ code: 'NOT_FOUND', message: 'Not found', requestId: req.id }));
+  context.standing = (tenantId) => opts.db.platform((q) => tenantStanding(billing, q, tenantId));
   registerDeviceRoutes(app, context);
   registerAdminRoutes(app, context);
   registerBillingRoutes(app, billing);

@@ -184,6 +184,7 @@ export function Collections({ go }: { go: (id: string, param?: string) => void }
                 { header: 'Next payment', cell: (r) => day(r.next_payment) },
                 { header: 'Owes', align: 'right', cell: (r) => (r.outstanding ? <strong>{ghs(r.outstanding)}</strong> : ghs(0)) },
                 { header: 'Days late', align: 'right', cell: (r) => (r.days_overdue ? <Badge tone="bad">{r.days_overdue}</Badge> : '') },
+                { header: 'Service', cell: (r) => <StandingBadge s={r.standing} /> },
                 { header: 'Mandate', cell: (r) => (r.mandate_status ? <Status s={r.mandate_status} /> : <Badge>none</Badge>) },
                 { header: 'Subscription', cell: (r) => <Status s={r.subscription_status} /> },
                 { header: '', align: 'right', cell: (r) => <Button size="sm" onClick={() => setManage(r)}>Manage</Button> },
@@ -225,7 +226,7 @@ function ResolveModal({ title, children, onClose, onSave, button = 'Save' }: { t
 
 function ManageClient({ row, go, onClose, onChanged }: { row: any; go: (id: string, p?: string) => void; onClose: () => void; onChanged: () => void }) {
   const act = useAction();
-  const [view, setView] = useState<'actions' | 'invoice' | 'payment' | 'plan' | 'history' | 'link'>('actions');
+  const [view, setView] = useState<'actions' | 'invoice' | 'payment' | 'plan' | 'history' | 'link' | 'arrangement'>('actions');
   const [link, setLink] = useState('');
   const history = useApi<any[]>(view === 'history' ? `/v1/admin/billing/audit?tenantId=${row.tenant_id}` : null);
   const call = (method: 'POST', path: string, body?: unknown, msg?: string) => act.run(async () => { await api(method, `/v1/admin/billing${path}`, body ?? {}); onChanged(); }, msg);
@@ -245,9 +246,12 @@ function ManageClient({ row, go, onClose, onChanged }: { row: any; go: (id: stri
           {row.subscription_status === 'paused'
             ? <Button disabled={act.busy} onClick={() => call('POST', `/subscriptions/${row.subscription_id}/resume`, {}, 'Subscription resumed')}>Resume subscription</Button>
             : <Button disabled={!row.subscription_id || act.busy} onClick={() => call('POST', `/subscriptions/${row.subscription_id}/pause`, { reason: 'Paused by administrator' }, 'Subscription paused')}>Pause subscription</Button>}
+          <Button onClick={() => setView('arrangement')}>Payment arrangement</Button>
           <Button onClick={() => setView('history')}>View audit history</Button>
         </div>
       )}
+      {view === 'actions' && row.standing && row.standing.stage !== 'good' && <p className="mt-3 text-sm text-slate-600"><StandingBadge s={row.standing} /> {standingText(row.standing)}</p>}
+      {view === 'arrangement' && <Arrangement tenantId={row.tenant_id} onDone={() => { onChanged(); setView('actions'); }} />}
       {view === 'link' && <><p className="mb-2 text-sm text-slate-600">Anyone with this link can pay this invoice. Share it only with the client.</p><CopyLink url={link} /></>}
       {view === 'invoice' && inv && <InvoiceDetail id={inv} onChanged={onChanged} embedded />}
       {view === 'payment' && inv && <Modal title="Record payment" open onClose={() => setView('actions')} footer={<Button dismiss onClick={() => setView('actions')}>Cancel</Button>}><RecordPayment invoiceId={inv} onDone={() => { onChanged(); setView('actions'); }} /></Modal>}
@@ -255,6 +259,44 @@ function ManageClient({ row, go, onClose, onChanged }: { row: any; go: (id: stri
       {view === 'history' && <QueryView query={history} label="billing records"><Table rows={history.data} rowKey={(r: any) => r.id} empty="No history yet" columns={[{ header: 'When', cell: (r: any) => when(r.occurred_at) }, { header: 'By', cell: (r: any) => r.actor_type }, { header: 'Action', cell: (r: any) => <code className="text-xs">{r.action}</code> }, { header: 'Details', cell: (r: any) => <span className="break-all text-xs text-slate-600">{detailText(r.detail)}</span> }]} /></QueryView>}
       {view !== 'actions' && <Button size="sm" className="mt-3" onClick={() => setView('actions')}>← Back to actions</Button>}
     </Modal>
+  );
+}
+
+const STAGE: Record<string, { text: string; tone: 'good' | 'info' | 'warn' | 'bad' }> = { good: { text: 'Normal', tone: 'good' }, notice: { text: 'Reminded', tone: 'info' }, warning: { text: 'Warned', tone: 'warn' }, restricted: { text: 'Reports paused', tone: 'bad' } };
+function StandingBadge({ s }: { s?: any }) {
+  if (!s) return <>—</>;
+  return <Badge tone={STAGE[s.stage]?.tone ?? 'info'}>{STAGE[s.stage]?.text ?? s.stage}{s.holdUntil ? ' · arrangement' : ''}</Badge>;
+}
+function standingText(s: any): string {
+  if (s.stage === 'restricted') return `Invoice ${s.invoiceNumber} is ${s.daysOverdue} days overdue. The client's reports and report exports are paused; selling, stock, backups and paying continue.`;
+  const arrangement = s.holdUntil ? ` A payment arrangement runs until ${s.holdUntil}.` : '';
+  return `Invoice ${s.invoiceNumber} is ${s.daysOverdue} days overdue. Reports pause on ${s.restrictFrom} if it is still unpaid.${arrangement}`;
+}
+
+/** Non-payment policy (D-28): agree or end a time-limited payment arrangement. Every change is audited. */
+function Arrangement({ tenantId, onDone }: { tenantId: string; onDone: () => void }) {
+  const info = useApi<any>(`/v1/admin/billing/clients/${tenantId}/standing`);
+  const [until, setUntil] = useState('');
+  const [reason, setReason] = useState('');
+  const act = useAction();
+  const d = info.data;
+  return (
+    <QueryView query={info} label="service standing">{d && (
+      <div className="space-y-3">
+        <Msg a={act} />
+        <p className="text-sm text-slate-700"><StandingBadge s={d.standing} /> {d.standing.stage === 'good' ? 'Nothing is overdue. No arrangement is needed.' : standingText(d.standing)}</p>
+        <p className="text-xs text-slate-600">Policy: reminder after {d.policy.noticeAfterDays} day(s), warning after {d.policy.warnAfterDays}, reports pause after {d.policy.restrictAfterDays}. Selling never stops. Disputed invoices never escalate. An arrangement keeps reports open until its last day and can last up to 60 days.</p>
+        {d.hold && <Alert>Current arrangement until {d.hold.until}: {d.hold.reason}</Alert>}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Arrangement ends on"><Input type="date" value={until} min={today()} onChange={(e) => setUntil(e.target.value)} /></Field>
+          <Field label="What was agreed (kept in the audit log)"><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Pays half on the 15th, rest on the 30th" /></Field>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="primary" disabled={act.busy || !until || !reason.trim()} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/clients/${tenantId}/standing/hold`, { until, reason }); onDone(); }, 'Arrangement saved')}>Save arrangement</Button>
+          {d.hold && <Button disabled={act.busy || !reason.trim()} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/clients/${tenantId}/standing/clear-hold`, { reason }); onDone(); }, 'Arrangement ended')}>End arrangement now</Button>}
+        </div>
+      </div>
+    )}</QueryView>
   );
 }
 
@@ -558,7 +600,7 @@ export function PaymentSettings() {
   useUnsavedChanges(s != null, 'Billing settings');
   const jobs = useAction();
   if (!providers.data || !cur) return <><PageHeader title="Payment settings" /><QueryView query={providers} label="payment providers">{null}</QueryView><QueryView query={settings} label="billing settings">{null}</QueryView></>;
-  const payload = () => ({ ...cur, ...Object.fromEntries(['invoiceLeadDays', 'defaultDueDays', 'maxAttempts', 'retryDays'].map((k) => [k, Number(cur[k])])), reminders: { ...cur.reminders, offsets: Object.fromEntries(Object.entries(cur.reminders.offsets).map(([k, v]) => [k, Number(v)])) } });
+  const payload = () => ({ ...cur, ...Object.fromEntries(['invoiceLeadDays', 'defaultDueDays', 'maxAttempts', 'retryDays'].map((k) => [k, Number(cur[k])])), reminders: { ...cur.reminders, offsets: Object.fromEntries(Object.entries(cur.reminders.offsets).map(([k, v]) => [k, Number(v)])) }, ...(cur.standing ? { standing: Object.fromEntries(Object.entries(cur.standing).map(([k, v]) => [k, Number(v)])) } : {}) });
   const set = (patch: any) => setS({ ...cur, ...patch });
   const STEPS: [string, string][] = [['upcoming', 'Upcoming payment (days before due, negative)'], ['due', 'Due today'], ['overdue_1', 'First overdue notice (days after due)'], ['overdue_2', 'Second overdue notice'], ['escalate', 'Escalate to Mansora admin'], ['review', 'Flag for service review']];
   return (
@@ -584,7 +626,9 @@ export function PaymentSettings() {
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={cur.reminders.enabled} onChange={(e) => set({ reminders: { ...cur.reminders, enabled: e.target.checked } })} />Send payment reminders automatically</label>
         <div className="mt-2 grid gap-3 sm:grid-cols-3">{STEPS.map(([k, text]) => <Field key={k} label={text}><Input type="number" required min={-30} max={180} step={1} value={cur.reminders.offsets[k]} onChange={(e) => set({ reminders: { ...cur.reminders, offsets: { ...cur.reminders.offsets, [k]: e.target.value } } })} /></Field>)}</div>
-        <Alert tone="info" className="mt-3">Mansora never suspends a client's service automatically. Overdue accounts are flagged for a person to decide.</Alert>
+        <h3 className="mb-2 mt-4 text-sm font-semibold">When an invoice stays unpaid</h3>
+        {cur.standing && <div className="grid gap-3 sm:grid-cols-3">{([['noticeAfterDays', 'Remind the client (days late)'], ['warnAfterDays', 'Warn the client (days late)'], ['restrictAfterDays', 'Pause reports (days late, at least 21)']] as const).map(([k, text]) => <Field key={k} label={text}><Input type="number" required min={k === 'restrictAfterDays' ? 21 : 0} max={365} step={1} value={cur.standing[k]} onChange={(e) => set({ standing: { ...cur.standing, [k]: e.target.value } })} /></Field>)}</div>}
+        <Alert tone="info" className="mt-3">Selling never stops. After the last threshold only the client's management reports and report exports pause until the invoice is paid; stock, customers, backups, the full data export and paying Mansora keep working. Disputed invoices never escalate, a warning always comes at least 7 days before reports pause, and you can agree a payment arrangement per client under Collections → Manage.</Alert>
         <h3 className="mb-2 mt-4 text-sm font-semibold">Printed on invoices</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           {([['name', 'Business name'], ['address', 'Address'], ['phone', 'Phone'], ['email', 'Billing email'], ['tin', 'Tax identification number']] as const).map(([k, text]) => <Field key={k} label={text}><Input required={k === 'name'} type={k === 'email' ? 'email' : 'text'} maxLength={{ name: 120, address: 300, phone: 40, email: 160, tin: 40 }[k]} value={cur.issuer[k]} onChange={(e) => set({ issuer: { ...cur.issuer, [k]: e.target.value } })} /></Field>)}

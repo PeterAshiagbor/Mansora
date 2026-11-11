@@ -134,6 +134,8 @@ export interface SyncPullResult {
   subscription: { status: string; renewalDate: string | null; planName: string | null } | null;
   supportAccessLog: { id: string; adminName: string; action: string; occurredAt: string; grantId: string | null }[];
   serverTime: string;
+  /** Non-payment standing (D-28). Older servers omit it; the laptop then keeps what it last stored. */
+  standing?: import('./standing').ServiceStanding | null;
 }
 
 export const ONBOARDING_STEPS = [

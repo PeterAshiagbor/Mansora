@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { can, DomainError, fail, SYNC_TABLES, zCalendarDate, type Permission, type Role, type SyncTable } from '@mansora/domain';
+import { can, DomainError, effectiveStanding, fail, RESTRICTED_COMMANDS, restrictionMessage, SYNC_TABLES, zCalendarDate, type ServiceStanding, type Permission, type Role, type SyncTable } from '@mansora/domain';
 import type { Db } from './db';
 import { verifyPassword } from './passwords';
 
@@ -268,6 +268,14 @@ export class Engine {
         fail('PERMISSION_DENIED', 'You do not have permission to do this', { permission: def.perm });
       }
     }
+    if ((RESTRICTED_COMMANDS as readonly string[]).includes(name)) {
+      // Non-payment policy (D-28): checked here, at the only entry point, so no screen can bypass it.
+      const standing = this.standing();
+      if (standing?.stage === 'restricted') {
+        if (actor) this.recordDenied(actor, name, 'service.restricted', 'service.restricted');
+        fail('SERVICE_RESTRICTED', restrictionMessage(standing), { invoiceNumber: standing.invoiceNumber, restrictFrom: standing.restrictFrom });
+      }
+    }
     const parsed = def.input.safeParse(input ?? {});
     if (!parsed.success) {
       const first = parsed.error.issues[0];
@@ -305,10 +313,17 @@ export class Engine {
     }
   }
 
-  private recordDenied(actor: UserRow, command: string, permission: string): void {
+  /** Today's non-payment standing from what the server last sent; dates keep moving while offline. */
+  standing(): ServiceStanding | null {
+    let stored: unknown = null;
+    try { stored = JSON.parse(this.meta('service_standing') ?? 'null'); } catch { stored = null; }
+    return effectiveStanding(stored, this.now().toISOString().slice(0, 10));
+  }
+
+  private recordDenied(actor: UserRow, command: string, permission: string, action = 'permission.denied'): void {
     const ctx = new Ctx(this, command, actor);
     ctx.tx(() => {
-      ctx.audit('command', command, { permission }, 'permission.denied');
+      ctx.audit('command', command, { permission }, action);
       ctx.flush();
     });
   }

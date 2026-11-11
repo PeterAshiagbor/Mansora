@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { DEFAULT_STANDING_POLICY, type StandingPolicy } from '@mansora/domain';
 import type { Database, Query } from '../db';
 import { HttpError } from '../security';
 import { ProviderError } from './providers/types';
@@ -152,17 +153,20 @@ export interface BillingSettings {
   reminders: { enabled: boolean; offsets: Record<ReminderStep, number> };
   activationPolicy: 'first_payment' | 'mandate';
   issuer: Issuer;
+  /** Non-payment policy thresholds (D-28); bounded by policyProblem() in @mansora/domain. */
+  standing: StandingPolicy;
 }
 export const DEFAULT_SETTINGS: BillingSettings = {
   invoiceLeadDays: 7, defaultDueDays: 14, maxAttempts: 3, retryDays: 3,
   reminders: { enabled: true, offsets: { upcoming: -3, due: 0, overdue_1: 3, overdue_2: 7, escalate: 14, review: 30 } },
   activationPolicy: 'first_payment',
+  standing: DEFAULT_STANDING_POLICY,
   issuer: { name: 'Mansora Consulting and Business Solutions', address: '', phone: '', email: '', tin: '', paymentInstructions: 'Pay using the secure link, or contact Mansora billing support.' },
 };
 export async function loadSettings(q: Query): Promise<BillingSettings> {
   const [r] = await q(`SELECT value FROM billing_settings WHERE key = 'settings'`);
   const s = r ? JSON.parse(r.value) : {};
-  return { ...DEFAULT_SETTINGS, ...s, reminders: { ...DEFAULT_SETTINGS.reminders, ...s.reminders, offsets: { ...DEFAULT_SETTINGS.reminders.offsets, ...s.reminders?.offsets } }, issuer: { ...DEFAULT_SETTINGS.issuer, ...s.issuer } };
+  return { ...DEFAULT_SETTINGS, ...s, reminders: { ...DEFAULT_SETTINGS.reminders, ...s.reminders, offsets: { ...DEFAULT_SETTINGS.reminders.offsets, ...s.reminders?.offsets } }, issuer: { ...DEFAULT_SETTINGS.issuer, ...s.issuer }, standing: { ...DEFAULT_SETTINGS.standing, ...s.standing } };
 }
 export async function saveSettings(q: Query, s: BillingSettings): Promise<void> {
   await q(`INSERT INTO billing_settings (key, value) VALUES ('settings', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, [JSON.stringify(s)]);

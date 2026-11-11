@@ -3,6 +3,7 @@ import type { Query } from '../db';
 import { addDays, addMonths, FREQUENCY_MONTHS, monthlyEquivalent, type Frequency } from './dates';
 import { OUTSTANDING_SQL, RECEIVABLE_STATUSES, today, type Billing } from './core';
 import { netAmount } from './subscriptions';
+import { tenantStanding } from './standing';
 
 const LIVE = ['active', 'payment_due', 'payment_failed', 'overdue', 'past_due'];
 const rate = (n: number, d: number) => (d === 0 ? null : Math.round((n * 10_000) / d)); // basis points
@@ -153,6 +154,7 @@ export async function collectionsTable(b: Billing, q: Query, filter: CollectionF
     const fee = r.agreed_amount == null ? null : netAmount(r);
     return { ...r, monthly_fee: fee == null ? null : monthlyEquivalent(fee, r.billing_frequency as Frequency), period_fee: fee, next_payment: nextPayment, days_overdue: daysOverdue, tags };
   });
+  for (const r of out) (r as any).standing = await tenantStanding(b, q, r.tenant_id);
   return filter === 'all' ? out : out.filter((r: any) => r.tags.includes(filter));
 }
 

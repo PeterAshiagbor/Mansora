@@ -1,6 +1,7 @@
 import { Alert, Badge, Button, Card, Icon, PageHeader, Stat, Table, QueryView, Disclosure } from '@mansora/ui';
 import { FirstUsePrompt } from './GettingStarted';
 import { SalesActivity } from '../components/SalesActivity';
+import { StandingNotice } from '../components/StandingNotice';
 import { dateTime, METHOD, money, monthStart, today, useApp, useQuery } from '../lib';
 
 export function Dashboard() {
@@ -13,6 +14,7 @@ export function Dashboard() {
   return (
     <div>
       <PageHeader title="Dashboard" subtitle={`Good day, ${state.user?.name.split(' ')[0]}. ${own ? 'Here is your sales activity today.' : 'Here is how your business is doing today.'}`} actions={<><Button onClick={dashboard.reload}><Icon name="sync" />Refresh overview</Button>{can('sale.create') && <Button variant="primary" onClick={() => go('checkout')}><Icon name="plus" />Create a sale</Button>}</>} />
+      <StandingNotice />
       {state.user?.role === 'owner' && <FirstUsePrompt />}
       {sync?.tenantStatus === 'suspended' && <Alert tone="warn" className="mb-4">Your Mansora service plan needs attention. Please contact Mansora. You can keep selling as normal.</Alert>}
       {sync && sync.unprotected > 0 && sync.state === 'offline' && (
@@ -33,7 +35,7 @@ export function Dashboard() {
         {!can('report.sales') && <div className="m-next-step"><strong>Your shift</strong><p>Review cash movements and your closing count before handing over the till.</p><Button variant="ghost" onClick={() => go('shifts')}>Open cashier shifts →</Button></div>}
       </div></Card></div>
       <Disclosure title="Daily breakdown" description="Sales activity, payment methods and products running low">
-      {can('report.sales') && <DashboardActivity />}
+      {can('report.sales') && sync?.standing?.stage !== 'restricted' && <DashboardActivity />}
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
         {d.payments && (
           <Card title="Payment mix today" pad={false}>

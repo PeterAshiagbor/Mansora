@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Badge, Button, Card, Icon, PageHeader, Stat, Table, Tabs, QueryView } from '@mansora/ui';
 import { SalesActivity } from '../components/SalesActivity';
+import { StandingNotice, useStanding } from '../components/StandingNotice';
 import { collectionSummary, reportPresets } from '../reporting';
 import { dateTime, DateRange, ExportButtons, METHOD, money, monthStart, percent, plain, today, useApp, useQuery } from '../lib';
 
@@ -10,9 +11,12 @@ export function ReportsPage() {
   const tabs = [{ id: 'summary' as Tab, label: 'Summary' }, { id: 'sales' as Tab, label: 'Sales' }, { id: 'payments' as Tab, label: 'Payments' }, { id: 'wallet' as Tab, label: 'Mobile money check' }, ...(can('report.profit') ? [{ id: 'profit' as Tab, label: 'Gross profit' }] : []), ...(can('report.stock') ? [{ id: 'stock' as Tab, label: 'Stock' }] : []), ...(can('expense.manage') ? [{ id: 'expenses' as Tab, label: 'Expenses' }] : []), ...(can('credit.repayment') ? [{ id: 'balances' as Tab, label: 'Customer balances' }] : [])];
   const [tab, setTab] = useState<Tab>('choose');
   const [range, setRange] = useState({ from: monthStart(), to: today() });
+  const standing = useStanding();
+  if (standing?.stage === 'restricted') return <div><PageHeader title="Reports" subtitle="Paused until the overdue Mansora invoice is paid" /><StandingNotice /></div>;
   return (
     <div>
       <PageHeader title="Reports" subtitle={`${range.from} to ${range.to} · from your business records`} />
+      <StandingNotice />
       {tab === 'choose' ? <section aria-label="Choose a report"><p className="mb-6 text-sm text-slate-600">Start with what you need to understand. Choose dates and export from the report you open.</p><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{[
         { id: 'summary', title: 'Business summary', description: 'Sales, money collected and customer credit in one view.', icon: 'home', allowed: true },
         { id: 'sales', title: 'Sales performance', description: 'What sold, when, and through which cashiers?', icon: 'chart', allowed: true },

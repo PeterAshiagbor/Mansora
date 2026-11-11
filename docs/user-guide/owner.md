@@ -57,3 +57,7 @@ laptop is destroyed. The Sync status screen warns you when such records exist.
 
 Every sale, refund, price change, stock adjustment, staff change and refused
 action is recorded with who and when. Entries cannot be edited or deleted.
+
+## If a Mansora invoice is overdue
+
+Your till never stops because of an unpaid Mansora invoice. You first see a reminder on the dashboard, then, 15 days after the due date, a warning that names the date reports will pause. If the invoice is still unpaid 30 days after its due date, reports and report exports pause until it is paid. Selling, refunds, shifts, stock, customers, backups, the full business data export and Billing & payments keep working throughout, including when the laptop is offline. Pay from **Billing & payments**; reports reopen at the next sync. If you need more time, ask Mansora for a payment arrangement. If you think an invoice is wrong, tell Mansora: a disputed invoice never pauses anything.
