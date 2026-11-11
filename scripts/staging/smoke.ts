@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { stagingConfig } from './config';
 import type { TestAccount } from './bootstrap';
 export async function smokeStaging() {
@@ -34,5 +33,9 @@ export async function smokeStaging() {
   const other = account('owner', 'shop-b'); check(!(await call(other, own.cookie, 'product.list')).body.ok, 'workspace cookie cannot cross business boundary');
   await call(owner, own.cookie, 'auth.logout'); check((await call(cashier, cash.cookie, 'app.state')).body.data.user.role === 'cashier', 'owner logout does not end cashier session');
   await call(cashier, cash.cookie, 'auth.logout');
+  for (const named of accounts.filter(a => a.email)) {
+    const login = await call(named, null, 'auth.login', { username: named.email!.toUpperCase(), password: named.password });
+    check(login.body.ok && login.cookie && (await call(named, login.cookie, 'app.state')).body.data.user.role === 'owner', 'assigned tester email login and role');
+    await call(named, login.cookie, 'auth.logout');
+  }
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) void smokeStaging().catch(() => { console.error('Staging smoke check failed. No credentials or payloads are logged.'); process.exitCode = 1; });

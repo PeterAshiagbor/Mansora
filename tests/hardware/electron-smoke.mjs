@@ -1,3 +1,5 @@
+// Railway binds DATABASE_URL, RAILWAY_PUBLIC_DOMAIN/STAGING_ORIGIN, STAGING_TESTER_EMAILS and /data.
+// Email aliases exist only in the staging HTTP gateway; native bridge capabilities remain unchanged.
 /**
  * Launches the PACKAGED desktop application and checks the security shell:
  * the window opens on the activation screen, the page has no Node access,

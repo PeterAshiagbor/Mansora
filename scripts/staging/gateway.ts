@@ -10,6 +10,7 @@ export interface StagingWorkspace { id: string; label: string; engine: Engine }
 export interface GatewayOptions {
   origin: string; apiUrl: string; workspaces: StagingWorkspace[];
   clientDir: string; adminDir: string; port?: number; host?: string;
+  loginAliases?: Record<string, Record<string, string>>; readiness?: () => Promise<boolean>;
   maxBodyBytes?: number; sessionTtlMs?: number; now?: () => number;
 }
 class HttpError extends Error { constructor(public status: number, public code: string, message: string) { super(message); } }
@@ -80,7 +81,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
           res.end(responseBytes.toString('utf8').replace(/\b(href|src|action)=(['"])\/(?!\/|api\/)/gi, '$1=$2/api/'));
         } else res.end(responseBytes); return;
       }
-      if (path === '/healthz') return json(res, 200, { ok: true, mode: 'team-staging' });
+      if (path === '/healthz') { const ready = opts.readiness ? await opts.readiness().catch(() => false) : true; return json(res, ready ? 200 : 503, { ok: ready, mode: 'team-staging' }); }
       if (req.method === 'GET' && path === '/') { res.setHeader('content-type', MIME['.html']); res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Mansora team testing</title><link rel="stylesheet" href="/staging.css"></head><body>${BANNER}<main style="max-width:760px;margin:40px auto;padding:24px;font:16px/1.6 system-ui"><h1>Mansora team testing</h1><p>Sign in with your assigned test account. Use sample data only; records are saved and shared within each business.</p><ul>${opts.workspaces.map(w => `<li><a href="/client/${w.id}/">${escape(w.label)}</a></li>`).join('')}<li><a href="/admin/">Mansora administration</a></li></ul><p>The browser environment covers business workflows. Test printers, scanners, cash drawers and offline selling in the desktop application.</p></main></body></html>`); return; }
       if (req.method === 'GET' && path === '/staging.css') { res.writeHead(200, { 'content-type': MIME['.css'] }); res.end(STYLE); return; }
       if (req.method === 'GET' && path === '/config.js') { res.writeHead(200, { 'content-type': MIME['.js'] }); res.end('window.MANSORA_API_URL = "/api";'); return; }
@@ -95,7 +96,12 @@ export async function startStagingGateway(opts: GatewayOptions) {
           if (!(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) throw new HttpError(415, 'JSON_REQUIRED', 'Send application/json.');
           let payload: any; try { payload = JSON.parse((await body(req, limit)).toString('utf8')); } catch (e) { if (e instanceof HttpError) throw e; throw new HttpError(400, 'BAD_JSON', 'The request could not be read.'); }
           if (!payload || typeof payload.command !== 'string' || payload.command.length > 100) throw new HttpError(400, 'BAD_COMMAND', 'A valid command is required.');
-          const { command, input = {} } = payload;
+          const { command } = payload; let input = payload.input ?? {};
+          if (command === 'auth.login' && typeof input.username === 'string') {
+            const aliases = opts.loginAliases?.[workspace.id], name = input.username.trim().toLowerCase();
+            const alias = aliases && Object.hasOwn(aliases, name) ? aliases[name] : undefined;
+            if (alias) input = { ...input, username: alias };
+          }
           if (['activation.activate', 'device.relink'].includes(command)) throw new HttpError(403, 'STAGING_MANAGED', 'The deployment administrator manages activation and re-linking for shared test workspaces.');
           let id = sessionId(req), session = id ? sessions.get(id) : undefined;
           if (session && session.expires <= now()) { clear(id); session = undefined; cookie(res, workspace.id, null); }

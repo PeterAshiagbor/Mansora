@@ -25,7 +25,8 @@
     "desktop:dist": "npm run dist -w @mansora/desktop",
     "admin:dev": "npm run dev -w @mansora/admin-web",
     "test:e2e": "npm run build -w @mansora/desktop && npm run build -w @mansora/admin-web && vitest run tests/e2e",
-    "build:staging": "node scripts/staging/build.mjs"
+    "build:staging": "node scripts/staging/build.mjs",
+    "build:railway": "node scripts/railway/build.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
