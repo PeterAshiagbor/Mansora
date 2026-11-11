@@ -69,6 +69,18 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C30 comprehensive software review | Codex — claimed | Owner requested closing legacy PRs and a comprehensive review. Review latest merged software, current CI/live health, workflows, security, permissions, data integrity, accessibility and operational readiness. Preserve C29 invitation/provider ownership and protected engine/billing files | `codex/C30-comprehensive-review` |
 
 | C29 friendly test access and invitations | Codex (review/domain/email session) | Claimed on owner request: readable unique owner passphrases, crash-safe private rotation and invitation delivery to assigned tester emails, narrow sign-in usability changes. Do not alter initial password variables concurrently; sending/rotation waits for Resend availability | `codex/C29-test-invitations` |
+| **Roadmap "Now" stage (2026-11-11, owner asked to share the work between Claude and two Codex sessions; see `docs/operations/product-audit-and-roadmap.md` §6–6a)** | | | |
+| C31 mobile money end-of-day check (N3) | Claude | Claimed | `claude/elegant-bohr-mjeotl` |
+| C32 owner's closing summary by email, opt-in (N2) | Claude | Claimed, after C31 | – |
+| C33 activity signals for Mansora, counts only (N5) | Claude | Claimed, after C32 | – |
+| C34 manual billing runbook for first clients (N4) | Claude | Claimed | – |
+| C35 create a shop workspace without a redeploy (N1) | **Codex session 1 (Platform)** | Assigned, not started. Finish or hand over C29/PR #43 first | – |
+| C36 gateway client mode: config-driven banner/limits, per-account and real-client-address sign-in throttling, owner recovery through the browser (N1) | **Codex session 1 (Platform)** | Assigned, not started | – |
+| C37 off-site backups of database and data volume with keys, one rehearsed restore, uptime check, error alerts to a person (N1) | **Codex session 1 (Platform)** | Assigned, not started | – |
+| C38 demo-request intake: public rate-limited endpoint, admin Leads list, embeddable form (N6) | **Codex session 2 (Client and sales surface)** | Assigned, not started | – |
+| C39 Contact Mansora panel from settings on Help and sign-in; Forgot password route (N5) | **Codex session 2** | Assigned, start here | – |
+| C40 parked sales and quick keys, interface only, no engine change (X8) | **Codex session 2** | Assigned, not started | – |
+| C41 board housekeeping: move finished history to `docs/archive/`, keep this board to open work (P2) | **Codex session 2** | Assigned, do last so it does not conflict with active claims | – |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -99,6 +111,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Claude (roadmap work split between Claude and two Codex sessions)
+- Owner asked to share the roadmap work between this Claude session and two Codex sessions. Assignments are in the status board (C31–C41) and in `docs/operations/product-audit-and-roadmap.md` §6a, which also has the start prompt for each Codex session. Shareable page for the owner: the audit artifact.
+- Lanes follow the existing ownership table, so no two sessions edit the same files. **Claude:** engine, sync, billing (C31–C34). **Codex session 1 (Platform):** `scripts/staging/**`, `scripts/railway/**`, `infrastructure/**`, gateway (C35–C37); finish or hand over C29/PR #43 first because it touches the same files. **Codex session 2 (Client and sales surface):** interface, help, admin Leads, public intake endpoint (C38–C41); do not touch `scripts/staging/**`.
+- Assumes the recommended browser-first pilot; the owner has not answered that yet. Every lane except Platform is useful either way. No lane starts an engine-changing "Next" item (decimal quantities, tax, price levels) until the owner names the pilot shops. No interface redesign.
+- C32 sends a client's own figures through Mansora's email queue: it must be owner opt-in and clear message bodies after delivery. C33 sends counts only, never amounts, to keep the platform plane free of client financial data (A-06, A-19).
 
 ### 2026-11-11 — Claude (owner-requested end-to-end audit and roadmap)
 - Owner asked this session for an end-to-end audit and a plan. Result: `docs/operations/product-audit-and-roadmap.md` (what is strong, the delivery-model decision, findings by severity, a Now/Next/Later roadmap and the owner's decisions). It overlaps Codex's C30 review by request, not by accident; C30 stays Codex's. Please read section 4 and section 6 before claiming new interface work.
