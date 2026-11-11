@@ -4,6 +4,7 @@ import Fastify, { LogController, type FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import type { ServiceStanding } from '@mansora/domain';
 import type { Database } from './db';
+import type { BrowserWorkspaceProvisioner } from './browser-workspaces';
 import { tenantStanding } from './billing/standing';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
@@ -15,6 +16,7 @@ import { installObservability, loggerOptions, requestId, safeError, type Observa
 export interface AppContext {
   db: Database;
   backupStorage: BackupStorage;
+  browserWorkspaces?: BrowserWorkspaceProvisioner;
   /** Non-payment standing for a business, sent to its laptop on every sync. */
   standing?: (tenantId: string) => Promise<ServiceStanding>;
 }
@@ -32,7 +34,7 @@ export interface AppOptions extends Omit<AppContext, 'backupStorage'>, Observabi
 }
 
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
-  const context: AppContext = { db: opts.db, backupStorage: opts.backupStorage ?? new FileStorage(opts.backupDir) };
+  const context: AppContext = { db: opts.db, browserWorkspaces: opts.browserWorkspaces, backupStorage: opts.backupStorage ?? new FileStorage(opts.backupDir) };
   const app = Fastify({ logger: opts.logger || opts.logStream ? loggerOptions(opts.logStream) : false, logController: new LogController({ disableRequestLogging: true }), requestIdHeader: false, genReqId: requestId, bodyLimit: 8 * 1024 * 1024, trustProxy: opts.trustProxy ?? false });
   const billing = opts.billing ?? createBillingFromEnv(opts.db).billing;
   const alertTo = process.env.PLATFORM_ALERT_EMAIL?.trim();

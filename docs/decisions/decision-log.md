@@ -89,3 +89,10 @@ Each is isolated so it can be changed.
 | U-04 | Professional interface: Xero + Linear + Stripe principles, Mansora purple/gold, gentle static glow and clean surfaces | Explicitly approved by owner on 2026-11-11. Shared business/operator styling, readable controls and progressive disclosure; no financial policy or permission changes. References and scope: `docs/operations/interface-design.md`. |
 
 | U-05 | Implement the saved C27 workflow design in the actual application | Owner explicitly authorised “Implement everything you can based on the work that has been done.” Proceed from the authored draft/screenshots while Figma MCP remains limited. Use existing authorised engine/API operations; preserve financial/permission policies and distinguish native Figma completion from software implementation. C28 details: `docs/operations/workflow-redesign-implementation.md`. |
+
+## Browser provisioning implementation defaults
+
+| ID | Default | Scope / rationale | Status |
+| --- | --- | --- | --- |
+| C36-01 | Owner chooses their password through a tenant-bound private setup link; Mansora does not assign it. Proof lasts 30 minutes, is single-use and encrypted at rest while pending. Existing active-device migration is refused | Preserves the existing engine ownership contract. Repeated administrator requests return the same pending link; completed links return only the ordinary workspace URL. No new billing or role policy | Implementation default within the owner's Platform-lane authorization; see `docs/operations/browser-workspaces.md` |
+| C36-02 | Keep the existing ten-workspace capacity, add bounds of six administrator setup requests per minute and two parallel activations, and exclude dynamic shops from test-data seeding | Preserve hardening and existing customer/test records while adding runtime registration. Client-mode tuning belongs to C37; independent backup/retention belongs to C38 | Conservative implementation limits, not a production capacity claim |

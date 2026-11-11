@@ -2,11 +2,12 @@ import { runScheduledBackup, syncNow } from '../../apps/desktop/src/core';
 import { loadLoginAliases } from './accounts';
 import { stagingConfig, loadWorkspaces } from './config';
 import { startStagingGateway } from './gateway';
+import type { WorkspaceOnboarding } from './workspace-onboarding';
 import type { StagingWorkspace } from './gateway';
-export async function startConfiguredStaging(readiness?: () => Promise<boolean>, beforeListen?: (workspaces: StagingWorkspace[]) => Promise<void>) {
+export async function startConfiguredStaging(readiness?: () => Promise<boolean>, beforeListen?: (workspaces: StagingWorkspace[]) => Promise<void>, onboarding?: WorkspaceOnboarding) {
   const config = stagingConfig(), workspaces = loadWorkspaces(config);
   let gateway: Awaited<ReturnType<typeof startStagingGateway>>;
-  try { await beforeListen?.(workspaces); gateway = await startStagingGateway({ ...config, workspaces, loginAliases: loadLoginAliases(config.dataDir), readiness, host: process.env.STAGING_BIND_HOST ?? '0.0.0.0', port: Number(process.env.PORT ?? 4500) }); }
+  try { await beforeListen?.(workspaces); gateway = await startStagingGateway({ ...config, workspaces, loginAliases: loadLoginAliases(config.dataDir), readiness, onboarding, host: process.env.STAGING_BIND_HOST ?? '0.0.0.0', port: Number(process.env.PORT ?? 4500) }); try { onboarding?.attach(workspaces, gateway.registerWorkspace); } catch (error) { await gateway.close(); throw error; } }
   catch (e) { for (const w of workspaces) w.engine.db.close(); throw e; }
   const running = new Set<string>();
   const timer = setInterval(() => { for (const w of workspaces) { if (running.has(w.id)) continue; running.add(w.id); void syncNow(w.engine).catch(() => {}).finally(() => running.delete(w.id)); } }, 15_000); timer.unref();

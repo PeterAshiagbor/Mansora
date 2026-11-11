@@ -47,3 +47,7 @@ Composition verification exercises the shared runtime options against real API m
 ## Additive test business records
 
 Set `STAGING_SAMPLE_DATA_VERSION=retail-v1` to prepare the actual registered test businesses using the existing authenticated commands. See [the data pack guide](test-data.md) for content, export/report permissions, restart behavior and the private journal. This setting never resets existing business data or weakens gateway, role, tenant, encryption or import controls.
+
+## Add a browser workspace without redeploying
+
+The Railway adapter supports the authenticated **Browser workspace** action on an existing client. The owner completes the private setup link and chooses their own password; the new encrypted store joins the running gateway, sync/backup loops and durable registry. Existing test workspaces are preserved. See [C36 provisioning and acceptance](browser-workspaces.md). Client-mode readiness and independent recovery remain C37/C38 tasks.

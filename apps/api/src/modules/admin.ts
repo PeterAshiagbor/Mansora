@@ -309,7 +309,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     out.onboarding.sort((x, y) => order.indexOf(x.step) - order.indexOf(y.step));
     // Grants are business data: read inside the tenant's own context. Only the grant metadata is exposed.
     const grants = await db.tenant(id, (q) => q(`SELECT id, scope, purpose, starts_at, expires_at, revoked_at FROM support_access_grants ORDER BY created_at DESC LIMIT 20`));
-    return { ...out, onboarding: out.onboarding.map((o) => ({ ...o, label: ONBOARDING_STEPS.find(([s]) => s === o.step)?.[1] ?? o.step })), grants };
+    return { ...out, browserWorkspaceAvailable: !!ctx.browserWorkspaces, onboarding: out.onboarding.map((o) => ({ ...o, label: ONBOARDING_STEPS.find(([s]) => s === o.step)?.[1] ?? o.step })), grants };
   });
   app.put('/v1/admin/clients/:id', async (req) => {
     const a = await admin(req);
@@ -358,6 +358,25 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       await audit(q, a, 'subscription.updated', id, b);
     });
     return { ok: true };
+  });
+
+  const workspaceLimiter = new RateLimiter(6, 60_000);
+  app.post('/v1/admin/clients/:id/browser-workspace', async (req) => {
+    const a = await admin(req);
+    if (!ctx.browserWorkspaces) httpError(404, 'NOT_AVAILABLE', 'Browser workspace provisioning is not available on this service.');
+    workspaceLimiter.check(a.id);
+    const { id } = zId.parse(req.params);
+    const code = newActivationCode(), expiresAt = new Date(Date.now() + 72 * 3_600_000).toISOString();
+    const tenant = await db.platform(async q => {
+      const [row] = await q<{ name: string; owner_name: string; email: string | null; has_active_device: boolean }>("SELECT t.name, t.owner_name, t.email, EXISTS (SELECT 1 FROM devices d WHERE d.tenant_id = t.id AND d.status = 'active') AS has_active_device FROM tenants t WHERE t.id = $1 AND t.status <> 'closed'", [id]);
+      if (!row) httpError(404, 'NOT_FOUND', 'Client not found');
+      if (!row.email || !z.string().email().safeParse(row.email).success) httpError(400, 'OWNER_EMAIL_REQUIRED', 'Record the owner email on the client before creating a browser workspace.');
+      await q('INSERT INTO activation_codes (code_hash, tenant_id, expires_at, created_by) VALUES ($1, $2, $3, $4)', [sha256(code), id, expiresAt, a.id]);
+      return row;
+    });
+    const result = await ctx.browserWorkspaces!.invite({ tenantId: id, label: tenant.name, ownerName: tenant.owner_name, ownerEmail: tenant.email!, activationCode: code, hasActiveDevice: tenant.has_active_device });
+    await db.platform(q => audit(q, a, 'browser_workspace.invited', id, { workspaceId: result.workspaceId, status: result.status, expiresAt: result.expiresAt }));
+    return result;
   });
 
   // ----- device activation -----

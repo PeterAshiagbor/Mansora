@@ -80,3 +80,13 @@ it('refuses a journal copied from another tenant without changing business recor
   finally { writeFileSync(target, original); }
   expect(shops[1].engine.db.prepare('SELECT COUNT(*) AS n FROM sales').get()).toEqual(before);
 });
+
+it('does not add fictional records to a dynamic workspace absent from the private test-account manifest', async () => {
+  const dynamic = await makeShop();
+  try {
+    const result = await seedTestWorkspaces({ mode, version, dataDir, workspaces: [{ id: 'shop-dynamic', label: 'Client workspace', engine: dynamic.engine }] });
+    expect(result).toMatchObject({ prepared: 0, preserved: 0 });
+    expect(await dynamic.run(dynamic.owner, 'product.list', { search: 'SAMPLE ·' })).toEqual([]);
+    expect(dynamic.engine.db.prepare('SELECT COUNT(*) AS n FROM sales').get()).toMatchObject({ n: 0 });
+  } finally { dynamic.engine.db.close(); }
+});
