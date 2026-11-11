@@ -31,6 +31,8 @@ person may do. Disable a login the day someone leaves; it takes effect at once.
 
 ## Reports
 
+**Mobile money & card check** (Reports): at closing, compare the expected mobile money and card totals with your wallet statement and card terminal report. Every payment is listed with its transaction ID. A red warning means the same ID was entered twice, which can be a fake or reused payment message; a yellow one means a payment has no ID to match.
+
 Sales, payments, gross profit and stock for any dates, exportable to Excel, CSV
 or printed/PDF. Reports work without internet. "Gross profit" is sales minus the
 cost of the goods sold; it is not your final profit, because the system is not a

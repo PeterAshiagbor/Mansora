@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Icon, PageHeader, Stat, Table, Tabs, QueryView } from '@mansora/ui';
+import { Alert, Badge, Button, Card, Icon, PageHeader, Stat, Table, Tabs, QueryView } from '@mansora/ui';
 import { SalesActivity } from '../components/SalesActivity';
 import { collectionSummary, reportPresets } from '../reporting';
-import { DateRange, ExportButtons, METHOD, money, monthStart, percent, plain, today, useApp, useQuery } from '../lib';
+import { dateTime, DateRange, ExportButtons, METHOD, money, monthStart, percent, plain, today, useApp, useQuery } from '../lib';
 
-type Tab = 'choose' | 'summary' | 'sales' | 'payments' | 'profit' | 'stock' | 'expenses' | 'balances';
+type Tab = 'choose' | 'summary' | 'sales' | 'payments' | 'wallet' | 'profit' | 'stock' | 'expenses' | 'balances';
 export function ReportsPage() {
   const { can } = useApp();
-  const tabs = [{ id: 'summary' as Tab, label: 'Summary' }, { id: 'sales' as Tab, label: 'Sales' }, { id: 'payments' as Tab, label: 'Payments' }, ...(can('report.profit') ? [{ id: 'profit' as Tab, label: 'Gross profit' }] : []), ...(can('report.stock') ? [{ id: 'stock' as Tab, label: 'Stock' }] : []), ...(can('expense.manage') ? [{ id: 'expenses' as Tab, label: 'Expenses' }] : []), ...(can('credit.repayment') ? [{ id: 'balances' as Tab, label: 'Customer balances' }] : [])];
+  const tabs = [{ id: 'summary' as Tab, label: 'Summary' }, { id: 'sales' as Tab, label: 'Sales' }, { id: 'payments' as Tab, label: 'Payments' }, { id: 'wallet' as Tab, label: 'Mobile money check' }, ...(can('report.profit') ? [{ id: 'profit' as Tab, label: 'Gross profit' }] : []), ...(can('report.stock') ? [{ id: 'stock' as Tab, label: 'Stock' }] : []), ...(can('expense.manage') ? [{ id: 'expenses' as Tab, label: 'Expenses' }] : []), ...(can('credit.repayment') ? [{ id: 'balances' as Tab, label: 'Customer balances' }] : [])];
   const [tab, setTab] = useState<Tab>('choose');
   const [range, setRange] = useState({ from: monthStart(), to: today() });
   return (
@@ -17,6 +17,7 @@ export function ReportsPage() {
         { id: 'summary', title: 'Business summary', description: 'Sales, money collected and customer credit in one view.', icon: 'home', allowed: true },
         { id: 'sales', title: 'Sales performance', description: 'What sold, when, and through which cashiers?', icon: 'chart', allowed: true },
         { id: 'payments', title: 'Money received', description: 'Separate payments, repayments and refunds from customer credit.', icon: 'wallet', allowed: true },
+        { id: 'wallet', title: 'Mobile money & card check', description: 'Does every mobile money and card payment match your wallet or terminal statement?', icon: 'wallet', allowed: true },
         { id: 'profit', title: 'Gross profit', description: 'What did you earn after the recorded cost of goods sold?', icon: 'chart', allowed: can('report.profit') },
         { id: 'stock', title: 'Stock position', description: 'What is available, running low or out of stock?', icon: 'box', allowed: can('report.stock') },
         { id: 'expenses', title: 'Expenses', description: 'Where did business money go during the selected period?', icon: 'wallet', allowed: can('expense.manage') },
@@ -27,6 +28,7 @@ export function ReportsPage() {
       {tab === 'expenses' && <ExpenseReport range={range} />}
       {tab === 'balances' && <BalanceReport />}
       {(tab === 'sales' || tab === 'payments') && <SalesReport range={range} payments={tab === 'payments'} />}
+      {tab === 'wallet' && <WalletReport range={range} />}
       {tab === 'profit' && <ProfitReport range={range} />}
       {tab === 'stock' && <StockReport range={range} />}
     </div>
@@ -112,6 +114,40 @@ function SalesReport({ range, payments }: { range: { from: string; to: string };
         </div>
       </div>
     </>
+  );
+}
+
+const KIND: Record<string, string> = { sale: 'Sale', repayment: 'Credit repayment', refund: 'Refund paid out' };
+function WalletReport({ range }: { range: { from: string; to: string } }) {
+  const query = useQuery<any>('report.wallet', range);
+  const { data: d } = query;
+  if (!d) return <QueryView query={query} label="report data">{null}</QueryView>;
+  const momo = d.byMethod.find((m: any) => m.method === 'momo');
+  const card = d.byMethod.find((m: any) => m.method === 'card');
+  const missing = momo.missingReference + card.missingReference;
+  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  return (
+    <div className="space-y-5">
+      <p className="text-xs leading-relaxed text-slate-600">Compare these figures with your mobile money wallet statement and card terminal report for the same dates. Amounts here were typed in at the till; only the provider's statement proves the money arrived.</p>
+      <div className="grid grid-cols-2 gap-4">
+        <Stat label="Mobile money expected in wallet" value={money(momo.net)} hint={`${money(momo.received)} received · ${money(momo.refunded)} refunded`} />
+        <Stat label="Card expected from terminal" value={money(card.net)} hint={`${money(card.received)} received · ${money(card.refunded)} refunded`} />
+      </div>
+      {d.duplicateReferences.length > 0 && <Alert tone="bad">The same transaction ID was recorded more than once: {d.duplicateReferences.map((r: any) => `${r.reference} (${r.count} times)`).join(', ')}. Check these against the statement before accepting them. A reused ID can mean a fake or recycled payment message.</Alert>}
+      {missing > 0 && <Alert tone="warn">{count(missing, 'payment has', 'payments have')} no transaction ID. Ask staff to enter the ID from the payment message so each payment can be matched.</Alert>}
+      <Card title="Payments to check" pad={false} actions={<ExportButtons title={`Mobile money and card check ${range.from} to ${range.to}`} columns={['Time', 'Type', 'Method', 'Receipt or refund', 'Customer', 'Staff', 'Transaction ID', 'GHS']} rows={() => d.entries.map((e: any) => [dateTime(e.at), KIND[e.kind], METHOD[e.method], e.number ?? '', e.customer ?? '', e.staff, e.reference ?? '', plain(e.amount)])} />}>
+        <Table rows={d.entries} empty="No mobile money or card payments in this period" columns={[
+          { header: 'Time', cell: (e: any) => dateTime(e.at) },
+          { header: 'Type', cell: (e: any) => KIND[e.kind] },
+          { header: 'Method', cell: (e: any) => METHOD[e.method] },
+          { header: 'Receipt', cell: (e: any) => e.number ?? '' },
+          { header: 'Customer', cell: (e: any) => e.customer ?? '' },
+          { header: 'Staff', cell: (e: any) => e.staff },
+          { header: 'Transaction ID', cell: (e: any) => e.reference ?? (e.amount > 0 ? <Badge tone="warn">Missing</Badge> : '') },
+          { header: 'Amount', align: 'right', cell: (e: any) => <strong>{money(e.amount)}</strong> },
+        ]} />
+      </Card>
+    </div>
   );
 }
 

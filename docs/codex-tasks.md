@@ -71,7 +71,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C29 friendly test access and invitations | Codex (review/domain/email session) | PRs #42/#43 merged; 288 local tests pass before diagnostic test addition. Live Resend refuses unverified sender: 0 accepted/activated, 2 pending; old passwords preserved. Owner asked for public verification DNS records | PRs #42/#43 |
 | C32 Railway runtime configuration | Codex (review/domain/email session) | Claimed: C30 F03/F04 only — shared sanitized API telemetry options and explicit backup storage factory/fallback in Railway, with composition tests. Preserve C29 invitation logic and C30 report ownership | `codex/C32-runtime-wiring` |
 | **Roadmap "Now" stage (2026-11-11, owner asked to share the work between Claude and two Codex sessions; see `docs/operations/product-audit-and-roadmap.md` §6–6a)** | | | |
-| C31 mobile money end-of-day check (N3) | Claude | Claimed | `claude/elegant-bohr-mjeotl` |
+| C31 mobile money end-of-day check (N3) | Claude | Implemented on branch, PR open: `report.wallet` command and Reports → Mobile money check; 289 tests pass locally | `claude/elegant-bohr-mjeotl` |
 | C33 owner's closing summary by email, opt-in (N2) | Claude | Claimed, after C31 | – |
 | C34 activity signals for Mansora, counts only (N5) | Claude | Claimed, after C33 | – |
 | C35 manual billing runbook for first clients (N4) | Claude | Claimed | – |
