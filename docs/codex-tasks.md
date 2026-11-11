@@ -69,7 +69,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C30 comprehensive software review | Codex — review complete, evidence prepared | Legacy #24/#25 closed as integrated. 288 tests and live API/browser checks pass; four confirmed findings with reproduction and acceptance criteria. Findings remain open; see `docs/reviews/c30-software-review.md` | `codex/C30-comprehensive-review` |
 
 | C29 friendly test access and invitations | Codex (review/domain/email session) | Complete: PRs #42/#43 merged; verified sender, both Resend invitations delivered and both passphrases activated on live SUCCESS deployment 96b6f761. Same journal/operation preserved | PRs #42/#43 |
-| C32 Railway runtime configuration | Codex (review/domain/email session) | Implemented in PR #46, latest head 38933df; 290 tests and original six CI workflows pass. Current refreshed CI queued; not merged/deployed. C30 F03/F04 wiring only | `codex/C32-runtime-wiring` |
+| C32 Railway runtime configuration | Codex session 1 (Platform) | PR #46 merged by GitHub as 473f64f after lane claim. Exact merged CI queued; Railway deployment WAITING. Not yet represented as live or accepted. Original six checks and 290-test regression passed | PR #46 |
 | **Roadmap work split, rebalanced 2026-11-11 after owner decisions: browser pilot first, then offline; build the features; hosting = existing Railway; non-payment policy approved and hardened. Detail and done-when criteria: `docs/operations/product-audit-and-roadmap.md` §6a** | | | |
 | C31 mobile money and card end-of-day check (N3) | Claude | Done on branch, PR #47 | `claude/elegant-bohr-mjeotl` |
 | C30 F01/F02: refunds in the right revenue period; impossible or reversed dates refused with 400 | Claude | Done on branch, PR #47; Codex's probe now reconciles | `claude/elegant-bohr-mjeotl` |
@@ -80,11 +80,11 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C45 wholesale/retail price levels and supervised price override: engine (X4) | Claude | Queued | – |
 | C46 VAT, NHIL and GETFund on sales: tax-inclusive prices, receipt lines, tax report (X5) | Claude | Queued | – |
 | C47 customer credit limit with supervised override: engine (X1) | Claude | Queued | – |
-| C36 create a shop workspace without a redeploy (N1) | **Codex session 1 — this review/domain/email session** | Claimed by owner request. First implementation after C32 #46 merges; acceptance and boundaries in platform-lane-handoff.md | `codex/C36-workspace-provisioning` (reserved) |
+| C36 create a shop workspace without a redeploy (N1) | **Codex session 1 — this review/domain/email session** | Claimed; implementation review begun on latest merged code. Registry/gateway/background-job lifecycle and tenant-bound owner activation identified. C32/C43 release acceptance still queued; no C36 code/deploy claimed complete | `codex/C36-workspace-provisioning` |
 | C37 gateway client mode: config-driven banner/limits, per-account and real-client-address sign-in throttling, owner recovery through the browser (N1) | **Codex session 1 — this review/domain/email session** | Reserved in this lane; follows C36. Keep all existing hardening and coordinate any protected engine recovery changes with Claude | `codex/C37-client-gateway` (reserved) |
 | C38 off-site backups of database and data volume with keys, one rehearsed restore, uptime check, error alerts to a person (N1) | **Codex session 1 — this review/domain/email session** | Reserved in this lane; follows C32/C36/C37. Provider/key retention and isolated recovery evidence required; not claimed deployed | `codex/C38-recovery-monitoring` (reserved) |
-| C48 offline tier: signed-installer pipeline and automatic updates for the Windows till (L1). Certificate comes from the owner; build and test the plumbing with a test certificate | **Codex session 1** | Assigned, after C36–C38 | – |
-| C49 offline tier: silent receipt printing and cash-drawer signal in the Electron shell, with the bridge list in `tests/hardware/electron-smoke.mjs` (X2) | **Codex session 1** | Assigned, after C48 | – |
+| C48 offline tier: signed-installer pipeline and automatic updates for the Windows till (L1) | **Codex session 1 — this review/domain/email session** | Reserved after C36–C38 per latest rebalanced plan. Test-certificate plumbing first; real certificate and Windows acceptance remain explicit prerequisites | `codex/C48-signed-updates` (reserved) |
+| C49 offline tier: silent receipt printing and cash-drawer signal in the Electron shell (X2) | **Codex session 1 — this review/domain/email session** | Reserved after C48. Preserve restricted IPC bridge; physical printer/drawer acceptance must be recorded separately | `codex/C49-printing-drawer` (reserved) |
 | C40 Contact Mansora panel from settings on Help and sign-in; Forgot password route (N5) | **Codex session 2 (Client and sales surface)** | Assigned, start here | – |
 | C41 parked sales and quick keys, interface only, no engine change (X8) | **Codex session 2** | Assigned | – |
 | C39 demo-request intake: public rate-limited endpoint, admin Leads list, embeddable form (N6) | **Codex session 2** | Assigned | – |
@@ -92,7 +92,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C35 first-client billing walkthrough: follow the runbook once against the sandbox and fix gaps in the admin screens or docs (N4). Moved from Claude | **Codex session 2** | Assigned | – |
 | C51 interface for C44–C47: quantity entry, pack sizes, price levels, tax lines, credit limits. Each part starts after Claude's engine PR for it merges | **Codex session 2** | Assigned, follows Claude | – |
 | C42 board housekeeping: move finished history to `docs/archive/`, keep this board to open work (P2) | **Codex session 2** | Assigned, do last | – |
-| C43 realistic test-workspace data | Codex (review/domain/email session) | Partially live: both businesses have additive inventory/customer/supplier/purchase/expense/owner-sale data; real edits, JSON/XLSX/CSV exports and analysis verified. PR #48 adds restart-safe full pack including staff-owned histories; 294 tests pass, CI queued, not merged/deployed | `codex/C43-test-data` |
+| C43 realistic test-workspace data | Codex session 1 (Platform) | Owner portion live in both businesses with edits/exports/analysis verified. PR #48 merged by GitHub as cf4fa36; exact merged CI queued and Railway WAITING. Full staff history/startup pack not enabled or verified live yet | PR #48 |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Corporate website coordination (2026-11-11)
@@ -136,6 +136,13 @@ infrastructure stay with their existing owners. Coordination: issue #39.
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (Platform prerequisite merge update)
+- During the owner-requested lane claim, GitHub merged #46 (473f64f) then #48 (cf4fa36). This session did not merge either during this turn. Updated current board statuses; the earlier queued/unmerged entries are historical snapshots. Exact merged checks remain queued and Railway is WAITING; no live release completion claimed and sample-pack opt-in is still absent.
+- C36 branch created from cf4fa36 and initial implementation review completed: startup registry, gateway lookup map and background sync/backup need a shared dynamic registration lifecycle. Existing activation assumes owner-side password choice; preserve it with tenant-bound onboarding proof, fixed API destination and Claude coordination. No protected engine code, credentials, live shops or other session’s source changed in this claim/preparation.
+
+- Latest concurrent #47 merge d65bd5c rebalanced the plan and preserved our Platform claim. This lane also reserves C48 signed installer/updates and C49 silent printing/cash drawer after C36–C38. Preserved all Claude changes, corporate coordination and expanded session-2 tasks. No other session’s code was committed or merged by this claim.
+
 
 ### 2026-11-11 — Codex corporate website session (external PR; release gated)
 - Read this board and issue #39 before work; posted source/access findings and the external claim in #39. Owner connected the website repository later in the session. This board update uses a docs-only branch because the owner explicitly requested separate branches; no direct default-branch change is made.

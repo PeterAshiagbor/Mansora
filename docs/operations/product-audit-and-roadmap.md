@@ -213,7 +213,7 @@ Rough effort, counting small = 1, medium = 2, large = 3: Claude about 15
 (including the 6 already delivered), Codex session 1 about 14, Codex session 2
 about 12.
 
-**Platform lane claimed (2026-11-11):** the existing Codex review/domain/email session owns C36–C38. Execution order, file boundaries, dependencies and acceptance evidence are maintained in [Platform lane handoff](platform-lane-handoff.md). Codex session 2 remains available for C39–C42.
+**Platform lane claimed (2026-11-11):** the existing Codex review/domain/email session owns C36–C38, then C48/C49. Execution order, file boundaries, dependencies and acceptance evidence are maintained in [Platform lane handoff](platform-lane-handoff.md). Codex session 2 retains its separate client/sales lane.
 
 Start prompt for Codex session 1:
 
