@@ -16,6 +16,8 @@ jobs:
     name: Typecheck, build and test
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d
     services:
       postgres:
         image: postgres:16
@@ -36,15 +38,11 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run typecheck
       - run: npm run build
-      - name: Use canonical Ubuntu package mirrors for browser dependencies
+      - name: Install matching browser client and verify provisioned Chromium
+        timeout-minutes: 5
         run: |
-          for ci_mirror_file in /etc/apt/apt-mirrors*.txt; do
-            if [ -f "$ci_mirror_file" ]; then sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$ci_mirror_file"; fi
-          done
-          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' | sudo tee /etc/apt/apt.conf.d/80-mansora-ci-network >/dev/null
-      - name: Install browser for end-to-end tests
-        timeout-minutes: 10
-        run: npm install --no-save playwright && npx playwright install --with-deps chromium
+          npm install --no-save playwright@1.65.0
+          node -e "const { chromium } = require('playwright'); (async () => { const browser = await chromium.launch(); await browser.close(); })().catch(() => process.exit(1))"
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - name: Tests (embedded PostgreSQL)
@@ -52,7 +50,7 @@ jobs:
       - name: Sync tests against a real PostgreSQL 16 server
         run: npx vitest run tests/sync/sync.test.ts
         env:
-          TEST_DATABASE_URL: postgres://postgres:ci-only@localhost:5432/mansora_ci
+          TEST_DATABASE_URL: postgres://postgres:ci-only@postgres:5432/mansora_ci
       - name: Dependency audit (production dependencies)
         run: npm audit --omit=dev --audit-level=high
 

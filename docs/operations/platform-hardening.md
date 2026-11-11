@@ -8,7 +8,7 @@ The live Railway deployment uses the existing native encrypted retail engine and
 - Active route handlers are limited to 16, with a clear 503/Retry-After response at capacity. Health probes remain available. Header count, keep-alive requests, socket connections and existing request/header deadlines are bounded.
 - Only one authorised spreadsheet preview/commit can run at a time. Competing imports receive a retryable response. Permission checks happen before resource-intensive preflight, and the actual engine still performs its own authentication, permission and schema validation.
 - XLSX files are checked before ExcelJS loads the workbook. ZIP entry counts and offsets are validated; encrypted, multi-disk, ZIP64, traversal and inconsistent archives are rejected. Both declared sizes and actual bounded DEFLATE output are checked against a 32 MB expanded limit. The engine's existing 10 MB compressed-file limit still applies. Ordinary CSV and valid Excel remain supported.
-- GitHub's browser setup retains the full browser/dependency install and all tests. The runner's broken Azure Ubuntu mirror hostname is replaced with Ubuntu's canonical archive hostname, retaining signed-package and TLS verification. Network retries/timeouts and the Linux job/setup duration are bounded.
+- GitHub browser tests run in Microsoft's official Playwright 1.65.0 Noble image, pinned by digest, with the matching Playwright client and a real Chromium launch check. All browser/financial/sync assertions remain. This removes the repeated runtime APT dependency download that failed when GitHub's Ubuntu mirror DNS was unavailable. The container reaches its real PostgreSQL service through the service hostname. Setup and Linux job duration are bounded.
 
 ## Railway deployment checks
 
