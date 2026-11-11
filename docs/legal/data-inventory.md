@@ -1404,3 +1404,14 @@ Reconcile provider gross receipts, fees and net settlement amounts with attribut
 | `cloud.settlements.created_at` | Reconcile provider gross receipts, fees and net settlement amounts with attributed evidence. Field: created at. A technical, commercial or financial field can be linked to client, payer or administrator identities through related records. Assess necessity, access and retention in that context. |
 
 Billing additions above describe schema and potential access paths, not a legal classification or approved retention policy. Provider tokens, webhook payloads, consent and notification copies require specific review. Provider environment keys (`BILLING_ENCRYPTION_KEY`, `PAY_LINK_SECRET` and live provider credentials) are outside SQL; the deployment operator must agree custody, rotation and incident controls. Sandbox evidence does not establish live-provider compliance.
+
+### Notification delivery metadata (migration 5)
+
+These fields remain in the existing platform notification retention/access scope. Resend receives the sender, recipient, subject and message content; provider region, retention and contractual terms still require review.
+
+| Field | Purpose and assessment |
+| --- | --- |
+| `cloud.notifications.attempt_count` | Bound and audit email retry attempts. Operational delivery evidence linked to the existing notification and recipient. Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling. |
+| `cloud.notifications.delivery_started_at` | Prevent retry after provider idempotency protection expires. Operational delivery evidence linked to the existing notification and recipient. Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling. |
+| `cloud.notifications.next_attempt_at` | Schedule and lease queued email delivery. Operational delivery evidence linked to the existing notification and recipient. Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling. |
+| `cloud.notifications.provider_message_id` | Reconcile provider acceptance without storing API credentials. Operational delivery evidence linked to the existing notification and recipient. Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling. |

@@ -3,6 +3,8 @@ import type { Database, Query } from '../db';
 import { HttpError } from '../security';
 import { ProviderError } from './providers/types';
 import type { ProviderRegistry } from './providers/registry';
+import { EmailDeliveryError, type EmailAdapter } from '../email';
+export type { EmailAdapter } from '../email';
 
 export const fail = (status: number, code: string, message: string): never => { throw new HttpError(status, code, message); };
 
@@ -12,7 +14,6 @@ export function asHttp(e: unknown): never {
   throw e;
 }
 
-export interface EmailAdapter { configured(): boolean; send(m: { to: string; subject: string; body: string }): Promise<void> }
 /** Default: nothing is sent. Messages stay queued and visible until a real email provider is connected (an integration blocker). */
 export class NoEmail implements EmailAdapter {
   configured() { return false; }
@@ -109,8 +110,8 @@ export async function ensureBillingAccount(q: Query, tenantId: string): Promise<
 }
 
 /** Record a message. It is delivered afterwards by deliverQueued, so a slow or missing email provider never blocks billing. */
-export async function queueEmail(q: Query, m: { tenantId?: string | null; to: string | null; subject: string; body: string; invoiceId?: string | null; kind: string }): Promise<string> {
-  const id = randomUUID();
+export async function queueEmail(q: Query, m: { id?: string; tenantId?: string | null; to: string | null; subject: string; body: string; invoiceId?: string | null; kind: string }): Promise<string> {
+  const id = m.id ?? randomUUID();
   await q(`INSERT INTO notifications (id, tenant_id, to_address, subject, body, status, error, invoice_id, kind) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [id, m.tenantId ?? null, m.to, m.subject, m.body, m.to ? 'queued' : 'skipped', m.to ? null : 'No email address on file', m.invoiceId ?? null, m.kind]);
   return id;
@@ -118,19 +119,28 @@ export async function queueEmail(q: Query, m: { tenantId?: string | null; to: st
 
 export async function deliverQueued(b: Billing): Promise<{ sent: number; failed: number; waiting: number }> {
   if (!b.email.configured()) return { sent: 0, failed: 0, waiting: (await b.db.platform((q) => q(`SELECT COUNT(*)::bigint AS n FROM notifications WHERE status = 'queued'`)))[0].n };
-  const rows = await b.db.platform((q) => q(`SELECT * FROM notifications WHERE status = 'queued' ORDER BY created_at LIMIT 50`));
+  // Persist a lease before network I/O. Other workers skip leased rows; a crash
+  // retries with the same Resend key, rather than silently losing the message.
+  const rows = await b.db.platform((q) => q(`UPDATE notifications SET attempt_count = attempt_count + 1,
+    delivery_started_at = COALESCE(delivery_started_at, $1::timestamptz), next_attempt_at = $1::timestamptz + interval '15 minutes'
+    WHERE id IN (SELECT id FROM notifications WHERE status = 'queued' AND next_attempt_at <= $1::timestamptz ORDER BY created_at LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING *`, [nowIso(b)]));
   let sent = 0, failed = 0;
   for (const n of rows) {
     try {
-      await b.email.send({ to: n.to_address, subject: n.subject, body: n.body });
-      await b.db.platform((q) => q(`UPDATE notifications SET status = 'sent', sent_at = $2 WHERE id = $1`, [n.id, nowIso(b)]));
+      // Resend retains idempotency keys for 24h. Fail closed before that window
+      // expires: an old ambiguous send needs operator reconciliation, not a new charge-like side effect.
+      if (b.now().getTime() - Date.parse(n.delivery_started_at) >= 23 * 3_600_000) throw new EmailDeliveryError('Delivery needs provider reconciliation; idempotency window expired.', false);
+      const result = await b.email.send({ to: n.to_address, subject: n.subject, body: n.body, idempotencyKey: `mansora-notification/${n.id}` });
+      await b.db.platform((q) => q(`UPDATE notifications SET status = 'sent', sent_at = $2, error = NULL, provider_message_id = $3 WHERE id = $1`, [n.id, nowIso(b), result?.id ?? null]));
       sent++;
     } catch (e) {
-      await b.db.platform((q) => q(`UPDATE notifications SET status = 'failed', error = $2 WHERE id = $1`, [n.id, String((e as Error).message).slice(0, 300)]));
+      const retry = e instanceof EmailDeliveryError && e.retryable && n.attempt_count < 5;
+      const message = e instanceof EmailDeliveryError ? e.message : 'Email delivery failed; review provider configuration.';
+      await b.db.platform((q) => q(`UPDATE notifications SET status = $2, error = $3, next_attempt_at = $4 WHERE id = $1`, [n.id, retry ? 'queued' : 'failed', message, new Date(b.now().getTime() + Math.min(60, 2 ** n.attempt_count) * 60_000).toISOString()]));
       failed++;
     }
   }
-  return { sent, failed, waiting: 0 };
+  return { sent, failed, waiting: (await b.db.platform(q => q(`SELECT COUNT(*)::bigint AS n FROM notifications WHERE status = 'queued'`)))[0].n };
 }
 
 // ---------- settings ----------

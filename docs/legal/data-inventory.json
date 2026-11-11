@@ -1,6 +1,6 @@
 {
   "notice": "DRAFT — not legal advice — for review by a Ghanaian data-protection lawyer",
-  "schemaBasis": "Billing migration 4 on default 698ce49 plus C14 UI branch; executable migrated SQLite/PostgreSQL metadata and sync contract. No production records inspected.",
+  "schemaBasis": "Released migrations 1–4 plus notification delivery migration 5; migrated schema metadata only, no customer records inspected.",
   "fields": [
     {
       "key": "cloud.activation_codes.code_hash",
@@ -11021,6 +11021,62 @@
         "Privileged hosting/database operators subject to deployment controls still to be agreed"
       ],
       "assessment": "A technical, commercial or financial field can be linked to client, payer or administrator identities through related records. Assess necessity, access and retention in that context."
+    },
+    {
+      "key": "cloud.notifications.attempt_count",
+      "purpose": "Bound and audit email retry attempts. Operational delivery evidence linked to the existing notification and recipient.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling."
+    },
+    {
+      "key": "cloud.notifications.delivery_started_at",
+      "purpose": "Prevent retry after provider idempotency protection expires. Operational delivery evidence linked to the existing notification and recipient.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling."
+    },
+    {
+      "key": "cloud.notifications.next_attempt_at",
+      "purpose": "Schedule and lease queued email delivery. Operational delivery evidence linked to the existing notification and recipient.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling."
+    },
+    {
+      "key": "cloud.notifications.provider_message_id",
+      "purpose": "Reconcile provider acceptance without storing API credentials. Operational delivery evidence linked to the existing notification and recipient.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling."
     }
   ]
 }

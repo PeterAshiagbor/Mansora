@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
 import { ActionMenu, Alert, Badge, Button, Card, cx, Field, Input, Modal, PageHeader, QueryView, Select, Stat, Table, Tabs, Textarea, useUnsavedChanges } from '@mansora/ui';
 import { api, BASE, getToken, useApi } from './api';
+import { Communications } from './communications';
 
 // ------------------------------------------------------------------ shared
 const ghs = (n: number | null | undefined) => (n == null ? '—' : `GH₵${formatGHS(n, false)}`);
@@ -195,12 +196,7 @@ export function Collections({ go }: { go: (id: string, param?: string) => void }
             columns={[{ header: 'When', cell: (r) => when(r.created_at) }, { header: 'Kind', cell: (r) => <Badge tone="warn">{label(r.kind)}</Badge> }, { header: 'Client', cell: (r) => r.client ?? '—' }, { header: 'Invoice', cell: (r) => r.invoice ?? '' }, { header: 'What happened', cell: (r) => <span className="text-sm">{r.detail}</span> }, { header: '', align: 'right', cell: (r) => <Button size="sm" onClick={() => setResolve(r)}>Resolve</Button> }]} /></QueryView>
         </Card>
       )}
-      {tab === 'messages' && (
-        <>
-          <Alert tone="info" className="mb-3">Messages are recorded here whether or not they were delivered. If no email provider is connected, they stay "queued".</Alert>
-          <Card pad={false}><QueryView query={messages} label="billing records"><Table rows={messages.data} rowKey={(r) => r.id} empty="No messages yet" columns={[{ header: 'When', cell: (r) => when(r.created_at) }, { header: 'To', cell: (r) => r.to_address ?? '(no address)' }, { header: 'Client', cell: (r) => r.client ?? '' }, { header: 'Subject', cell: (r) => r.subject }, { header: 'Type', cell: (r) => label(r.kind) }, { header: 'Status', cell: (r) => <Status s={r.status} /> }]} /></QueryView></Card>
-        </>
-      )}
+      {tab === 'messages' && <Communications />}
       {tab === 'attempts' && (
         <Card pad={false}><QueryView query={attempts} label="billing records"><Table rows={attempts.data} rowKey={(r) => r.id} empty="No payment attempts yet" columns={[{ header: 'When', cell: (r) => when(r.created_at) }, { header: 'Client', cell: (r) => r.client }, { header: 'Invoice', cell: (r) => r.invoice }, { header: 'Kind', cell: (r) => label(r.kind) }, { header: 'Provider', cell: (r) => <>{r.provider}{r.sandbox && <> <Badge tone="warn">sandbox</Badge></>}</> }, { header: 'Amount', align: 'right', cell: (r) => ghs(r.amount) }, { header: 'Status', cell: (r) => <Status s={r.status} /> }, { header: 'Note', cell: (r) => <span className="text-xs text-slate-600">{r.failure_reason ?? ''}</span> }]} /></QueryView></Card>
       )}

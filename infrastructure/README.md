@@ -124,3 +124,13 @@ Before production, review base-image/security updates, deployment secret
 management, TLS and network boundaries, backup and retention policy, managed
 PostgreSQL settings, availability, monitoring and restore drills. No physical
 hardware, certificate signing, live hosting or legal approval is claimed here.
+
+## Transactional email
+
+The API optionally sends through Resend. Bind `RESEND_API_KEY` privately,
+`RESEND_FROM_EMAIL` to a Resend-verified sender, `RESEND_REPLY_TO` to the support
+inbox, and `PLATFORM_ALERT_EMAIL` to the operator inbox. Railway's team-test mode
+also requires `RESEND_ALLOWED_RECIPIENTS` (comma-separated) before email can be
+enabled. Keep these server-side; no native Electron bridge capability changes.
+An unset key/sender preserves the visible queued-email behaviour. Delivery and
+retry details are in `docs/billing/resend-email.md`.
