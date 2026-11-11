@@ -76,9 +76,9 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C34 activity signals for Mansora, counts only (N5) | Claude | Claimed, after C33 | – |
 | C35 manual billing runbook for first clients (N4) | Claude | Claimed | – |
 | C30 F01/F02 fixes: later-period refunds land in the right revenue period; invalid or reversed report dates return 400 (Claude-owned billing/report code) | Claude | Claimed, before C33, using the C30 probe in `docs/reviews/c30/` as acceptance | – |
-| C36 create a shop workspace without a redeploy (N1) | **Codex session 1 (Platform)** | Assigned, not started. Best taken by the review/domain/email session that holds C29 and C32, after C32 merges | – |
-| C37 gateway client mode: config-driven banner/limits, per-account and real-client-address sign-in throttling, owner recovery through the browser (N1) | **Codex session 1 (Platform)** | Assigned, not started | – |
-| C38 off-site backups of database and data volume with keys, one rehearsed restore, uptime check, error alerts to a person (N1) | **Codex session 1 (Platform)** | Assigned, not started. Builds on C32's backup storage and telemetry wiring | – |
+| C36 create a shop workspace without a redeploy (N1) | **Codex session 1 — this review/domain/email session** | Claimed by owner request. First implementation after C32 #46 merges; acceptance and boundaries in platform-lane-handoff.md | `codex/C36-workspace-provisioning` (reserved) |
+| C37 gateway client mode: config-driven banner/limits, per-account and real-client-address sign-in throttling, owner recovery through the browser (N1) | **Codex session 1 — this review/domain/email session** | Reserved in this lane; follows C36. Keep all existing hardening and coordinate any protected engine recovery changes with Claude | `codex/C37-client-gateway` (reserved) |
+| C38 off-site backups of database and data volume with keys, one rehearsed restore, uptime check, error alerts to a person (N1) | **Codex session 1 — this review/domain/email session** | Reserved in this lane; follows C32/C36/C37. Provider/key retention and isolated recovery evidence required; not claimed deployed | `codex/C38-recovery-monitoring` (reserved) |
 | C39 demo-request intake: public rate-limited endpoint, admin Leads list, embeddable form (N6) | **Codex session 2 (Client and sales surface)** | Assigned, not started | – |
 | C40 Contact Mansora panel from settings on Help and sign-in; Forgot password route (N5) | **Codex session 2** | Assigned, start here | – |
 | C41 parked sales and quick keys, interface only, no engine change (X8) | **Codex session 2** | Assigned, not started | – |
@@ -114,6 +114,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (owner-requested Platform lane ownership)
+- Owner explicitly asked this session to take either Codex lane from the plan and document it. This review/domain/email session takes **Codex session 1 (Platform)**: C36, C37 and C38. C39–C42 remain available to Codex session 2; Claude retains C31/C33–C35 and financial F01/F02. Do not duplicate those lanes.
+- Committed ownership and a concrete execution/acceptance handoff in `docs/operations/platform-lane-handoff.md`; the roadmap §6a links to it. C36 is claimed; C37/C38 reserved. Planned branches are documented, not represented as implemented. No app/interface redesign or marketing website work is included.
+- Required order: complete C32 #46 and existing C43 #48 integration/deployment first, then C36 → C37 → C38. C32’s refreshed six feature workflows remain queued at claim time; no bypass/force deployment. C43 still has only its owner portion live, as recorded above. Current regression evidence remains 294 tests/43 files passing; this claim changes documentation only.
+- C36 preparation identifies hot workspace registration plus sync/backup lifecycle as the concrete implementation surface; C37 preserves bounds and makes deployment modes explicit rather than deleting protections. Recovery must use the existing trusted owner proof/engine boundary; coordinate any missing protected command with Claude instead of modifying password hashes. C38 must demonstrate independent backup + key recovery and a real alert, not merely a successful restart.
 
 ### 2026-11-11 — Codex (actual-platform test data; queued-code handoff)
 - Owner clarified actual platform only; no separate site was built/published here. Corporate marketing work remains handed off. This session merged only its earlier #38/#40/#42/#43, not the other session’s #45; #46/#48 remain open pending checks.

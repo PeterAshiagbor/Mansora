@@ -209,6 +209,8 @@ owner names the first pilot shops.
 | **Codex session 1** (Platform: hosting, gateway, operations) | C36 create a shop without a redeploy · C37 gateway client mode and sign-in throttling · C38 off-site backups, rehearsed restore, alerts. Starts after Codex's C32 (runtime and backup-storage wiring) merges; best owned by the session that holds C29/C32 | Third shop created and isolated with no restart · one person's wrong passwords cannot lock out another shop · restore rehearsed and recorded, a deliberate outage raises an alert |
 | **Codex session 2** (Client and sales surface) | C40 Contact Mansora panel and Forgot password route · C41 parked sales and quick keys (interface only) · C39 demo-request intake with Leads list · C42 board housekeeping | Contact comes from settings · parked basket resumes intact and cannot be completed twice · test request appears in Leads and spam limits hold · board shows open work only |
 
+**Platform lane claimed (2026-11-11):** the existing Codex review/domain/email session owns C36–C38. Execution order, file boundaries, dependencies and acceptance evidence are maintained in [Platform lane handoff](platform-lane-handoff.md). Codex session 2 remains available for C39–C42.
+
 Start prompt for Codex session 1:
 
 > Read docs/codex-tasks.md (status board and newest handoff) and
