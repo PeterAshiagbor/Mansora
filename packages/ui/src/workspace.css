@@ -1,4 +1,19 @@
 @theme { --color-workspace: #f5f7fa; }
+.m-mobile-navigation{display:none}
+@media(max-width:600px){
+  .m-workspace{flex-direction:column}
+  .m-mobile-navigation{display:flex;align-items:center;gap:8px;flex:none;padding:12px 16px;background:white;border-bottom:1px solid #e2e7ee;color:#38145c;text-align:left;min-height:44px}
+  .m-mobile-navigation strong{margin-left:auto;font-size:12px}
+  .m-workspace .m-sidebar{display:none;width:100%;max-height:45dvh;flex:none;border-right:0;border-bottom:1px solid #e2e7ee}
+  .m-workspace .m-sidebar[data-mobile-open=true]{display:flex}
+  .m-workspace .m-sidebar-brand,.m-workspace .m-company,.m-workspace .m-provider-note{display:none}
+  .m-workspace .m-nav-groups{padding-top:8px;overflow-y:auto}
+  .m-workspace .m-main{padding:10px 16px 24px}
+  .m-workspace .m-main .grid-cols-2,.m-workspace .m-main .grid-cols-3,.m-workspace .m-main .grid-cols-4{grid-template-columns:minmax(0,1fr)}
+  .m-workspace .m-topbar{gap:8px;padding:10px 16px}
+  .m-workspace .m-breadcrumb{min-width:0}
+  .m-workspace .m-breadcrumb strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
 body { background:var(--color-workspace); }
 h1,h2 { font-family:var(--font-sans);letter-spacing:-.025em; }
 .m-workspace{display:flex;height:100%;min-height:0;color:#25324b;background:#f5f7fa}
