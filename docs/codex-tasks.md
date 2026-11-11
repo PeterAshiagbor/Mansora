@@ -52,7 +52,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C14 client readiness | Codex — done | **Merged PR #26** as `86f4c03`; all merged-commit workflows green, including 220 tests. Interface deployment refinement continues separately as C19 | `codex/C14-client-readiness`, PR #26 |
 | Billing / System A (plans, subscriptions, invoices, payments, reminders, reconciliation, revenue, client Billing screen) | Claude | **Merged**, sandbox provider only. No real money has moved | commit `1e46b33` |
 | Team walkthrough artifact and `scripts/capture-walkthrough.ts` | Claude | Done; retake screenshots after any UI change | `519cab0` |
-| C15 email delivery adapter | unclaimed | Blocked on an email provider choice (owner) | – |
+| C15 Resend email and communications | Codex (this review/domain session) | Claimed by explicit owner request: Resend billing reminders, communications and platform error alerts. Sender/alert inbox and private API key pending. Other sessions please avoid email-related core/index/jobs/routes/observability edits | `codex/C15-resend-email` |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
 | C18 hosted preview refresh with billing | Codex — done | **Published version 4**, now anyone-with-link. PR #27 merged as `1ecb47f`; merged CI green on rerun attempt 2 (initial run cancelled by the claim commit) | Planned `codex/C18-billing-preview` |
@@ -96,6 +96,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C15 Resend explicitly requested by owner)
+- Owner selected Resend for reminders, communications and platform error notifications and authorized the implementation. C15 now claimed on codex/C15-resend-email; narrow coordinated exception to Claude billing ownership for email delivery/queue/admin communication UI/API plus observability alert integration. Preserve payment/sync/accounting policies, no real customer test emails, no credentials in GitHub.
+- Vercel DNS contains existing Resend sender-domain records, but the accessible Vercel team has no projects/Resend installation and no Resend connector is exposed. Asked owner for sender/alert recipient and to configure RESEND_API_KEY privately in Railway. No sender identity or credential is guessed.
+- Domain deployment 94ce4d1b-544b-4ff0-9894-bc60b6b5d886 succeeded; ownership verified, certificate valid, custom-origin app.state accepted and foreign-origin request denied. Browser acceptance ongoing. Earlier transient route propagation observed, rechecks healthy.
+
 
 ### 2026-11-11 — Codex (C27 Figma workflow redesign claim and access blocker)
 - Owner rejected the C24 design and identified **difficult workflows, clutter and a basic layout**. C24's previous acceptance is historical, not approval of this next design. Claim C27 for design and prototype work; no production UI/engine/billing/permission code is changed.
