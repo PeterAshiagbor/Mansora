@@ -129,21 +129,26 @@ function AuthFrame({ title, subtitle, children }: { title: string; subtitle: str
 
 function Login({ onDone }: { onDone: () => void }) {
   const { state, refresh } = useApp();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(() => {
+    const email = new URLSearchParams(window.location.hash.slice(1)).get('email') ?? '';
+    return email.length <= 100 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
+  });
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      await call('auth.login', { username, password });
+      await call('auth.login', { username: username.trim(), password });
       await refresh();
       onDone();
     } catch (err: any) {
       setError(err.message);
-      setPassword('');
+      if (err.code !== 'OFFLINE') setPassword('');
     } finally {
       setBusy(false);
     }
@@ -152,8 +157,9 @@ function Login({ onDone }: { onDone: () => void }) {
     <AuthFrame title={state.business.name || 'Sign in'} subtitle="Sign in with the account details provided by your administrator.">
       <form onSubmit={submit} className="space-y-4">
         {error && <Alert tone="bad">{error}</Alert>}
-        <Field label="Username"><Input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" /></Field>
-        <Field label="Password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
+        <Field label="Username" hint="Use the email address from your invitation, or your staff username."><Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Your email or staff username" autoFocus autoComplete="username" autoCapitalize="none" spellCheck={false} /></Field>
+        <Field label="Password" hint="You can paste your passphrase, including its hyphens and numbers."><Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
+        <button type="button" aria-pressed={showPassword} className="text-sm font-medium text-brand-700 hover:underline" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide password' : 'Show password'}</button>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !username || !password}>{busy ? 'Signing in…' : 'Sign in'}</Button>
       </form>
       <OwnerRecovery />

@@ -1,5 +1,7 @@
 import { readFileSync, mkdirSync, chmodSync, chownSync } from 'node:fs';
 import { createRequire } from 'node:module';
+// STAGING_TESTER_INVITATION_ID enables a private, journalled Resend invitation
+// operation; absent email configuration preserves all existing credentials.
 try {
   // Refuse ephemeral image storage: the volume holds encryption keys and real test records.
   if (process.env.RAILWAY_VOLUME_MOUNT_PATH !== '/data' || !readFileSync('/proc/self/mountinfo', 'utf8').split('\n').some(line => line.split(' ')[4] === '/data')) throw new Error('Mount the persistent Railway volume at /data.');

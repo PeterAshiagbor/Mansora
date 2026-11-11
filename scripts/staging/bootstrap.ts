@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, chmodSy
 import { join } from 'node:path';
 import { openEngine, syncNow } from '../../apps/desktop/src/core';
 import { stagingConfig, loadWorkspaces, workspaceKey, type StagingConfig, type WorkspaceRecord } from './config';
-export interface TestAccount { workspace: string; username: string; role: string; password: string; email?: string }
+export interface TestAccount { workspace: string; username: string; role: string; password: string; email?: string; provisionedPasswordHash?: string }
 import { testerEmails, testerPasswords } from './accounts';
 export { testerEmails, loadLoginAliases } from './accounts';
 export async function provisionStaging(config: StagingConfig, admin: { email: string; password: string }, emails: string[] = [], passwords: string[] = []) {
@@ -15,7 +15,7 @@ export async function provisionStaging(config: StagingConfig, admin: { email: st
   if (existsSync(join(config.dataDir, 'workspaces.json'))) {
     const saved = JSON.parse(readFileSync(join(config.dataDir, 'test-accounts.json'), 'utf8')) as TestAccount[];
     if (identities.some(email => !saved.some(a => a.email === email))) throw new Error('Tester identities changed after provisioning. Review the existing accounts; passwords will not be reset automatically.');
-    if (suppliedPasswords.length && identities.some((email, i) => !saved.some(a => a.email === email && createHash('sha256').update(a.password).digest('hex') === createHash('sha256').update(suppliedPasswords[i]).digest('hex')))) throw new Error('Configured tester passwords changed. Existing passwords will not be reset automatically.');
+    if (suppliedPasswords.length && identities.some((email, i) => !saved.some(a => a.email === email && (a.provisionedPasswordHash ?? createHash('sha256').update(a.password).digest('hex')) === createHash('sha256').update(suppliedPasswords[i]).digest('hex')))) throw new Error('Configured tester passwords changed. Existing passwords will not be reset automatically.');
     const opened = loadWorkspaces(config); for (const w of opened) w.engine.db.close(); return { existing: true }; }
   let token = '';
   const phase = (name: string) => console.log('Staging setup: ' + name);
