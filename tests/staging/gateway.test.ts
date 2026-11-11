@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -8,7 +8,6 @@ import { tempDir } from '../helpers';
 import { provisionStaging, type TestAccount } from '../../scripts/staging/bootstrap';
 import { loadWorkspaces, workspaceKey, type StagingConfig } from '../../scripts/staging/config';
 import { startStagingGateway, stagingOrigin, type StagingWorkspace } from '../../scripts/staging/gateway';
-const root = join(import.meta.dirname, '../..');
 describe('persistent authenticated team staging gateway', () => {
   let cloud: Cloud, config: StagingConfig, workspaces: StagingWorkspace[], gateway: Awaited<ReturnType<typeof startStagingGateway>>, accounts: TestAccount[];
   let ownerCookie = '', cashierCookie = '', otherCookie = '', savedId = '';
@@ -18,7 +17,7 @@ describe('persistent authenticated team staging gateway', () => {
     return { status: r.status, data: await r.json() as any, cookie: r.headers.get('set-cookie') };
   };
   beforeAll(async () => {
-    cloud = await startCloud(); config = { origin: 'http://127.0.0.1:0', apiUrl: cloud.url, dataDir: tempDir('mansora-team-staging-'), key: randomBytes(32).toString('hex'), clientDir: join(root, 'apps/desktop/dist/renderer'), adminDir: join(root, 'apps/admin-web/dist') };
+    cloud = await startCloud(); const staticDir = tempDir('mansora-staging-static-'); writeFileSync(join(staticDir, 'index.html'), '<!doctype html><html><head></head><body><div id="root"></div></body></html>'); config = { origin: 'http://127.0.0.1:0', apiUrl: cloud.url, dataDir: tempDir('mansora-team-staging-'), key: randomBytes(32).toString('hex'), clientDir: staticDir, adminDir: staticDir };
     await provisionStaging(config, ADMIN); accounts = JSON.parse(readFileSync(join(config.dataDir, 'test-accounts.json'), 'utf8')); workspaces = loadWorkspaces(config);
     gateway = await startStagingGateway({ ...config, workspaces, port: 0 });
   });
@@ -52,7 +51,7 @@ describe('persistent authenticated team staging gateway', () => {
     expect((await invoke('shop-a', 'product.list', { search: 'CSRF' }, ownerCookie)).data.data).toEqual([]);
     expect(() => stagingOrigin('http://staging.example.com')).toThrow(); expect(() => stagingOrigin('https://user:secret@example.com')).toThrow(); expect(() => stagingOrigin('https://example.com/path')).toThrow();
   });
-  it('serves the real interfaces, injects a narrow bridge and never serves private stores', async () => {
+  it('serves interface assets, injects a narrow bridge and never serves private stores', async () => {
     const client = await (await fetch(`${gateway.url}/client/shop-a/`)).text(); expect(client).toContain('/client/shop-a/bridge.js'); expect(client).toContain('TEAM TEST ENVIRONMENT'); expect(client).not.toContain(config.key);
     const bridge = await (await fetch(`${gateway.url}/client/shop-a/bridge.js`)).text(); expect(bridge).toContain('/client/shop-a/invoke'); expect(bridge).not.toContain('engine.execute'); expect(bridge).not.toContain(account('owner').password);
     expect(await (await fetch(`${gateway.url}/config.js`)).text()).toContain('"/api"'); expect((await fetch(`${gateway.url}/admin/`)).status).toBe(200);

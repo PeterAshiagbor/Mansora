@@ -30,6 +30,9 @@ jobs:
           node infrastructure/staging/init.mjs
           docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml up --wait --wait-timeout 300
           docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml exec -T gateway node /app/staging/smoke.cjs --existing
+      - name: Show safe provisioning diagnostics on failure
+        if: failure()
+        run: docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml logs --no-color staging-bootstrap gateway
       - name: Remove ephemeral CI volumes
         if: always()
         run: docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml down --volumes --remove-orphans
