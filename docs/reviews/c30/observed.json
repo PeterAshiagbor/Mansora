@@ -1,0 +1,34 @@
+{
+  "units": "integer pesewas",
+  "periods": [
+    {
+      "from": "2026-11-01",
+      "to": "2026-11-30",
+      "headlineNet": 10000,
+      "headlineRefunds": 0,
+      "clientRefunds": 2000,
+      "serviceCash": 8000,
+      "clientRefundsReconcile": false,
+      "serviceCashReconciles": false
+    },
+    {
+      "from": "2026-12-01",
+      "to": "2026-12-31",
+      "headlineNet": -2000,
+      "headlineRefunds": 2000,
+      "clientRefunds": 0,
+      "serviceCash": 0,
+      "clientRefundsReconcile": false,
+      "serviceCashReconciles": false
+    }
+  ],
+  "invalidCalendarDate": {
+    "status": 500,
+    "code": "INTERNAL_ERROR"
+  },
+  "reversedRange": {
+    "status": 200,
+    "net": 0
+  },
+  "writes": "disposable local fixture only; no external email or payment calls"
+}

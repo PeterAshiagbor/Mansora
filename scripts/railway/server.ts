@@ -44,6 +44,7 @@ export async function runRailwayServer() {
         });
       } });
       if (!result.disabled) console.log(`Tester invitations: ${result.accepted} accepted, ${result.activated} activated, ${result.waiting} awaiting setup or review.`);
+      if (result.failureReasons.length) console.warn('Tester invitation status: ' + result.failureReasons.join(', '));
     });
     let billingRun: Promise<unknown> | undefined;
     timer = setInterval(() => { if (billingRun) return; billingRun = runDaily(billing).catch(() => console.error('Sandbox billing job failed; inspect application health.')).finally(() => { billingRun = undefined; }); }, 15 * 60_000); timer.unref();

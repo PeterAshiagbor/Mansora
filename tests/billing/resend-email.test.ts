@@ -36,6 +36,10 @@ describe('Resend HTTPS adapter', () => {
     vi.stubEnv('MANSORA_STAGING_MODE', 'team-test'); vi.stubEnv('RESEND_API_KEY', 'key'); vi.stubEnv('RESEND_ALLOWED_RECIPIENTS', '');
     try { expect(() => resendFromEnv()).toThrow('RESEND_ALLOWED_RECIPIENTS'); } finally { vi.unstubAllEnvs(); }
   });
+  it('reports an unverified sender without exposing the provider response or address', async () => {
+    const email = new ResendEmail({ apiKey: 'key', from: 'sender@example.test', fetch: (async () => new Response(JSON.stringify({ message: 'The private-marker.test domain is not verified.' }), { status: 403 })) as any });
+    await expect(email.send({ to: 'client@example.test', subject: 'Test', body: 'body' })).rejects.toMatchObject({ message: 'Resend sender domain is not verified.', retryable: false });
+  });
 });
 
 describe('durable message delivery and administrator communications', () => {

@@ -8,6 +8,7 @@ import { inviteTesters } from '../../scripts/staging/invitations';
 import { readableTestPassword } from '../../scripts/staging/passphrase';
 import { ADMIN, startCloud, type Cloud } from '../cloud';
 import { tempDir } from '../helpers';
+import { EmailDeliveryError } from '../../apps/api/src/email';
 
 describe('private, restart-safe readable tester invitations', () => {
   let cloud: Cloud, config: StagingConfig, workspaces: ReturnType<typeof loadWorkspaces>;
@@ -34,6 +35,10 @@ describe('private, restart-safe readable tester invitations', () => {
     expect(await inviteTesters({ ...options(), email: { configured: () => true, send } })).toMatchObject({ activated: 0, waiting: 2 });
     expect(owners().map(a => a.password)).toEqual(original);
     expect(readFileSync(join(config.dataDir, 'tester-invitations.json'), 'utf8')).not.toContain('private provider diagnostic');
+    const result = await inviteTesters({ ...options(), email: { configured: () => true, send: async () => { throw new EmailDeliveryError('Resend rejected delivery (HTTP 401).', false); } } });
+    expect(result.failureReasons).toEqual(['RESEND_HTTP_401']);
+    expect(JSON.stringify(result)).not.toContain(emails[0]);
+    expect(JSON.stringify(result)).not.toContain(original[0]);
   });
   it('emails each owner only their own workspace and activates the readable credentials once', async () => {
     const sent: any[] = [];

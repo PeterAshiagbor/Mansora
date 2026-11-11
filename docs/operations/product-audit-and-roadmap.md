@@ -198,24 +198,24 @@ and one data restore has been rehearsed.
 
 The "Now" stage is split three ways along the repository's existing ownership
 lines, so no two sessions edit the same files. Task numbers continue the board
-in `docs/codex-tasks.md`. This assumes the recommended browser-first pilot;
+in `docs/codex-tasks.md`; C32 was already claimed by Codex for its own review findings, so this split skips it. This assumes the recommended browser-first pilot;
 every lane except Platform is useful either way. No lane starts an
 engine-changing "Next" item (decimal quantities, tax, price levels) until the
 owner names the first pilot shops.
 
 | Lane | Tasks | Done when |
 | --- | --- | --- |
-| **Claude** (engine, sync, billing) | C31 mobile money end-of-day check (N3) · C32 owner's closing summary, opt-in, bodies cleared after delivery (N2) · C33 activity signals, counts only (N5) · C34 manual billing runbook (N4) | List matches seeded sales and respects cashier scope · one correct email per opted-in owner per day · Overview shows activity and isolation tests pass · procedure followed once against the sandbox |
-| **Codex session 1** (Platform: hosting, gateway, operations) | C35 create a shop without a redeploy · C36 gateway client mode and sign-in throttling · C37 off-site backups, rehearsed restore, alerts. Finish or hand over C29 / PR #43 first | Third shop created and isolated with no restart · one person's wrong passwords cannot lock out another shop · restore rehearsed and recorded, a deliberate outage raises an alert |
-| **Codex session 2** (Client and sales surface) | C39 Contact Mansora panel and Forgot password route · C40 parked sales and quick keys (interface only) · C38 demo-request intake with Leads list · C41 board housekeeping | Contact comes from settings · parked basket resumes intact and cannot be completed twice · test request appears in Leads and spam limits hold · board shows open work only |
+| **Claude** (engine, sync, billing) | C31 mobile money end-of-day check (N3) · C30 F01/F02 fixes from Codex's review (refund revenue period, report date validation) · C33 owner's closing summary, opt-in, bodies cleared after delivery (N2) · C34 activity signals, counts only (N5) · C35 manual billing runbook (N4) | List matches seeded sales and respects cashier scope · the C30 probe passes · one correct email per opted-in owner per day · Overview shows activity and isolation tests pass · procedure followed once against the sandbox |
+| **Codex session 1** (Platform: hosting, gateway, operations) | C36 create a shop without a redeploy · C37 gateway client mode and sign-in throttling · C38 off-site backups, rehearsed restore, alerts. Starts after Codex's C32 (runtime and backup-storage wiring) merges; best owned by the session that holds C29/C32 | Third shop created and isolated with no restart · one person's wrong passwords cannot lock out another shop · restore rehearsed and recorded, a deliberate outage raises an alert |
+| **Codex session 2** (Client and sales surface) | C40 Contact Mansora panel and Forgot password route · C41 parked sales and quick keys (interface only) · C39 demo-request intake with Leads list · C42 board housekeeping | Contact comes from settings · parked basket resumes intact and cannot be completed twice · test request appears in Leads and spam limits hold · board shows open work only |
 
 Start prompt for Codex session 1:
 
 > Read docs/codex-tasks.md (status board and newest handoff) and
 > docs/operations/product-audit-and-roadmap.md sections 4 and 6. You own tasks
-> C35, C36 and C37 in the "Platform" lane: make the browser version safe for a
-> real shop. Finish or hand over C29 (PR #43) first, since it touches the same
-> scripts/staging files. Follow the board's rules: claim on the board, one
+> C36, C37 and C38 in the "Platform" lane: make the browser version safe for a
+> real shop. Finish your C32 (C30 F03/F04 runtime wiring) first; C38 builds
+> on it. Follow the board's rules: claim on the board, one
 > branch and PR per task, tests with every change, never weaken a test, do not
 > edit Claude-owned engine, sync or billing files. Do not start an interface
 > redesign. Record exact verification results in the handoff log.
@@ -224,8 +224,8 @@ Start prompt for Codex session 2:
 
 > Read docs/codex-tasks.md (status board and newest handoff) and
 > docs/operations/product-audit-and-roadmap.md sections 5 and 6. You own tasks
-> C38, C39, C40 and C41 in the "Client and sales surface" lane. Start with
-> C39, then C40, C38 and C41. Follow the board's rules: claim on the board, one
+> C39, C40, C41 and C42 in the "Client and sales surface" lane. Start with
+> C40, then C41, C39 and C42. Follow the board's rules: claim on the board, one
 > branch and PR per task, tests with every change, never weaken a test, do not
 > edit Claude-owned engine, sync or billing files, and do not change
 > scripts/staging (Codex session 1 owns it). Keep to the existing visual
