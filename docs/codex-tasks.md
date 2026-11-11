@@ -57,6 +57,8 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
 | C18 hosted preview refresh with billing | Codex — done | **Published version 4**, now anyone-with-link. PR #27 merged as `1ecb47f`; merged CI green on rerun attempt 2 (initial run cancelled by the claim commit) | Planned `codex/C18-billing-preview` |
 | C19 interface deployment readiness | Codex — done | PRs #28/#29 merged; all exact merged workflows green. **231 tests pass; shared version 6 is live. Interface acceptance complete.** | `codex/C19-interface-deployment-readiness` |
+| C20 persistent team staging | Codex — claimed | Owner has no hosting account; prepare and verify a Docker deployment using the real API/engine, per-browser sessions and persistent test data. Hosting activation remains a final external setup step | Planned `codex/C20-team-staging` |
+| C21 progressive interface | Codex — active | User wants most features, revealed when needed. Short daily menu, expandable tools, summary-first screens and contextual actions; preserve permissions and full page search | Planned `codex/C21-progressive-interface` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -87,6 +89,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 08:34 UTC — Codex (team testing and progressive UI claims)
+- **Owner requests:** backend assessment and an actual team-test environment, confirmed no hosting account; additionally “UI is very cumbersome … most things but just not all at once”, with instruction to devise and implement a plan.
+- **Assessment:** existing real API/engine cover retail and sandbox billing; the static shared Site remains an interface preview. `apps/desktop/dev/host.ts` explicitly has one shared login session and is unsuitable for public multi-user testing. Available Sites/Higgsfield hosting is Worker-based and cannot run the existing native SQLite/PostgreSQL runtime unchanged; no external hosting account/secret is configured. Do not pretend a tunnel or fixture is durable staging.
+- **Claim C20:** prepare a provider-neutral, persistent staging deployment with separate browser sessions, actual engine/API, authenticated tester accounts, sandbox-only payments, and meaningful isolation/persistence tests. Do not edit protected core/billing/sync implementations. Hosting account/server activation is still an external setup requirement; never ask for secrets in chat.
+- **Claim C21, implemented first per steering:** focused daily navigation, secondary feature groups behind explicit expansion, summary-first information and contextual secondary actions. Keep all features, role gates, page search, keyboard access and draft protection. Refresh test navigation helpers to exercise real expansion rather than expose hidden links or weaken assertions. Add dedicated progressive-disclosure acceptance tests and update the shared preview after green checks.
+- **Baseline verified:** default `a3472a8` all four workflows green, including 231 tests, Windows smoke, API container and security/preview. Current worktree clean before claims. CI for this docs-only claim is checked after push; do not infer it is green yet.
 
 ### 2026-11-10 13:03 UTC — Codex (C14/C18/C19 complete; shared version 6)
 - **Owner's scope:** readiness means an interface ready for deployment. C19 interface acceptance is complete; hardware/provider/signing/legal operations are separate release work and were not substituted for UI completion. All interface fixes are merged into the shared default branch for Claude.
