@@ -279,6 +279,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
   const plans = planOptions.data ?? [];
   const [edit, setEdit] = useState<any | null>(null);
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [browserWorkspace, setBrowserWorkspace] = useState<{ status: string; url: string; expiresAt?: string } | null>(null);
   const [sub, setSub] = useState<any | null>(null);
   const [recovery, setRecovery] = useState<{ reason: string; code?: string; expiresAt?: string } | null>(null);
   const act = useAction();
@@ -328,6 +329,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
               ))}
             </dl>
             <div className="mt-3 flex flex-wrap gap-2">
+              {data.browserWorkspaceAvailable && <Button size="sm" disabled={act.busy} onClick={() => act.run(async () => setBrowserWorkspace(await api('POST', `/v1/admin/clients/${id}/browser-workspace`)))}>Browser workspace</Button>}
               <Button size="sm" disabled={act.busy || !!device} title={device ? 'Deactivate the current laptop first' : ''} onClick={() => act.run(async () => setCode(await api('POST', `/v1/admin/clients/${id}/activation-codes`)))}>Create activation code</Button>
               {device && <Button size="sm" disabled={act.busy} onClick={() => setRecovery({ reason: '' })}>Owner recovery code</Button>}
               {device && <Button size="sm" variant="danger" disabled={act.busy} onClick={() => setRevoking(true)}>Deactivate laptop</Button>}
@@ -378,6 +380,12 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
               <Field label="How did you verify the owner, and why is recovery needed?"><Textarea value={recovery.reason} onChange={(e) => setRecovery({ ...recovery, reason: e.target.value })} autoFocus /></Field>
             </>
           )}
+        </Modal>
+      )}
+      {browserWorkspace && (
+        <Modal title="Browser workspace" open onClose={() => setBrowserWorkspace(null)} footer={<Button variant="primary" onClick={() => { setBrowserWorkspace(null); reload(); }}>Done</Button>}>
+          <p>{browserWorkspace.status === 'ready' ? 'The workspace is ready. The owner can sign in at this address.' : 'Share this private setup link only with the recorded business owner. They choose their own password. This link expires in 30 minutes.'}</p>
+          <Field label="Workspace link"><Input readOnly value={browserWorkspace.url} onFocus={(event) => event.currentTarget.select()} /></Field>
         </Modal>
       )}
       {code && (

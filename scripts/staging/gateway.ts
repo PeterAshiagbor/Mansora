@@ -4,6 +4,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, resolve, sep } from 'node:path';
 import { can, DomainError } from '@mansora/domain';
+import type { WorkspaceOnboarding } from './workspace-onboarding';
+import { HttpError as ApiHttpError } from '../../apps/api/src/security';
+import { onboardingHtml, onboardingCss, onboardingScript } from './onboarding-page';
 import { guardSpreadsheet, SpreadsheetGuardError } from './import-guard';
 import type { Engine } from '../../apps/desktop/src/core';
 
@@ -12,6 +15,7 @@ export interface GatewayOptions {
   origin: string; apiUrl: string; workspaces: StagingWorkspace[];
   clientDir: string; adminDir: string; port?: number; host?: string;
   loginAliases?: Record<string, Record<string, string>>; readiness?: () => Promise<boolean>;
+  onboarding?: Pick<WorkspaceOnboarding, 'details' | 'complete'>;
   maxConcurrentRequests?: number;
   maxBodyBytes?: number; sessionTtlMs?: number; now?: () => number;
 }
@@ -89,6 +93,21 @@ export async function startStagingGateway(opts: GatewayOptions) {
           res.end(responseBytes.toString('utf8').replace(/\b(href|src|action)=(['"])\/(?!\/|api\/)/gi, '$1=$2/api/'));
         } else res.end(responseBytes); return;
       }
+      if (opts.onboarding && req.method === 'GET' && ['/onboarding/', '/onboarding.js', '/onboarding.css'].includes(path)) {
+        const [type, content] = path.endsWith('.js') ? ['application/javascript; charset=utf-8', onboardingScript] : path.endsWith('.css') ? ['text/css; charset=utf-8', onboardingCss] : [MIME['.html'], onboardingHtml];
+        res.writeHead(200, { 'content-type': type }); res.end(path === '/onboarding/' ? content.replace('<body>', '<body>' + BANNER) : content); return;
+      }
+      if (opts.onboarding && ['/onboarding/details', '/onboarding/complete'].includes(path)) {
+        if (req.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST for workspace setup.');
+        if (req.headers.origin !== origin.origin) throw new HttpError(403, 'ORIGIN_DENIED', 'Open the setup link directly.');
+        if (!(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) throw new HttpError(415, 'JSON_REQUIRED', 'Send application/json.');
+        budget('setup-ip:' + req.socket.remoteAddress, 30, 60_000);
+        let input: any; try { input = JSON.parse((await body(req, 4096)).toString('utf8')); } catch (error) { if (error instanceof HttpError) throw error; throw new HttpError(400, 'BAD_JSON', 'The setup request could not be read.'); }
+        if (typeof input?.token !== 'string' || !/^[a-zA-Z0-9_-]{43}$/.test(input.token)) throw new HttpError(410, 'SETUP_LINK_UNAVAILABLE', 'This setup link is unavailable or expired. Ask Mansora for a new link.');
+        if (path.endsWith('/complete')) budget('setup-proof:' + input.token, 5, 15 * 60_000);
+        const data = path.endsWith('/details') ? opts.onboarding.details(input.token) : await opts.onboarding.complete(input.token, input.password);
+        return json(res, 200, { ok: true, data });
+      }
       if (path === '/healthz') { const ready = opts.readiness ? await opts.readiness().catch(() => false) : true; return json(res, ready ? 200 : 503, { ok: ready, mode: 'team-staging' }); }
       if (req.method === 'GET' && path === '/') { res.setHeader('content-type', MIME['.html']); res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Mansora team testing</title><link rel="stylesheet" href="/staging.css"></head><body>${BANNER}<main style="max-width:760px;margin:40px auto;padding:24px;font:16px/1.6 system-ui"><h1>Mansora team testing</h1><p>Sign in with your assigned test account. Use sample data only; records are saved and shared within each business.</p><ul>${opts.workspaces.map(w => `<li><a href="/client/${w.id}/">${escape(w.label)}</a></li>`).join('')}<li><a href="/admin/">Mansora administration</a></li></ul><p>The browser environment covers business workflows. Test printers, scanners, cash drawers and offline selling in the desktop application.</p></main></body></html>`); return; }
       if (req.method === 'GET' && path === '/staging.css') { res.writeHead(200, { 'content-type': MIME['.css'] }); res.end(STYLE); return; }
@@ -158,8 +177,9 @@ export async function startStagingGateway(opts: GatewayOptions) {
       }
       throw new HttpError(404, 'NOT_FOUND', 'Not found.');
     } catch (e) {
-      const status = e instanceof HttpError ? e.status : 502, code = e instanceof HttpError ? e.code : 'STAGING_UNAVAILABLE';
-      const message = e instanceof HttpError ? e.message : 'The test service could not complete this request. Check saved records before retrying a transaction.';
+      const known = e instanceof HttpError || e instanceof ApiHttpError;
+      const status = known ? e.status : 502, code = known ? e.code : 'STAGING_UNAVAILABLE';
+      const message = known ? e.message : 'The test service could not complete this request. Check saved records before retrying a transaction.';
       if (!res.headersSent) json(res, status, { ok: false, error: { code, message }, message }); else res.end();
     } finally { if (admitted) activeRequests--; }
   });
@@ -168,5 +188,11 @@ export async function startStagingGateway(opts: GatewayOptions) {
   await new Promise<void>((done, reject) => { server.once('error', reject); server.listen(opts.port ?? 4500, opts.host ?? '127.0.0.1', done); });
   const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   if (origin.port === '0') origin = new URL(url);
-  return { server, url, publicOrigin: origin.origin, close: async () => { await new Promise<void>(r => server.close(() => r())); for (const id of sessions.keys()) clear(id); } };
+  const registerWorkspace = (workspace: StagingWorkspace, aliases: Record<string, string> = {}) => {
+    if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(workspace.id) || !workspace.engine.activated || !workspace.label || workspace.label.length > 120 || workspaces.has(workspace.id)) throw new Error('A distinct activated workspace is required.');
+    if (workspaces.size >= 10) throw new Error('The configured workspace capacity is reached.');
+    workspaces.set(workspace.id, workspace); opts.workspaces.push(workspace);
+    (opts.loginAliases ??= {})[workspace.id] = { ...aliases };
+  };
+  return { server, url, publicOrigin: origin.origin, registerWorkspace, close: async () => { await new Promise<void>(r => server.close(() => r())); for (const id of sessions.keys()) clear(id); } };
 }

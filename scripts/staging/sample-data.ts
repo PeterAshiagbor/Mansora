@@ -21,6 +21,8 @@ export async function seedTestWorkspaces(options: { mode?: string; version?: str
   const accounts = JSON.parse(readFileSync(join(options.dataDir, 'test-accounts.json'), 'utf8')) as TestAccount[];
   let prepared = 0, preserved = 0;
   for (const workspace of options.workspaces) {
+    // Dynamic client workspaces are not sample businesses. Never seed them implicitly.
+    if (!accounts.some(a => a.workspace === workspace.id && a.role === 'owner')) continue;
     const { engine } = workspace;
     const state = await engine.execute(null, 'app.state');
     const tenantId = state.business.tenantId;

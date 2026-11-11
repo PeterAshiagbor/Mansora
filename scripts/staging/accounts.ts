@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { TestAccount } from './bootstrap';
+import { existsSync } from 'node:fs';
 export function testerEmails(raw: string | undefined): string[] {
   if (!raw) return [];
   let values: unknown;
@@ -14,6 +15,8 @@ export function loadLoginAliases(dataDir: string): Record<string, Record<string,
   const accounts = JSON.parse(readFileSync(join(dataDir, 'test-accounts.json'), 'utf8')) as TestAccount[];
   const aliases: Record<string, Record<string, string>> = {};
   for (const a of accounts) if (a.email) (aliases[a.workspace] ??= {})[a.email.toLowerCase()] = a.username;
+  const registry = join(dataDir, 'workspaces.json');
+  if (existsSync(registry)) for (const w of JSON.parse(readFileSync(registry, 'utf8'))) if (w.ownerEmail && w.ownerUsername && /^[a-z0-9][a-z0-9-]{1,40}$/.test(w.id)) (aliases[w.id] ??= {})[w.ownerEmail.toLowerCase()] = w.ownerUsername;
   return aliases;
 }
 
