@@ -70,6 +70,19 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 
 | C29 friendly test access and invitations | Codex (review/domain/email session) | PRs #42/#43 merged; 288 local tests pass before diagnostic test addition. Live Resend refuses unverified sender: 0 accepted/activated, 2 pending; old passwords preserved. Owner asked for public verification DNS records | PRs #42/#43 |
 | C32 Railway runtime configuration | Codex (review/domain/email session) | Claimed: C30 F03/F04 only — shared sanitized API telemetry options and explicit backup storage factory/fallback in Railway, with composition tests. Preserve C29 invitation logic and C30 report ownership | `codex/C32-runtime-wiring` |
+| **Roadmap "Now" stage (2026-11-11, owner asked to share the work between Claude and two Codex sessions; see `docs/operations/product-audit-and-roadmap.md` §6–6a)** | | | |
+| C31 mobile money end-of-day check (N3) | Claude | Claimed | `claude/elegant-bohr-mjeotl` |
+| C33 owner's closing summary by email, opt-in (N2) | Claude | Claimed, after C31 | – |
+| C34 activity signals for Mansora, counts only (N5) | Claude | Claimed, after C33 | – |
+| C35 manual billing runbook for first clients (N4) | Claude | Claimed | – |
+| C30 F01/F02 fixes: later-period refunds land in the right revenue period; invalid or reversed report dates return 400 (Claude-owned billing/report code) | Claude | Claimed, before C33, using the C30 probe in `docs/reviews/c30/` as acceptance | – |
+| C36 create a shop workspace without a redeploy (N1) | **Codex session 1 (Platform)** | Assigned, not started. Best taken by the review/domain/email session that holds C29 and C32, after C32 merges | – |
+| C37 gateway client mode: config-driven banner/limits, per-account and real-client-address sign-in throttling, owner recovery through the browser (N1) | **Codex session 1 (Platform)** | Assigned, not started | – |
+| C38 off-site backups of database and data volume with keys, one rehearsed restore, uptime check, error alerts to a person (N1) | **Codex session 1 (Platform)** | Assigned, not started. Builds on C32's backup storage and telemetry wiring | – |
+| C39 demo-request intake: public rate-limited endpoint, admin Leads list, embeddable form (N6) | **Codex session 2 (Client and sales surface)** | Assigned, not started | – |
+| C40 Contact Mansora panel from settings on Help and sign-in; Forgot password route (N5) | **Codex session 2** | Assigned, start here | – |
+| C41 parked sales and quick keys, interface only, no engine change (X8) | **Codex session 2** | Assigned, not started | – |
+| C42 board housekeeping: move finished history to `docs/archive/`, keep this board to open work (P2) | **Codex session 2** | Assigned, do last so it does not conflict with active claims | – |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -101,6 +114,18 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 
 ## Handoff log (newest first; append, never rewrite)
 
+### 2026-11-11 — Claude (roadmap work split between Claude and two Codex sessions)
+- Owner asked to share the roadmap work between this Claude session and two Codex sessions. Assignments are in the status board (C31–C42) and in `docs/operations/product-audit-and-roadmap.md` §6a, which also has the start prompt for each Codex session. Shareable page for the owner: the audit artifact.
+- Numbering: Codex claimed C32 concurrently (C30 F03/F04), so this split uses C31 and C33–C42. Codex's C32 is unchanged.
+- Lanes follow the existing ownership table, so no two sessions edit the same files. **Claude:** engine, sync, billing (C31, C33–C35, plus C30 F01/F02 in billing and report code). **Codex session 1 (Platform):** `scripts/staging/**`, `scripts/railway/**`, `infrastructure/**`, gateway (C36–C38). Codex's own C32 (C30 F03/F04 runtime wiring) is already in this area, so the session that holds C29/C32 is the natural owner; C36–C38 start after C32 merges. **Codex session 2 (Client and sales surface):** interface, help, admin Leads, public intake endpoint (C39–C42); do not touch `scripts/staging/**`.
+- Assumes the recommended browser-first pilot; the owner has not answered that yet. Every lane except Platform is useful either way. No lane starts an engine-changing "Next" item (decimal quantities, tax, price levels) until the owner names the pilot shops. No interface redesign.
+- C33 sends a client's own figures through Mansora's email queue: it must be owner opt-in and clear message bodies after delivery. C34 sends counts only, never amounts, to keep the platform plane free of client financial data (A-06, A-19).
+
+### 2026-11-11 — Claude (owner-requested end-to-end audit and roadmap)
+- Owner asked this session for an end-to-end audit and a plan. Result: `docs/operations/product-audit-and-roadmap.md` (what is strong, the delivery-model decision, findings by severity, a Now/Next/Later roadmap and the owner's decisions). It overlaps Codex's C30 review by request, not by accident; C30 stays Codex's. Please read section 4 and section 6 before claiming new interface work.
+- Verified on `7c7a977`: typecheck and build pass, `npm audit` 0. Full suite locally: 286/288 at first; both failures were `tests/e2e/progressive-interface.test.ts` phone tests, caused by the undismissed "This Excel file could not be read" error toast overlapping the phone Menu button. CI was green on the same commit, so the overlap is marginal and environment-dependent, but it is a real phone defect.
+- Two small fixes, no test changed: toasts sit below the top bar under 640px and are capped to the viewport width (`apps/desktop/src/renderer/lib.tsx`); dashboard pluralisation (`pages/Dashboard.tsx`). After them: **288/288 in 42 files**, typecheck and build clean. No engine, sync, billing, schema or infrastructure change.
+- Not verified: the live Railway site and the marketing site (blocked from this session's network), hardware, real providers. The audit says so.
 ### 2026-11-11 — Codex (C32 operational wiring claim; C29 provider blocker confirmed)
 - Claim only C30 F03/F04 in my infrastructure area: shared standard/Railway API runtime options, existing sanitized logger, configured metrics/webhook and backupStorageFromEnv with /data fallback. Add composition tests for authentication/redaction, partial config refusal and actual remote storage selection. Do not edit C30 report or protected F01/F02 financial corrections.
 - This session merged only its own #38, #40, #42 and #43. C29 regression on C28 passes 288 tests/42 files. #43 adds one domain-response test and safe diagnostic categories. Live SUCCESS deployment 7ac762a9-2ec4-492a-897c-f75db99e5d8f reports RESEND_SENDER_UNVERIFIED, 0 accepted/activated, 2 pending. Existing passwords are preserved; no invitation has been sent. Asked owner to verify the domain in the key’s Resend account or supply its public DNS records for Vercel. The key itself was applied privately and never read.
