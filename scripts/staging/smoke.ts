@@ -33,6 +33,20 @@ export async function smokeStaging() {
   const other = account('owner', 'shop-b'); check(!(await call(other, own.cookie, 'product.list')).body.ok, 'workspace cookie cannot cross business boundary');
   await call(owner, own.cookie, 'auth.logout'); check((await call(cashier, cash.cookie, 'app.state')).body.data.user.role === 'cashier', 'owner logout does not end cashier session');
   await call(cashier, cash.cookie, 'auth.logout');
+  if (process.env.STAGING_SAMPLE_DATA_VERSION === 'retail-v1') {
+    for (const tester of accounts.filter(a => a.role === 'owner')) {
+      const login = await call(tester, null, 'auth.login', { username: tester.username, password: tester.password });
+      check(login.body.ok && login.cookie, 'sample-data owner authentication');
+      const products = await call(tester, login.cookie, 'product.list', { search: 'TEAM-DEMO-V1-' });
+      check(products.body.ok && products.body.data.length === 8, 'eight editable sample products per business');
+      const report = await call(tester, login.cookie, 'report.sales', { from: '2000-01-01', to: '2099-12-31' });
+      check(report.body.ok && report.body.data.totals.count === 10 && report.body.data.byCashier.length === 3, 'sample sales and analysis for all three roles without duplicate seeding');
+      const exported = await call(tester, login.cookie, 'export.business', { format: 'json' });
+      const data = exported.body.ok ? JSON.parse(Buffer.from(exported.body.data.contentBase64, 'base64').toString()).data : null;
+      check(data?.sales.length === 10 && data?.purchases.length === 2 && data?.expenses.length === 3, 'actual sample records remain exportable');
+      await call(tester, login.cookie, 'auth.logout');
+    }
+  }
   for (const named of accounts.filter(a => a.email)) {
     const login = await call(named, null, 'auth.login', { username: named.email!.toUpperCase(), password: named.password });
     check(login.body.ok && login.cookie && (await call(named, login.cookie, 'app.state')).body.data.user.role === 'owner', 'assigned tester email login and role');

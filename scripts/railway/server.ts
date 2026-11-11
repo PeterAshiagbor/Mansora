@@ -10,6 +10,8 @@ import { provisionStaging } from '../staging/bootstrap';
 import { stagingConfig } from '../staging/config';
 import { startConfiguredStaging } from '../staging/server';
 import { inviteTesters } from '../staging/invitations';
+import { apiRuntimeOptions } from '../../apps/api/src/runtime';
+import { seedTestWorkspaces } from '../staging/sample-data';
 
 export async function runRailwayServer() {
   if (process.getuid?.() === 0) throw new Error('Drop root privileges before starting the application.');
@@ -33,7 +35,7 @@ export async function runRailwayServer() {
       process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').filter(Boolean), ...config.emails])].join(',');
     }
     const { billing } = createBillingFromEnv(db);
-    app = await buildApp({ db, billing, backupDir: join(config.dataDir, 'cloud-backups'), adminOrigins: [config.origin], logger: false });
+    app = await buildApp({ ...apiRuntimeOptions(process.env, join(config.dataDir, 'cloud-backups')), db, billing, adminOrigins: [config.origin] });
     await app.listen({ host: '127.0.0.1', port: 4000 });
     await provisionStaging(stagingConfig(), { email: config.adminEmail, password: adminPassword }, config.emails, config.passwords);
     gateway = await startConfiguredStaging(async () => { const r = await fetch('http://127.0.0.1:4000/health/ready', { signal: AbortSignal.timeout(3000) }); return r.ok; }, async workspaces => {
@@ -45,6 +47,17 @@ export async function runRailwayServer() {
       } });
       if (!result.disabled) console.log(`Tester invitations: ${result.accepted} accepted, ${result.activated} activated, ${result.waiting} awaiting setup or review.`);
       if (result.failureReasons.length) console.warn('Tester invitation status: ' + result.failureReasons.join(', '));
+      if (process.env.STAGING_SAMPLE_DATA_VERSION) {
+        let prepared = 0, preserved = 0, pending = 0;
+        for (const workspace of workspaces) {
+          try {
+            const samples = await seedTestWorkspaces({ mode: process.env.MANSORA_STAGING_MODE, version: process.env.STAGING_SAMPLE_DATA_VERSION, dataDir: join(config.dataDir, 'staging'), workspaces: [workspace] });
+            prepared += samples.prepared; preserved += samples.preserved;
+          } catch { pending++; }
+        }
+        // Keep existing access available if an account password changed or a data pack needs review.
+        console.log(`Sample test data: ${prepared} workspaces prepared, ${preserved} preserved, ${pending} awaiting review.`);
+      }
     });
     let billingRun: Promise<unknown> | undefined;
     timer = setInterval(() => { if (billingRun) return; billingRun = runDaily(billing).catch(() => console.error('Sandbox billing job failed; inspect application health.')).finally(() => { billingRun = undefined; }); }, 15 * 60_000); timer.unref();

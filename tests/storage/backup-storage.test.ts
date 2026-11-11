@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../apps/api/src/app';
+import { apiRuntimeOptions } from '../../apps/api/src/runtime';
 import { backupStorageFromEnv, FileStorage, S3Storage, type BackupStorage } from '../../apps/api/src/storage';
 import { startCloud, type Cloud } from '../cloud';
 import { tempDir } from '../helpers';
@@ -194,7 +195,8 @@ describe('S3-compatible storage', () => {
       const first = await cloud.createClient('S3 storage test A'), second = await cloud.createClient('S3 storage test B');
       const activate = async (code: string) => (await cloud!.api('POST', '/v1/devices/activate', { code, deviceName: 'Storage test', appVersion: 'test' }, null)).body.deviceToken;
       const tokenA = await activate(first.code), tokenB = await activate(second.code);
-      app = await buildApp({ db: cloud.db, backupDir: tempDir(), backupStorage: new S3Storage(fake.options()) });
+      const settings = fake.options();
+      app = await buildApp({ db: cloud.db, ...apiRuntimeOptions({ BACKUP_S3_ENDPOINT: settings.endpoint, BACKUP_S3_REGION: settings.region, BACKUP_S3_BUCKET: settings.bucket, BACKUP_S3_ACCESS_KEY_ID: settings.accessKeyId, BACKUP_S3_SECRET_ACCESS_KEY: settings.secretAccessKey }, tempDir()), logger: false });
       const id = randomUUID(), bytes = randomBytes(80);
       const put = (token: string, content: Buffer) => app!.inject({ method: 'PUT', url: `/v1/backups/${id}`, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/octet-stream', 'x-sha256': digest(content) }, payload: content });
       expect((await put(tokenA, bytes)).statusCode).toBe(200);
@@ -235,4 +237,18 @@ it('selects filesystem storage only when S3 is not configured and rejects partia
   for (const endpoint of ['http://storage.example.com', `https://${randomBytes(8).toString('hex')}:${randomBytes(8).toString('hex')}@storage.example.com`, 'https://storage.example.com?query=1', 'https://storage.example.com#fragment']) {
     expect(() => new S3Storage({ ...settings, endpoint })).toThrow(/requires HTTPS/);
   }
+});
+
+it('uses the Railway fallback path, honors an explicit backup directory and fails closed on partial S3 settings', async () => {
+  const fallback = tempDir(), explicit = tempDir(), bytes = randomBytes(24), key = 'tenant/runtime.mbk';
+  const runtime = apiRuntimeOptions({}, fallback);
+  expect(runtime.logger).toBe(true);
+  expect(runtime.backupDir).toBe(fallback);
+  await runtime.backupStorage!.put(key, bytes, digest(bytes));
+  expect(await readFile(join(fallback, key))).toEqual(bytes);
+  const configured = apiRuntimeOptions({ BACKUP_DIR: explicit, TRUSTED_PROXIES: '127.0.0.1, ::1 ' }, fallback);
+  expect(configured.trustProxy).toEqual(['127.0.0.1', '::1']);
+  await configured.backupStorage!.put(key, bytes, digest(bytes));
+  expect(await readFile(join(explicit, key))).toEqual(bytes);
+  expect(() => apiRuntimeOptions({ BACKUP_S3_BUCKET: 'configured-but-incomplete' }, fallback)).toThrow(/all five/);
 });

@@ -28,7 +28,9 @@ services:
     environment:
       DATABASE_URL: ${RAILWAY_TEST_DATABASE_URL:?Generate the private CI database reference first}
       STAGING_ORIGIN: http://127.0.0.1:8080
+      METRICS_TOKEN: railway-ci-metrics-fixture-not-a-live-secret
       RAILWAY_VOLUME_MOUNT_PATH: /data
+      STAGING_SAMPLE_DATA_VERSION: retail-v1
       STAGING_TESTER_EMAILS: '["first@example.test","second@example.test"]'
     volumes: [railway_data:/data]
     depends_on:

@@ -4,6 +4,9 @@
 // Resend delivery is server-only (RESEND_API_KEY/FROM_EMAIL/REPLY_TO,
 // PLATFORM_ALERT_EMAIL and the team-test RESEND_ALLOWED_RECIPIENTS); none enters IPC.
 // Explicit tester invitations use STAGING_TESTER_INVITATION_ID server-side only.
+// Railway shares server-only METRICS_TOKEN/ERROR_WEBHOOK_URL/TRUSTED_PROXIES and
+// BACKUP_S3_* runtime bindings with the API; none changes the native IPC surface.
+// STAGING_SAMPLE_DATA_VERSION enables additive team-test data using existing commands, not new IPC.
 /**
  * Launches the PACKAGED desktop application and checks the security shell:
  * the window opens on the activation screen, the page has no Node access,
