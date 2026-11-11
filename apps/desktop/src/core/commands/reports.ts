@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { grossMarginBps, sum } from '@mansora/domain';
+import { fail, grossMarginBps, sum } from '@mansora/domain';
 import { dayBounds, defineCommands, empty, zRange, type Ctx } from '../engine';
 
 /**
@@ -145,9 +145,11 @@ export const reportCommands = defineCommands({
    * Staff without sales reports see only what they recorded themselves.
    */
   'report.wallet': {
-    perm: 'sale.create',
+    // Report viewers need not be allowed to sell, and sellers need not see reports: either permission opens it.
+    perm: 'auth',
     input: zRange,
     run: (ctx, input) => {
+      if (!ctx.can('report.sales') && !ctx.can('sale.create')) fail('PERMISSION_DENIED', 'You do not have permission to do this', { permission: 'report.sales' });
       const [from, to] = dayBounds(input);
       const own = !ctx.can('report.sales');
       const me = ctx.user.id;
@@ -178,7 +180,7 @@ export const reportCommands = defineCommands({
       });
       // The same transaction ID on two receipts is the classic sign of a reused or fake payment message.
       const seen = new Map<string, number>();
-      for (const e of entries) if (e.reference) { const key = String(e.reference).trim().toUpperCase(); seen.set(key, (seen.get(key) ?? 0) + 1); }
+      for (const e of entries) if (e.reference) { const key = String(e.reference).replace(/\s+/g, '').toUpperCase(); seen.set(key, (seen.get(key) ?? 0) + 1); }
       const duplicateReferences = [...seen].filter(([, n]) => n > 1).map(([reference, count]) => ({ reference, count }));
       return { scope: own ? 'own' : 'business', entries, byMethod, duplicateReferences };
     },
