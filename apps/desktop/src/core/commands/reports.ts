@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { grossMarginBps, sum } from '@mansora/domain';
+import { fail, grossMarginBps, sum } from '@mansora/domain';
 import { dayBounds, defineCommands, empty, zRange, type Ctx } from '../engine';
 
 /**
@@ -135,6 +135,54 @@ export const reportCommands = defineCommands({
         // Reported alongside, deliberately not subtracted: this is not a net-profit statement.
         expenses: v(ctx, 'SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE expense_date >= ? AND expense_date <= ?', input.from, input.to),
       };
+    },
+  },
+
+  /**
+   * End-of-day check for money that should be in the mobile money wallet or card
+   * settlement: every non-cash sale payment, credit repayment and refund payout,
+   * with references, so the owner can tick them against the provider statement.
+   * Staff without sales reports see only what they recorded themselves.
+   */
+  'report.wallet': {
+    // Report viewers need not be allowed to sell, and sellers need not see reports: either permission opens it.
+    perm: 'auth',
+    input: zRange,
+    run: (ctx, input) => {
+      if (!ctx.can('report.sales') && !ctx.can('sale.create')) fail('PERMISSION_DENIED', 'You do not have permission to do this', { permission: 'report.sales' });
+      const [from, to] = dayBounds(input);
+      const own = !ctx.can('report.sales');
+      const me = ctx.user.id;
+      const sales = ctx.all(
+        `SELECT 'sale' AS kind, s.created_at AS at, s.receipt_no AS number, p.method, p.amount, p.reference, u.name AS staff, c.name AS customer
+         FROM payments p JOIN sales s ON s.id = p.sale_id JOIN users u ON u.id = s.cashier_id LEFT JOIN customers c ON c.id = s.customer_id
+         WHERE p.method IN ('momo', 'card') AND s.created_at >= ? AND s.created_at < ? ${own ? 'AND s.cashier_id = ?' : ''}`,
+        from, to, ...(own ? [me] : []),
+      );
+      const repayments = ctx.all(
+        `SELECT 'repayment' AS kind, r.created_at AS at, NULL AS number, r.method, r.amount, r.reference, u.name AS staff, c.name AS customer
+         FROM credit_repayments r JOIN users u ON u.id = r.received_by JOIN customers c ON c.id = r.customer_id
+         WHERE r.method IN ('momo', 'card') AND r.created_at >= ? AND r.created_at < ? ${own ? 'AND r.received_by = ?' : ''}`,
+        from, to, ...(own ? [me] : []),
+      );
+      const refunds = ctx.all(
+        `SELECT 'refund' AS kind, r.created_at AS at, r.refund_no AS number, r.payout_method AS method, -r.payout_amount AS amount, NULL AS reference, u.name AS staff, c.name AS customer
+         FROM refunds r JOIN sales s ON s.id = r.sale_id JOIN users u ON u.id = r.requested_by LEFT JOIN customers c ON c.id = s.customer_id
+         WHERE r.payout_method IN ('momo', 'card') AND r.payout_amount > 0 AND r.created_at >= ? AND r.created_at < ? ${own ? 'AND r.requested_by = ?' : ''}`,
+        from, to, ...(own ? [me] : []),
+      );
+      const entries = [...sales, ...repayments, ...refunds].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+      const byMethod = ['momo', 'card'].map((method) => {
+        const rows = entries.filter((e) => e.method === method);
+        const received = sum(rows.filter((e) => e.amount > 0).map((e) => e.amount));
+        const refunded = sum(rows.filter((e) => e.amount < 0).map((e) => -e.amount));
+        return { method, count: rows.length, received, refunded, net: received - refunded, missingReference: rows.filter((e) => e.amount > 0 && !e.reference).length };
+      });
+      // The same transaction ID on two receipts is the classic sign of a reused or fake payment message.
+      const seen = new Map<string, number>();
+      for (const e of entries) if (e.reference) { const key = String(e.reference).replace(/\s+/g, '').toUpperCase(); seen.set(key, (seen.get(key) ?? 0) + 1); }
+      const duplicateReferences = [...seen].filter(([, n]) => n > 1).map(([reference, count]) => ({ reference, count }));
+      return { scope: own ? 'own' : 'business', entries, byMethod, duplicateReferences };
     },
   },
 

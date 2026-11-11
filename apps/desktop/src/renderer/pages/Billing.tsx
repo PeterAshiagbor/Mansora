@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Textarea } from '@mansora/ui';
+import { StandingNotice } from '../components/StandingNotice';
 import { call, dateTime, money, openExternal, printHtml, savePdf, useAction, useApp, useQuery } from '../lib';
 
 const TONE: Record<string, 'good' | 'warn' | 'bad' | 'neutral' | 'info'> = { active: 'good', paid: 'good', sent: 'info', trial: 'info', partially_paid: 'warn', overdue: 'bad', payment_failed: 'bad', payment_due: 'warn', paused: 'neutral', cancelled: 'neutral', awaiting_approval: 'info', pending: 'warn', failed: 'bad', disputed: 'warn' };
@@ -41,6 +42,7 @@ export function BillingPage() {
   return (
     <div>
       <PageHeader title="Billing & payments" subtitle="Your Mansora subscription, what is due, and your receipts." actions={<Button size="sm" onClick={q.reload}>Refresh</Button>} />
+      <StandingNotice onBillingPage />
       {d.offline && <Alert tone="warn" className="mb-4">You are offline. This is what Mansora last told this computer, on {dateTime(d.fetchedAt)}. Payments and changes need an internet connection.</Alert>}
       {waiting && !d.offline && <Alert tone="info" className="mb-4">Finished paying in your browser? Come back to this window and it will update. Banks and Mobile Money can take a minute to confirm. <Button size="sm" className="ml-2" onClick={() => { q.reload(); setWaiting(false); }}>Check now</Button></Alert>}
       {!sub ? (

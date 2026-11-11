@@ -196,18 +196,22 @@ and one data restore has been rehearsed.
 
 ### 6a. Who builds what
 
-The "Now" stage is split three ways along the repository's existing ownership
-lines, so no two sessions edit the same files. Task numbers continue the board
-in `docs/codex-tasks.md`; C32 was already claimed by Codex for its own review findings, so this split skips it. This assumes the recommended browser-first pilot;
-every lane except Platform is useful either way. No lane starts an
-engine-changing "Next" item (decimal quantities, tax, price levels) until the
-owner names the first pilot shops.
+Rebalanced on 11 November 2026 after the owner's decisions: pilot on the browser
+version, then the offline till; build the features; keep data on the existing
+Railway hosting; non-payment policy approved and hardened. The split follows
+the repository's file-ownership lines, so no two sessions edit the same files.
+Task numbers continue the board in `docs/codex-tasks.md`; C32 is Codex's own
+task for C30 findings F03/F04.
 
 | Lane | Tasks | Done when |
 | --- | --- | --- |
-| **Claude** (engine, sync, billing) | C31 mobile money end-of-day check (N3) · C30 F01/F02 fixes from Codex's review (refund revenue period, report date validation) · C33 owner's closing summary, opt-in, bodies cleared after delivery (N2) · C34 activity signals, counts only (N5) · C35 manual billing runbook (N4) | List matches seeded sales and respects cashier scope · the C30 probe passes · one correct email per opted-in owner per day · Overview shows activity and isolation tests pass · procedure followed once against the sandbox |
-| **Codex session 1** (Platform: hosting, gateway, operations) | C36 create a shop without a redeploy · C37 gateway client mode and sign-in throttling · C38 off-site backups, rehearsed restore, alerts. Starts after Codex's C32 (runtime and backup-storage wiring) merges; best owned by the session that holds C29/C32 | Third shop created and isolated with no restart · one person's wrong passwords cannot lock out another shop · restore rehearsed and recorded, a deliberate outage raises an alert |
-| **Codex session 2** (Client and sales surface) | C40 Contact Mansora panel and Forgot password route · C41 parked sales and quick keys (interface only) · C39 demo-request intake with Leads list · C42 board housekeeping | Contact comes from settings · parked basket resumes intact and cannot be completed twice · test request appears in Leads and spam limits hold · board shows open work only |
+| **Claude** (engine, sync, billing) | Done in PR #47: C31 mobile money check · C30 F01/F02 · C52 non-payment policy. Next: C33 owner's closing summary (opt-in) · C34 activity signals (counts only) · C44 decimal quantities and pack sizes · C45 price levels and supervised override · C46 VAT, NHIL and GETFund · C47 customer credit limit | Each engine change ships with tests, a documented command contract for the interface, and green CI |
+| **Codex session 1** (Platform and offline tier) | C32 runtime and backup-storage wiring (C30 F03/F04, already claimed) · C36 create a shop without a redeploy · C37 gateway client mode and sign-in throttling · C38 off-site backups, rehearsed restore, alerts · C48 signed installer and automatic updates · C49 silent printing and cash drawer | Third shop created and isolated with no restart · one person's wrong passwords cannot lock out another shop · restore rehearsed and recorded · an update installs itself on a test machine · a receipt prints without a dialog in the packaged app |
+| **Codex session 2** (Client and sales surface) | C40 Contact Mansora panel · C41 parked sales and quick keys · C39 demo-request intake · C50 WhatsApp receipts, debt reminders and statements · C35 first-client billing walkthrough · C51 interface for C44–C47 · C42 board housekeeping | Contact comes from settings · parked basket resumes once only · test request appears in Leads · a statement opens in WhatsApp with the right balance · runbook followed without help · each new engine feature usable from the till |
+
+Rough effort, counting small = 1, medium = 2, large = 3: Claude about 15
+(including the 6 already delivered), Codex session 1 about 14, Codex session 2
+about 12.
 
 **Platform lane claimed (2026-11-11):** the existing Codex review/domain/email session owns C36–C38. Execution order, file boundaries, dependencies and acceptance evidence are maintained in [Platform lane handoff](platform-lane-handoff.md). Codex session 2 remains available for C39–C42.
 
@@ -215,9 +219,9 @@ Start prompt for Codex session 1:
 
 > Read docs/codex-tasks.md (status board and newest handoff) and
 > docs/operations/product-audit-and-roadmap.md sections 4 and 6. You own tasks
-> C36, C37 and C38 in the "Platform" lane: make the browser version safe for a
-> real shop. Finish your C32 (C30 F03/F04 runtime wiring) first; C38 builds
-> on it. Follow the board's rules: claim on the board, one
+> C36, C37, C38, C48 and C49 in the "Platform" lane: make the browser version safe for a
+> real shop, then the offline tier (C48, C49). Finish your C32 (C30 F03/F04
+> runtime wiring) first; C38 builds on it. Follow the board's rules: claim on the board, one
 > branch and PR per task, tests with every change, never weaken a test, do not
 > edit Claude-owned engine, sync or billing files. Do not start an interface
 > redesign. Record exact verification results in the handoff log.
@@ -226,8 +230,9 @@ Start prompt for Codex session 2:
 
 > Read docs/codex-tasks.md (status board and newest handoff) and
 > docs/operations/product-audit-and-roadmap.md sections 5 and 6. You own tasks
-> C39, C40, C41 and C42 in the "Client and sales surface" lane. Start with
-> C40, then C41, C39 and C42. Follow the board's rules: claim on the board, one
+> C35, C39, C40, C41, C42, C50 and C51 in the "Client and sales surface" lane.
+> Start with C40, then C41, C39, C50 and C35. Take each part of C51 only after
+> Claude's engine PR for that feature merges. Do C42 last. Follow the board's rules: claim on the board, one
 > branch and PR per task, tests with every change, never weaken a test, do not
 > edit Claude-owned engine, sync or billing files, and do not change
 > scripts/staging (Codex session 1 owns it). Keep to the existing visual
@@ -242,15 +247,13 @@ multi-currency; more administrator screens. None is blocking a sale.
 
 Ranked by how much they block.
 
-1. **Delivery model for the pilot** (section 4). Recommended: browser version first.
+1. ~~Delivery model for the pilot~~ **Decided 2026-11-11:** browser version first, then the offline till (D-36).
 2. **Who are the first three to five shops**, and what do they sell? This sets
    whether F3, F4 or F1 jumps the queue.
-3. **Where is client data hosted, and has a lawyer cleared it?** Blocks real data.
+3. **Hosting decided 2026-11-11:** the existing Railway project (D-12). Still open: confirm the Railway region, and have a lawyer clear Act 843 registration and any cross-border transfer before real client data.
 4. **Pricing.** A starting point to react to: one plan, monthly, with a setup
    and training fee; add tiers after the pilot.
-5. **What happens when a client does not pay?** Recommended: never stop the
-   till. After a grace period show a notice, then switch reports and exports to
-   read-only.
+5. ~~What happens when a client does not pay?~~ **Decided and built 2026-11-11** (D-28, task C52): the till never stops; reminder, then a dated warning, then management reports and report exports pause from 30 days late until paid. Hardened as described in the decision log.
 6. **Paystack business account.** Start the paperwork now; approval takes time.
 7. **Approve the decision log in one sitting.** Of the 35 defaults in
    `docs/decisions/decision-log.md`, most can be accepted as written. The ones

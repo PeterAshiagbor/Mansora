@@ -129,6 +129,7 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       subscription: sub ? { status: sub.status, renewalDate: sub.renewal_date, planName: sub.name } : null,
       supportAccessLog: log.map((l) => ({ id: l.id, adminName: l.admin_name, action: l.action, grantId: l.grant_id, occurredAt: l.occurred_at })),
       serverTime: new Date().toISOString(),
+      standing: ctx.standing ? await ctx.standing(dev.tenant_id) : null,
     };
   });
 

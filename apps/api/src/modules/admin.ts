@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { ONBOARDING_STEPS } from '@mansora/domain';
+import { ONBOARDING_STEPS, zCalendarDate, zDateRange } from '@mansora/domain';
 import type { Query } from '../db';
 import { hashPassword, httpError, newActivationCode, newToken, RateLimiter, sha256, verifyLoginPassword, adminTotpKey, base32, decryptTotpSecret, encryptTotpSecret, matchTotp, newRecoveryCode, normaliseRecoveryCode } from '../security';
 import type { AppContext } from '../app';
@@ -15,7 +15,7 @@ interface Admin {
 const zId = z.object({ id: z.string().uuid() });
 const text = (max = 200) => z.string().trim().min(1).max(max);
 const optText = (max = 200) => z.string().trim().max(max).nullish().transform((v) => v || null);
-const zDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const zDate = zCalendarDate;
 const SESSION_HOURS = 12;
 
 const audit = (q: Query, admin: Admin | null, action: string, tenantId: string | null, detail: Record<string, unknown> = {}) =>
@@ -406,7 +406,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   app.get('/v1/admin/clients/:id/reports/summary', async (req) => {
     const a = await admin(req);
     const { id } = zId.parse(req.params);
-    const range = z.object({ from: zDate, to: zDate }).parse(req.query);
+    const range = zDateRange().parse(req.query);
     const result = await db.tenant(id, async (q) => {
       const [grant] = await q(`SELECT id, purpose, expires_at FROM support_access_grants WHERE scope = 'reports' AND revoked_at IS NULL AND starts_at <= now() AND expires_at > now() ORDER BY expires_at DESC LIMIT 1`);
       if (!grant) return null;

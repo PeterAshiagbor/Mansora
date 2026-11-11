@@ -96,6 +96,7 @@ export const systemCommands = defineCommands({
         unprotected: n(`SELECT COUNT(*) AS v FROM outbox WHERE status = 'pending' AND seq > ${Number(lastBackup?.last_outbox_seq ?? 0)}`) as number,
         tenantStatus: ctx.setting('tenant_status') ?? 'active',
         subscription: JSON.parse(ctx.setting('subscription') ?? 'null'),
+        standing: ctx.engine.standing(),
       };
     },
   },

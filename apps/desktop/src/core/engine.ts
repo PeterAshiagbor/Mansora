@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { can, DomainError, fail, SYNC_TABLES, type Permission, type Role, type SyncTable } from '@mansora/domain';
+import { can, DomainError, effectiveStanding, fail, RESTRICTED_COMMANDS, restrictionMessage, SYNC_TABLES, zCalendarDate, type ServiceStanding, type Permission, type Role, type SyncTable } from '@mansora/domain';
 import type { Db } from './db';
 import { verifyPassword } from './passwords';
 
@@ -268,6 +268,14 @@ export class Engine {
         fail('PERMISSION_DENIED', 'You do not have permission to do this', { permission: def.perm });
       }
     }
+    if ((RESTRICTED_COMMANDS as readonly string[]).includes(name)) {
+      // Non-payment policy (D-28): checked here, at the only entry point, so no screen can bypass it.
+      const standing = this.standing();
+      if (standing?.stage === 'restricted') {
+        if (actor) this.recordDenied(actor, name, 'service.restricted', 'service.restricted');
+        fail('SERVICE_RESTRICTED', restrictionMessage(standing), { invoiceNumber: standing.invoiceNumber, restrictFrom: standing.restrictFrom });
+      }
+    }
     const parsed = def.input.safeParse(input ?? {});
     if (!parsed.success) {
       const first = parsed.error.issues[0];
@@ -305,10 +313,17 @@ export class Engine {
     }
   }
 
-  private recordDenied(actor: UserRow, command: string, permission: string): void {
+  /** Today's non-payment standing from what the server last sent; dates keep moving while offline. */
+  standing(): ServiceStanding | null {
+    let stored: unknown = null;
+    try { stored = JSON.parse(this.meta('service_standing') ?? 'null'); } catch { stored = null; }
+    return effectiveStanding(stored, this.now().toISOString().slice(0, 10));
+  }
+
+  private recordDenied(actor: UserRow, command: string, permission: string, action = 'permission.denied'): void {
     const ctx = new Ctx(this, command, actor);
     ctx.tx(() => {
-      ctx.audit('command', command, { permission }, 'permission.denied');
+      ctx.audit('command', command, { permission }, action);
       ctx.flush();
     });
   }
@@ -330,11 +345,13 @@ export const zQty = z.number().int().positive().max(10_000_000);
 export const zText = (max = 200) => z.string().trim().min(1).max(max);
 export const zOptText = (max = 200) => z.string().trim().max(max).nullish().transform((v) => v || null);
 export const zApprover = z.object({ username: z.string().min(1).max(100), password: z.string().min(1).max(200) }).nullish();
-export const zRange = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) });
+export const zRange = z.object({ from: zCalendarDate, to: zCalendarDate });
 export const empty = z.object({}).passthrough();
 
 /** Inclusive day range -> [startIso, endIsoExclusive). Ghana is UTC+0 all year, so UTC days are local days. */
 export function dayBounds(r: { from: string; to: string }): [string, string] {
+  // A reversed range used to return an empty report that looked like a quiet day (C30 F02).
+  if (r.from > r.to) fail('INVALID_INPUT', 'The start date must be on or before the end date');
   const end = new Date(`${r.to}T00:00:00.000Z`);
   end.setUTCDate(end.getUTCDate() + 1);
   return [`${r.from}T00:00:00.000Z`, end.toISOString()];

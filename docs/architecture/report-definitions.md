@@ -24,6 +24,7 @@ the record's own date falls between the chosen dates, inclusive (UTC = Ghana tim
 | Overdue | Outstanding balance on a credit sale whose due date has passed |
 | Expected cash (shift) | Opening float + cash sales + cash repayments + cash paid in − cash refunds − cash expenses from the till − cash paid out |
 | Variance | Cash counted − expected cash (negative = short) |
+| Mobile money / card expected | Non-cash sale payments + credit repayments by that method − refunds paid out by that method, in the period. Staff without sales reports see only what they recorded. Transaction IDs used more than once (ignoring case and all spaces) and received payments with no ID are flagged. Amounts are as entered at the till, not confirmed by the provider |
 
 A returned item that is not sellable is refunded to the customer but not
 restocked; its cost stays in COGS.

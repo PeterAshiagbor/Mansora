@@ -3,6 +3,7 @@ import type { Query } from '../db';
 import { addDays, addMonths, FREQUENCY_MONTHS, monthlyEquivalent, type Frequency } from './dates';
 import { OUTSTANDING_SQL, RECEIVABLE_STATUSES, today, type Billing } from './core';
 import { netAmount } from './subscriptions';
+import { tenantStanding } from './standing';
 
 const LIVE = ['active', 'payment_due', 'payment_failed', 'overdue', 'past_due'];
 const rate = (n: number, d: number) => (d === 0 ? null : Math.round((n * 10_000) / d)); // basis points
@@ -38,22 +39,13 @@ export async function revenueSummary(b: Billing, q: Query, from: string, to: str
     const [i] = await q(`SELECT COALESCE(SUM(total - amount_credited - amount_written_off), 0)::bigint AS v FROM invoices WHERE status NOT IN ('draft','cancelled') AND issue_date >= $1::date AND issue_date < $2::date`, [m, n]);
     months.push({ month: m.slice(0, 7), invoiced: i.v, collected: (await cash(m, n)).net });
   }
-  const byClient = await q(`SELECT t.id, t.name, COALESCE(SUM(p.amount), 0)::bigint AS gross, COALESCE(SUM(p.amount_refunded), 0)::bigint AS refunded FROM billing_payments p JOIN tenants t ON t.id = p.tenant_id
-    WHERE p.sandbox = false AND p.received_at >= $1::date AND p.received_at < $2::date GROUP BY t.id, t.name ORDER BY 3 DESC`, [from, end]);
-  // Revenue by service: each payment is split across the services on the invoices it paid, in proportion to their lines.
-  const allocs = await q(`SELECT a.invoice_id, (a.amount - a.refunded) AS net FROM payment_allocations a JOIN billing_payments p ON p.id = a.payment_id WHERE p.sandbox = false AND p.received_at >= $1::date AND p.received_at < $2::date`, [from, end]);
-  const perInvoice = new Map<string, number>();
-  for (const a of allocs) perInvoice.set(a.invoice_id, (perInvoice.get(a.invoice_id) ?? 0) + a.net);
-  const collectedByService: Record<string, number> = {};
-  if (perInvoice.size) {
-    const lines = await q(`SELECT invoice_id, service_code, line_total FROM invoice_line_items WHERE invoice_id = ANY($1) ORDER BY invoice_id, position`, [[...perInvoice.keys()]]);
-    for (const [invoiceId, net] of perInvoice) {
-      const ls = lines.filter((l: any) => l.invoice_id === invoiceId);
-      if (!ls.length || net <= 0) continue;
-      const parts = allocate(net, ls.map((l: any) => l.line_total));
-      ls.forEach((l: any, i: number) => { collectedByService[l.service_code] = (collectedByService[l.service_code] ?? 0) + parts[i]; });
-    }
-  }
+  // Receipts count in the period they arrived; completed refunds count in the period they were made (C30 F01).
+  const byClient = await q(`SELECT t.id, t.name, COALESCE(SUM(x.gross), 0)::bigint AS gross, COALESCE(SUM(x.refunded), 0)::bigint AS refunded FROM (
+      SELECT p.tenant_id, p.amount AS gross, 0 AS refunded FROM billing_payments p WHERE p.sandbox = false AND p.received_at >= $1::date AND p.received_at < $2::date
+      UNION ALL
+      SELECT p.tenant_id, 0, r.amount FROM billing_refunds r JOIN billing_payments p ON p.id = r.payment_id WHERE p.sandbox = false AND r.status = 'completed' AND r.created_at >= $1::date AND r.created_at < $2::date
+    ) x JOIN tenants t ON t.id = x.tenant_id GROUP BY t.id, t.name ORDER BY 3 DESC, 4 DESC, 2`, [from, end]);
+  const { byService: collectedByService, unallocated: collectedUnallocated } = await cashByService(q, from, end);
   const invoicedByService = await q(`SELECT l.service_code, COALESCE(SUM(l.line_total), 0)::bigint AS total FROM invoice_line_items l JOIN invoices i ON i.id = l.invoice_id WHERE i.status NOT IN ('draft','cancelled') AND i.issue_date >= $1::date AND i.issue_date < $2::date GROUP BY 1 ORDER BY 2 DESC`, [from, end]);
   const open = await q(`SELECT i.due_date, ${OUTSTANDING_SQL} AS owed FROM invoices i WHERE i.status IN ${RECEIVABLE_STATUSES} AND ${OUTSTANDING_SQL} > 0`);
   const ageing = { notYetDue: 0, d1_7: 0, d8_14: 0, d15_30: 0, d31plus: 0 };
@@ -74,9 +66,62 @@ export async function revenueSummary(b: Billing, q: Query, from: string, to: str
     receivables: { outstanding: rec.total, overdue: rec.overdue, invoices: rec.n, ageing },
     attempts: { successful: att.ok, failed: att.bad, successRateBps: rate(att.ok, att.ok + att.bad), failureRateBps: rate(att.bad, att.ok + att.bad) },
     subscriptions: { active: running.length, cancelled: subs.filter((s: any) => s.status === 'cancelled').length, upcomingRenewals: renewals, total: subs.length },
-    months, byClient, collectedByService, invoicedByService,
+    months, byClient, collectedByService, collectedUnallocated, invoicedByService,
     openExceptions: excs.n, sandboxPaymentsExcluded: sbx.n,
   };
+}
+
+/**
+ * Net cash by service for a period: payments received in the period, less completed refunds made in the
+ * period, each split across the services on the invoices the money was applied to.
+ *
+ * Refunds do not store their own per-invoice split, so it is replayed with the same rule the refund used
+ * (payments.ts, applyRefundEffect): the part of a payment never applied to an invoice is refunded first, then
+ * the rest is shared across its allocations in proportion to what remains on each, in allocation-id order.
+ * Money never applied to an invoice is reported separately as `unallocated`, never forced into a service.
+ */
+async function cashByService(q: Query, from: string, end: string): Promise<{ byService: Record<string, number>; unallocated: number }> {
+  const inPeriod = (t: string) => t >= from && t < end;
+  const day = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v)).slice(0, 10);
+  const payments = await q(`SELECT DISTINCT p.id, p.amount, p.received_at FROM billing_payments p LEFT JOIN billing_refunds r ON r.payment_id = p.id AND r.status = 'completed'
+    WHERE p.sandbox = false AND ((p.received_at >= $1::date AND p.received_at < $2::date) OR (r.created_at >= $1::date AND r.created_at < $2::date))`, [from, end]);
+  const perInvoice = new Map<string, number>();
+  const add = (invoiceId: string, amount: number) => perInvoice.set(invoiceId, (perInvoice.get(invoiceId) ?? 0) + amount);
+  let unallocated = 0;
+  for (const p of payments) {
+    const allocs = await q(`SELECT id, invoice_id, amount FROM payment_allocations WHERE payment_id = $1 ORDER BY id`, [p.id]);
+    const refunds = await q(`SELECT amount, created_at FROM billing_refunds WHERE payment_id = $1 AND status = 'completed' ORDER BY created_at, id`, [p.id]);
+    const pool = p.amount - allocs.reduce((t: number, a: any) => t + a.amount, 0);
+    if (inPeriod(day(p.received_at))) {
+      unallocated += pool;
+      for (const a of allocs) add(a.invoice_id, a.amount);
+    }
+    const remaining = allocs.map((a: any) => a.amount);
+    let refunded = 0;
+    for (const r of refunds) {
+      const before = refunded, after = refunded + r.amount;
+      refunded = after;
+      const fromPool = Math.min(after, pool) - Math.min(before, pool);
+      const toInvoices = r.amount - fromPool;
+      const shares = toInvoices > 0 ? allocate(toInvoices, remaining) : remaining.map(() => 0);
+      shares.forEach((share: number, i: number) => { remaining[i] -= share; });
+      if (!inPeriod(day(r.created_at))) continue;
+      unallocated -= fromPool;
+      shares.forEach((share: number, i: number) => { if (share) add(allocs[i].invoice_id, -share); });
+    }
+  }
+  const byService: Record<string, number> = {};
+  if (perInvoice.size) {
+    const lines = await q(`SELECT invoice_id, service_code, line_total FROM invoice_line_items WHERE invoice_id = ANY($1) ORDER BY invoice_id, position`, [[...perInvoice.keys()]]);
+    for (const [invoiceId, net] of perInvoice) {
+      const ls = lines.filter((l: any) => l.invoice_id === invoiceId);
+      if (!net) continue;
+      if (!ls.length) { unallocated += net; continue; }
+      const parts = allocate(Math.abs(net), ls.map((l: any) => l.line_total));
+      ls.forEach((l: any, i: number) => { byService[l.service_code] = (byService[l.service_code] ?? 0) + Math.sign(net) * parts[i]; });
+    }
+  }
+  return { byService, unallocated };
 }
 
 export type CollectionFilter = 'all' | 'active' | 'pending_mandate' | 'upcoming' | 'paid' | 'overdue' | 'failed' | 'cancelled' | 'disputed';
@@ -109,6 +154,7 @@ export async function collectionsTable(b: Billing, q: Query, filter: CollectionF
     const fee = r.agreed_amount == null ? null : netAmount(r);
     return { ...r, monthly_fee: fee == null ? null : monthlyEquivalent(fee, r.billing_frequency as Frequency), period_fee: fee, next_payment: nextPayment, days_overdue: daysOverdue, tags };
   });
+  for (const r of out) (r as any).standing = await tenantStanding(b, q, r.tenant_id);
   return filter === 'all' ? out : out.filter((r: any) => r.tags.includes(filter));
 }
 

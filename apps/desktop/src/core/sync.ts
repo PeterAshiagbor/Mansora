@@ -77,6 +77,8 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
     engine.db.transaction(() => {
       engine.setMeta('tenant_status', pull.tenant.status);
       engine.setMeta('subscription', JSON.stringify(pull.subscription));
+      // Only the server can replace the standing; an older server that omits it leaves the last one in place.
+      if (pull.standing !== undefined) engine.setMeta('service_standing', JSON.stringify(pull.standing));
       const ins = engine.db.prepare('INSERT OR IGNORE INTO support_access_log (id, admin_name, action, grant_id, occurred_at) VALUES (?, ?, ?, ?, ?)');
       for (const l of pull.supportAccessLog) ins.run(l.id, l.adminName, l.action, l.grantId, l.occurredAt);
       engine.setMeta('last_sync_at', engine.now().toISOString());

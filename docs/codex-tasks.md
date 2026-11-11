@@ -70,21 +70,43 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 
 | C29 friendly test access and invitations | Codex (review/domain/email session) | Complete: PRs #42/#43 merged; verified sender, both Resend invitations delivered and both passphrases activated on live SUCCESS deployment 96b6f761. Same journal/operation preserved | PRs #42/#43 |
 | C32 Railway runtime configuration | Codex (review/domain/email session) | Implemented in PR #46, latest head 38933df; 290 tests and original six CI workflows pass. Current refreshed CI queued; not merged/deployed. C30 F03/F04 wiring only | `codex/C32-runtime-wiring` |
-| **Roadmap "Now" stage (2026-11-11, owner asked to share the work between Claude and two Codex sessions; see `docs/operations/product-audit-and-roadmap.md` §6–6a)** | | | |
-| C31 mobile money end-of-day check (N3) | Claude | Claimed | `claude/elegant-bohr-mjeotl` |
-| C33 owner's closing summary by email, opt-in (N2) | Claude | Claimed, after C31 | – |
-| C34 activity signals for Mansora, counts only (N5) | Claude | Claimed, after C33 | – |
-| C35 manual billing runbook for first clients (N4) | Claude | Claimed | – |
-| C30 F01/F02 fixes: later-period refunds land in the right revenue period; invalid or reversed report dates return 400 (Claude-owned billing/report code) | Claude | Claimed, before C33, using the C30 probe in `docs/reviews/c30/` as acceptance | – |
+| **Roadmap work split, rebalanced 2026-11-11 after owner decisions: browser pilot first, then offline; build the features; hosting = existing Railway; non-payment policy approved and hardened. Detail and done-when criteria: `docs/operations/product-audit-and-roadmap.md` §6a** | | | |
+| C31 mobile money and card end-of-day check (N3) | Claude | Done on branch, PR #47 | `claude/elegant-bohr-mjeotl` |
+| C30 F01/F02: refunds in the right revenue period; impossible or reversed dates refused with 400 | Claude | Done on branch, PR #47; Codex's probe now reconciles | `claude/elegant-bohr-mjeotl` |
+| C52 non-payment policy D-28, hardened (engine-enforced, offline-safe, disputes exempt, bounded thresholds, audited 60-day arrangements) | Claude | Done on branch, PR #47 | `claude/elegant-bohr-mjeotl` |
+| C33 owner's closing summary by email, opt-in, message bodies cleared after delivery (N2) | Claude | Next | – |
+| C34 activity signals for Mansora, counts only, never amounts (N5) | Claude | Queued | – |
+| C44 decimal quantities and saved pack sizes: engine, schema, sync contract (X3). Publishes the command contract for C51 | Claude | Queued | – |
+| C45 wholesale/retail price levels and supervised price override: engine (X4) | Claude | Queued | – |
+| C46 VAT, NHIL and GETFund on sales: tax-inclusive prices, receipt lines, tax report (X5) | Claude | Queued | – |
+| C47 customer credit limit with supervised override: engine (X1) | Claude | Queued | – |
 | C36 create a shop workspace without a redeploy (N1) | **Codex session 1 — this review/domain/email session** | Claimed by owner request. First implementation after C32 #46 merges; acceptance and boundaries in platform-lane-handoff.md | `codex/C36-workspace-provisioning` (reserved) |
 | C37 gateway client mode: config-driven banner/limits, per-account and real-client-address sign-in throttling, owner recovery through the browser (N1) | **Codex session 1 — this review/domain/email session** | Reserved in this lane; follows C36. Keep all existing hardening and coordinate any protected engine recovery changes with Claude | `codex/C37-client-gateway` (reserved) |
 | C38 off-site backups of database and data volume with keys, one rehearsed restore, uptime check, error alerts to a person (N1) | **Codex session 1 — this review/domain/email session** | Reserved in this lane; follows C32/C36/C37. Provider/key retention and isolated recovery evidence required; not claimed deployed | `codex/C38-recovery-monitoring` (reserved) |
-| C39 demo-request intake: public rate-limited endpoint, admin Leads list, embeddable form (N6) | **Codex session 2 (Client and sales surface)** | Assigned, not started | – |
-| C40 Contact Mansora panel from settings on Help and sign-in; Forgot password route (N5) | **Codex session 2** | Assigned, start here | – |
-| C41 parked sales and quick keys, interface only, no engine change (X8) | **Codex session 2** | Assigned, not started | – |
-| C42 board housekeeping: move finished history to `docs/archive/`, keep this board to open work (P2) | **Codex session 2** | Assigned, do last so it does not conflict with active claims | – |
+| C48 offline tier: signed-installer pipeline and automatic updates for the Windows till (L1). Certificate comes from the owner; build and test the plumbing with a test certificate | **Codex session 1** | Assigned, after C36–C38 | – |
+| C49 offline tier: silent receipt printing and cash-drawer signal in the Electron shell, with the bridge list in `tests/hardware/electron-smoke.mjs` (X2) | **Codex session 1** | Assigned, after C48 | – |
+| C40 Contact Mansora panel from settings on Help and sign-in; Forgot password route (N5) | **Codex session 2 (Client and sales surface)** | Assigned, start here | – |
+| C41 parked sales and quick keys, interface only, no engine change (X8) | **Codex session 2** | Assigned | – |
+| C39 demo-request intake: public rate-limited endpoint, admin Leads list, embeddable form (N6) | **Codex session 2** | Assigned | – |
+| C50 WhatsApp sharing with no provider: receipts, debt reminders and printable customer statements via wa.me links, from existing reads (X1, X2) | **Codex session 2** | Assigned | – |
+| C35 first-client billing walkthrough: follow the runbook once against the sandbox and fix gaps in the admin screens or docs (N4). Moved from Claude | **Codex session 2** | Assigned | – |
+| C51 interface for C44–C47: quantity entry, pack sizes, price levels, tax lines, credit limits. Each part starts after Claude's engine PR for it merges | **Codex session 2** | Assigned, follows Claude | – |
+| C42 board housekeeping: move finished history to `docs/archive/`, keep this board to open work (P2) | **Codex session 2** | Assigned, do last | – |
 | C43 realistic test-workspace data | Codex (review/domain/email session) | Partially live: both businesses have additive inventory/customer/supplier/purchase/expense/owner-sale data; real edits, JSON/XLSX/CSV exports and analysis verified. PR #48 adds restart-safe full pack including staff-owned histories; 294 tests pass, CI queued, not merged/deployed | `codex/C43-test-data` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
+
+## Corporate website coordination (2026-11-11)
+
+| Task | Owner | Status | Branch / PR |
+| --- | --- | --- | --- |
+| Corporate Sales & Stock product page and separate waiting list | Codex corporate website session | Implemented on separate website branch; local checks pass. Awaiting exact-head CI, hosting access, storage configuration and live persistence before coordinated release. Not merged or deployed to production | [website PR #1](https://github.com/priscillafm03-afk/mansora-website/pull/1), `codex/sales-stock-waitlist` |
+
+This external task uses **priscillafm03-afk/mansora-website** (static Vercel site),
+not the older public Flask repository. Live homepage/main.js match website main
+`7d05ff8` byte for byte. No competing website branches or open PRs were found at
+claim time. The website waiting list is separate from newsletter and C39 app demo
+intake; it never provisions testers. App invitations, Resend diagnostics, DNS and
+infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Notes for Codex (from Claude, 2026-11-10)
 
@@ -115,6 +137,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 
 ## Handoff log (newest first; append, never rewrite)
 
+### 2026-11-11 — Codex corporate website session (external PR; release gated)
+- Read this board and issue #39 before work; posted source/access findings and the external claim in #39. Owner connected the website repository later in the session. This board update uses a docs-only branch because the owner explicitly requested separate branches; no direct default-branch change is made.
+- Corporate source is `priscillafm03-afk/mansora-website`, main `7d05ff8`. Website PR #1 adds the early-access page/nav/homepage and a separate private Redis-backed waiting list with explicit consent, atomic deduplication, distributed limits and honest failure states. Optional website Resend team alerts run only after saving; no user email, newsletter subscription or tester invitation is created.
+- Verified locally: 13 backend checks and 10 browser/axe checks, real Redis AOF restart persistence, duplicate races, lost acknowledgements, storage/email failure, keyboard/focus, 320–1440px layouts, and 0 dependency vulnerabilities. Existing contact/newsletter client endpoints verified with intercepted requests; no production form messages sent. No app tests rerun for this external implementation.
+- Hosting found from GitHub deployment status: `https://vercel.com/mansora/mansora-website`; connected Vercel scopes still cannot access that project. Dedicated production/preview storage and live persistence remain **unverified**. The site is **not merged or deployed to production**. Exact-head CI/automatic preview results will be recorded in issue #39 and website PR #1.
+- Leave tester invitations and app Resend diagnostics with the app session. No changes to app code, app DNS, infrastructure, C39 intake or other active tasks. Do not merge/deploy the website before storage/live checks and owner/session coordination. Website operations, feature evidence and retention defaults are in its `docs/sales-stock-waitlist.md`.
+
 ### 2026-11-11 — Codex (owner-requested Platform lane ownership)
 - Owner explicitly asked this session to take either Codex lane from the plan and document it. This review/domain/email session takes **Codex session 1 (Platform)**: C36, C37 and C38. C39–C42 remain available to Codex session 2; Claude retains C31/C33–C35 and financial F01/F02. Do not duplicate those lanes.
 - Committed ownership and a concrete execution/acceptance handoff in `docs/operations/platform-lane-handoff.md`; the roadmap §6a links to it. C36 is claimed; C37/C38 reserved. Planned branches are documented, not represented as implemented. No app/interface redesign or marketing website work is included.
@@ -128,6 +157,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - GitHub Actions shows dozens of queued runs and two older 22d76dc CI runs still in progress; cancellation through authenticated CLI replied already completed, so no runs were actually cancelled. Read/cancel state is inconsistent. Owner and issue #39 were informed. Avoid cancelling current or unrelated work. Do not weaken security tests/CI to force release.
 - Resend is verified/sending enabled. Both existing invitations are delivered and both passphrases activated. No resend needed. Preserve existing operation ID/journal. All runtime keys, recipient addresses, passwords and raw export bodies remain private and are absent from committed evidence.
 
+### 2026-11-11 — Claude (owner decisions; C31, C30 F01/F02 and C52 done in PR #47; split rebalanced)
+- **Owner decisions:** pilot on the browser version first, then the offline till (D-36); hosting is the existing Railway project (D-12, region to confirm in Railway, legal review still open); non-payment policy approved "implemented but hardened" (D-28, D-10); "fix everything needed re features"; split the work fairly and implement C30.
+- **PR #47** carries C31 (wallet check, both Codex review findings fixed), C30 F01 and F02 (Codex's `docs/reviews/c30/reproduce.ts` now reconciles both periods and returns 400 for bad dates), and C52, the non-payment policy. Full suite **303/303 in 46 files**; typecheck and build clean.
+- **C52 design:** (numbered C52 because Codex claimed C43 for test data at the same time) rules in `packages/domain/src/standing.ts`; server stage in `apps/api/src/billing/standing.ts`, sent on every `/v1/sync/pull` as `standing`; the till enforces `RESTRICTED_COMMANDS` inside `Engine.execute` and audits each refusal as `service.restricted`. No schema change: thresholds are in billing settings, arrangements are `service_hold:<tenantId>` rows in `billing_settings` (the platform role has no DELETE, so ending one writes `null`). Codex: the gateway needs nothing new, because shop engines already sync; keep it that way when building C36.
+- **C30 status:** F01/F02 done by Claude (PR #47). F03/F04 remain Codex's C32.
+- **Rebalanced split** (rows above): Claude keeps engine-heavy work (C33, C34, C44–C47). Codex session 1 adds the offline tier's installer, updates and printing (C48, C49). Codex session 2 takes C35 from Claude, plus WhatsApp sharing (C50) and the interface for Claude's new engine features (C51, after each engine PR merges).
 ### 2026-11-11 — Codex (C43 sample-data claim; C29 delivered)
 - Owner explicitly requests sample data for all actual-platform test accounts while preserving editing, export, analysis and every hardening control. Claim C43 additive data pack in scripts/staging only, using real authenticated engine commands and per-workspace restart-safe tracking; no permission bypass, tenant sharing, user-data reset or protected engine edits. Coordinate scripts/railway wiring with our C32 branch.
 - Resend connection now available: sender domain verified/sending enabled. Existing live deployment 96b6f761 reports 2 invitations accepted and activated, 0 pending; Resend lists both invitation messages as delivered. No resend or new operation required. Never commit credentials or recipient addresses.

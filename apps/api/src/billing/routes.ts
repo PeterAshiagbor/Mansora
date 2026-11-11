@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { policyProblem, zCalendarDate } from '@mansora/domain';
+import { clearServiceHold, serviceHold, setServiceHold, tenantStanding } from './standing';
 import { RateLimiter, sha256 } from '../security';
 import { asHttp, audit, billingContact, deliverQueued, queueEmail, displayStatus, fail, loadSettings, nowIso, openException, outstanding, payUrl, readPayToken, saveSettings, today, REMINDER_STEPS, type Actor, type Billing } from './core';
 import { addDays } from './dates';
@@ -13,7 +15,8 @@ import { activateManually, cancelMandateLocal, cancelSubscription, changePlan, c
 import { SandboxProvider } from './providers/sandbox';
 
 const id = z.string().uuid();
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const date = zCalendarDate;
+const checkedRange = <T extends { from: string; to: string }>(r: T): T => (r.from <= r.to ? r : fail(400, 'INVALID_INPUT', 'The start date must be on or before the end date'));
 const money = z.number().int().nonnegative().max(100_000_000_000);
 const text = (n = 300) => z.string().trim().min(1).max(n);
 const line = z.object({ description: text(200), quantity: z.number().int().positive().max(100_000), unitPrice: money, discount: money.optional(), serviceCode: z.string().max(40).optional() });
@@ -60,8 +63,11 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
       invoiceLeadDays: n.min(0).max(60), defaultDueDays: n.min(0).max(120), maxAttempts: n.min(1).max(10), retryDays: n.min(1).max(30), activationPolicy: z.enum(['first_payment', 'mandate']),
       reminders: z.object({ enabled: z.boolean(), offsets: z.object(Object.fromEntries(REMINDER_STEPS.map((s) => [s, n.min(-30).max(180)])) as Record<(typeof REMINDER_STEPS)[number], z.ZodNumber>) }),
       issuer: z.object({ name: text(120), address: z.string().max(300), phone: z.string().max(40), email: z.string().max(160), tin: z.string().max(40), paymentInstructions: z.string().max(600) }),
+      standing: z.object({ noticeAfterDays: n, warnAfterDays: n, restrictAfterDays: n }).optional(),
     }).parse(req.body);
-    await run(async (q) => { await saveSettings(q, body as any); await audit(q, { actor: a, action: 'settings.updated', entityType: 'settings', entityId: 'billing', detail: body }); });
+    const problem = body.standing ? policyProblem(body.standing) : null;
+    if (problem) fail(400, 'INVALID_POLICY', problem);
+    await run(async (q) => { if (!body.standing) body.standing = (await loadSettings(q)).standing; await saveSettings(q, body as any); await audit(q, { actor: a, action: 'settings.updated', entityType: 'settings', entityId: 'billing', detail: body }); });
     return { ok: true };
   });
   app.get(`${A}/merchant-accounts`, async (req) => { await admin(req); return run((q) => q(`SELECT * FROM merchant_payment_accounts WHERE owner_type = 'mansora' ORDER BY created_at`)); });
@@ -275,8 +281,26 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
   app.get(`${A}/reports/summary`, async (req) => {
     await admin(req);
     const day = today(b);
-    const f = z.object({ from: date.default(`${day.slice(0, 7)}-01`), to: date.default(day) }).parse(req.query);
+    const f = checkedRange(z.object({ from: date.default(`${day.slice(0, 7)}-01`), to: date.default(day) }).parse(req.query));
     return run((q) => revenueSummary(b, q, f.from, f.to));
+  });
+  // ---- non-payment policy (D-28): standing and payment arrangements
+  app.get(`${A}/clients/:tenantId/standing`, async (req) => {
+    await admin(req);
+    const { tenantId } = z.object({ tenantId: id }).parse(req.params);
+    return run(async (q) => ({ standing: await tenantStanding(b, q, tenantId), hold: await serviceHold(q, tenantId), policy: (await loadSettings(q)).standing }));
+  });
+  app.post(`${A}/clients/:tenantId/standing/hold`, async (req) => {
+    const a = await admin(req);
+    const { tenantId } = z.object({ tenantId: id }).parse(req.params);
+    const body = z.object({ until: date, reason: text(300) }).parse(req.body);
+    return run((q) => setServiceHold(b, q, tenantId, body.until, body.reason, a));
+  });
+  app.post(`${A}/clients/:tenantId/standing/clear-hold`, async (req) => {
+    const a = await admin(req);
+    const { tenantId } = z.object({ tenantId: id }).parse(req.params);
+    const body = z.object({ reason: text(300) }).parse(req.body);
+    return run((q) => clearServiceHold(b, q, tenantId, body.reason, a));
   });
   app.get(`${A}/collections`, async (req) => {
     await admin(req);
@@ -286,7 +310,7 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
   app.get(`${A}/reports/export`, async (req, reply) => {
     await admin(req);
     const day = today(b);
-    const f = z.object({ kind: z.enum(['invoices', 'payments', 'collections', 'revenue_by_month', 'ageing']), from: date.default(`${day.slice(0, 7)}-01`), to: date.default(day) }).parse(req.query);
+    const f = checkedRange(z.object({ kind: z.enum(['invoices', 'payments', 'collections', 'revenue_by_month', 'ageing']), from: date.default(`${day.slice(0, 7)}-01`), to: date.default(day) }).parse(req.query));
     const rows: unknown[][] = await run(async (q) => {
       if (f.kind === 'invoices') return [['Number', 'Client', 'Status', 'Issued', 'Due', 'Total (GHS)', 'Paid (GHS)', 'Outstanding (GHS)'], ...(await q(`SELECT i.*, t.name AS client FROM invoices i JOIN tenants t ON t.id = i.tenant_id WHERE i.status <> 'draft' AND i.issue_date >= $1::date AND i.issue_date <= $2::date ORDER BY i.issue_date`, [f.from, f.to])).map((i: any) => [i.number, i.client, displayStatus(i, day), i.issue_date, i.due_date, cedis(i.total), cedis(i.amount_paid - i.amount_refunded), cedis(outstanding(i))])];
       if (f.kind === 'payments') return [['Receipt', 'Client', 'Received', 'Method', 'Provider', 'Sandbox', 'Amount (GHS)', 'Refunded (GHS)', 'Provider fee (GHS)'], ...(await q(`SELECT p.*, t.name AS client FROM billing_payments p JOIN tenants t ON t.id = p.tenant_id WHERE p.received_at >= $1::date AND p.received_at < ($2::date + 1) ORDER BY p.received_at`, [f.from, f.to])).map((p: any) => [p.receipt_number, p.client, p.received_at, p.method, p.provider ?? 'manual', p.sandbox ? 'yes' : 'no', cedis(p.amount), cedis(p.amount_refunded), cedis(p.fee)])];
@@ -315,7 +339,7 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
       const invoices = await q(`SELECT id, number, status, issue_date, due_date, total, amount_paid, amount_refunded, amount_credited, amount_written_off FROM invoices WHERE tenant_id = $1 AND status <> 'draft' ORDER BY issue_date DESC, created_at DESC LIMIT 12`, [tenantId]);
       const payments = await q(`SELECT id, receipt_number, received_at, method, amount, amount_refunded, status, sandbox FROM billing_payments WHERE tenant_id = $1 ORDER BY received_at DESC LIMIT 12`, [tenantId]);
       const st = await loadSettings(q);
-      return { s, m, invoices, payments, support: st.issuer };
+      return { s, m, invoices, payments, support: st.issuer, standing: await tenantStanding(b, q, tenantId) };
     });
     const list = data.invoices.map((i: any) => ({ id: i.id, number: i.number, status: displayStatus(i, day), issueDate: i.issue_date, dueDate: i.due_date, total: i.total, outstanding: outstanding(i), canPay: ['sent', 'partially_paid'].includes(i.status) && outstanding(i) > 0 }));
     const owed = list.filter((i: any) => i.canPay);
@@ -333,6 +357,7 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
       payments: data.payments.map((p: any) => ({ id: p.id, receiptNumber: p.receipt_number, receivedAt: p.received_at, method: p.method, amount: p.amount, refunded: p.amount_refunded, sandbox: p.sandbox })),
       options: { payNow: checkout, card: avail('card'), momo: avail('momo') },
       support: { name: data.support.name, email: data.support.email, phone: data.support.phone },
+      standing: data.standing,
       serverTime: nowIso(b),
     };
   });
