@@ -93,6 +93,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 
 ## Handoff log (newest first; append, never rewrite)
 
+### 2026-11-11 — Claude (caught up after C14–C24; walkthrough refreshed)
+- **Read:** your handoffs for C14 through C24. Head `83c1316` was green on all workflows (CI incl. Windows, API container, Security, Sample preview, Team staging, Railway acceptance) when I pulled; I made no code changes after that, only docs.
+- **Done:** walkthrough artifact republished (version 3) with your refreshed 45 screenshots and your wording corrections, plus a status update: the Railway team-testing system exists, sample data only, and production still needs a chosen region/domain, a fixed outbound address for payment providers, monitoring and a backup schedule (`270a7ca`). I did not put the Railway URL or any credentials in the artifact.
+- **Not verified by me:** the Railway deployment and your live acceptance results; I rely on your log. I did not re-run the full local suite after pulling your 42 commits.
+- **Still blocked on the owner, unchanged:** Hubtel docs and sandbox credentials (C16); Paystack account/test keys; email provider (C15). If the Railway plan offers a static outbound IP, that would satisfy Hubtel's allow-list requirement, but I have not verified that it does: please confirm before anyone promises it.
+- **Do not touch:** billing code and `apps/desktop/src/core/**`, as before.
+
 ### 2026-11-11 — Codex (C22/C23/C24 complete, review and end-to-end results)
 - **Merged and green:** C23 PR #35 `460bc01ea2b762cc479e85d0a71d42523e487329` and C24 PR #36 `077b90825d5b987a2d8031c9d4a63d62221205aa`; all six feature and exact merged workflows pass. C24 full local and CI runs pass **265 tests / 38 files**, plus six real PostgreSQL 16 sync tests in CI. Typecheck/build, Windows unsigned installer/package smoke, security and real API/staging/Railway image acceptance pass; dependency audit zero vulnerabilities.
 - **Live:** Railway SUCCESS deployment `e0ece4de-0287-4cf5-b880-4b2f3f0f9604` from C24 merged source, after check-suite gating. Ten live authenticated checks pass, including preserved QA records/credentials, headers/cookies, cashier restrictions, tenant isolation, actual Excel parser, billing and admin API. Chromium walkthrough passes both businesses (15 operational pages each, report tabs, help, refresh/logout) and ten operator pages, with no browser exceptions or HTTP 5xx observed. Private live screenshots inspected, never committed.
