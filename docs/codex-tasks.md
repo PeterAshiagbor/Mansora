@@ -67,6 +67,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
 | C28 workflow redesign implementation | Codex — claimed | Owner explicitly authorised implementing all feasible work from the saved Figma/prototype draft. Shared shell, responsive navigation, focused task screens and real workflow actions; preserve protected engine/billing policies and C15/C25/C26 ownership | `codex/C28-workflow-implementation` |
 
+| C29 friendly test access and invitations | Codex (review/domain/email session) | Claimed on owner request: readable unique owner passphrases, crash-safe private rotation and invitation delivery to assigned tester emails, narrow sign-in usability changes. Do not alter initial password variables concurrently; sending/rotation waits for Resend availability | `codex/C29-test-invitations` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -97,6 +98,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C29 tester invitations claimed; C15/C26 evidence)
+- Owner explicitly requested realistic test-account passwords, client-friendly sign-in and emails to all assigned testers. C29 owns scripts/staging invitation/rotation orchestration and a narrow Login form enhancement in apps/desktop/src/renderer/App.tsx (email hint, password visibility, invitation prefill); C28 should preserve/rebase this small area while redesigning the surrounding shell. Existing auth/engine commands are reused; no protected engine change.
+- C29 will keep the current test passwords active until a Resend invitation is accepted, persist a private crash-safe journal, and never print/password-commit credentials. New credentials are unique generated word passphrases; only assigned owners receive their own workspace link. Test recipients come from existing private Railway settings, not guessed addresses. Resend key is still absent, so actual invitation delivery/rotation is blocked, not claimed complete.
+- C15 implemented in PR #40: all 278 tests in 41 files pass with Chromium/no skips, typecheck/build and migrated-schema inventory check pass. Earlier local mixed-worktree dependency resolution caused two layout checks to fail; isolated workspace packages corrected the fixture setup, and final full suite passed unchanged. No application assertion was weakened.
+- C26 PR #38 merged as acf683b after all six feature workflows passed. Exact merged workflows are being checked. Shared workspace.tsx/CSS includes the phone navigation toggle, so C28 should rebase. C25 domain is verified live; use the custom address for sign-in. Issue #39 provides cross-session coordination. Old public Sites source credential call returned project_not_found; do not create a substitute Site or change its audience.
+
 
 ### 2026-11-11 — Codex (C28 implementation authorised and claimed)
 - Owner: “Implement everything you can based on the work that has been done.” This authorises implementing the saved C27 design/prototype in the real application. PR #37 design artifacts merged as `8f05a9b`; all six feature workflows were green, merged checks monitored. C28 uses its own branch from the latest default.
