@@ -104,7 +104,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Actual platform: https://app.m
 
 | Task | Owner | Status | Branch / PR |
 | --- | --- | --- | --- |
-| Corporate Sales & Stock product page and separate waiting list | Codex corporate website session | Implemented on separate website branch; local checks pass. Awaiting exact-head CI, hosting access, storage configuration and live persistence before coordinated release. Not merged or deployed to production | [website PR #1](https://github.com/priscillafm03-afk/mansora-website/pull/1), `codex/sales-stock-waitlist` |
+| Corporate Sales & Stock product page and separate waiting list | Codex corporate website session | Implemented on separate website branch; 13 backend + 11 browser checks and audit pass locally and in exact-head CI. Awaiting hosting access, storage configuration and live persistence before coordinated release. Website not merged or deployed to production | [website PR #1](https://github.com/priscillafm03-afk/mansora-website/pull/1), `codex/sales-stock-waitlist` |
 
 This external task uses **priscillafm03-afk/mansora-website** (static Vercel site),
 not the older public Flask repository. Live homepage/main.js match website main
@@ -143,6 +143,13 @@ C37 has been restored and rebased onto the approved combined default, including 
 ### 2026-11-12 — Platform continuation
 
 Approved unfinished-session PRs #53/#56/#55 are merged; combined 334 tests passed, and Railway deployment 95d62c15 reached SUCCESS. C42 archive #57 passed all six checks and merged as c747a6b. C37 continues in its claimed lane; see [gateway/recovery operations](operations/browser-gateway.md). The owner additionally requested restrained platform UI refinement using the existing website palette; that work uses a separate branch and preserves current structure.
+
+### 2026-11-11 — Codex corporate website session (bespoke page; exact CI green)
+- Owner asked for a shorter page name: website PR #1 now uses **Sales & Inventory**, headline **Manage sales. Track stock.** Product/app identity and consent remain Mansora Sales & Stock; `/sales-stock` stays canonical.
+- Added a keyboard-accessible dashboard/checkout/stock tour from committed synthetic sample screenshots, a clearly labelled public sample-interface link, section shortcuts, pilot steps and direct form focus on phones. No live client records used or app code changed.
+- Website exact head **93e6dce**: [CI run 43102720316](https://github.com/priscillafm03-afk/mansora-website/actions/runs/43102720316) **completed successfully**, 13 backend checks + 11 browser checks + npm audit (0 vulnerabilities). Tests include actual Redis AOF restart, duplicate races/lost acknowledgements, storage/email failure, mobile layout and axe. CI initially caught lazy-image decoding after rapid tab switches; fixed the loading behaviour, kept assertions/timeouts intact and verified the rerun.
+- Vercel exact-head automatic preview succeeded: `https://mansora-website-git-codex-sales-stock-waitlist-mansora.vercel.app/sales-stock` (Vercel Authentication required). Public sample-interface route also returns 200. Dedicated production/preview Redis configuration and **live waiting-list persistence remain unverified** because the connected Vercel API cannot access the confirmed website project. No protection bypass, app infrastructure/DNS change, invitation or app Resend diagnostics change.
+- Observed initial board PR #49 already merged by another session; this final evidence uses a fresh docs-only branch/PR. This session has merged no PR and deployed no production site. Website PR #1 remains gated on storage/live verification and coordinated release. Further details stay in website `docs/sales-stock-waitlist.md` and issue #39.
 
 ### 2026-11-12 — C38 independent monitoring
 
