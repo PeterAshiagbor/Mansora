@@ -1,0 +1,24 @@
+{
+  "runId": "mansora-redesign-20261111",
+  "fileKey": "v272eth6TmpQslxG10r8Cf",
+  "sessionId": "6275ed1c-a17a-4a9b-a500-77d48eb172b9",
+  "scope": "end-to-end workflow redesign",
+  "nativeBundles": {},
+  "pendingScripts": [
+    "mansora-figma-operations.js",
+    "mansora-figma-states.js",
+    "mansora-figma-task-details.js",
+    "mansora-figma-platform.js",
+    "mansora-figma-admin-onboarding.js",
+    "mansora-figma-responsive.js"
+  ],
+  "blocker": "Figma Starter MCP tool call limit; confirmed by use_figma rejection and whoami. No further writes attempted.",
+  "knownFixesPending": [
+    "Replace Hold this sale with Clear basket / cancellation flow",
+    "Route Add customer and Add staff to dedicated forms",
+    "Separate Sales performance and Gross profit report links",
+    "Scope admin settings/help routes to admin destinations",
+    "Connect same-page native prototype destinations; use explicit prototype URLs for cross-page journey starts",
+    "Visually verify the table alignment correction and final screens after tool access resumes"
+  ]
+}

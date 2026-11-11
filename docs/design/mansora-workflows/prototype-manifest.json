@@ -1,0 +1,2823 @@
+{
+  "screens": [
+    {
+      "id": "local:191",
+      "name": "home · Business overview",
+      "width": 1440,
+      "height": 1000,
+      "key": "home"
+    },
+    {
+      "id": "local:322",
+      "name": "sale · New sale",
+      "width": 1440,
+      "height": 1000,
+      "key": "sale"
+    },
+    {
+      "id": "local:484",
+      "name": "inventory · Products & stock",
+      "width": 1440,
+      "height": 1000,
+      "key": "inventory"
+    },
+    {
+      "id": "local:619",
+      "name": "payment · Take payment",
+      "width": 1440,
+      "height": 1000,
+      "key": "payment"
+    },
+    {
+      "id": "local:721",
+      "name": "payment-discounted · Take payment",
+      "width": 1440,
+      "height": 1000,
+      "key": "payment-discounted"
+    },
+    {
+      "id": "local:826",
+      "name": "discount · Approve a discount",
+      "width": 1440,
+      "height": 1000,
+      "key": "discount"
+    },
+    {
+      "id": "local:920",
+      "name": "receipt · Sale complete",
+      "width": 1440,
+      "height": 1000,
+      "key": "receipt"
+    },
+    {
+      "id": "local:1017",
+      "name": "receipt-discounted · Sale complete",
+      "width": 1440,
+      "height": 1000,
+      "key": "receipt-discounted"
+    },
+    {
+      "id": "local:1114",
+      "name": "transactions · Sales history",
+      "width": 1440,
+      "height": 1000,
+      "key": "transactions"
+    },
+    {
+      "id": "local:1224",
+      "name": "refund · Refund a sale",
+      "width": 1440,
+      "height": 1000,
+      "key": "refund"
+    },
+    {
+      "id": "local:1321",
+      "name": "product · Product details",
+      "width": 1440,
+      "height": 1000,
+      "key": "product"
+    },
+    {
+      "id": "local:1441",
+      "name": "receive · Receive stock",
+      "width": 1440,
+      "height": 1000,
+      "key": "receive"
+    },
+    {
+      "id": "local:1548",
+      "name": "stock-count · Count your stock",
+      "width": 1440,
+      "height": 1000,
+      "key": "stock-count"
+    },
+    {
+      "id": "local:1646",
+      "name": "import-upload · Import products from Excel",
+      "width": 1440,
+      "height": 1000,
+      "key": "import-upload"
+    },
+    {
+      "id": "local:1730",
+      "name": "import-issues · Check your product file",
+      "width": 1440,
+      "height": 1000,
+      "key": "import-issues"
+    },
+    {
+      "id": "local:1819",
+      "name": "import-review · Ready to import",
+      "width": 1440,
+      "height": 1000,
+      "key": "import-review"
+    },
+    {
+      "id": "local:1929",
+      "name": "import-success · Products imported",
+      "width": 1440,
+      "height": 1000,
+      "key": "import-success"
+    },
+    {
+      "id": "local:1996",
+      "name": "customers · Customers & balances",
+      "width": 1440,
+      "height": 1000,
+      "key": "customers"
+    },
+    {
+      "id": "local:2101",
+      "name": "customer-ledger · Adjoa Mensah",
+      "width": 1440,
+      "height": 1000,
+      "key": "customer-ledger"
+    },
+    {
+      "id": "local:2199",
+      "name": "repayment · Record a repayment",
+      "width": 1440,
+      "height": 1000,
+      "key": "repayment"
+    },
+    {
+      "id": "local:2288",
+      "name": "credit-sale · Sell on customer credit",
+      "width": 1440,
+      "height": 1000,
+      "key": "credit-sale"
+    },
+    {
+      "id": "local:2373",
+      "name": "reports · Reports",
+      "width": 1440,
+      "height": 1000,
+      "key": "reports"
+    },
+    {
+      "id": "local:2465",
+      "name": "report-detail · Gross profit report",
+      "width": 1440,
+      "height": 1000,
+      "key": "report-detail"
+    },
+    {
+      "id": "local:2569",
+      "name": "staff · Team & access",
+      "width": 1440,
+      "height": 1000,
+      "key": "staff"
+    },
+    {
+      "id": "local:2669",
+      "name": "settings · Settings",
+      "width": 1440,
+      "height": 1000,
+      "key": "settings"
+    },
+    {
+      "id": "local:2752",
+      "name": "help · Help & guides",
+      "width": 1440,
+      "height": 1000,
+      "key": "help"
+    },
+    {
+      "id": "local:2832",
+      "name": "onboarding · Set up your business",
+      "width": 1440,
+      "height": 1000,
+      "key": "onboarding"
+    },
+    {
+      "id": "local:2914",
+      "name": "shifts · Cashier shift",
+      "width": 1440,
+      "height": 1000,
+      "key": "shifts"
+    },
+    {
+      "id": "local:3000",
+      "name": "expenses · Record an expense",
+      "width": 1440,
+      "height": 1000,
+      "key": "expenses"
+    },
+    {
+      "id": "local:3088",
+      "name": "backup · Backup & sync",
+      "width": 1440,
+      "height": 1000,
+      "key": "backup"
+    },
+    {
+      "id": "local:3159",
+      "name": "audit · Audit history",
+      "width": 1440,
+      "height": 1000,
+      "key": "audit"
+    },
+    {
+      "id": "local:3246",
+      "name": "billing · Your Mansora subscription",
+      "width": 1440,
+      "height": 1000,
+      "key": "billing"
+    },
+    {
+      "id": "local:3336",
+      "name": "refund-success · Refund recorded",
+      "width": 1440,
+      "height": 1000,
+      "key": "refund-success"
+    },
+    {
+      "id": "local:3398",
+      "name": "stock-success · Stock update recorded",
+      "width": 1440,
+      "height": 1000,
+      "key": "stock-success"
+    },
+    {
+      "id": "local:3460",
+      "name": "repayment-success · Repayment recorded",
+      "width": 1440,
+      "height": 1000,
+      "key": "repayment-success"
+    },
+    {
+      "id": "local:3522",
+      "name": "credit-success · Credit sale complete",
+      "width": 1440,
+      "height": 1000,
+      "key": "credit-success"
+    },
+    {
+      "id": "local:3584",
+      "name": "shift-review · Closing count submitted",
+      "width": 1440,
+      "height": 1000,
+      "key": "shift-review"
+    },
+    {
+      "id": "local:3646",
+      "name": "expense-success · Expense submitted for approval",
+      "width": 1440,
+      "height": 1000,
+      "key": "expense-success"
+    },
+    {
+      "id": "local:3708",
+      "name": "export-ready · Export this report",
+      "width": 1440,
+      "height": 1000,
+      "key": "export-ready"
+    },
+    {
+      "id": "local:3770",
+      "name": "billing-invoice · Subscription invoice",
+      "width": 1440,
+      "height": 1000,
+      "key": "billing-invoice"
+    },
+    {
+      "id": "local:3832",
+      "name": "offline · Connection interrupted",
+      "width": 1440,
+      "height": 1000,
+      "key": "offline"
+    },
+    {
+      "id": "local:3894",
+      "name": "report-error · Report could not load",
+      "width": 1440,
+      "height": 1000,
+      "key": "report-error"
+    },
+    {
+      "id": "local:3956",
+      "name": "empty · Ready for your first sale",
+      "width": 1440,
+      "height": 1000,
+      "key": "empty"
+    },
+    {
+      "id": "local:4018",
+      "name": "cancel-sale · Clear this basket?",
+      "width": 1440,
+      "height": 1000,
+      "key": "cancel-sale"
+    },
+    {
+      "id": "local:4082",
+      "name": "customer-new · Add a customer",
+      "width": 1440,
+      "height": 1000,
+      "key": "customer-new"
+    },
+    {
+      "id": "local:4158",
+      "name": "customer-created · Customer created",
+      "width": 1440,
+      "height": 1000,
+      "key": "customer-created"
+    },
+    {
+      "id": "local:4220",
+      "name": "staff-new · Add a team member",
+      "width": 1440,
+      "height": 1000,
+      "key": "staff-new"
+    },
+    {
+      "id": "local:4304",
+      "name": "permission-review · Review custom access",
+      "width": 1440,
+      "height": 1000,
+      "key": "permission-review"
+    },
+    {
+      "id": "local:4382",
+      "name": "sales-report · Sales performance report",
+      "width": 1440,
+      "height": 1000,
+      "key": "sales-report"
+    },
+    {
+      "id": "local:4484",
+      "name": "login · Sign in",
+      "width": 1440,
+      "height": 1000,
+      "key": "login"
+    },
+    {
+      "id": "local:4517",
+      "name": "admin-home · Client operations",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-home"
+    },
+    {
+      "id": "local:4620",
+      "name": "admin-clients · Client workspace",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-clients"
+    },
+    {
+      "id": "local:4700",
+      "name": "admin-collections · Collections",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-collections"
+    },
+    {
+      "id": "local:4796",
+      "name": "admin-invoice · Invoice INV-2026-024",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-invoice"
+    },
+    {
+      "id": "local:4886",
+      "name": "admin-revenue · Revenue & collections",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-revenue"
+    },
+    {
+      "id": "local:4976",
+      "name": "admin-settings · Platform settings",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-settings"
+    },
+    {
+      "id": "local:5050",
+      "name": "admin-help · Platform help",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-help"
+    },
+    {
+      "id": "local:5118",
+      "name": "admin-new · Add a client business",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-new"
+    },
+    {
+      "id": "local:5202",
+      "name": "admin-activation · Activate the client workspace",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-activation"
+    },
+    {
+      "id": "local:5267",
+      "name": "admin-paid · Payment recorded",
+      "width": 1440,
+      "height": 1000,
+      "key": "admin-paid"
+    },
+    {
+      "id": "local:5330",
+      "name": "login-error · Let’s get you signed in",
+      "width": 1440,
+      "height": 1000,
+      "key": "login-error"
+    },
+    {
+      "id": "local:5403",
+      "name": "mobile-home · Overview",
+      "width": 430,
+      "height": 1000,
+      "key": "mobile-home"
+    },
+    {
+      "id": "local:5431",
+      "name": "mobile-inventory · Inventory",
+      "width": 430,
+      "height": 1000,
+      "key": "mobile-inventory"
+    },
+    {
+      "id": "local:5470",
+      "name": "mobile-product · Product",
+      "width": 430,
+      "height": 1000,
+      "key": "mobile-product"
+    }
+  ],
+  "routes": [
+    {
+      "id": "local:202",
+      "to": "home"
+    },
+    {
+      "id": "local:206",
+      "to": "sale"
+    },
+    {
+      "id": "local:210",
+      "to": "inventory"
+    },
+    {
+      "id": "local:214",
+      "to": "customers"
+    },
+    {
+      "id": "local:218",
+      "to": "reports"
+    },
+    {
+      "id": "local:224",
+      "to": "settings"
+    },
+    {
+      "id": "local:228",
+      "to": "help"
+    },
+    {
+      "id": "local:247",
+      "to": "sale"
+    },
+    {
+      "id": "local:286",
+      "to": "inventory"
+    },
+    {
+      "id": "local:290",
+      "to": "customers"
+    },
+    {
+      "id": "local:293",
+      "to": "transactions"
+    },
+    {
+      "id": "local:302",
+      "to": "receipt"
+    },
+    {
+      "id": "local:333",
+      "to": "home"
+    },
+    {
+      "id": "local:337",
+      "to": "sale"
+    },
+    {
+      "id": "local:341",
+      "to": "inventory"
+    },
+    {
+      "id": "local:345",
+      "to": "customers"
+    },
+    {
+      "id": "local:349",
+      "to": "reports"
+    },
+    {
+      "id": "local:355",
+      "to": "settings"
+    },
+    {
+      "id": "local:359",
+      "to": "help"
+    },
+    {
+      "id": "local:395",
+      "to": "sale"
+    },
+    {
+      "id": "local:404",
+      "to": "sale"
+    },
+    {
+      "id": "local:413",
+      "to": "sale"
+    },
+    {
+      "id": "local:423",
+      "to": "sale"
+    },
+    {
+      "id": "local:432",
+      "to": "sale"
+    },
+    {
+      "id": "local:441",
+      "to": "sale"
+    },
+    {
+      "id": "local:455",
+      "to": "customers"
+    },
+    {
+      "id": "local:475",
+      "to": "discount"
+    },
+    {
+      "id": "local:479",
+      "to": "payment"
+    },
+    {
+      "id": "local:482",
+      "to": "cancel-sale"
+    },
+    {
+      "id": "local:495",
+      "to": "home"
+    },
+    {
+      "id": "local:499",
+      "to": "sale"
+    },
+    {
+      "id": "local:503",
+      "to": "inventory"
+    },
+    {
+      "id": "local:507",
+      "to": "customers"
+    },
+    {
+      "id": "local:511",
+      "to": "reports"
+    },
+    {
+      "id": "local:517",
+      "to": "settings"
+    },
+    {
+      "id": "local:521",
+      "to": "help"
+    },
+    {
+      "id": "local:540",
+      "to": "product"
+    },
+    {
+      "id": "local:543",
+      "to": "inventory"
+    },
+    {
+      "id": "local:545",
+      "to": "receive"
+    },
+    {
+      "id": "local:547",
+      "to": "stock-count"
+    },
+    {
+      "id": "local:549",
+      "to": "receive"
+    },
+    {
+      "id": "local:559",
+      "to": "import-upload"
+    },
+    {
+      "id": "local:574",
+      "to": "product"
+    },
+    {
+      "id": "local:583",
+      "to": "product"
+    },
+    {
+      "id": "local:592",
+      "to": "product"
+    },
+    {
+      "id": "local:601",
+      "to": "receive"
+    },
+    {
+      "id": "local:630",
+      "to": "home"
+    },
+    {
+      "id": "local:634",
+      "to": "sale"
+    },
+    {
+      "id": "local:638",
+      "to": "inventory"
+    },
+    {
+      "id": "local:642",
+      "to": "customers"
+    },
+    {
+      "id": "local:646",
+      "to": "reports"
+    },
+    {
+      "id": "local:652",
+      "to": "settings"
+    },
+    {
+      "id": "local:656",
+      "to": "help"
+    },
+    {
+      "id": "local:692",
+      "to": "credit-sale"
+    },
+    {
+      "id": "local:704",
+      "to": "receipt"
+    },
+    {
+      "id": "local:706",
+      "to": "sale"
+    },
+    {
+      "id": "local:732",
+      "to": "home"
+    },
+    {
+      "id": "local:736",
+      "to": "sale"
+    },
+    {
+      "id": "local:740",
+      "to": "inventory"
+    },
+    {
+      "id": "local:744",
+      "to": "customers"
+    },
+    {
+      "id": "local:748",
+      "to": "reports"
+    },
+    {
+      "id": "local:754",
+      "to": "settings"
+    },
+    {
+      "id": "local:758",
+      "to": "help"
+    },
+    {
+      "id": "local:794",
+      "to": "credit-sale"
+    },
+    {
+      "id": "local:806",
+      "to": "receipt-discounted"
+    },
+    {
+      "id": "local:808",
+      "to": "sale"
+    },
+    {
+      "id": "local:837",
+      "to": "home"
+    },
+    {
+      "id": "local:841",
+      "to": "sale"
+    },
+    {
+      "id": "local:845",
+      "to": "inventory"
+    },
+    {
+      "id": "local:849",
+      "to": "customers"
+    },
+    {
+      "id": "local:853",
+      "to": "reports"
+    },
+    {
+      "id": "local:859",
+      "to": "settings"
+    },
+    {
+      "id": "local:863",
+      "to": "help"
+    },
+    {
+      "id": "local:909",
+      "to": "payment-discounted"
+    },
+    {
+      "id": "local:911",
+      "to": "sale"
+    },
+    {
+      "id": "local:931",
+      "to": "home"
+    },
+    {
+      "id": "local:935",
+      "to": "sale"
+    },
+    {
+      "id": "local:939",
+      "to": "inventory"
+    },
+    {
+      "id": "local:943",
+      "to": "customers"
+    },
+    {
+      "id": "local:947",
+      "to": "reports"
+    },
+    {
+      "id": "local:953",
+      "to": "settings"
+    },
+    {
+      "id": "local:957",
+      "to": "help"
+    },
+    {
+      "id": "local:993",
+      "to": "sale"
+    },
+    {
+      "id": "local:996",
+      "to": "receipt"
+    },
+    {
+      "id": "local:998",
+      "to": "transactions"
+    },
+    {
+      "id": "local:1028",
+      "to": "home"
+    },
+    {
+      "id": "local:1032",
+      "to": "sale"
+    },
+    {
+      "id": "local:1036",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1040",
+      "to": "customers"
+    },
+    {
+      "id": "local:1044",
+      "to": "reports"
+    },
+    {
+      "id": "local:1050",
+      "to": "settings"
+    },
+    {
+      "id": "local:1054",
+      "to": "help"
+    },
+    {
+      "id": "local:1090",
+      "to": "sale"
+    },
+    {
+      "id": "local:1093",
+      "to": "receipt"
+    },
+    {
+      "id": "local:1095",
+      "to": "transactions"
+    },
+    {
+      "id": "local:1125",
+      "to": "home"
+    },
+    {
+      "id": "local:1129",
+      "to": "sale"
+    },
+    {
+      "id": "local:1133",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1137",
+      "to": "customers"
+    },
+    {
+      "id": "local:1141",
+      "to": "reports"
+    },
+    {
+      "id": "local:1147",
+      "to": "settings"
+    },
+    {
+      "id": "local:1151",
+      "to": "help"
+    },
+    {
+      "id": "local:1189",
+      "to": "refund"
+    },
+    {
+      "id": "local:1196",
+      "to": "receipt"
+    },
+    {
+      "id": "local:1220",
+      "to": "receipt"
+    },
+    {
+      "id": "local:1222",
+      "to": "refund"
+    },
+    {
+      "id": "local:1235",
+      "to": "home"
+    },
+    {
+      "id": "local:1239",
+      "to": "sale"
+    },
+    {
+      "id": "local:1243",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1247",
+      "to": "customers"
+    },
+    {
+      "id": "local:1251",
+      "to": "reports"
+    },
+    {
+      "id": "local:1257",
+      "to": "settings"
+    },
+    {
+      "id": "local:1261",
+      "to": "help"
+    },
+    {
+      "id": "local:1310",
+      "to": "refund-success"
+    },
+    {
+      "id": "local:1312",
+      "to": "transactions"
+    },
+    {
+      "id": "local:1332",
+      "to": "home"
+    },
+    {
+      "id": "local:1336",
+      "to": "sale"
+    },
+    {
+      "id": "local:1340",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1344",
+      "to": "customers"
+    },
+    {
+      "id": "local:1348",
+      "to": "reports"
+    },
+    {
+      "id": "local:1354",
+      "to": "settings"
+    },
+    {
+      "id": "local:1358",
+      "to": "help"
+    },
+    {
+      "id": "local:1412",
+      "to": "product"
+    },
+    {
+      "id": "local:1426",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1428",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1437",
+      "to": "receive"
+    },
+    {
+      "id": "local:1438",
+      "to": "stock-count"
+    },
+    {
+      "id": "local:1452",
+      "to": "home"
+    },
+    {
+      "id": "local:1456",
+      "to": "sale"
+    },
+    {
+      "id": "local:1460",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1464",
+      "to": "customers"
+    },
+    {
+      "id": "local:1468",
+      "to": "reports"
+    },
+    {
+      "id": "local:1474",
+      "to": "settings"
+    },
+    {
+      "id": "local:1478",
+      "to": "help"
+    },
+    {
+      "id": "local:1537",
+      "to": "stock-success"
+    },
+    {
+      "id": "local:1539",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1559",
+      "to": "home"
+    },
+    {
+      "id": "local:1563",
+      "to": "sale"
+    },
+    {
+      "id": "local:1567",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1571",
+      "to": "customers"
+    },
+    {
+      "id": "local:1575",
+      "to": "reports"
+    },
+    {
+      "id": "local:1581",
+      "to": "settings"
+    },
+    {
+      "id": "local:1585",
+      "to": "help"
+    },
+    {
+      "id": "local:1642",
+      "to": "stock-success"
+    },
+    {
+      "id": "local:1644",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1657",
+      "to": "home"
+    },
+    {
+      "id": "local:1661",
+      "to": "sale"
+    },
+    {
+      "id": "local:1665",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1669",
+      "to": "customers"
+    },
+    {
+      "id": "local:1673",
+      "to": "reports"
+    },
+    {
+      "id": "local:1679",
+      "to": "settings"
+    },
+    {
+      "id": "local:1683",
+      "to": "help"
+    },
+    {
+      "id": "local:1716",
+      "to": "import-issues"
+    },
+    {
+      "id": "local:1721",
+      "to": "import-upload"
+    },
+    {
+      "id": "local:1741",
+      "to": "home"
+    },
+    {
+      "id": "local:1745",
+      "to": "sale"
+    },
+    {
+      "id": "local:1749",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1753",
+      "to": "customers"
+    },
+    {
+      "id": "local:1757",
+      "to": "reports"
+    },
+    {
+      "id": "local:1763",
+      "to": "settings"
+    },
+    {
+      "id": "local:1767",
+      "to": "help"
+    },
+    {
+      "id": "local:1815",
+      "to": "import-review"
+    },
+    {
+      "id": "local:1817",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1830",
+      "to": "home"
+    },
+    {
+      "id": "local:1834",
+      "to": "sale"
+    },
+    {
+      "id": "local:1838",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1842",
+      "to": "customers"
+    },
+    {
+      "id": "local:1846",
+      "to": "reports"
+    },
+    {
+      "id": "local:1852",
+      "to": "settings"
+    },
+    {
+      "id": "local:1856",
+      "to": "help"
+    },
+    {
+      "id": "local:1925",
+      "to": "import-success"
+    },
+    {
+      "id": "local:1927",
+      "to": "import-upload"
+    },
+    {
+      "id": "local:1940",
+      "to": "home"
+    },
+    {
+      "id": "local:1944",
+      "to": "sale"
+    },
+    {
+      "id": "local:1948",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1952",
+      "to": "customers"
+    },
+    {
+      "id": "local:1956",
+      "to": "reports"
+    },
+    {
+      "id": "local:1962",
+      "to": "settings"
+    },
+    {
+      "id": "local:1966",
+      "to": "help"
+    },
+    {
+      "id": "local:1992",
+      "to": "inventory"
+    },
+    {
+      "id": "local:1994",
+      "to": "sale"
+    },
+    {
+      "id": "local:2007",
+      "to": "home"
+    },
+    {
+      "id": "local:2011",
+      "to": "sale"
+    },
+    {
+      "id": "local:2015",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2019",
+      "to": "customers"
+    },
+    {
+      "id": "local:2023",
+      "to": "reports"
+    },
+    {
+      "id": "local:2029",
+      "to": "settings"
+    },
+    {
+      "id": "local:2033",
+      "to": "help"
+    },
+    {
+      "id": "local:2052",
+      "to": "customer-new"
+    },
+    {
+      "id": "local:2080",
+      "to": "customer-ledger"
+    },
+    {
+      "id": "local:2087",
+      "to": "customer-ledger"
+    },
+    {
+      "id": "local:2112",
+      "to": "home"
+    },
+    {
+      "id": "local:2116",
+      "to": "sale"
+    },
+    {
+      "id": "local:2120",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2124",
+      "to": "customers"
+    },
+    {
+      "id": "local:2128",
+      "to": "reports"
+    },
+    {
+      "id": "local:2134",
+      "to": "settings"
+    },
+    {
+      "id": "local:2138",
+      "to": "help"
+    },
+    {
+      "id": "local:2157",
+      "to": "repayment"
+    },
+    {
+      "id": "local:2174",
+      "to": "credit-sale"
+    },
+    {
+      "id": "local:2210",
+      "to": "home"
+    },
+    {
+      "id": "local:2214",
+      "to": "sale"
+    },
+    {
+      "id": "local:2218",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2222",
+      "to": "customers"
+    },
+    {
+      "id": "local:2226",
+      "to": "reports"
+    },
+    {
+      "id": "local:2232",
+      "to": "settings"
+    },
+    {
+      "id": "local:2236",
+      "to": "help"
+    },
+    {
+      "id": "local:2277",
+      "to": "repayment-success"
+    },
+    {
+      "id": "local:2279",
+      "to": "customer-ledger"
+    },
+    {
+      "id": "local:2299",
+      "to": "home"
+    },
+    {
+      "id": "local:2303",
+      "to": "sale"
+    },
+    {
+      "id": "local:2307",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2311",
+      "to": "customers"
+    },
+    {
+      "id": "local:2315",
+      "to": "reports"
+    },
+    {
+      "id": "local:2321",
+      "to": "settings"
+    },
+    {
+      "id": "local:2325",
+      "to": "help"
+    },
+    {
+      "id": "local:2364",
+      "to": "credit-success"
+    },
+    {
+      "id": "local:2366",
+      "to": "payment"
+    },
+    {
+      "id": "local:2384",
+      "to": "home"
+    },
+    {
+      "id": "local:2388",
+      "to": "sale"
+    },
+    {
+      "id": "local:2392",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2396",
+      "to": "customers"
+    },
+    {
+      "id": "local:2400",
+      "to": "reports"
+    },
+    {
+      "id": "local:2406",
+      "to": "settings"
+    },
+    {
+      "id": "local:2410",
+      "to": "help"
+    },
+    {
+      "id": "local:2435",
+      "to": "report-detail"
+    },
+    {
+      "id": "local:2441",
+      "to": "sales-report"
+    },
+    {
+      "id": "local:2445",
+      "to": "report-detail"
+    },
+    {
+      "id": "local:2450",
+      "to": "customers"
+    },
+    {
+      "id": "local:2454",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2459",
+      "to": "expenses"
+    },
+    {
+      "id": "local:2463",
+      "to": "shifts"
+    },
+    {
+      "id": "local:2476",
+      "to": "home"
+    },
+    {
+      "id": "local:2480",
+      "to": "sale"
+    },
+    {
+      "id": "local:2484",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2488",
+      "to": "customers"
+    },
+    {
+      "id": "local:2492",
+      "to": "reports"
+    },
+    {
+      "id": "local:2498",
+      "to": "settings"
+    },
+    {
+      "id": "local:2502",
+      "to": "help"
+    },
+    {
+      "id": "local:2521",
+      "to": "export-ready"
+    },
+    {
+      "id": "local:2568",
+      "to": "reports"
+    },
+    {
+      "id": "local:2580",
+      "to": "home"
+    },
+    {
+      "id": "local:2584",
+      "to": "sale"
+    },
+    {
+      "id": "local:2588",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2592",
+      "to": "customers"
+    },
+    {
+      "id": "local:2596",
+      "to": "reports"
+    },
+    {
+      "id": "local:2602",
+      "to": "settings"
+    },
+    {
+      "id": "local:2606",
+      "to": "help"
+    },
+    {
+      "id": "local:2625",
+      "to": "staff-new"
+    },
+    {
+      "id": "local:2667",
+      "to": "permission-review"
+    },
+    {
+      "id": "local:2680",
+      "to": "home"
+    },
+    {
+      "id": "local:2684",
+      "to": "sale"
+    },
+    {
+      "id": "local:2688",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2692",
+      "to": "customers"
+    },
+    {
+      "id": "local:2696",
+      "to": "reports"
+    },
+    {
+      "id": "local:2702",
+      "to": "settings"
+    },
+    {
+      "id": "local:2706",
+      "to": "help"
+    },
+    {
+      "id": "local:2729",
+      "to": "onboarding"
+    },
+    {
+      "id": "local:2733",
+      "to": "staff"
+    },
+    {
+      "id": "local:2738",
+      "to": "discount"
+    },
+    {
+      "id": "local:2742",
+      "to": "billing"
+    },
+    {
+      "id": "local:2747",
+      "to": "backup"
+    },
+    {
+      "id": "local:2751",
+      "to": "audit"
+    },
+    {
+      "id": "local:2763",
+      "to": "home"
+    },
+    {
+      "id": "local:2767",
+      "to": "sale"
+    },
+    {
+      "id": "local:2771",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2775",
+      "to": "customers"
+    },
+    {
+      "id": "local:2779",
+      "to": "reports"
+    },
+    {
+      "id": "local:2785",
+      "to": "settings"
+    },
+    {
+      "id": "local:2789",
+      "to": "help"
+    },
+    {
+      "id": "local:2816",
+      "to": "sale"
+    },
+    {
+      "id": "local:2817",
+      "to": "import-upload"
+    },
+    {
+      "id": "local:2818",
+      "to": "product"
+    },
+    {
+      "id": "local:2819",
+      "to": "discount"
+    },
+    {
+      "id": "local:2820",
+      "to": "report-detail"
+    },
+    {
+      "id": "local:2830",
+      "to": "import-upload"
+    },
+    {
+      "id": "local:2843",
+      "to": "home"
+    },
+    {
+      "id": "local:2847",
+      "to": "sale"
+    },
+    {
+      "id": "local:2851",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2855",
+      "to": "customers"
+    },
+    {
+      "id": "local:2859",
+      "to": "reports"
+    },
+    {
+      "id": "local:2865",
+      "to": "settings"
+    },
+    {
+      "id": "local:2869",
+      "to": "help"
+    },
+    {
+      "id": "local:2906",
+      "to": "import-upload"
+    },
+    {
+      "id": "local:2908",
+      "to": "product"
+    },
+    {
+      "id": "local:2910",
+      "to": "home"
+    },
+    {
+      "id": "local:2925",
+      "to": "home"
+    },
+    {
+      "id": "local:2929",
+      "to": "sale"
+    },
+    {
+      "id": "local:2933",
+      "to": "inventory"
+    },
+    {
+      "id": "local:2937",
+      "to": "customers"
+    },
+    {
+      "id": "local:2941",
+      "to": "reports"
+    },
+    {
+      "id": "local:2947",
+      "to": "settings"
+    },
+    {
+      "id": "local:2951",
+      "to": "help"
+    },
+    {
+      "id": "local:2998",
+      "to": "shift-review"
+    },
+    {
+      "id": "local:3011",
+      "to": "home"
+    },
+    {
+      "id": "local:3015",
+      "to": "sale"
+    },
+    {
+      "id": "local:3019",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3023",
+      "to": "customers"
+    },
+    {
+      "id": "local:3027",
+      "to": "reports"
+    },
+    {
+      "id": "local:3033",
+      "to": "settings"
+    },
+    {
+      "id": "local:3037",
+      "to": "help"
+    },
+    {
+      "id": "local:3078",
+      "to": "expense-success"
+    },
+    {
+      "id": "local:3080",
+      "to": "reports"
+    },
+    {
+      "id": "local:3099",
+      "to": "home"
+    },
+    {
+      "id": "local:3103",
+      "to": "sale"
+    },
+    {
+      "id": "local:3107",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3111",
+      "to": "customers"
+    },
+    {
+      "id": "local:3115",
+      "to": "reports"
+    },
+    {
+      "id": "local:3121",
+      "to": "settings"
+    },
+    {
+      "id": "local:3125",
+      "to": "help"
+    },
+    {
+      "id": "local:3149",
+      "to": "help"
+    },
+    {
+      "id": "local:3157",
+      "to": "offline"
+    },
+    {
+      "id": "local:3170",
+      "to": "home"
+    },
+    {
+      "id": "local:3174",
+      "to": "sale"
+    },
+    {
+      "id": "local:3178",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3182",
+      "to": "customers"
+    },
+    {
+      "id": "local:3186",
+      "to": "reports"
+    },
+    {
+      "id": "local:3192",
+      "to": "settings"
+    },
+    {
+      "id": "local:3196",
+      "to": "help"
+    },
+    {
+      "id": "local:3257",
+      "to": "home"
+    },
+    {
+      "id": "local:3261",
+      "to": "sale"
+    },
+    {
+      "id": "local:3265",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3269",
+      "to": "customers"
+    },
+    {
+      "id": "local:3273",
+      "to": "reports"
+    },
+    {
+      "id": "local:3279",
+      "to": "settings"
+    },
+    {
+      "id": "local:3283",
+      "to": "help"
+    },
+    {
+      "id": "local:3313",
+      "to": "billing-invoice"
+    },
+    {
+      "id": "local:3323",
+      "to": "billing-invoice"
+    },
+    {
+      "id": "local:3347",
+      "to": "home"
+    },
+    {
+      "id": "local:3351",
+      "to": "sale"
+    },
+    {
+      "id": "local:3355",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3359",
+      "to": "customers"
+    },
+    {
+      "id": "local:3363",
+      "to": "reports"
+    },
+    {
+      "id": "local:3369",
+      "to": "settings"
+    },
+    {
+      "id": "local:3373",
+      "to": "help"
+    },
+    {
+      "id": "local:3396",
+      "to": "transactions"
+    },
+    {
+      "id": "local:3409",
+      "to": "home"
+    },
+    {
+      "id": "local:3413",
+      "to": "sale"
+    },
+    {
+      "id": "local:3417",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3421",
+      "to": "customers"
+    },
+    {
+      "id": "local:3425",
+      "to": "reports"
+    },
+    {
+      "id": "local:3431",
+      "to": "settings"
+    },
+    {
+      "id": "local:3435",
+      "to": "help"
+    },
+    {
+      "id": "local:3458",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3471",
+      "to": "home"
+    },
+    {
+      "id": "local:3475",
+      "to": "sale"
+    },
+    {
+      "id": "local:3479",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3483",
+      "to": "customers"
+    },
+    {
+      "id": "local:3487",
+      "to": "reports"
+    },
+    {
+      "id": "local:3493",
+      "to": "settings"
+    },
+    {
+      "id": "local:3497",
+      "to": "help"
+    },
+    {
+      "id": "local:3520",
+      "to": "customer-ledger"
+    },
+    {
+      "id": "local:3533",
+      "to": "home"
+    },
+    {
+      "id": "local:3537",
+      "to": "sale"
+    },
+    {
+      "id": "local:3541",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3545",
+      "to": "customers"
+    },
+    {
+      "id": "local:3549",
+      "to": "reports"
+    },
+    {
+      "id": "local:3555",
+      "to": "settings"
+    },
+    {
+      "id": "local:3559",
+      "to": "help"
+    },
+    {
+      "id": "local:3582",
+      "to": "sale"
+    },
+    {
+      "id": "local:3595",
+      "to": "home"
+    },
+    {
+      "id": "local:3599",
+      "to": "sale"
+    },
+    {
+      "id": "local:3603",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3607",
+      "to": "customers"
+    },
+    {
+      "id": "local:3611",
+      "to": "reports"
+    },
+    {
+      "id": "local:3617",
+      "to": "settings"
+    },
+    {
+      "id": "local:3621",
+      "to": "help"
+    },
+    {
+      "id": "local:3644",
+      "to": "shifts"
+    },
+    {
+      "id": "local:3657",
+      "to": "home"
+    },
+    {
+      "id": "local:3661",
+      "to": "sale"
+    },
+    {
+      "id": "local:3665",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3669",
+      "to": "customers"
+    },
+    {
+      "id": "local:3673",
+      "to": "reports"
+    },
+    {
+      "id": "local:3679",
+      "to": "settings"
+    },
+    {
+      "id": "local:3683",
+      "to": "help"
+    },
+    {
+      "id": "local:3706",
+      "to": "expenses"
+    },
+    {
+      "id": "local:3719",
+      "to": "home"
+    },
+    {
+      "id": "local:3723",
+      "to": "sale"
+    },
+    {
+      "id": "local:3727",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3731",
+      "to": "customers"
+    },
+    {
+      "id": "local:3735",
+      "to": "reports"
+    },
+    {
+      "id": "local:3741",
+      "to": "settings"
+    },
+    {
+      "id": "local:3745",
+      "to": "help"
+    },
+    {
+      "id": "local:3768",
+      "to": "report-detail"
+    },
+    {
+      "id": "local:3781",
+      "to": "home"
+    },
+    {
+      "id": "local:3785",
+      "to": "sale"
+    },
+    {
+      "id": "local:3789",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3793",
+      "to": "customers"
+    },
+    {
+      "id": "local:3797",
+      "to": "reports"
+    },
+    {
+      "id": "local:3803",
+      "to": "settings"
+    },
+    {
+      "id": "local:3807",
+      "to": "help"
+    },
+    {
+      "id": "local:3830",
+      "to": "billing"
+    },
+    {
+      "id": "local:3843",
+      "to": "home"
+    },
+    {
+      "id": "local:3847",
+      "to": "sale"
+    },
+    {
+      "id": "local:3851",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3855",
+      "to": "customers"
+    },
+    {
+      "id": "local:3859",
+      "to": "reports"
+    },
+    {
+      "id": "local:3865",
+      "to": "settings"
+    },
+    {
+      "id": "local:3869",
+      "to": "help"
+    },
+    {
+      "id": "local:3892",
+      "to": "backup"
+    },
+    {
+      "id": "local:3905",
+      "to": "home"
+    },
+    {
+      "id": "local:3909",
+      "to": "sale"
+    },
+    {
+      "id": "local:3913",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3917",
+      "to": "customers"
+    },
+    {
+      "id": "local:3921",
+      "to": "reports"
+    },
+    {
+      "id": "local:3927",
+      "to": "settings"
+    },
+    {
+      "id": "local:3931",
+      "to": "help"
+    },
+    {
+      "id": "local:3954",
+      "to": "report-detail"
+    },
+    {
+      "id": "local:3967",
+      "to": "home"
+    },
+    {
+      "id": "local:3971",
+      "to": "sale"
+    },
+    {
+      "id": "local:3975",
+      "to": "inventory"
+    },
+    {
+      "id": "local:3979",
+      "to": "customers"
+    },
+    {
+      "id": "local:3983",
+      "to": "reports"
+    },
+    {
+      "id": "local:3989",
+      "to": "settings"
+    },
+    {
+      "id": "local:3993",
+      "to": "help"
+    },
+    {
+      "id": "local:4016",
+      "to": "onboarding"
+    },
+    {
+      "id": "local:4029",
+      "to": "home"
+    },
+    {
+      "id": "local:4033",
+      "to": "sale"
+    },
+    {
+      "id": "local:4037",
+      "to": "inventory"
+    },
+    {
+      "id": "local:4041",
+      "to": "customers"
+    },
+    {
+      "id": "local:4045",
+      "to": "reports"
+    },
+    {
+      "id": "local:4051",
+      "to": "settings"
+    },
+    {
+      "id": "local:4055",
+      "to": "help"
+    },
+    {
+      "id": "local:4078",
+      "to": "sale"
+    },
+    {
+      "id": "local:4080",
+      "to": "sale"
+    },
+    {
+      "id": "local:4093",
+      "to": "home"
+    },
+    {
+      "id": "local:4097",
+      "to": "sale"
+    },
+    {
+      "id": "local:4101",
+      "to": "inventory"
+    },
+    {
+      "id": "local:4105",
+      "to": "customers"
+    },
+    {
+      "id": "local:4109",
+      "to": "reports"
+    },
+    {
+      "id": "local:4115",
+      "to": "settings"
+    },
+    {
+      "id": "local:4119",
+      "to": "help"
+    },
+    {
+      "id": "local:4154",
+      "to": "customer-created"
+    },
+    {
+      "id": "local:4156",
+      "to": "customers"
+    },
+    {
+      "id": "local:4169",
+      "to": "home"
+    },
+    {
+      "id": "local:4173",
+      "to": "sale"
+    },
+    {
+      "id": "local:4177",
+      "to": "inventory"
+    },
+    {
+      "id": "local:4181",
+      "to": "customers"
+    },
+    {
+      "id": "local:4185",
+      "to": "reports"
+    },
+    {
+      "id": "local:4191",
+      "to": "settings"
+    },
+    {
+      "id": "local:4195",
+      "to": "help"
+    },
+    {
+      "id": "local:4218",
+      "to": "customers"
+    },
+    {
+      "id": "local:4231",
+      "to": "home"
+    },
+    {
+      "id": "local:4235",
+      "to": "sale"
+    },
+    {
+      "id": "local:4239",
+      "to": "inventory"
+    },
+    {
+      "id": "local:4243",
+      "to": "customers"
+    },
+    {
+      "id": "local:4247",
+      "to": "reports"
+    },
+    {
+      "id": "local:4253",
+      "to": "settings"
+    },
+    {
+      "id": "local:4257",
+      "to": "help"
+    },
+    {
+      "id": "local:4300",
+      "to": "staff"
+    },
+    {
+      "id": "local:4302",
+      "to": "staff"
+    },
+    {
+      "id": "local:4315",
+      "to": "home"
+    },
+    {
+      "id": "local:4319",
+      "to": "sale"
+    },
+    {
+      "id": "local:4323",
+      "to": "inventory"
+    },
+    {
+      "id": "local:4327",
+      "to": "customers"
+    },
+    {
+      "id": "local:4331",
+      "to": "reports"
+    },
+    {
+      "id": "local:4337",
+      "to": "settings"
+    },
+    {
+      "id": "local:4341",
+      "to": "help"
+    },
+    {
+      "id": "local:4378",
+      "to": "staff"
+    },
+    {
+      "id": "local:4380",
+      "to": "staff"
+    },
+    {
+      "id": "local:4393",
+      "to": "home"
+    },
+    {
+      "id": "local:4397",
+      "to": "sale"
+    },
+    {
+      "id": "local:4401",
+      "to": "inventory"
+    },
+    {
+      "id": "local:4405",
+      "to": "customers"
+    },
+    {
+      "id": "local:4409",
+      "to": "reports"
+    },
+    {
+      "id": "local:4415",
+      "to": "settings"
+    },
+    {
+      "id": "local:4419",
+      "to": "help"
+    },
+    {
+      "id": "local:4438",
+      "to": "export-ready"
+    },
+    {
+      "id": "local:4510",
+      "to": "home"
+    },
+    {
+      "id": "local:4512",
+      "to": "login-error"
+    },
+    {
+      "id": "local:4515",
+      "to": "onboarding"
+    },
+    {
+      "id": "local:4528",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:4532",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:4536",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4540",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:4544",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:4550",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:4554",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:4573",
+      "to": "admin-new"
+    },
+    {
+      "id": "local:4597",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:4604",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:4611",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:4631",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:4635",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:4639",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4643",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:4647",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:4653",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:4657",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:4685",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:4711",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:4715",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:4719",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4723",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:4727",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:4733",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:4737",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:4757",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4759",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4761",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4763",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4773",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:4780",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:4787",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:4807",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:4811",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:4815",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4819",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:4823",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:4829",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:4833",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:4882",
+      "to": "admin-paid"
+    },
+    {
+      "id": "local:4884",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4897",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:4901",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:4905",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4909",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:4913",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:4919",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:4923",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:4987",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:4991",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:4995",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:4999",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:5003",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:5009",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:5013",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:5036",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:5040",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:5061",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:5065",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:5069",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:5073",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:5077",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:5083",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:5087",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:5116",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:5129",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:5133",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:5137",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:5141",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:5145",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:5151",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:5155",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:5198",
+      "to": "admin-activation"
+    },
+    {
+      "id": "local:5200",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:5213",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:5217",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:5221",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:5225",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:5229",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:5235",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:5239",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:5265",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:5278",
+      "to": "admin-home"
+    },
+    {
+      "id": "local:5282",
+      "to": "admin-clients"
+    },
+    {
+      "id": "local:5286",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:5290",
+      "to": "admin-invoice"
+    },
+    {
+      "id": "local:5294",
+      "to": "admin-revenue"
+    },
+    {
+      "id": "local:5300",
+      "to": "admin-settings"
+    },
+    {
+      "id": "local:5304",
+      "to": "admin-help"
+    },
+    {
+      "id": "local:5328",
+      "to": "admin-collections"
+    },
+    {
+      "id": "local:5341",
+      "to": "home"
+    },
+    {
+      "id": "local:5345",
+      "to": "sale"
+    },
+    {
+      "id": "local:5349",
+      "to": "inventory"
+    },
+    {
+      "id": "local:5353",
+      "to": "customers"
+    },
+    {
+      "id": "local:5357",
+      "to": "reports"
+    },
+    {
+      "id": "local:5363",
+      "to": "settings"
+    },
+    {
+      "id": "local:5367",
+      "to": "help"
+    },
+    {
+      "id": "local:5400",
+      "to": "home"
+    },
+    {
+      "id": "local:5402",
+      "to": "login"
+    },
+    {
+      "id": "local:5409",
+      "to": "mobile-home"
+    },
+    {
+      "id": "local:5410",
+      "to": "sale"
+    },
+    {
+      "id": "local:5411",
+      "to": "mobile-inventory"
+    },
+    {
+      "id": "local:5412",
+      "to": "help"
+    },
+    {
+      "id": "local:5419",
+      "to": "sale"
+    },
+    {
+      "id": "local:5426",
+      "to": "mobile-inventory"
+    },
+    {
+      "id": "local:5430",
+      "to": "customers"
+    },
+    {
+      "id": "local:5437",
+      "to": "mobile-home"
+    },
+    {
+      "id": "local:5438",
+      "to": "sale"
+    },
+    {
+      "id": "local:5439",
+      "to": "mobile-inventory"
+    },
+    {
+      "id": "local:5440",
+      "to": "help"
+    },
+    {
+      "id": "local:5447",
+      "to": "mobile-product"
+    },
+    {
+      "id": "local:5455",
+      "to": "mobile-product"
+    },
+    {
+      "id": "local:5462",
+      "to": "mobile-product"
+    },
+    {
+      "id": "local:5469",
+      "to": "mobile-product"
+    },
+    {
+      "id": "local:5476",
+      "to": "mobile-home"
+    },
+    {
+      "id": "local:5477",
+      "to": "sale"
+    },
+    {
+      "id": "local:5478",
+      "to": "mobile-inventory"
+    },
+    {
+      "id": "local:5479",
+      "to": "help"
+    },
+    {
+      "id": "local:5501",
+      "to": "mobile-inventory"
+    },
+    {
+      "id": "local:5503",
+      "to": "mobile-inventory"
+    }
+  ],
+  "missing": []
+}

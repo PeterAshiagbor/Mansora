@@ -1,0 +1,16 @@
+await Promise.all(['Regular','Medium','SemiBold','Bold'].map(style=>figma.loadFontAsync({family:'DM Sans',style})));
+const made=[];
+const pages={start:figma.currentPage};pages.start.name='00 · Start here';
+for(const [key,name] of Object.entries({client:'01 · Client journeys',platform:'02 · Platform & responsive'})){let p=figma.root.children.find(p=>p.name===name);if(!p){p=figma.createPage();p.name=name;made.push(p.id);}pages[key]=p;}
+// Scope: foundations required by the composed workflow screens, not a general UI kit.
+async function createVariableCollection(name,modeNames){const collection=figma.variables.createVariableCollection(name),modeIds={};collection.renameMode(collection.modes[0].modeId,modeNames[0]);modeIds[modeNames[0]]=collection.modes[0].modeId;return {collection,modeIds};}
+const {collection:primitives}=await createVariableCollection('Mansora · Primitives',['Value']);
+const {collection:semantics}=await createVariableCollection('Mansora · Semantic',['Light']);
+const hex=s=>({r:parseInt(s.slice(1,3),16)/255,g:parseInt(s.slice(3,5),16)/255,b:parseInt(s.slice(5,7),16)/255});
+const colors={canvas:'#F7F7F5',surface:'#FFFFFF',ink:'#251E2D',muted:'#6C6674',line:'#E6E3E9',brand:'#5C2D85',brandSoft:'#F0E9F6',rail:'#251C32',railHover:'#3B2B4D',onRail:'#D6CEDF',onBrand:'#FFFFFF',gold:'#D9BB78',success:'#18745E',successSoft:'#EDF6F1',warning:'#94651C',warningSoft:'#FBF4E6',danger:'#B23D50',dangerSoft:'#FCEEF0',disabled:'#ECE9EF',chartSoft:'#E7DDF0'};
+const variables={};
+for(const [name,value] of Object.entries(colors)){const p=figma.variables.createVariable('palette/'+name,primitives,'COLOR');p.scopes=[];p.setValueForMode(primitives.defaultModeId,hex(value));p.setVariableCodeSyntax('WEB','var(--mansora-palette-'+name+')');const v=figma.variables.createVariable('color/'+name,semantics,'COLOR');v.scopes=['FRAME_FILL','SHAPE_FILL','TEXT_FILL','STROKE_COLOR','EFFECT_COLOR'];v.setValueForMode(semantics.defaultModeId,{type:'VARIABLE_ALIAS',id:p.id});v.setVariableCodeSyntax('WEB','var(--mansora-'+name+')');variables[name]=v.id;}
+const libraryTokens={gap8:'15bb1c0f339146e931cf0dc15f89ed57dcbd907e',gap16:'16bc6f84b6e7e20e4234ef79030ee580ec0f4505',gap24:'be3115966ea99eef888c9f25751b54695c7e88d2',gap32:'9acadea8b7c7c9884455b896e21c88b8bc62d6da',radius8:'9e82491aff6fe809fe71856da5612db502221455'};
+for(const [n,k] of Object.entries(libraryTokens)){variables[n]=(await figma.variables.importVariableByKeyAsync(k)).id;}
+const styles={};for(const [name,size,weight,line] of [['Display',44,'SemiBold',52],['Title',30,'SemiBold',38],['Heading',20,'SemiBold',28],['Body',14,'Regular',22],['Label',14,'Medium',20],['Caption',12,'Regular',18],['Metric',34,'SemiBold',42]]){const s=figma.createTextStyle();s.name='Mansora/'+name;s.fontName={family:'DM Sans',style:weight};s.fontSize=size;s.lineHeight={unit:'PIXELS',value:line};styles[name]=s.id;}
+return {createdNodeIds:made,mutatedNodeIds:[pages.start.id],pages:Object.fromEntries(Object.entries(pages).map(([k,p])=>[k,p.id])),variables,styles,collections:{primitives:primitives.id,semantics:semantics.id},sourceAssets:{button:'2:267',input:'2:358'},discovery:{font:'DM Sans',tableFallback:'Library Table candidates are 20px icon assets, not data tables. Compose editable row components for retail data.',wholeView:'No compatible business dashboard composite found.'}};

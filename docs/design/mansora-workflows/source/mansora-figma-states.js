@@ -1,0 +1,17 @@
+const page=await figma.getNodeByIdAsync(STATE.pages.client);await figma.setCurrentPageAsync(page);const roots=[];
+const definitions=[
+['refund-success','Refund recorded','GHS 45.00 refunded','The original receipt is unchanged. One unit was returned to stock, and the reason and approver were recorded.','success','Back to sales','transactions'],
+['stock-success','Stock update recorded','Your stock history is up to date','The confirmed movement is saved with its quantities, cost and staff member. Review the product history for the exact before-and-after balance.','success','Back to inventory','inventory'],
+['repayment-success','Repayment recorded','GHS 100.00 received','Adjoa Mensah’s balance is now GHS 180.00. The repayment has its own receipt and audit record.','success','View customer account','customer-ledger'],
+['credit-success','Credit sale complete','GHS 156.00 added to customer credit','Adjoa Mensah now owes GHS 436.00. No cash was received on this sale; stock and the customer ledger are updated.','success','Start next sale','sale'],
+['shift-review','Closing count submitted','GHS 10.00 difference needs sign-off','The counted amount and note are saved for the authorised reviewer. The expected cash and audit history remain visible.','warning','Return to shifts','shifts'],
+['expense-success','Expense submitted for approval','GHS 85.00 · Store cleaning supplies','Till-funded expenses require the proper approval. Nothing leaves the till simply because a request was entered.','warning','Back to expenses','expenses'],
+['export-ready','Export this report','Choose a useful format','CSV for analysis, Excel for sharing, or print the current report. The date range and definitions are included.','brand','Back to report','report-detail'],
+['billing-invoice','Subscription invoice','INV-2026-024 · GHS 300.00','November Standard subscription. In team testing, payment remains sandbox-only. Real providers are shown only after configuration.','brand','Back to subscription','billing'],
+['offline','Connection interrupted','Your next step is clear','Browser access needs internet. Keep your current form open and retry when connected. In the installed desktop app, queued changes follow the separate offline/sync workflow.','warning','Retry connection','backup'],
+['report-error','Report could not load','Your selected dates are preserved','Do not show old amounts as current results. Explain the failure, keep the selected period and offer a retry.','danger','Retry selected report','report-detail'],
+['empty','Ready for your first sale','A useful starting point','There are no completed sales yet. Add a product or import your spreadsheet, then make a test sale.','brand','Add your products','onboarding'],
+['cancel-sale','Clear this basket?','Your current basket contains 6 units','Clearing removes the unsaved basket. Keep it if you want to continue. A completed sale is never deleted here.','warning','Keep basket','sale']
+];
+for(let i=0;i<definitions.length;i++){const [key,name,heading,body,tone,action,to]=definitions[i];const s=screen(page,key,name,32+i,{eyebrow:'Workflow state · Explicit outcome'});roots.push(s.root);const card=panel(s.content,'Outcome and next step',1136,40);pill(card,tone==='success'?'Recorded':tone==='warning'?'Action needed':tone==='danger'?'Not loaded':'Next step',tone,180);text(card,heading,1056,'Title');text(card,body,1056,'Body','muted');button(card,action,380,false,to);if(key==='cancel-sale')button(card,'Clear unsaved basket',380,true,'sale');}
+return finish(roots);
