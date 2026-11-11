@@ -52,7 +52,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C14 client readiness | Codex — done | **Merged PR #26** as `86f4c03`; all merged-commit workflows green, including 220 tests. Interface deployment refinement continues separately as C19 | `codex/C14-client-readiness`, PR #26 |
 | Billing / System A (plans, subscriptions, invoices, payments, reminders, reconciliation, revenue, client Billing screen) | Claude | **Merged**, sandbox provider only. No real money has moved | commit `1e46b33` |
 | Team walkthrough artifact and `scripts/capture-walkthrough.ts` | Claude | Done; retake screenshots after any UI change | `519cab0` |
-| C15 Resend email and communications | Codex (this review/domain session) | Claimed by explicit owner request: Resend billing reminders, communications and platform error alerts. Sender/alert inbox and private API key pending. Other sessions please avoid email-related core/index/jobs/routes/observability edits | `codex/C15-resend-email` |
+| C15 Resend email and communications | Codex (review/domain/email session) | Merged PR #40, all exact merged checks green; adapter/queue/messages/alerts deployed. Live sender domain remains unverified in Resend | PR #40 |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
 | C18 hosted preview refresh with billing | Codex — done | **Published version 4**, now anyone-with-link. PR #27 merged as `1ecb47f`; merged CI green on rerun attempt 2 (initial run cancelled by the claim commit) | Planned `codex/C18-billing-preview` |
@@ -62,13 +62,14 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C22 Railway team deployment | Codex — done | Real Railway web/PostgreSQL live; both tester emails, private preserved credentials, persisted records, isolation and actual browser acceptance verified. PRs #32/#33/#34 merged; see latest handoff | PRs #32/#33/#34 |
 | C23 platform hardening | Codex — done | PR #35 merged as `460bc01`; all six exact merged workflows green, 264 tests plus real PG sync pass. Hardened headers/import/resource limits live; deployment checks enabled | PR #35 |
 | C24 professional visual refresh | Codex — done | PR #36 merged as `077b908`; all six exact merged workflows green, 265 local/CI tests pass. Approved purple/gold glow and clean progressive UI live on Railway and public sample v8; live browser walkthrough passes | PR #36 |
-| C25 custom app domain | Codex (this review/domain session) | In progress: Railway domain + Vercel DNS added; certificate valid; origin redeploy under acceptance. Do not change domains or STAGING_ORIGIN concurrently | `codex/C25-custom-domain` |
-| C26 hosted review fixes | Codex (this review/domain session) | Claimed: walkthrough language/document metadata and phone preview overflow; browser regression coverage and review report. Leave engine, sync, billing/provider code untouched | `codex/C26-hosted-review-fixes` |
+| C25 custom app domain | Codex (review/domain/email session) | Done: custom domain, Vercel DNS, valid certificate, healthy Railway deployment and origin/browser checks verified | Live `https://app.mansora-consulting.com` |
+| C26 hosted review fixes | Codex (review/domain/email session) | Merged PR #38; all feature and merged checks green; phone preview and walkthrough regression tests pass | PR #38 |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
 | C28 workflow redesign implementation | Codex — done | PR #41 merged as `e1c0d92`; all six exact merged workflows green, 283 local tests pass. Public sample version 9 published; Railway SUCCESS and both client/operator live browser acceptance pass | `codex/C28-workflow-implementation` |
 | C30 comprehensive software review | Codex — review complete, evidence prepared | Legacy #24/#25 closed as integrated. 288 tests and live API/browser checks pass; four confirmed findings with reproduction and acceptance criteria. Findings remain open; see `docs/reviews/c30-software-review.md` | `codex/C30-comprehensive-review` |
 
-| C29 friendly test access and invitations | Codex (review/domain/email session) | Claimed on owner request: readable unique owner passphrases, crash-safe private rotation and invitation delivery to assigned tester emails, narrow sign-in usability changes. Do not alter initial password variables concurrently; sending/rotation waits for Resend availability | `codex/C29-test-invitations` |
+| C29 friendly test access and invitations | Codex (review/domain/email session) | PRs #42/#43 merged; 288 local tests pass before diagnostic test addition. Live Resend refuses unverified sender: 0 accepted/activated, 2 pending; old passwords preserved. Owner asked for public verification DNS records | PRs #42/#43 |
+| C32 Railway runtime configuration | Codex (review/domain/email session) | Claimed: C30 F03/F04 only — shared sanitized API telemetry options and explicit backup storage factory/fallback in Railway, with composition tests. Preserve C29 invitation logic and C30 report ownership | `codex/C32-runtime-wiring` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -99,6 +100,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C32 operational wiring claim; C29 provider blocker confirmed)
+- Claim only C30 F03/F04 in my infrastructure area: shared standard/Railway API runtime options, existing sanitized logger, configured metrics/webhook and backupStorageFromEnv with /data fallback. Add composition tests for authentication/redaction, partial config refusal and actual remote storage selection. Do not edit C30 report or protected F01/F02 financial corrections.
+- This session merged only its own #38, #40, #42 and #43. C29 regression on C28 passes 288 tests/42 files. #43 adds one domain-response test and safe diagnostic categories. Live SUCCESS deployment 7ac762a9-2ec4-492a-897c-f75db99e5d8f reports RESEND_SENDER_UNVERIFIED, 0 accepted/activated, 2 pending. Existing passwords are preserved; no invitation has been sent. Asked owner to verify the domain in the key’s Resend account or supply its public DNS records for Vercel. The key itself was applied privately and never read.
+- Owner moved corporate website page/waitlist work to another session via the supplied handoff prompt. This connection cannot write its repository; public master also predates live changes. No corporate source, DNS or other session’s PR was changed. C30 comprehensive review remains with its claimed session; this session contributes evidence and owns only the above operational corrections.
+
 
 ### 2026-11-11 — Codex (C30 comprehensive review results)
 - Reviewed merged C29 application `fcb488d` plus documentation-only claim `7c7a977`. Typecheck/build pass, full dependency audit zero vulnerabilities, **288 tests / 42 files pass with Chromium and no skips**. All six exact claim workflows green, including real PostgreSQL sync and packaged Windows smoke.
