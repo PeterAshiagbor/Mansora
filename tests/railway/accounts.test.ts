@@ -11,11 +11,11 @@ import { startStagingGateway, type StagingWorkspace } from '../../scripts/stagin
 
 describe('assigned tester identities without engine or schema changes', () => {
   let cloud: Cloud, config: StagingConfig, workspaces: StagingWorkspace[], accounts: TestAccount[], gateway: Awaited<ReturnType<typeof startStagingGateway>>;
-  const emails = ['first@example.test', 'second@example.test']; let ready = true;
+  const emails = ['first@example.test', 'second@example.test'], passwords = [randomBytes(32).toString('base64url'), randomBytes(32).toString('base64url')]; let ready = true;
   beforeAll(async () => {
     cloud = await startCloud(); const staticDir = tempDir(); writeFileSync(join(staticDir, 'index.html'), '<!doctype html><html><head></head><body></body></html>');
     config = { origin: 'http://127.0.0.1:0', apiUrl: cloud.url, dataDir: tempDir(), key: randomBytes(32).toString('hex'), clientDir: staticDir, adminDir: staticDir };
-    await provisionStaging(config, ADMIN, emails); accounts = JSON.parse(readFileSync(join(config.dataDir, 'test-accounts.json'), 'utf8')); workspaces = loadWorkspaces(config);
+    await provisionStaging(config, ADMIN, emails, passwords); accounts = JSON.parse(readFileSync(join(config.dataDir, 'test-accounts.json'), 'utf8')); workspaces = loadWorkspaces(config);
     gateway = await startStagingGateway({ ...config, workspaces, loginAliases: loadLoginAliases(config.dataDir), readiness: async () => ready, port: 0 });
   });
   afterAll(async () => { await gateway?.close(); for (const w of workspaces ?? []) w.engine.db.close(); await cloud?.close(); });
@@ -24,6 +24,7 @@ describe('assigned tester identities without engine or schema changes', () => {
   };
   it('allows each assigned email to sign in to its own sample business and keeps passwords private', async () => {
     const assigned = accounts.filter(a => a.email); expect(assigned).toHaveLength(2);
+    expect(assigned.every((a, i) => createHash('sha256').update(a.password).digest('hex') === createHash('sha256').update(passwords[i]).digest('hex'))).toBe(true);
     for (const a of assigned) {
       const login = await call(a.workspace, 'auth.login', { username: a.email!.toUpperCase(), password: a.password }); expect(login.body.ok).toBe(true); expect(login.body.data.user.role).toBe('owner'); expect(login.body.data.token).toBeUndefined();
       expect((await call(a.workspace, 'app.state', {}, login.cookie)).body.data.user.username).toBe(a.username);
@@ -33,8 +34,9 @@ describe('assigned tester identities without engine or schema changes', () => {
   });
   it('preserves assigned credentials on rerun and refuses identity changes without resetting stores', async () => {
     const digest = () => createHash('sha256').update(readFileSync(join(config.dataDir, 'test-accounts.json'))).digest('hex'); const original = digest();
-    expect(await provisionStaging(config, ADMIN, emails)).toEqual({ existing: true }); expect(digest()).toBe(original);
+    expect(await provisionStaging(config, ADMIN, emails, passwords)).toEqual({ existing: true }); expect(digest()).toBe(original);
     await expect(provisionStaging(config, ADMIN, ['changed@example.test', emails[1]])).rejects.toThrow('identities changed'); expect(digest()).toBe(original);
+    await expect(provisionStaging(config, ADMIN, emails, [randomBytes(32).toString('base64url'), passwords[1]])).rejects.toThrow('passwords changed'); expect(digest()).toBe(original);
   });
   it('reports readiness failure instead of keeping a green deployment health check', async () => {
     expect((await fetch(gateway.url + '/healthz')).status).toBe(200); ready = false; expect((await fetch(gateway.url + '/healthz')).status).toBe(503); ready = true;

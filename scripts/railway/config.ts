@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { stagingOrigin } from '../staging/gateway';
-import { testerEmails } from '../staging/accounts';
+import { testerEmails, testerPasswords } from '../staging/accounts';
 
 /** Railway supplies only the private PostgreSQL reference, public hostname and tester identities. */
 export function railwayConfig(env: NodeJS.ProcessEnv = process.env) {
@@ -15,7 +15,8 @@ export function railwayConfig(env: NodeJS.ProcessEnv = process.env) {
   if (!Number.isInteger(port) || port < 1 || port > 65535 || port === 4000) throw new Error('Choose a valid public port distinct from the loopback API port 4000.');
   const emails = testerEmails(env.STAGING_TESTER_EMAILS);
   if (emails.length !== 2) throw new Error('Two tester identities are required.');
-  return { origin, databaseUrl: db.toString(), port, emails, dataDir: '/data', adminEmail: 'staging.operator@mansora.example' };
+  const passwords = testerPasswords(env.STAGING_TESTER_PASSWORDS);
+  return { passwords, origin, databaseUrl: db.toString(), port, emails, dataDir: '/data', adminEmail: 'staging.operator@mansora.example' };
 }
 export function persistentSecret(directory: string, name: string, encoding: 'hex' | 'base64' = 'hex'): string {
   if (!/^[a-z][a-z0-9_-]+$/.test(name)) throw new Error('Invalid secret identifier.');

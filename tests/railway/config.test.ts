@@ -3,7 +3,7 @@ import { writeFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { railwayConfig, persistentSecret } from '../../scripts/railway/config';
-import { testerEmails } from '../../scripts/staging/accounts';
+import { testerEmails, testerPasswords } from '../../scripts/staging/accounts';
 import { tempDir } from '../helpers';
 const env = { MANSORA_STAGING_MODE: 'team-test', DATABASE_URL: 'postgres://operator:fixture-only@postgres:5432/railway', RAILWAY_PUBLIC_DOMAIN: 'example.up.railway.app', STAGING_TESTER_EMAILS: '["First@example.test","Second@example.test"]' };
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -15,6 +15,7 @@ describe('Railway deployment configuration', () => {
   });
   it('rejects insecure public origins, port collision, malformed and duplicate identities', () => {
     expect(() => railwayConfig({ ...env, STAGING_ORIGIN: 'http://example.com' })).toThrow(); expect(() => railwayConfig({ ...env, PORT: '4000' })).toThrow(); expect(() => railwayConfig({ ...env, PORT: 'NaN' })).toThrow();
+    for (const raw of ['bad JSON', '["too short","also short"]', JSON.stringify(['same'.repeat(10), 'same'.repeat(10)])]) expect(() => testerPasswords(raw)).toThrow();
     for (const raw of ['not JSON', '["bad","also bad"]', '["one@example.test","ONE@example.test"]', '["one@example.test"]']) expect(() => testerEmails(raw)).toThrow();
   });
   it('persists distinct private keys and refuses to silently replace a damaged existing key', () => {
