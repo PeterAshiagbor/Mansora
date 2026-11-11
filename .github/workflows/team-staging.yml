@@ -1,0 +1,35 @@
+name: Team staging deployment
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+env:
+  STAGING_ORIGIN: http://127.0.0.1:4500
+  STAGING_DOMAIN: localhost
+jobs:
+  persistent-deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - run: node infrastructure/staging/init.mjs
+      - name: Build real API and native encrypted engine
+        run: docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml up --build --wait --wait-timeout 300
+      - name: Check sessions, permissions, Excel and shared writes
+        run: docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml exec -T gateway node /app/staging/smoke.cjs
+      - name: Preserve stores, credentials and keys across restart
+        run: |
+          docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml down
+          node infrastructure/staging/init.mjs
+          docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml up --wait --wait-timeout 300
+          docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml exec -T gateway node /app/staging/smoke.cjs --existing
+      - name: Remove ephemeral CI volumes
+        if: always()
+        run: docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml down --volumes --remove-orphans

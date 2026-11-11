@@ -37,6 +37,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
   const upstream = new URL(opts.apiUrl);
   if (!['http:', 'https:'].includes(upstream.protocol) || upstream.username || upstream.password || upstream.search || upstream.hash || upstream.pathname !== '/') throw new Error('API upstream must be a fixed HTTP(S) origin.');
   if (!opts.workspaces.length || opts.workspaces.some(w => !/^[a-z0-9][a-z0-9-]{1,40}$/.test(w.id)) || new Set(opts.workspaces.map(w => w.id)).size !== opts.workspaces.length) throw new Error('Configure distinct staging workspaces before starting.');
+  if (!file(opts.clientDir, 'index.html') || !file(opts.adminDir, 'index.html')) throw new Error('Build both interfaces before starting staging.');
   for (const w of opts.workspaces) if (!w.engine.activated) throw new Error(`Workspace ${w.id} is not provisioned.`);
   const workspaces = new Map(opts.workspaces.map(w => [w.id, w]));
   const sessions = new Map<string, { workspace: string; token: string; expires: number }>();

@@ -5,6 +5,8 @@
  * unauthenticated and unknown commands.
  *
  * Run on Windows after `npm run dist -w @mansora/desktop` (CI does this).
+ * Team-staging variables and its HTTP-only browser transport do not extend this
+ * native bridge: the exact allowlist below must remain unchanged.
  * It needs a desktop session and OS key storage, so it is not part of `npm test`.
  */
 import { existsSync, mkdtempSync, readdirSync } from 'node:fs';

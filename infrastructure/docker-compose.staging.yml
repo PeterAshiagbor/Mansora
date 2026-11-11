@@ -1,0 +1,67 @@
+name: mansora-team-staging
+x-gateway: &gateway
+  image: mansora-team-gateway:local
+  build:
+    context: ..
+    dockerfile: infrastructure/staging/Dockerfile
+  init: true
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: ["/tmp:size=128m,mode=1777"]
+  stop_grace_period: 45s
+  networks: [backend]
+  volumes: [staging_data:/data/staging]
+  environment: &gateway-env
+    MANSORA_STAGING_MODE: team-test
+    STAGING_ORIGIN: ${STAGING_ORIGIN:?Set the HTTPS staging origin}
+    STAGING_API_URL: http://api:4000
+    STAGING_DB_KEY_FILE: /run/secrets/staging_db_key
+  secrets: [staging_db_key]
+services:
+  api:
+    environment:
+      ADMIN_ORIGINS: ${STAGING_ORIGIN:?Set the HTTPS staging origin}
+      PUBLIC_BASE_URL: ${STAGING_ORIGIN:?Set the HTTPS staging origin}/api
+      BILLING_ALLOW_SANDBOX: '1'
+      BILLING_SANDBOX: '1'
+  staging-bootstrap:
+    <<: *gateway
+    command: [node, /app/staging/bootstrap.cjs]
+    healthcheck: {disable: true}
+    environment:
+      <<: *gateway-env
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost.test}
+      ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+    secrets: [staging_db_key, admin_password]
+    depends_on:
+      api: {condition: service_healthy}
+  gateway:
+    <<: *gateway
+    restart: unless-stopped
+    ports: ['127.0.0.1:${GATEWAY_PORT:-4500}:4500']
+    depends_on:
+      staging-bootstrap: {condition: service_completed_successfully}
+  https:
+    image: caddy:2-alpine
+    profiles: [https]
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+    ports: ['80:80', '443:443', '443:443/udp']
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:?Set the staging hostname}
+    volumes:
+      - ./staging/Caddyfile:/etc/caddy/Caddyfile:ro
+      - staging_tls_data:/data
+      - staging_tls_config:/config
+    depends_on:
+      gateway: {condition: service_healthy}
+volumes:
+  staging_data:
+  staging_tls_data:
+  staging_tls_config:
+secrets:
+  staging_db_key: {file: ./.secrets/staging_db_key}

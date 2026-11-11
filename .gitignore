@@ -10,3 +10,5 @@ release/
 .demo-data/
 coverage/
 *.tsbuildinfo
+
+.staging-data/
