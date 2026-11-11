@@ -65,7 +65,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C25 custom app domain | Codex (this review/domain session) | In progress: Railway domain + Vercel DNS added; certificate valid; origin redeploy under acceptance. Do not change domains or STAGING_ORIGIN concurrently | `codex/C25-custom-domain` |
 | C26 hosted review fixes | Codex (this review/domain session) | Claimed: walkthrough language/document metadata and phone preview overflow; browser regression coverage and review report. Leave engine, sync, billing/provider code untouched | `codex/C26-hosted-review-fixes` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
-| C28 workflow redesign implementation | Codex — claimed | Owner explicitly authorised implementing all feasible work from the saved Figma/prototype draft. Shared shell, responsive navigation, focused task screens and real workflow actions; preserve protected engine/billing policies and C15/C25/C26 ownership | `codex/C28-workflow-implementation` |
+| C28 workflow redesign implementation | Codex — implemented, validation in progress | Real task-led checkout, imports, carton receiving, report chooser, setup checklist and responsive shared UI; rebased with C15/C26. Exact checks and deployment still pending | `codex/C28-workflow-implementation` |
 
 | C29 friendly test access and invitations | Codex (review/domain/email session) | Claimed on owner request: readable unique owner passphrases, crash-safe private rotation and invitation delivery to assigned tester emails, narrow sign-in usability changes. Do not alter initial password variables concurrently; sending/rotation waits for Resend availability | `codex/C29-test-invitations` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
@@ -98,6 +98,14 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C28 real workflow implementation)
+- Implemented the authored C27 layouts in the existing client/operator application, with real records and guarded commands. See `docs/operations/workflow-redesign-implementation.md`. No protected engine, billing policy, schema, provider or domain configuration changes.
+- Local typecheck/build pass, production dependency audit reports zero vulnerabilities. Initial full suite: 269/270 pass; the single new carton test used `total` instead of the actual `purchases.total_cost` column, now corrected. Full rebased validation is running, including C15 email and C26 preview tests. Do not interpret this entry as merged/live acceptance.
+- Rebased onto `03ef7c9` (C15/C26 merged). Resolved overlapping phone navigation by retaining the new focus-trapped drawer; C26 preview overflow/metadata fixes remain. Its browser assertions now use the new Menu label and still check escape/focus, navigation, overflow and accessibility.
+- Updated 49 real-interface screenshots with synthetic data. Five new browser journeys validate report lazy loading, retained split tenders, failed/replaced Excel previews, real carton purchase/stock persistence and phone navigation/permissions. Figma quota still blocks fresh native extraction; user explicitly authorised implementation from saved work.
+- C29 remains owned by the other session; do not rotate/reset tester credentials, change invitations or overwrite its narrow login changes. Public sample Site access may remain unavailable per C26; do not create a substitute or change its audience.
+
 
 ### 2026-11-11 — Codex (C29 tester invitations claimed; C15/C26 evidence)
 - Owner explicitly requested realistic test-account passwords, client-friendly sign-in and emails to all assigned testers. C29 owns scripts/staging invitation/rotation orchestration and a narrow Login form enhancement in apps/desktop/src/renderer/App.tsx (email hint, password visibility, invitation prefill); C28 should preserve/rebase this small area while redesigning the surrounding shell. Existing auth/engine commands are reused; no protected engine change.
