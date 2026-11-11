@@ -65,6 +65,8 @@ export async function startStagingGateway(opts: GatewayOptions) {
         const bytes = ['GET', 'HEAD'].includes(req.method ?? '') ? undefined : await body(req, limit);
         const headers = new Headers();
         for (const [k, v] of Object.entries(req.headers)) if (v && !['host', 'cookie', 'connection', 'content-length', 'transfer-encoding', 'proxy-authorization', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto'].includes(k)) headers.set(k, Array.isArray(v) ? v.join(', ') : v);
+        // API sandbox forms carry no fields; avoid an unsupported empty form parser.
+        if (bytes?.length === 0 && headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) headers.delete('content-type');
         const target = new URL(upstream); target.pathname = url.pathname.slice(4); target.search = url.search;
         const response = await fetch(target, { method: req.method, headers, ...(bytes ? { body: new Uint8Array(bytes) } : {}), redirect: 'manual', signal: AbortSignal.timeout(30_000) });
         res.statusCode = response.status;
@@ -72,7 +74,11 @@ export async function startStagingGateway(opts: GatewayOptions) {
         const location = response.headers.get('location');
         if (location?.startsWith('/') && !location.startsWith('/api/')) res.setHeader('location', '/api' + location);
         else if (location && new URL(location, upstream).origin === upstream.origin) { const target = new URL(location, upstream); res.setHeader('location', origin.origin + '/api' + target.pathname + target.search); }
-        res.end(Buffer.from(await response.arrayBuffer())); return;
+        const responseBytes = Buffer.from(await response.arrayBuffer());
+        if (response.headers.get('content-type')?.includes('text/html')) {
+          // Existing API documents/forms use root-relative links; retain the proxy prefix.
+          res.end(responseBytes.toString('utf8').replace(/\b(href|src|action)=(['"])\/(?!\/|api\/)/gi, '$1=$2/api/'));
+        } else res.end(responseBytes); return;
       }
       if (path === '/healthz') return json(res, 200, { ok: true, mode: 'team-staging' });
       if (req.method === 'GET' && path === '/') { res.setHeader('content-type', MIME['.html']); res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Mansora team testing</title><link rel="stylesheet" href="/staging.css"></head><body>${BANNER}<main style="max-width:760px;margin:40px auto;padding:24px;font:16px/1.6 system-ui"><h1>Mansora team testing</h1><p>Sign in with your assigned test account. Use sample data only; records are saved and shared within each business.</p><ul>${opts.workspaces.map(w => `<li><a href="/client/${w.id}/">${escape(w.label)}</a></li>`).join('')}<li><a href="/admin/">Mansora administration</a></li></ul><p>The browser environment covers business workflows. Test printers, scanners, cash drawers and offline selling in the desktop application.</p></main></body></html>`); return; }

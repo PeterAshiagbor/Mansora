@@ -33,7 +33,9 @@ workflow and accessibility assertions remain intact.
 Implementation passes typecheck/build and **237 tests in 33 files**, including
 six new progressive-interface acceptance scenarios and accessibility scans at
 normal and 200% equivalent viewports. Walkthrough screenshots were regenerated
-from the running application. CI/merge and publication are being verified on
-`codex/C21-progressive-interface`.
+from the running application. PR #30 merged as `c07b25e`; all four workflows on that merged commit passed.
+Public sample version 7 is live at the existing shared URL. Hosted-browser QA remains
+unverified because the managed browser helper is unavailable; the real application
+was exercised locally.
 Persistent team staging is separate task C20; the shared Site remains an isolated
 sample preview until a real server-backed environment is deployed.

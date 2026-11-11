@@ -47,7 +47,7 @@ docker compose --env-file infrastructure/staging/.env -f infrastructure/docker-c
 docker compose --env-file infrastructure/staging/.env -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.staging.yml exec -T gateway node /app/staging/smoke.cjs --existing
 ```
 
-The automated workflow builds the actual images and also recreates the entire stack without deleting volumes. Browser acceptance covers separate roles, a real saved sale, shared stock, Excel preview and the proxied administration interface. Desktop hardware, native file restoration, offline operation and Windows signing require the desktop application and their own acceptance checks.
+The automated workflow builds the actual images and also recreates the entire stack without deleting volumes. Browser acceptance covers separate roles, a real saved sale, shared stock, Excel preview, the proxied administration interface and an approved sandbox checkout through actual HTML forms and redirects. Desktop hardware, native file restoration, offline operation and Windows signing require the desktop application and their own acceptance checks.
 
 ## Maintain data safely
 

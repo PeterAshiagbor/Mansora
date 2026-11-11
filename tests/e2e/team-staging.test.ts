@@ -19,6 +19,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   beforeAll(async () => {
     cloud = await startCloud(); config = { origin: 'http://127.0.0.1:0', apiUrl: cloud.url, dataDir: tempDir(), key: randomBytes(32).toString('hex'), clientDir: join(root, 'apps/desktop/dist/renderer'), adminDir: join(root, 'apps/admin-web/dist') };
     await provisionStaging(config, ADMIN); accounts = JSON.parse(readFileSync(join(config.dataDir, 'test-accounts.json'), 'utf8')); workspaces = loadWorkspaces(config); gateway = await startStagingGateway({ ...config, workspaces, port: 0 });
+    cloud.billing.env.publicBaseUrl = gateway.publicOrigin + '/api'; cloud.sandbox.baseUrl = gateway.publicOrigin + '/api';
     await cloud.app.close(); api = await buildApp({ db: cloud.db, backupDir: tempDir(), adminOrigins: [gateway.publicOrigin], billing: cloud.billing }); await api.listen({ host: '127.0.0.1', port: Number(new URL(cloud.url).port) });
     browser = await pw.chromium.launch();
     for (const role of ['owner', 'cashier']) {
@@ -54,4 +55,16 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     await admin.goto(gateway.url + '/admin/'); await admin.getByLabel('Email', { exact: true }).fill(ADMIN.email); await admin.getByLabel('Password', { exact: true }).fill(ADMIN.password); await admin.getByRole('button', { name: 'Sign in', exact: true }).click();
     await navigate(admin, 'Clients'); await admin.getByRole('row').filter({ hasText: 'Team Test Shop A' }).waitFor(); await admin.getByRole('row').filter({ hasText: 'Team Test Shop B' }).waitFor(); expect(errors).toEqual([]);
   });
+  it('completes a sandbox checkout through proxied forms and redirects', async () => {
+    const summary = await owner.evaluate(() => (window as any).mansora.invoke('billing.summary'));
+    expect(summary.ok).toBe(true); expect(summary.data.nextPayment.amount).toBe(30000);
+    const checkout = await owner.evaluate((invoiceId: string) => (window as any).mansora.invoke('billing.pay', { invoiceId }), summary.data.nextPayment.invoiceId);
+    expect(checkout.ok).toBe(true); expect(checkout.data.url.startsWith(gateway.publicOrigin + '/api/sandbox/checkout/')).toBe(true);
+    const payment = await (await browser.newContext()).newPage();
+    await payment.goto(checkout.data.url); const approved = payment.waitForResponse((r: any) => r.request().method() === 'POST'); await payment.getByRole('button', { name: 'Approve', exact: true }).click(); expect((await approved).status()).toBe(303);
+    await payment.getByRole('heading', { name: 'Thank you', exact: true }).waitFor(); expect(new URL(payment.url()).pathname).toBe('/api/pay/done');
+    const paid = await owner.evaluate(() => (window as any).mansora.invoke('billing.summary')); expect(paid.data.invoices.find((i: any) => i.id === summary.data.nextPayment.invoiceId).status).toBe('paid');
+    await payment.close();
+  });
+
 });
