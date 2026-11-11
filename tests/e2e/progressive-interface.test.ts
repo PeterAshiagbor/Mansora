@@ -146,6 +146,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   });
   it('uses a phone drawer and quick tasks without squeezing the desktop sidebar into the workspace', async () => {
     await shop.setViewportSize({ width: 390, height: 844 }); await shop.getByRole('button', { name: 'Menu', exact: true }).waitFor();
+    await shop.getByRole('navigation', { name: 'Quick tasks' }).waitFor();
     expect(await shop.getByRole('navigation', { name: 'Main' }).count()).toBe(0);
     expect(await shop.getByRole('navigation', { name: 'Quick tasks' }).getByRole('button').count()).toBe(4);
     await navigate(shop, 'Stock'); await shop.getByRole('heading', { name: 'Stock', exact: true }).waitFor();
