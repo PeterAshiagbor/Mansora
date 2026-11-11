@@ -64,6 +64,8 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C24 professional visual refresh | Codex — done | PR #36 merged as `077b908`; all six exact merged workflows green, 265 local/CI tests pass. Approved purple/gold glow and clean progressive UI live on Railway and public sample v8; live browser walkthrough passes | PR #36 |
 | C25 custom app domain | Codex (this review/domain session) | In progress: Railway domain + Vercel DNS added; certificate valid; origin redeploy under acceptance. Do not change domains or STAGING_ORIGIN concurrently | `codex/C25-custom-domain` |
 | C26 hosted review fixes | Codex (this review/domain session) | Claimed: walkthrough language/document metadata and phone preview overflow; browser regression coverage and review report. Leave engine, sync, billing/provider code untouched | `codex/C26-hosted-review-fixes` |
+| C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
+
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -95,6 +97,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 
 ## Handoff log (newest first; append, never rewrite)
 
+### 2026-11-11 — Codex (C27 Figma workflow redesign claim and access blocker)
+- Owner rejected the C24 design and identified **difficult workflows, clutter and a basic layout**. C24's previous acceptance is historical, not approval of this next design. Claim C27 for design and prototype work; no production UI/engine/billing/permission code is changed.
+- **Figma:** https://www.figma.com/design/v272eth6TmpQslxG10r8Cf?node-id=5-21, session `6275ed1c-a17a-4a9b-a500-77d48eb172b9`. Created 27 editable client screens with native text/components, DM Sans styles, semantic variables, reused Simple Design System buttons/fields and custom task navigation/rows/metrics. Designs emphasise checkout, restricted approvals, carton costing, stepwise Excel validation, customer ledgers/repayments, question-led reports, guided setup and contextual help.
+- **Blocker:** Figma rejected the next administration-screen mutation with “You've reached the Figma MCP tool call limit on the Starter plan.” Required `whoami` confirmed Starter. No further mutations were attempted; do not retry around the limit or claim the file is fully connected/finished. Owner has been asked to enable more Figma MCP access. Native administration/responsive/additional states, links and final visual QA remain pending.
+- **Concrete review draft:** local 64-screen prototype and staged native scripts are prepared for `codex/C27-workflow-design`. Every local screen opens, 592 destinations resolve and nine complete sample journeys pass in Chromium without browser exceptions. These are prototype checks, not new real financial/backend acceptance. Read the design package's README and exact native state ledger before resuming; local IDs are separate from actual Figma IDs.
+- The existing live app remains unchanged. Its final documentation commit `83c1316a69d58b94f11574523f11895381183c4b` passed all six workflows. This design session does not change the C25 custom domain/origin or C26 walkthrough/hosted-preview files owned by the other active session. Resume in the same Figma file after access changes; apply staged views, connect actual destination IDs and verify the final native result.
+
 ### 2026-11-11 — Codex (C25 domain / C26 review fixes claimed; other sessions please coordinate here)
 - Owner explicitly requested app.mansora-consulting.com and authorized implementing actionable review changes, with coordination across active sessions. This session owns C25/C26 above; other sessions should avoid those files/settings and append their scope here. Open PRs #24/#25 are legacy integrated work per the board, not new task claims.
 - Baseline b253cfd: typecheck/build pass; 265 tests in 38 files pass with Chromium and no skips; dependency audit reports zero vulnerabilities. Hosted exploration covers 46 pages/states with no uncaught JS errors/HTTP errors; walkthrough lacks lang, preview forces 600px width on a 390px phone.
@@ -108,6 +117,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - **Not verified by me:** the Railway deployment and your live acceptance results; I rely on your log. I did not re-run the full local suite after pulling your 42 commits.
 - **Still blocked on the owner, unchanged:** Hubtel docs and sandbox credentials (C16); Paystack account/test keys; email provider (C15). If the Railway plan offers a static outbound IP, that would satisfy Hubtel's allow-list requirement, but I have not verified that it does: please confirm before anyone promises it.
 - **Do not touch:** billing code and `apps/desktop/src/core/**`, as before.
+
 
 ### 2026-11-11 — Codex (C22/C23/C24 complete, review and end-to-end results)
 - **Merged and green:** C23 PR #35 `460bc01ea2b762cc479e85d0a71d42523e487329` and C24 PR #36 `077b90825d5b987a2d8031c9d4a63d62221205aa`; all six feature and exact merged workflows pass. C24 full local and CI runs pass **265 tests / 38 files**, plus six real PostgreSQL 16 sync tests in CI. Typecheck/build, Windows unsigned installer/package smoke, security and real API/staging/Railway image acceptance pass; dependency audit zero vulnerabilities.
