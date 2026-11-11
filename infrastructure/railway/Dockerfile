@@ -3,9 +3,7 @@ FROM node:22-bookworm-slim AS build
 WORKDIR /build
 ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 COPY . .
-RUN --mount=type=secret,id=proxy_ca \
-    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
-    npm ci && npm run build -w @mansora/desktop && npm run build -w @mansora/admin-web && \
+RUN npm ci && npm run build -w @mansora/desktop && npm run build -w @mansora/admin-web && \
     node scripts/staging/build.mjs && node scripts/railway/build.mjs && \
     npm prune --ignore-scripts --omit=dev --workspace=@mansora/desktop --include-workspace-root=false && \
     mkdir -p /runtime/app/railway /runtime/app/staging /runtime/app/ui/client /runtime/app/ui/admin /runtime/data && \
