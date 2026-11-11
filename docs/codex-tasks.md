@@ -69,7 +69,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C30 comprehensive software review | Codex — review complete, evidence prepared | Legacy #24/#25 closed as integrated. 288 tests and live API/browser checks pass; four confirmed findings with reproduction and acceptance criteria. Findings remain open; see `docs/reviews/c30-software-review.md` | `codex/C30-comprehensive-review` |
 
 | C29 friendly test access and invitations | Codex (review/domain/email session) | Complete: PRs #42/#43 merged; verified sender, both Resend invitations delivered and both passphrases activated on live SUCCESS deployment 96b6f761. Same journal/operation preserved | PRs #42/#43 |
-| C32 Railway runtime configuration | Codex (review/domain/email session) | Claimed: C30 F03/F04 only — shared sanitized API telemetry options and explicit backup storage factory/fallback in Railway, with composition tests. Preserve C29 invitation logic and C30 report ownership | `codex/C32-runtime-wiring` |
+| C32 Railway runtime configuration | Codex (review/domain/email session) | Implemented in PR #46, latest head 38933df; 290 tests and original six CI workflows pass. Current refreshed CI queued; not merged/deployed. C30 F03/F04 wiring only | `codex/C32-runtime-wiring` |
 | **Roadmap "Now" stage (2026-11-11, owner asked to share the work between Claude and two Codex sessions; see `docs/operations/product-audit-and-roadmap.md` §6–6a)** | | | |
 | C31 mobile money end-of-day check (N3) | Claude | Claimed | `claude/elegant-bohr-mjeotl` |
 | C33 owner's closing summary by email, opt-in (N2) | Claude | Claimed, after C31 | – |
@@ -83,7 +83,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C40 Contact Mansora panel from settings on Help and sign-in; Forgot password route (N5) | **Codex session 2** | Assigned, start here | – |
 | C41 parked sales and quick keys, interface only, no engine change (X8) | **Codex session 2** | Assigned, not started | – |
 | C42 board housekeeping: move finished history to `docs/archive/`, keep this board to open work (P2) | **Codex session 2** | Assigned, do last so it does not conflict with active claims | – |
-| C43 realistic test-workspace data | Codex (review/domain/email session) | Claimed per owner: additive sample inventory, customers/suppliers, sales, expenses and reports for all team-test workspaces. Preserve tester edits, role permissions, tenant isolation, imports/exports and all hardening; no engine edits | `codex/C43-test-data` |
+| C43 realistic test-workspace data | Codex (review/domain/email session) | Partially live: both businesses have additive inventory/customer/supplier/purchase/expense/owner-sale data; real edits, JSON/XLSX/CSV exports and analysis verified. PR #48 adds restart-safe full pack including staff-owned histories; 294 tests pass, CI queued, not merged/deployed | `codex/C43-test-data` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -114,6 +114,13 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (actual-platform test data; queued-code handoff)
+- Owner clarified actual platform only; no separate site was built/published here. Corporate marketing work remains handed off. This session merged only its earlier #38/#40/#42/#43, not the other session’s #45; #46/#48 remain open pending checks.
+- Added data to BOTH live businesses using existing authenticated gateway commands: eight pack products/three categories, three customers, two suppliers, two purchases, three expenses, four owner/credit sales and partial repayment per business. Added/edited an extra sample product to verify writes. Actual JSON, Excel and CSV exports plus sales/profit analysis pass in both businesses. No real payment/customer email, account reset, SQL bypass or permission change. Existing staff share their business catalogue under unchanged roles. Owner-only live seed uses the same SKU names and stable transaction IDs as #48; its later startup pass will add manager/cashier-owned sales without duplicating these records.
+- Full additive pack is committed as #48 head 728fd5f, stacked only on our #46 head 38933df. 294/294 tests in 43 files pass with browser coverage/no skips; typecheck, full build and Railway bundle pass. Runtime-only integrated suite is 290/290; original runtime feature had all six CI workflows green. Refreshed CI for current heads remains queued; do not bypass gates or mark either task complete. Retarget #48 to default only after #46 merges. No live STAGING_SAMPLE_DATA_VERSION variable was enabled yet; after code deploy set retail-v1 and verify two workspaces prepared/preserved, zero pending, then restart to verify preservation.
+- GitHub Actions shows dozens of queued runs and two older 22d76dc CI runs still in progress; cancellation through authenticated CLI replied already completed, so no runs were actually cancelled. Read/cancel state is inconsistent. Owner and issue #39 were informed. Avoid cancelling current or unrelated work. Do not weaken security tests/CI to force release.
+- Resend is verified/sending enabled. Both existing invitations are delivered and both passphrases activated. No resend needed. Preserve existing operation ID/journal. All runtime keys, recipient addresses, passwords and raw export bodies remain private and are absent from committed evidence.
 
 ### 2026-11-11 — Codex (C43 sample-data claim; C29 delivered)
 - Owner explicitly requests sample data for all actual-platform test accounts while preserving editing, export, analysis and every hardening control. Claim C43 additive data pack in scripts/staging only, using real authenticated engine commands and per-workspace restart-safe tracking; no permission bypass, tenant sharing, user-data reset or protected engine edits. Coordinate scripts/railway wiring with our C32 branch.
