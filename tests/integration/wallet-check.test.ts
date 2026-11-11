@@ -14,7 +14,7 @@ describe('mobile money and card end-of-day check', () => {
     // Cashier: one mobile money sale, one card sale with no reference, one split cash + momo sale reusing a reference, one cash-only sale.
     const s1 = await sell(shop.cashier, [{ productId: p.milk, quantity: 2 }], [{ method: 'momo', amount: 2500, reference: 'TX-100' }]);
     await sell(shop.cashier, [{ productId: p.soap, quantity: 2 }], [{ method: 'card', amount: 1000 }]);
-    await sell(shop.cashier, [{ productId: p.rice, quantity: 1 }], [{ method: 'momo', amount: 3000, reference: ' tx-100 ' }, { method: 'cash', amount: 5000 }]);
+    await sell(shop.cashier, [{ productId: p.rice, quantity: 1 }], [{ method: 'momo', amount: 3000, reference: ' tx -100 ' }, { method: 'cash', amount: 5000 }]);
     await sell(shop.cashier, [{ productId: p.soap, quantity: 1 }], [{ method: 'cash', amount: 500 }]);
 
     // Manager: a credit sale later repaid by mobile money, and a mobile money refund of part of the first sale.
@@ -43,6 +43,21 @@ describe('mobile money and card end-of-day check', () => {
     expect(own.scope).toBe('own');
     expect(own.entries).toHaveLength(3);
     expect(own.entries.every((e: any) => e.staff === CASHIER.name)).toBe(true);
+
+    // Someone who may view reports but not sell can still open the check; someone with neither cannot.
+    const viewer = { name: 'Abena Report', username: 'abena', password: 'viewer-pass-1' };
+    await run(shop.owner, 'staff.save', { ...viewer, role: 'cashier', permissions: ['report.sales'] });
+    const viewerToken = (await run(null, 'auth.login', viewer)).token;
+    expect((await run(viewerToken, 'report.wallet', { from: today(), to: today() })).scope).toBe('business');
+    const nobody = { name: 'Kwame Stock', username: 'kwame', password: 'nobody-pass-1' };
+    await run(shop.owner, 'staff.save', { ...nobody, role: 'cashier', permissions: ['product.view'] });
+    await expect(run((await run(null, 'auth.login', nobody)).token, 'report.wallet', { from: today(), to: today() })).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
+
+    // Impossible or reversed dates are refused instead of crashing or returning an empty report (C30 F02).
+    for (const range of [{ from: '2026-02-30', to: '2026-03-01' }, { from: '2026-99-01', to: '2026-99-02' }, { from: '2026-03-02', to: '2026-03-01' }]) {
+      await expect(run(shop.owner, 'report.wallet', range)).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+      await expect(run(shop.owner, 'report.sales', range)).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+    }
 
     // Another day is empty.
     const empty = await run(shop.owner, 'report.wallet', { from: '2020-01-01', to: '2020-01-01' });

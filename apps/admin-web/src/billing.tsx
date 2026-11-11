@@ -143,6 +143,7 @@ export function RevenueReports() {
         <Card title="By service" pad={false}>
           <Table rows={Object.keys({ ...d.collectedByService, ...Object.fromEntries(d.invoicedByService.map((s: any) => [s.service_code, 1])) })} empty="Nothing yet" rowKey={(r: string) => r}
             columns={[{ header: 'Service', cell: (r: string) => label(r) }, { header: 'Invoiced', align: 'right', cell: (r: string) => ghs(d.invoicedByService.find((s: any) => s.service_code === r)?.total ?? 0) }, { header: 'Cash collected', align: 'right', cell: (r: string) => ghs(d.collectedByService[r] ?? 0) }]} />
+          {d.collectedUnallocated ? <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-600">Not applied to any invoice: {ghs(d.collectedUnallocated)}. Cash collected by service plus this amount equals net cash collected. Refunds count in the period they were made.</p> : null}
         </Card>
       </div>
       <p className="mt-4 text-xs text-slate-500">Subscription income alone is not profit: no costs are counted here, so no profit figure is shown.</p>

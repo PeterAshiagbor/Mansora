@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { zCalendarDate } from '@mansora/domain';
 import { RateLimiter, sha256 } from '../security';
 import { asHttp, audit, billingContact, deliverQueued, queueEmail, displayStatus, fail, loadSettings, nowIso, openException, outstanding, payUrl, readPayToken, saveSettings, today, REMINDER_STEPS, type Actor, type Billing } from './core';
 import { addDays } from './dates';
@@ -13,7 +14,8 @@ import { activateManually, cancelMandateLocal, cancelSubscription, changePlan, c
 import { SandboxProvider } from './providers/sandbox';
 
 const id = z.string().uuid();
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const date = zCalendarDate;
+const checkedRange = <T extends { from: string; to: string }>(r: T): T => (r.from <= r.to ? r : fail(400, 'INVALID_INPUT', 'The start date must be on or before the end date'));
 const money = z.number().int().nonnegative().max(100_000_000_000);
 const text = (n = 300) => z.string().trim().min(1).max(n);
 const line = z.object({ description: text(200), quantity: z.number().int().positive().max(100_000), unitPrice: money, discount: money.optional(), serviceCode: z.string().max(40).optional() });
@@ -275,7 +277,7 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
   app.get(`${A}/reports/summary`, async (req) => {
     await admin(req);
     const day = today(b);
-    const f = z.object({ from: date.default(`${day.slice(0, 7)}-01`), to: date.default(day) }).parse(req.query);
+    const f = checkedRange(z.object({ from: date.default(`${day.slice(0, 7)}-01`), to: date.default(day) }).parse(req.query));
     return run((q) => revenueSummary(b, q, f.from, f.to));
   });
   app.get(`${A}/collections`, async (req) => {
@@ -286,7 +288,7 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
   app.get(`${A}/reports/export`, async (req, reply) => {
     await admin(req);
     const day = today(b);
-    const f = z.object({ kind: z.enum(['invoices', 'payments', 'collections', 'revenue_by_month', 'ageing']), from: date.default(`${day.slice(0, 7)}-01`), to: date.default(day) }).parse(req.query);
+    const f = checkedRange(z.object({ kind: z.enum(['invoices', 'payments', 'collections', 'revenue_by_month', 'ageing']), from: date.default(`${day.slice(0, 7)}-01`), to: date.default(day) }).parse(req.query));
     const rows: unknown[][] = await run(async (q) => {
       if (f.kind === 'invoices') return [['Number', 'Client', 'Status', 'Issued', 'Due', 'Total (GHS)', 'Paid (GHS)', 'Outstanding (GHS)'], ...(await q(`SELECT i.*, t.name AS client FROM invoices i JOIN tenants t ON t.id = i.tenant_id WHERE i.status <> 'draft' AND i.issue_date >= $1::date AND i.issue_date <= $2::date ORDER BY i.issue_date`, [f.from, f.to])).map((i: any) => [i.number, i.client, displayStatus(i, day), i.issue_date, i.due_date, cedis(i.total), cedis(i.amount_paid - i.amount_refunded), cedis(outstanding(i))])];
       if (f.kind === 'payments') return [['Receipt', 'Client', 'Received', 'Method', 'Provider', 'Sandbox', 'Amount (GHS)', 'Refunded (GHS)', 'Provider fee (GHS)'], ...(await q(`SELECT p.*, t.name AS client FROM billing_payments p JOIN tenants t ON t.id = p.tenant_id WHERE p.received_at >= $1::date AND p.received_at < ($2::date + 1) ORDER BY p.received_at`, [f.from, f.to])).map((p: any) => [p.receipt_number, p.client, p.received_at, p.method, p.provider ?? 'manual', p.sandbox ? 'yes' : 'no', cedis(p.amount), cedis(p.amount_refunded), cedis(p.fee)])];
