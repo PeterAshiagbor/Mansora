@@ -2,12 +2,12 @@
 
 Live demo: https://mansora-saas-demo.bgtpk74dbt.chatgpt.site
 
-Published through Sites as **version 6** on 2026-11-10. It includes C14, the
-billing-aware preview and the completed C19 deployment-interface pass.
+Published through Sites as **version 9** on 2026-11-11. It includes the C28
+workflow redesign, billing-aware preview and C26 phone/walkthrough fixes.
 Choose Client app or Mansora admin. Sharing is public/anyone-with-link, so
 ChatGPT users and signed-out visitors can open it without an invitation.
 Hosting project: `appgprj_6af2c4565ff881919480f43aab9e56bb`.
-Deployment `appgdep_6af3146636d4819188165e39628a84b4` returned `succeeded`.
+Deployment `appgdep_6af4c3adb8608191ae9faed7cb4d31cd` returned `succeeded`.
 This is a synthetic interface preview, separate from the live production service.
 
 The owner requested a hosted demo while the application remains in development.
@@ -89,7 +89,7 @@ access was confirmed after publication. The focus/draft follow-up is included in
 ## Current version 6 publication
 
 Site source `55bd0a50810841064f90b7eadd4c2762577e6010`, built from Mansora `61716641409048737810e8814efbcd31323d65a2`
-(PR #29, merged as `7537e616f9241ef94e60d6d92f98708b0643b733`). Native deployment `appgdep_6af3146636d4819188165e39628a84b4`
+(PR #29, merged as `7537e616f9241ef94e60d6d92f98708b0643b733`). Native deployment `appgdep_6af4c3adb8608191ae9faed7cb4d31cd`
 returned `succeeded`. All 69 output assets were verified against SHA-256 provenance
 before packaging. The existing project identity and owner-requested public audience
 were retained. See [interface acceptance](interface-deployment-readiness.md) for
