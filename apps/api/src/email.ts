@@ -21,7 +21,8 @@ export class ResendEmail implements EmailAdapter {
       });
     } catch { throw new EmailDeliveryError('Resend could not be reached; delivery will retry.', true); }
     if (!response.ok) {
-      await response.body?.cancel();
+      const failure: any = await response.json().catch(() => ({}));
+      if (response.status === 403 && typeof failure.message === 'string' && /domain.*not verified/i.test(failure.message)) throw new EmailDeliveryError('Resend sender domain is not verified.', false);
       throw new EmailDeliveryError(`Resend rejected delivery (HTTP ${response.status}).`, [408, 429].includes(response.status) || response.status >= 500);
     }
     const data: any = await response.json().catch(() => ({}));
