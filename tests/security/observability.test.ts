@@ -4,6 +4,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../../apps/api/src/app';
+import { apiRuntimeOptions } from '../../apps/api/src/runtime';
 import { requestId, safeError } from '../../apps/api/src/observability';
 import { sha256 } from '../../apps/api/src/security';
 import { ADMIN, startCloud, type Cloud } from '../cloud';
@@ -28,7 +29,7 @@ beforeAll(async () => {
   });
   await new Promise<void>((resolve) => webhook.listen(0, '127.0.0.1', resolve));
   await cloud.app.close();
-  app = await buildApp({ db: cloud.db, backupDir: tempDir(), metricsToken, logger: true, logStream: { write: (line) => logs.push(line) }, errorWebhookUrl: `http://127.0.0.1:${(webhook.address() as AddressInfo).port}` });
+  app = await buildApp({ ...apiRuntimeOptions({ METRICS_TOKEN: metricsToken, ERROR_WEBHOOK_URL: `http://127.0.0.1:${(webhook.address() as AddressInfo).port}` }, tempDir()), db: cloud.db, logStream: { write: (line) => logs.push(line) } });
   app.get('/v1/admin/test/failure', () => { throw error(); });
   app.get('/test/logged-error', (req) => { req.log.error({ err: error(), eventId: randomUUID() }, 'Synthetic failure'); return { ok: false }; });
   await app.listen({ port: Number(new URL(cloud.url).port), host: '127.0.0.1' });
@@ -122,8 +123,8 @@ it('disables metrics and outbound reporting when unset, and validates configurat
     expect((await noHook.inject({ url: '/test/failure' })).statusCode).toBe(500);
     expect(spy).not.toHaveBeenCalled();
   } finally { spy.mockRestore(); await noHook.close(); }
-  await expect(buildApp({ db: cloud.db, backupDir: tempDir(), metricsToken: 'short' })).rejects.toThrow(/METRICS_TOKEN/);
-  await expect(buildApp({ db: cloud.db, backupDir: tempDir(), errorWebhookUrl: 'file:///tmp/report' })).rejects.toThrow(/ERROR_WEBHOOK_URL/);
+  await expect(buildApp({ db: cloud.db, ...apiRuntimeOptions({ METRICS_TOKEN: 'short' }, tempDir()) })).rejects.toThrow(/METRICS_TOKEN/);
+  await expect(buildApp({ db: cloud.db, ...apiRuntimeOptions({ ERROR_WEBHOOK_URL: 'file:///tmp/report' }, tempDir()) })).rejects.toThrow(/ERROR_WEBHOOK_URL/);
   await expect(buildApp({ db: cloud.db, backupDir: tempDir(), errorWebhookUrl: passwordMarker })).rejects.toThrow('ERROR_WEBHOOK_URL must be a valid HTTP(S) URL');
   expect(safeError(Object.assign(new Error(passwordMarker), { name: passwordMarker, code: passwordMarker }))).toEqual({ type: 'Error' });
 });
