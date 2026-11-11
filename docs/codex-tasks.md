@@ -68,7 +68,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C28 workflow redesign implementation | Codex — done | PR #41 merged as `e1c0d92`; all six exact merged workflows green, 283 local tests pass. Public sample version 9 published; Railway SUCCESS and both client/operator live browser acceptance pass | `codex/C28-workflow-implementation` |
 | C30 comprehensive software review | Codex — review complete, evidence prepared | Legacy #24/#25 closed as integrated. 288 tests and live API/browser checks pass; four confirmed findings with reproduction and acceptance criteria. Findings remain open; see `docs/reviews/c30-software-review.md` | `codex/C30-comprehensive-review` |
 
-| C29 friendly test access and invitations | Codex (review/domain/email session) | PRs #42/#43 merged; 288 local tests pass before diagnostic test addition. Live Resend refuses unverified sender: 0 accepted/activated, 2 pending; old passwords preserved. Owner asked for public verification DNS records | PRs #42/#43 |
+| C29 friendly test access and invitations | Codex (review/domain/email session) | Complete: PRs #42/#43 merged; verified sender, both Resend invitations delivered and both passphrases activated on live SUCCESS deployment 96b6f761. Same journal/operation preserved | PRs #42/#43 |
 | C32 Railway runtime configuration | Codex (review/domain/email session) | Claimed: C30 F03/F04 only — shared sanitized API telemetry options and explicit backup storage factory/fallback in Railway, with composition tests. Preserve C29 invitation logic and C30 report ownership | `codex/C32-runtime-wiring` |
 | **Roadmap "Now" stage (2026-11-11, owner asked to share the work between Claude and two Codex sessions; see `docs/operations/product-audit-and-roadmap.md` §6–6a)** | | | |
 | C31 mobile money end-of-day check (N3) | Claude | Claimed | `claude/elegant-bohr-mjeotl` |
@@ -83,6 +83,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C40 Contact Mansora panel from settings on Help and sign-in; Forgot password route (N5) | **Codex session 2** | Assigned, start here | – |
 | C41 parked sales and quick keys, interface only, no engine change (X8) | **Codex session 2** | Assigned, not started | – |
 | C42 board housekeeping: move finished history to `docs/archive/`, keep this board to open work (P2) | **Codex session 2** | Assigned, do last so it does not conflict with active claims | – |
+| C43 realistic test-workspace data | Codex (review/domain/email session) | Claimed per owner: additive sample inventory, customers/suppliers, sales, expenses and reports for all team-test workspaces. Preserve tester edits, role permissions, tenant isolation, imports/exports and all hardening; no engine edits | `codex/C43-test-data` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
 
 ## Notes for Codex (from Claude, 2026-11-10)
@@ -113,6 +114,11 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C43 sample-data claim; C29 delivered)
+- Owner explicitly requests sample data for all actual-platform test accounts while preserving editing, export, analysis and every hardening control. Claim C43 additive data pack in scripts/staging only, using real authenticated engine commands and per-workspace restart-safe tracking; no permission bypass, tenant sharing, user-data reset or protected engine edits. Coordinate scripts/railway wiring with our C32 branch.
+- Resend connection now available: sender domain verified/sending enabled. Existing live deployment 96b6f761 reports 2 invitations accepted and activated, 0 pending; Resend lists both invitation messages as delivered. No resend or new operation required. Never commit credentials or recipient addresses.
+- C32 #46 first head passed all six workflows; rebased onto already merged #45, preserving both handoffs and all roadmap rows. Rebased head 8c3c77e passes all 290 local tests; its CI is queued behind existing runs. Do not cancel another session’s workflows or bypass check gates. This session is working only on the actual platform; marketing site work is handed off.
 
 ### 2026-11-11 — Claude (roadmap work split between Claude and two Codex sessions)
 - Owner asked to share the roadmap work between this Claude session and two Codex sessions. Assignments are in the status board (C31–C42) and in `docs/operations/product-audit-and-roadmap.md` §6a, which also has the start prompt for each Codex session. Shareable page for the owner: the audit artifact.
