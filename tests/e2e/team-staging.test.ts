@@ -25,7 +25,16 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     for (const role of ['owner', 'cashier']) {
       const page = await (await browser.newContext({ viewport: { width: 1366, height: 768 } })).newPage(); page.setDefaultTimeout(10_000); page.on('pageerror', (e: Error) => errors.push(e.message));
       const account = accounts.find(a => a.workspace === 'shop-a' && a.role === role)!;
-      await page.goto(gateway.url + '/client/shop-a/'); await page.getByLabel('Username', { exact: true }).fill(account.username); await page.getByLabel('Password', { exact: true }).fill(account.password); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
+      await page.goto(gateway.url + '/client/shop-a/#email=invited%40example.test');
+      expect(await page.getByLabel('Username', { exact: true }).inputValue()).toBe('invited@example.test');
+      await page.getByText('Use the email address from your invitation, or your staff username.', { exact: true }).waitFor();
+      await page.getByLabel('Username', { exact: true }).fill(account.username);
+      await page.getByLabel('Password', { exact: true }).fill(account.password);
+      await page.getByRole('button', { name: 'Show password', exact: true }).click();
+      expect(await page.getByLabel('Password', { exact: true }).getAttribute('type')).toBe('text');
+      await page.getByRole('button', { name: 'Hide password', exact: true }).click();
+      expect(await page.getByLabel('Password', { exact: true }).getAttribute('type')).toBe('password');
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
       if (role === 'owner') owner = page; else cashier = page;
     }
     admin = await (await browser.newContext()).newPage(); admin.setDefaultTimeout(10_000); admin.on('pageerror', (e: Error) => errors.push(e.message));

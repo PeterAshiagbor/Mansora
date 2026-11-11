@@ -3,6 +3,7 @@
 // Email aliases exist only in the staging HTTP gateway; native bridge capabilities remain unchanged.
 // Resend delivery is server-only (RESEND_API_KEY/FROM_EMAIL/REPLY_TO,
 // PLATFORM_ALERT_EMAIL and the team-test RESEND_ALLOWED_RECIPIENTS); none enters IPC.
+// Explicit tester invitations use STAGING_TESTER_INVITATION_ID server-side only.
 /**
  * Launches the PACKAGED desktop application and checks the security shell:
  * the window opens on the activation screen, the page has no Node access,

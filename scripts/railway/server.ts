@@ -9,6 +9,7 @@ import { prepareRailwayDatabase } from './database';
 import { provisionStaging } from '../staging/bootstrap';
 import { stagingConfig } from '../staging/config';
 import { startConfiguredStaging } from '../staging/server';
+import { inviteTesters } from '../staging/invitations';
 
 export async function runRailwayServer() {
   if (process.getuid?.() === 0) throw new Error('Drop root privileges before starting the application.');
@@ -28,11 +29,22 @@ export async function runRailwayServer() {
     await db.platform(async q => { if (!(await q('SELECT id FROM admins WHERE email = $1', [config.adminEmail])).length) await createAdmin(q, { email: config.adminEmail, name: 'Staging operator', password: adminPassword }); });
     const operatorFile = join(directory, 'operator-account.json');
     if (!existsSync(operatorFile)) writeFileSync(operatorFile, JSON.stringify({ email: config.adminEmail, password: adminPassword }) + '\n', { flag: 'wx', mode: 0o600 });
+    if (process.env.STAGING_TESTER_INVITATION_ID) {
+      process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').filter(Boolean), ...config.emails])].join(',');
+    }
     const { billing } = createBillingFromEnv(db);
     app = await buildApp({ db, billing, backupDir: join(config.dataDir, 'cloud-backups'), adminOrigins: [config.origin], logger: false });
     await app.listen({ host: '127.0.0.1', port: 4000 });
     await provisionStaging(stagingConfig(), { email: config.adminEmail, password: adminPassword }, config.emails, config.passwords);
-    gateway = await startConfiguredStaging(async () => { const r = await fetch('http://127.0.0.1:4000/health/ready', { signal: AbortSignal.timeout(3000) }); return r.ok; });
+    gateway = await startConfiguredStaging(async () => { const r = await fetch('http://127.0.0.1:4000/health/ready', { signal: AbortSignal.timeout(3000) }); return r.ok; }, async workspaces => {
+      const result = await inviteTesters({ id: process.env.STAGING_TESTER_INVITATION_ID, dataDir: join(config.dataDir, 'staging'), origin: config.origin, workspaces, email: billing.email, onActivated: async (tenantId, email) => {
+        await db.platform(async q => {
+          await q("UPDATE tenants SET email = $2 WHERE id = $1 AND (email IS NULL OR email LIKE '%@mansora.example')", [tenantId, email]);
+          await q("UPDATE billing_accounts SET billing_email = $2 WHERE tenant_id = $1 AND (billing_email IS NULL OR billing_email LIKE '%@mansora.example')", [tenantId, email]);
+        });
+      } });
+      if (!result.disabled) console.log(`Tester invitations: ${result.accepted} accepted, ${result.activated} activated, ${result.waiting} awaiting setup or review.`);
+    });
     let billingRun: Promise<unknown> | undefined;
     timer = setInterval(() => { if (billingRun) return; billingRun = runDaily(billing).catch(() => console.error('Sandbox billing job failed; inspect application health.')).finally(() => { billingRun = undefined; }); }, 15 * 60_000); timer.unref();
     let stopping = false;
