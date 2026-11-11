@@ -139,7 +139,7 @@ const shop = await mk();
 const admin = await mk();
 const signIn = async (u: string) => {
   await shop.goto(host.url);
-  await shop.getByText('Sign in with your staff username and password. This works without internet.', { exact: true }).waitFor();
+  await shop.getByText('Sign in with the account details provided by your administrator.', { exact: true }).waitFor();
   await shop.getByLabel('Username').fill(u);
   await shop.getByLabel('Password', { exact: true }).fill(PASS);
   await shop.getByRole('button', { name: 'Sign in' }).click();
@@ -150,7 +150,7 @@ const settle = (p: any) => p.waitForTimeout(600);
 
 // 01 sign-in screen
 await shop.goto(host.url);
-await shop.getByText('Sign in with your staff username and password. This works without internet.', { exact: true }).waitFor();
+await shop.getByText('Sign in with the account details provided by your administrator.', { exact: true }).waitFor();
 await shot(shop, '01-login');
 
 // cashier screens

@@ -93,6 +93,12 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 
 ## Handoff log (newest first; append, never rewrite)
 
+### 2026-11-11 — Codex (C24 review and full end-to-end acceptance)
+- C23 PR #35 merged as `460bc01ea2b762cc479e85d0a71d42523e487329` after all six final feature workflows passed. The merged workflows are being checked independently. Official pinned Playwright image fixes dependency provisioning without removing browser tests.
+- C24 implements the owner's approved Xero/Linear/Stripe direction with Mansora purple/gold, soft static glow, readable surfaces, consistent controls and matching login screens. Daily features remain prominent and advanced tools on demand. Dashboard refresh reads actual changes from other sessions. Corrected browser/offline copy and the selected sidebar group's paint timing after page search. See `docs/operations/interface-design.md`.
+- Owner requested the pushed/merged status and a review link, then tests. Opening the UI PR for review while the previously requested full suite runs; no unverified pass or deployment is claimed. Walkthrough capture and two browser fixtures now follow the revised sign-in copy. Real billing, permission and financial assertions remain unchanged.
+
+
 ### 2026-11-11 — Codex (C23 browser CI reliability follow-up)
 - Existing merged/claim CI and the first C23 implementation hit repeated GitHub runner Ubuntu dependency setup delays/failures. Replacing the Azure mirror did not provide a reliable bounded setup. The final Linux test job now uses Microsoft's official Playwright 1.65.0 Noble image pinned to registry-confirmed digest `sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d`, installs the matching client and launches actual Chromium before the unchanged tests. No test/assertion is skipped; real PostgreSQL sync uses the container service hostname. Windows installer checks remain independent.
 - C24 source is temporarily stashed on its own branch while this C23 correction is checked. Its first 34 focused browser/accessibility tests found one real brand fallback regression: the primary-button gradient had reset the underlying purple to transparent. Fixed the actual background fallback, preserving the original brand assertion rather than weakening it. Other 33 focused tests passed, including new live-data refresh behavior; final recapture/full acceptance follows.
