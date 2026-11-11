@@ -1,6 +1,7 @@
 /** Exercise the actual progressive navigation, including hidden feature groups. */
 export async function navigate(page: any, name: string) {
   const nav = page.getByRole('navigation', { name: 'Main' });
+  if (!await nav.isVisible() && await page.getByRole('button', { name: 'Menu', exact: true }).isVisible()) await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await nav.waitFor({ state: 'visible' });
   const target = nav.getByRole('button', { name, exact: true });
   if (!await target.isVisible()) {

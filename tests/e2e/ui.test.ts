@@ -167,6 +167,7 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
     await signIn('adwoa', 'owner-pass-9');
     await shop.getByText('Sales today').waitFor();
     await nav('Reports');
+    await shop.getByRole('button', { name: /Business summary/ }).click();
     await shop.getByText('GHS 53.00').first().waitFor(); // net sales
     await shop.getByRole('tab', { name: 'Gross profit' }).click();
     await shop.getByText('GHS 8.00').first().waitFor(); // 53.00 - (38.50 + 6.50) cost

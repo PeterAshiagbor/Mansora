@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TaskLinks } from '../components/TaskLinks';
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Textarea, QueryView } from '@mansora/ui';
 import { call, dateTime, ExportButtons, METHOD, money, MoneyInput, plain, useAction, useQuery, uuid } from '../lib';
 
@@ -12,6 +13,7 @@ export function CustomersPage() {
   return (
     <div>
       <PageHeader title="Customers" subtitle="Walk-in sales do not need a customer record. Collect contact details only when they are needed." actions={<Button variant="primary" onClick={() => setEdit({ name: '', phone: '', email: '', notes: '' })}>Add customer</Button>} />
+      <TaskLinks group="customers" current="customers" />
       <Input placeholder="Search by name or phone" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3 w-80" aria-label="Search customers" />
       {data?.length === 500 && <p className="mb-3 text-xs text-slate-600">Showing the first 500 matches. Refine the name or phone search to find another customer.</p>}
       <QueryView query={customersQuery} label="customers"><Card pad={false}>
@@ -64,6 +66,7 @@ export function CreditPage() {
     <div>
       <PageHeader title="Credit & repayments" subtitle="Money customers still owe from credit sales."
         actions={<ExportButtons title="Customer credit" columns={['Customer', 'Phone', 'Receipt', 'Credit given', 'Still owed', 'Due date', 'Status']} rows={() => (data?.accounts ?? []).map((a: any) => [a.customer_name, a.customer_phone ?? '', a.receipt_no, plain(a.original_balance), plain(a.outstanding_balance), a.due_date ?? '', a.overdue ? 'Overdue' : a.status])} />} />
+      <TaskLinks group="customers" current="credit" />
       <div className="mb-4 grid grid-cols-3 gap-3">
         <Stat label="Total outstanding" value={money(data?.totalOutstanding)} tone={data?.totalOutstanding ? 'warn' : 'default'} />
         <Stat label="Overdue" value={money(data?.totalOverdue)} tone={data?.totalOverdue ? 'bad' : 'default'} />
@@ -102,6 +105,7 @@ function RepayModal({ account, onClose, onDone }: { account: any; onClose: () =>
       <div className="space-y-3">
         <p className="text-sm text-slate-600">Owes <strong>{money(account.outstanding_balance)}</strong> on receipt {account.receipt_no}.</p>
         <Field label="Amount received (GHS)" error={tooMuch ? 'This is more than the amount owed' : null}><MoneyInput value={amount} onChange={setAmount} autoFocus /></Field>
+        <div className="m-payment-summary" aria-live="polite"><p className="text-sm text-slate-600">Balance after this repayment</p><p className="mt-2 text-2xl font-semibold">{amount != null && amount > 0 && !tooMuch ? money(account.outstanding_balance - amount) : 'Enter a valid repayment'}</p><p className="mt-2 text-xs text-slate-600">The balance changes only after the repayment is recorded.</p></div>
         <Field label="Paid by" hint={method === 'cash' ? 'Cash goes into your till and is counted in your shift.' : 'Recorded only. Confirm the money has arrived.'}><Select value={method} onChange={(e) => setMethod(e.target.value)}><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="card">Card</option></Select></Field>
         {method !== 'cash' && <Field label="Reference (optional)"><Input value={reference} onChange={(e) => setReference(e.target.value)} /></Field>}
       </div>

@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
+import { TaskLinks } from '../components/TaskLinks';
 import { ROLE_DEFAULTS, type Role } from '@mansora/domain';
-import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, QueryView, useUnsavedChanges } from '@mansora/ui';
-import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, marginLabel, money, saveFile, today, useAction, useApp, useQuery } from '../lib';
+import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, QueryView, WorkflowSteps, useUnsavedChanges } from '@mansora/ui';
+import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, marginLabel, money, saveFile, today, useAction, useApp, useQuery, useToast } from '../lib';
 
 // ---------------------------------------------------------------- Staff
 export function StaffPage() {
@@ -69,7 +70,8 @@ export function SettingsPage() {
   const validSettings = f.lockMinutes.trim() !== '' && Number.isInteger(Number(f.lockMinutes)) && Number(f.lockMinutes) >= 1 && Number(f.lockMinutes) <= 240 && f.maxDiscountPercent.trim() !== '' && Number.isInteger(Number(f.maxDiscountPercent)) && Number(f.maxDiscountPercent) >= 0 && Number(f.maxDiscountPercent) <= 100;
   return (
     <div className="max-w-3xl space-y-4">
-      <PageHeader title="Settings" />
+      <PageHeader title="Settings" subtitle="Manage your business profile, staff access and service tools." />
+      <TaskLinks group="settings" />
       {manage && (
         <Card title="Business profile (printed on receipts)">
           <div className="grid grid-cols-2 gap-3">
@@ -104,7 +106,9 @@ export function SettingsPage() {
 // ---------------------------------------------------------------- Import & export
 const FIELD_LABEL: Record<string, string> = { name: 'Product name *', sku: 'SKU', barcode: 'Barcode', category: 'Category', unit: 'Unit', cost_price: 'Unit cost price (GHS)', carton_cost: 'Carton cost (GHS)', units_per_carton: 'Selling units per carton', selling_price: 'Selling price *', opening_stock: 'Opening stock', reorder_level: 'Reorder level' };
 export function DataPage() {
-  const { can } = useApp();
+  const { can, go } = useApp();
+  const toast = useToast();
+  const [completed, setCompleted] = useState<{ created: number; skipped: number; fileName: string } | null>(null);
   const history = useQuery<any[]>('import.history');
   const [file, setFile] = useState<{ fileName: string; contentBase64: string } | null>(null);
   const [preview, setPreview] = useState<any | null>(null);
@@ -112,7 +116,7 @@ export function DataPage() {
   const input = useRef<HTMLInputElement>(null);
   useUnsavedChanges(file != null, 'the product import preview');
   const { run, busy } = useAction();
-  const load = (f: { fileName: string; contentBase64: string }, mapping?: Record<string, string>) => run(async () => { setFile(f); setConfirm(false); setPreview(await call('import.preview', { ...f, mapping })); });
+  const load = (source: File | { fileName: string; contentBase64: string }, mapping?: Record<string, string>) => run(async () => { setPreview(null); setCompleted(null); setConfirm(false); const f = source instanceof File ? { fileName: source.name, contentBase64: await fileToBase64(source) } : source; setFile(f); const next = await call('import.preview', { ...f, mapping }); setPreview(next); return next; });
   const rows: any[] = preview?.rows ?? [];
   const errors = rows.filter((r) => r.errors.length).length;
   const dups = rows.filter((r) => r.duplicate && !r.errors.length).length;
@@ -120,26 +124,30 @@ export function DataPage() {
   const hasStock = rows.some((r) => !r.duplicate && !r.errors.length && r.data.openingStock > 0);
   return (
     <div className="space-y-4">
-      <PageHeader title="Import & export" />
+      <PageHeader title="Import & export" subtitle="Choose a file, check the rows, then confirm. Nothing is saved during preview." />
+      <WorkflowSteps steps={['Choose file', 'Check rows', 'Import']} current={completed ? 2 : file ? 1 : 0} />
+      {completed && <Card title="Import complete"><p className="text-lg font-semibold">{completed.created} product(s) added · {completed.skipped} skipped</p><p className="mt-2 text-sm text-slate-600">{completed.fileName} · The confirmed result is recorded in import and audit history.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="primary" onClick={() => go('products')}>View products</Button><Button onClick={() => { setCompleted(null); input.current?.focus(); }}>Import another file</Button></div></Card>}
       <Card title="Import products and opening stock" actions={<><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'xlsx' })))}>Download Excel template</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'csv' })))}>CSV template</Button></>}>
         <p className="mb-3 text-sm text-slate-600">Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved. For carton costing, fill Carton cost and Units per carton; leave Cost price blank. Selling price and opening stock are per selling unit. Unit cost rounds to the nearest pesewa.</p>
-        <input ref={input} type="file" accept=".xlsx,.csv" className="block text-sm" aria-label="Choose import file"
-          onChange={async (e) => { const f = e.target.files?.[0]; if (f) load({ fileName: f.name, contentBase64: await fileToBase64(f) }); }} />
+        <input ref={input} type="file" accept=".xlsx,.csv" className="block text-sm" aria-label="Choose import file" disabled={busy}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void load(f); }} />
+        {busy && !preview && <p className="mt-4 text-sm text-slate-600" role="status">Checking the file. No products have been saved…</p>}
+        {file && !preview && !busy && !completed && <div className="mt-4"><Alert tone="warn">The file preview is unavailable. Retry or choose a corrected file before importing.</Alert><Button className="mt-3" onClick={() => load(file)}>Retry preview</Button></div>}
         {preview && file && (
           <div className="mt-4 space-y-3">
             {preview.alreadyImportedAt && <Alert tone="warn">This exact file was already imported on {dateTime(preview.alreadyImportedAt)}. It will not be imported again.</Alert>}
-            <fieldset>
-              <legend className="mb-1 text-sm font-medium">Match your columns</legend>
+            <details className="m-form-details" open={preview.needsMapping || undefined}><summary>Match your columns</summary><fieldset>
+              <legend className="sr-only">Column mapping</legend>
               <div className="grid grid-cols-3 gap-2">
                 {Object.entries(FIELD_LABEL).map(([field, label]) => (
                   <Field key={field} label={label}>
-                    <Select value={preview.mapping[field] ?? ''} onChange={(e) => load(file, { ...preview.mapping, [field]: e.target.value || undefined })}>
+                    <Select disabled={busy} value={preview.mapping[field] ?? ''} onChange={(e) => load(file, { ...preview.mapping, [field]: e.target.value || undefined })}>
                       <option value="">(not in my file)</option>{preview.headers.map((h: string) => <option key={h} value={h}>{h}</option>)}
                     </Select>
                   </Field>
                 ))}
               </div>
-            </fieldset>
+            </fieldset></details>
             {preview.needsMapping ? <Alert tone="warn">Choose which columns hold the product name and the selling price.</Alert> : (
               <>
                 <div className="flex gap-2"><Badge tone="good">{good} new product(s)</Badge>{dups > 0 && <Badge tone="warn">{dups} already exist (will be skipped)</Badge>}{errors > 0 && <Badge tone="bad">{errors} row(s) with errors</Badge>}</div>
@@ -152,7 +160,7 @@ export function DataPage() {
                 </div>
                 {hasStock && <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} /> I confirm the opening stock quantities are what is physically in the shop</label>}
                 <Button variant="primary" disabled={busy || errors > 0 || good === 0 || !!preview.alreadyImportedAt || (hasStock && !confirm)}
-                  onClick={() => run(async () => { const r = await call('import.commit', { ...file, mapping: preview.mapping, confirmOpeningStock: confirm }); setPreview(null); setFile(null); if (input.current) input.current.value = ''; history.reload(); return r; }, `Imported ${good} product(s)`)}>
+                  onClick={() => run(async () => { const r = await call('import.commit', { ...file, mapping: preview.mapping, confirmOpeningStock: confirm }); setCompleted({ created: r.created, skipped: r.skipped, fileName: file.fileName }); setPreview(null); setFile(null); if (input.current) input.current.value = ''; history.reload(); toast(`Imported ${r.created} product(s)`); return r; })}>
                   Import {good} product(s)
                 </Button>
                 {errors > 0 && <p className="text-sm text-red-700">Fix the rows with errors in your file and choose it again. Nothing has been imported.</p>}

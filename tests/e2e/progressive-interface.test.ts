@@ -93,11 +93,77 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     await expect.poll(() => shop.getByText('Sales today', { exact: true }).locator('..').innerText()).toContain('96.00');
     expect(await shop.getByRole('table').getByRole('row').count()).toBe(6);
   });
+  it('starts reports with a question and fetches financial data only after choosing one', async () => {
+    const before = salesReads; await navigate(shop, 'Reports');
+    await shop.getByRole('button', { name: /Business summary/ }).waitFor();
+    expect(salesReads).toBe(before); expect(await shop.getByRole('table').count()).toBe(0);
+    await shop.getByRole('button', { name: /Business summary/ }).click();
+    await expect.poll(() => salesReads).toBe(before + 1);
+    await shop.getByRole('row').filter({ hasText: /^Net sales/ }).getByText('GHS 96.00', { exact: true }).waitFor();
+    await shop.getByRole('button', { name: '← All reports', exact: true }).click();
+    await shop.getByRole('button', { name: /Gross profit/ }).click();
+    await shop.getByRole('heading', { name: 'Gross profit by product', exact: true }).waitFor();
+  });
+  it('reveals payment methods without losing entered split amounts or saving an unfinished sale', async () => {
+    await navigate(shop, 'New sale'); await shop.getByLabel('Search or scan product', { exact: true }).fill('Simple item');
+    await shop.getByRole('button').filter({ hasText: 'Simple item' }).click(); await shop.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
+    const pay = shop.getByRole('dialog', { name: 'Take payment', exact: true });
+    expect(await pay.getByLabel('Mobile money amount', { exact: true }).isVisible()).toBe(false);
+    await pay.getByRole('button', { name: 'Mobile money', exact: true }).click(); await pay.getByLabel('Mobile money amount', { exact: true }).fill('6');
+    await pay.getByRole('button', { name: 'Cash', exact: true }).click(); expect(await pay.getByLabel('Mobile money amount', { exact: true }).isVisible()).toBe(true);
+    await pay.getByLabel('Cash received', { exact: true }).fill('10'); await expect.poll(() => pay.getByTestId('change').innerText()).toBe('GHS 4.00');
+    await pay.getByRole('button', { name: 'Back to basket', exact: true }).click();
+    expect(host.engine.db.prepare('SELECT COUNT(*) AS n FROM sales').get()).toMatchObject({ n: 8 });
+    await navigate(shop, 'Products'); await shop.getByRole('dialog', { name: 'Discard unsaved changes?', exact: true }).getByRole('button', { name: 'Discard changes', exact: true }).click();
+  });
+  it('replaces a failed import preview safely and confirms only the actual committed result', async () => {
+    await navigate(shop, 'Import & export'); const csv = Buffer.from('Name,Selling price,Cost price,Opening stock\nPreview only,2,1,0\n');
+    await shop.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'preview.csv', mimeType: 'text/csv', buffer: csv });
+    await shop.getByRole('cell', { name: 'Preview only', exact: true }).waitFor();
+    await shop.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'broken.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from('invalid workbook') });
+    await shop.getByText('The file preview is unavailable. Retry or choose a corrected file before importing.', { exact: true }).waitFor();
+    expect(await shop.getByRole('cell', { name: 'Preview only', exact: true }).count()).toBe(0);
+    expect(await shop.getByRole('button', { name: 'Import 1 product(s)', exact: true }).count()).toBe(0);
+    expect(host.engine.db.prepare("SELECT COUNT(*) AS n FROM products WHERE name = 'Preview only'").get()).toMatchObject({ n: 0 });
+    await shop.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'corrected.csv', mimeType: 'text/csv', buffer: csv });
+    await shop.getByRole('button', { name: 'Import 1 product(s)', exact: true }).click(); await shop.getByRole('heading', { name: 'Import complete', exact: true }).waitFor();
+    expect(host.engine.db.prepare("SELECT COUNT(*) AS n FROM products WHERE name = 'Preview only'").get()).toMatchObject({ n: 1 });
+    await shop.getByText('1 product(s) added · 0 skipped', { exact: true }).waitFor();
+  });
+  it('converts received cartons to verified selling units before recording the actual purchase', async () => {
+    const before = host.engine.db.prepare("SELECT b.quantity FROM stock_balances b JOIN products p ON p.id = b.product_id WHERE p.name = 'Simple item'").get() as any;
+    await navigate(shop, 'Purchases & suppliers'); await shop.getByRole('button', { name: 'Receive stock', exact: true }).click();
+    const form = shop.getByRole('dialog', { name: 'Receive stock', exact: true }); await form.getByLabel('Product', { exact: true }).selectOption({ label: 'Simple item' });
+    await form.getByText('Receiving cartons? Calculate selling units', { exact: true }).click();
+    await form.getByLabel('Cartons received', { exact: true }).fill('1.5'); await form.getByLabel('Units per carton', { exact: true }).fill('12'); await form.getByLabel('Cost per carton (GHS)', { exact: true }).fill('72');
+    expect(await form.getByRole('button', { name: 'Apply carton quantities & cost', exact: true }).isDisabled()).toBe(true);
+    await form.getByLabel('Cartons received', { exact: true }).fill('2'); await form.getByRole('button', { name: 'Apply carton quantities & cost', exact: true }).click();
+    expect(await form.getByLabel('Quantity', { exact: true }).inputValue()).toBe('24'); expect(await form.getByLabel('Unit cost', { exact: true }).inputValue()).toBe('6.00');
+    expect(host.engine.db.prepare("SELECT b.quantity FROM stock_balances b JOIN products p ON p.id = b.product_id WHERE p.name = 'Simple item'").get()).toMatchObject({ quantity: before.quantity });
+    await form.getByRole('button', { name: 'Receive into stock', exact: true }).click(); await form.waitFor({ state: 'hidden' });
+    expect(host.engine.db.prepare("SELECT b.quantity FROM stock_balances b JOIN products p ON p.id = b.product_id WHERE p.name = 'Simple item'").get()).toMatchObject({ quantity: before.quantity + 24 });
+    expect(host.engine.db.prepare('SELECT total_cost FROM purchases ORDER BY rowid DESC LIMIT 1').get()).toMatchObject({ total_cost: 14400 });
+  });
+  it('uses a phone drawer and quick tasks without squeezing the desktop sidebar into the workspace', async () => {
+    await shop.setViewportSize({ width: 390, height: 844 }); await shop.getByRole('button', { name: 'Menu', exact: true }).waitFor();
+    expect(await shop.getByRole('navigation', { name: 'Main' }).count()).toBe(0);
+    expect(await shop.getByRole('navigation', { name: 'Quick tasks' }).getByRole('button').count()).toBe(4);
+    await navigate(shop, 'Stock'); await shop.getByRole('heading', { name: 'Stock', exact: true }).waitFor();
+    expect(await shop.getByRole('dialog', { name: 'Workspace navigation', exact: true }).count()).toBe(0);
+    expect(await shop.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await shop.getByRole('button', { name: 'Menu', exact: true }).click(); await shop.getByRole('dialog', { name: 'Workspace navigation', exact: true }).waitFor(); await shop.keyboard.press('Escape');
+    expect(await shop.getByRole('button', { name: 'Menu', exact: true }).evaluate((e: HTMLElement) => e === document.activeElement)).toBe(true);
+    await shop.setViewportSize({ width: 1366, height: 768 });
+  });
   it('retains cashier restrictions across the complete collapsed page set', async () => {
     await shop.getByRole('button', { name: 'Lock / sign out', exact: true }).click(); await shop.getByLabel('Username', { exact: true }).fill(cashier.username); await shop.getByLabel('Password', { exact: true }).fill(cashier.password); await shop.getByRole('button', { name: 'Sign in', exact: true }).click();
     await shop.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor(); const nav = shop.getByRole('navigation');
     expect(await nav.locator('button.m-nav-item:visible').allInnerTexts()).toEqual(['Dashboard', 'New sale', 'Sales history', 'Cashier shifts', 'Products', 'Lock / sign out']);
     for (const name of ['Reports', 'Staff', 'Audit history', 'Import & export', 'Billing & payments']) expect(await nav.getByRole('button', { name, exact: true, includeHidden: true }).count()).toBe(0);
     await navigate(shop, 'Products'); expect(await shop.getByRole('columnheader', { name: 'Cost', exact: true }).count()).toBe(0); expect(errors).toEqual([]);
+    await shop.setViewportSize({ width: 390, height: 844 }); await shop.getByRole('button', { name: 'Menu', exact: true }).click();
+    const drawer = shop.getByRole('dialog', { name: 'Workspace navigation', exact: true });
+    for (const name of ['Reports', 'Staff', 'Import & export', 'Billing & payments']) expect(await drawer.getByRole('button', { name, exact: true, includeHidden: true }).count()).toBe(0);
+    await shop.keyboard.press('Escape'); await shop.setViewportSize({ width: 1366, height: 768 });
   });
 });

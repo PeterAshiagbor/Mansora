@@ -82,6 +82,7 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
       for (const name of names) {
         await nav(shop, name);
         await scan(shop, `Desktop ${name} zoom ${zoom}`);
+        if (name === 'Reports') { await shop.getByRole('button', { name: /Business summary/ }).click(); await scan(shop, `Desktop report summary zoom ${zoom}`); }
         const tabs = await shop.getByRole('tab').count();
         for (let i = 1; i < tabs; i++) { await shop.getByRole('tab').nth(i).click(); await scan(shop, `Desktop ${name} tab ${i} zoom ${zoom}`); }
       }
@@ -147,6 +148,7 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
     await shop.getByRole('button').filter({ hasText: 'Keyboard product' }).click();
     await shop.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
     await scan(shop, 'Desktop payment dialog zoom 2');
+    for (const method of ['Mobile money', 'Card', 'Credit', 'Split payment']) { await shop.getByRole('dialog').getByRole('button', { name: method, exact: true }).click(); await scan(shop, `Desktop ${method} payment zoom 2`); }
     await shop.getByRole('dialog').getByRole('button', { name: 'Back to basket', exact: true }).click();
     // Exercise the discard confirmation before the next test leaves this basket.
     await nav(shop, 'Products');

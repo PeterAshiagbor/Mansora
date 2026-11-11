@@ -1,20 +1,28 @@
 import { useState } from 'react';
-import { Alert, Button, Card, PageHeader, Stat, Table, Tabs, QueryView } from '@mansora/ui';
+import { Alert, Button, Card, Icon, PageHeader, Stat, Table, Tabs, QueryView } from '@mansora/ui';
 import { SalesActivity } from '../components/SalesActivity';
 import { collectionSummary, reportPresets } from '../reporting';
 import { DateRange, ExportButtons, METHOD, money, monthStart, percent, plain, today, useApp, useQuery } from '../lib';
 
-type Tab = 'summary' | 'sales' | 'payments' | 'profit' | 'stock' | 'expenses' | 'balances';
+type Tab = 'choose' | 'summary' | 'sales' | 'payments' | 'profit' | 'stock' | 'expenses' | 'balances';
 export function ReportsPage() {
   const { can } = useApp();
   const tabs = [{ id: 'summary' as Tab, label: 'Summary' }, { id: 'sales' as Tab, label: 'Sales' }, { id: 'payments' as Tab, label: 'Payments' }, ...(can('report.profit') ? [{ id: 'profit' as Tab, label: 'Gross profit' }] : []), ...(can('report.stock') ? [{ id: 'stock' as Tab, label: 'Stock' }] : []), ...(can('expense.manage') ? [{ id: 'expenses' as Tab, label: 'Expenses' }] : []), ...(can('credit.repayment') ? [{ id: 'balances' as Tab, label: 'Customer balances' }] : [])];
-  const [tab, setTab] = useState<Tab>('summary');
+  const [tab, setTab] = useState<Tab>('choose');
   const [range, setRange] = useState({ from: monthStart(), to: today() });
   return (
     <div>
       <PageHeader title="Reports" subtitle={`${range.from} to ${range.to} · from your business records`} />
-      <Tabs value={tab} onChange={setTab} tabs={tabs} />
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{reportPresets(today()).map((preset) => <Button size="sm" key={preset.label} aria-pressed={range.from === preset.from && range.to === preset.to} variant={range.from === preset.from && range.to === preset.to ? 'primary' : 'secondary'} onClick={() => setRange({ from: preset.from, to: preset.to })}>{preset.label}</Button>)}</div><DateRange {...range} onChange={setRange} shortcuts={false} /></div>
+      {tab === 'choose' ? <section aria-label="Choose a report"><p className="mb-6 text-sm text-slate-600">Start with what you need to understand. Choose dates and export from the report you open.</p><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{[
+        { id: 'summary', title: 'Business summary', description: 'Sales, money collected and customer credit in one view.', icon: 'home', allowed: true },
+        { id: 'sales', title: 'Sales performance', description: 'What sold, when, and through which cashiers?', icon: 'chart', allowed: true },
+        { id: 'payments', title: 'Money received', description: 'Separate payments, repayments and refunds from customer credit.', icon: 'wallet', allowed: true },
+        { id: 'profit', title: 'Gross profit', description: 'What did you earn after the recorded cost of goods sold?', icon: 'chart', allowed: can('report.profit') },
+        { id: 'stock', title: 'Stock position', description: 'What is available, running low or out of stock?', icon: 'box', allowed: can('report.stock') },
+        { id: 'expenses', title: 'Expenses', description: 'Where did business money go during the selected period?', icon: 'wallet', allowed: can('expense.manage') },
+        { id: 'balances', title: 'Customer balances', description: 'Who owes you money and which repayments were recorded?', icon: 'users', allowed: can('credit.repayment') },
+      ].filter(item => item.allowed).map(item => <button type="button" key={item.id} className="m-action-tile" onClick={() => setTab(item.id as Tab)}><span><Icon name={item.icon} /></span><span><strong>{item.title}</strong><small>{item.description}</small></span></button>)}</div></section> : <><Button className="mb-5" onClick={() => setTab('choose')}>← All reports</Button><Tabs value={tab} onChange={setTab} tabs={tabs} /></>}
+      {tab !== 'choose' && <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{reportPresets(today()).map((preset) => <Button size="sm" key={preset.label} aria-pressed={range.from === preset.from && range.to === preset.to} variant={range.from === preset.from && range.to === preset.to ? 'primary' : 'secondary'} onClick={() => setRange({ from: preset.from, to: preset.to })}>{preset.label}</Button>)}</div><DateRange {...range} onChange={setRange} shortcuts={false} /></div>}
       {tab === 'summary' && <SummaryReport range={range} />}
       {tab === 'expenses' && <ExpenseReport range={range} />}
       {tab === 'balances' && <BalanceReport />}

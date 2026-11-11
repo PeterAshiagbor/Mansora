@@ -115,6 +115,7 @@ describe.skipIf(!pw || !built)('Mansora provider branding and client workspace i
     await finder.getByLabel('Find a page', { exact: true }).fill('reports');
     await finder.getByLabel('Find a page', { exact: true }).press('Enter');
     await page.getByRole('heading', { name: 'Reports', exact: true }).waitFor();
+    await page.getByRole('button', { name: /Business summary/ }).click();
     await page.getByText('Collections after refunds', { exact: true }).first().waitFor();
     expect(await page.getByRole('row').filter({ hasText: 'Collections after refunds' }).getByRole('cell').last().innerText()).toBe('GHS 12.00');
     await screenshot(page, 'business-summary');

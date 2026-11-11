@@ -93,6 +93,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/desktop/dist/renderer/index.
     await page.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
     const payment = page.getByRole('dialog', { name: 'Take payment', exact: true });
     await payment.getByLabel('Cash received', { exact: true }).fill('25');
+    await payment.getByRole('button', { name: 'Mobile money', exact: true }).click();
     await payment.getByLabel('Mobile money amount', { exact: true }).fill('invalid');
     await payment.getByRole('button', { name: /Complete sale/ }).click();
     expect(read('SELECT COUNT(*) AS n FROM sales').n).toBe(0);
@@ -127,6 +128,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/desktop/dist/renderer/index.
   });
   it('hides stale report amounts on failure and retries the selected period', async () => {
     await nav('Reports');
+    await page.getByRole('button', { name: 'Business summary', exact: false }).click();
     const total = () => page.getByRole('row').filter({ hasText: /^Net sales/ }).getByRole('cell').last();
     await expect.poll(() => total().innerText()).toBe('GHS 24.00');
     let blocked = true;

@@ -251,7 +251,7 @@ export function Alert({ tone = 'info', children, className }: { tone?: 'info' | 
 
 export { MansoraBrand } from './brand';
 
-export { WorkspaceShell, GuideBody, Icon, Disclosure, ActionMenu, type Guide } from './workspace';
+export { WorkspaceShell, GuideBody, Icon, Disclosure, ActionMenu, WorkflowSteps, AuthLayout, type Guide } from './workspace';
 export { CLIENT_GUIDES, ADMIN_GUIDES } from './guides';
 export { QueryView } from './query';
 export { DraftProvider, useNavigationGuard, useUnsavedChanges } from './drafts';

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { priceCart, settlePayments } from '@mansora/domain';
-import { Alert, Badge, Button, cx, Field, Input, Modal, Select, QueryView, useUnsavedChanges, useNavigationGuard } from '@mansora/ui';
+import { Alert, Badge, Button, cx, Field, Input, Modal, Select, QueryView, PageHeader, WorkflowSteps, useUnsavedChanges, useNavigationGuard } from '@mansora/ui';
 import { ApprovalModal, call, METHOD, money, MoneyInput, printHtml, useAction, useApp, useQuery, useToast, uuid, type Approver } from '../lib';
 
 interface Product {
@@ -115,7 +115,7 @@ export function Checkout() {
   if (shift.data === null) return <OpenShift onOpened={shift.reload} />;
 
   return (
-    <div className="flex min-h-full flex-col gap-4 xl:flex-row">
+    <div><PageHeader title="New sale" subtitle="Scan or search. Add items. Take payment." /><div className="m-checkout">
       <section aria-label="Products" className="flex min-h-64 min-w-0 flex-1 flex-col">
         <div className="flex gap-2">
           <Input ref={searchRef as any} autoFocus value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onEnter())}
@@ -126,13 +126,13 @@ export function Checkout() {
           {categories.filter((c) => c.active).map((c) => <Chip key={c.id} active={categoryId === c.id} onClick={() => setCategoryId(c.id)}>{c.name}</Chip>)}
         </div>
         {categoryQuery.error && <QueryView query={categoryQuery} label="product categories">{null}</QueryView>}
-        <QueryView query={productQuery} label="products"><div className="mt-3 grid flex-1 auto-rows-min grid-cols-2 content-start gap-2 overflow-y-auto pr-1 lg:grid-cols-3 xl:grid-cols-4">
+        <QueryView query={productQuery} label="products"><div className="m-product-grid">
           {(products ?? []).map((p) => {
             const inBasket = lines.find((l) => l.product.id === p.id)?.quantity ?? 0;
             const left = p.quantity - inBasket;
             return (
               <button key={p.id} type="button" onClick={() => add(p)} disabled={left <= 0 && !state.business.allowNegativeStock}
-                className="rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-brand-500 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50">
+                className="m-sale-product rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-brand-500 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50">
                 <div className="line-clamp-2 min-h-10 text-sm font-medium text-slate-900">{p.name}</div>
                 <div className="mt-1 flex items-end justify-between">
                   <span className="text-base font-semibold tabular-nums text-brand-800">{money(p.selling_price)}</span>
@@ -146,7 +146,7 @@ export function Checkout() {
         {products?.length === 60 && <p className="mt-2 text-xs text-slate-500">Showing up to 60 matches. Scan a barcode or refine the search to find another item.</p>}
       </section>
 
-      <section aria-label="Basket" className="flex w-full shrink-0 flex-col xl:w-[26rem] rounded-lg border border-slate-200 bg-white">
+      <section aria-label="Basket" className="m-basket flex w-full min-w-0 flex-col border bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
           <h2 className="text-sm font-semibold">Basket {lines.length > 0 && <span className="font-normal text-slate-500">· {lines.reduce((a, l) => a + l.quantity, 0)} item(s)</span>}</h2>
           {lines.length > 0 && <Button size="sm" variant="ghost" onClick={() => navigate(reset)}>Clear</Button>}
@@ -218,7 +218,7 @@ export function Checkout() {
           }} />
       )}
       {done && <DoneModal sale={done} onNew={reset} />}
-    </div>
+    </div></div>
   );
 }
 
@@ -262,6 +262,7 @@ function PayModal({ total, customerId, customerName, needsDiscountApproval, onCl
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [approval, setApproval] = useState(false);
+  const [entry, setEntry] = useState('cash');
 
   const tenders: Tenders = [
     { method: 'cash', amount: cash ?? 0 },
@@ -298,27 +299,35 @@ function PayModal({ total, customerId, customerName, needsDiscountApproval, onCl
       <Modal trackChanges={false} title="Take payment" open={!approval} onClose={onClose} wide
         footer={<><Button onClick={onClose}>Back to basket</Button><Button variant="primary" size="lg" disabled={!!problem || busy} onClick={() => go()}>{busy ? 'Saving…' : 'Complete sale  (Enter)'}</Button></>}>
         <form onSubmit={(e) => { e.preventDefault(); go(); }}>
-          <div className="mb-4 flex items-end justify-between rounded-lg bg-slate-900 px-5 py-4 text-white">
+          <WorkflowSteps steps={['Basket', 'Payment', 'Receipt']} current={1} />
+          <div className="m-payment-due">
             <span className="text-sm uppercase tracking-wide text-slate-300">Amount due</span>
             <span className="text-4xl font-bold tabular-nums">{money(total)}</span>
           </div>
           {error && <Alert tone="bad" className="mb-3">{error}</Alert>}
-          <div className="grid grid-cols-[9rem_1fr_1fr] items-end gap-x-3 gap-y-3">
+          <div className="m-payment-methods" aria-label="Payment entry">{[['cash', 'Cash'], ['momo', 'Mobile money'], ['card', 'Card'], ['credit', 'Credit'], ['split', 'Split payment']].map(([id, label]) => <Button key={id} aria-pressed={entry === id} onClick={(event) => { const invalid = event.currentTarget.closest('form')?.querySelector<HTMLInputElement>('input:invalid'); if (invalid) { invalid.focus(); invalid.reportValidity(); return; } setEntry(id); }}>{label}</Button>)}</div>
+          <p className="mb-2 text-xs text-slate-600">Choose a method to enter. Entered amounts stay visible; use Split payment to combine methods.</p>
+          <div>
+            <div className="m-payment-row" hidden={entry !== 'cash' && entry !== 'split' && !(cash && cash > 0)}>
             <div className="pb-2 text-sm font-medium">Cash received</div>
             <MoneyInput value={cash} onChange={setCash} autoFocus aria-label="Cash received" className="!text-lg" />
             <div className="flex gap-1.5">
               <Button size="sm" onClick={() => setCash(rest)}>Exact</Button>
               {[1000, 2000, 5000, 10000, 20000].filter((n) => n > rest).slice(0, 3).map((n) => <Button key={n} size="sm" onClick={() => setCash(n)}>{n / 100}</Button>)}
             </div>
+            </div><div className="m-payment-row" hidden={entry !== 'momo' && entry !== 'split' && !(momo && momo > 0)}>
             <div className="pb-2 text-sm font-medium">Mobile money</div>
             <MoneyInput value={momo} onChange={setMomo} aria-label="Mobile money amount" />
             <Input placeholder="Transaction ID (optional)" value={momoRef} onChange={(e) => setMomoRef(e.target.value)} aria-label="Mobile money reference" />
+            </div><div className="m-payment-row" hidden={entry !== 'card' && entry !== 'split' && !(card && card > 0)}>
             <div className="pb-2 text-sm font-medium">Card</div>
             <MoneyInput value={card} onChange={setCard} aria-label="Card amount" />
             <Input placeholder="Slip number (optional)" value={cardRef} onChange={(e) => setCardRef(e.target.value)} aria-label="Card reference" />
+            </div><div className="m-payment-row" hidden={entry !== 'credit' && entry !== 'split' && !(credit && credit > 0)}>
             <div className="pb-2 text-sm font-medium">On credit</div>
             <MoneyInput value={credit} onChange={setCredit} aria-label="Credit amount" />
             <div className="flex items-center gap-2 text-sm text-slate-600">{customerName ? <>to <strong>{customerName}</strong></> : 'No customer chosen'}<Input type="date" aria-label="Credit due date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-40" /></div>
+          </div>
           </div>
           <p className="mt-3 text-xs text-slate-500">Card and mobile money amounts are recorded only. Confirm on the POS terminal or phone that the money has actually arrived before completing the sale.</p>
           <div className={cx('mt-4 flex items-end justify-between rounded-lg border px-5 py-3', problem ? 'border-amber-300 bg-amber-50' : 'border-emerald-300 bg-emerald-50')}>
@@ -340,9 +349,10 @@ function DoneModal({ sale, onNew }: { sale: { id: string; receiptNo: string; tot
   return (
     <Modal title="Sale completed" open onClose={onNew}
       footer={<><Button disabled={busy} onClick={print}>Print receipt</Button><Button variant="primary" size="lg" autoFocus onClick={onNew}>New sale  (Enter)</Button></>}>
+      <WorkflowSteps steps={['Basket', 'Payment', 'Receipt']} current={2} />
       <div className="text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-700" aria-hidden>✓</div>
-        <p className="mt-2 text-sm text-slate-600">Receipt <strong data-testid="receipt-no">{sale.receiptNo}</strong> saved on this laptop.</p>
+        <p className="mt-2 text-sm text-slate-600">Receipt <strong data-testid="receipt-no">{sale.receiptNo}</strong> saved in your business records.</p>
         <p className="mt-3 text-sm uppercase tracking-wide text-slate-500">Change to give</p>
         <p className="text-5xl font-bold tabular-nums text-slate-900">{money(sale.change)}</p>
         <p className="mt-2 text-sm text-slate-600">Total {money(sale.total)}</p>
