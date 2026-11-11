@@ -114,8 +114,8 @@ function ClientApplication() {
 
 function AuthFrame({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="flex min-h-full items-center justify-center bg-brand-900 p-6">
-      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-2xl">
+    <div className="m-auth-frame flex min-h-full items-center justify-center bg-brand-900 p-6">
+      <div className="m-auth-card w-full max-w-md rounded-xl bg-white p-8 shadow-2xl">
         <div className="mb-6">
           <div className="mb-5"><MansoraBrand /></div>
           <h1 className="mt-1 text-2xl font-semibold text-slate-900">{title}</h1>
@@ -149,7 +149,7 @@ function Login({ onDone }: { onDone: () => void }) {
     }
   };
   return (
-    <AuthFrame title={state.business.name || 'Sign in'} subtitle="Sign in with your staff username and password. This works without internet.">
+    <AuthFrame title={state.business.name || 'Sign in'} subtitle="Sign in with the account details provided by your administrator.">
       <form onSubmit={submit} className="space-y-4">
         {error && <Alert tone="bad">{error}</Alert>}
         <Field label="Username"><Input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" /></Field>
@@ -295,15 +295,15 @@ function StatusBar() {
   const tone = !sync ? 'bg-slate-400' : sync.state === 'online' && sync.pending === 0 ? 'bg-emerald-500' : sync.state === 'offline' ? 'bg-amber-500' : 'bg-sky-500';
   const label = !sync ? syncQuery.error ? 'Sync status unavailable' : 'Checking sync…' : sync.state === 'syncing' ? 'Syncing' : sync.state === 'offline' ? 'Offline' : sync.state === 'online' ? 'Online' : 'Not synced yet';
   return (
-    <footer className="no-print flex items-center gap-5 border-t border-slate-300 bg-white px-4 py-1.5 text-xs text-slate-700">
+    <footer className="m-app-footer no-print flex items-center gap-5 border-t border-slate-300 bg-white px-4 py-1.5 text-xs text-slate-700">
       <button type="button" onClick={() => go('sync')} className="flex items-center gap-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600" title="Open sync status">
         <span aria-hidden className={cx('h-2.5 w-2.5 rounded-full', tone)} />
         <span className="font-medium">{label}</span>
         {sync && sync.pending > 0 && <span>· {sync.pending} waiting to sync</span>}
         {sync && sync.rejected > 0 && <span className="font-semibold text-red-700">· {sync.rejected} sync error(s)</span>}
       </button>
-      <span>Cashier: <strong>{state.user?.name}</strong></span>
-      <span>{shift === undefined ? <span>{shiftQuery.error ? 'Shift status unavailable' : 'Checking shift…'}</span> : shift ? <>Shift open since {new Date(shift.shift.opened_at).toISOString().slice(11, 16)}</> : <span className="text-amber-700">No shift open</span>}</span>
+      <span>Signed in: <strong>{state.user?.name}</strong></span>
+      <span>{shift === undefined ? <span>{shiftQuery.error ? 'Shift status unavailable' : 'Checking shift…'}</span> : shift ? <>Shift open since {new Date(shift.shift.opened_at).toISOString().slice(11, 16)}</> : <span className="text-slate-600">No shift open</span>}</span>
       <span className="ml-auto">{state.business.name}</span>
       <span className="tabular-nums">{now.toLocaleDateString('en-GB')} {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
     </footer>

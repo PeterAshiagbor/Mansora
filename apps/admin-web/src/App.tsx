@@ -90,8 +90,8 @@ function Login({ onDone }: { onDone: () => void }) {
     onDone();
   });
   return (
-    <div className="flex min-h-full items-center justify-center bg-brand-900 p-6">
-      <form className="w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
+    <div className="m-auth-frame flex min-h-full items-center justify-center bg-brand-900 p-6">
+      <form className="m-auth-card w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
         <div><div className="mb-5"><MansoraBrand /></div><p className="mb-1 text-sm font-medium text-brand-700">Platform administration</p><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
         {error && <Alert tone="bad">{error}</Alert>}
         {challenge ? <>

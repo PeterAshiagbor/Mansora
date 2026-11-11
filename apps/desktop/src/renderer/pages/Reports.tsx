@@ -12,7 +12,7 @@ export function ReportsPage() {
   const [range, setRange] = useState({ from: monthStart(), to: today() });
   return (
     <div>
-      <PageHeader title="Reports" subtitle={`${range.from} to ${range.to} · from the records on this laptop (works offline)`} />
+      <PageHeader title="Reports" subtitle={`${range.from} to ${range.to} · from your business records`} />
       <Tabs value={tab} onChange={setTab} tabs={tabs} />
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{reportPresets(today()).map((preset) => <Button size="sm" key={preset.label} aria-pressed={range.from === preset.from && range.to === preset.to} variant={range.from === preset.from && range.to === preset.to ? 'primary' : 'secondary'} onClick={() => setRange({ from: preset.from, to: preset.to })}>{preset.label}</Button>)}</div><DateRange {...range} onChange={setRange} shortcuts={false} /></div>
       {tab === 'summary' && <SummaryReport range={range} />}

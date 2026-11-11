@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Input, Modal, cx } from './index';
 import { MansoraBrand } from './brand';
 
@@ -58,7 +58,7 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
   const secondary = groups.map((group) => ({ ...group, items: group.items.filter((item) => !primaryIds.includes(item.id)) })).filter((group) => group.items.length);
   const selectedGroup = secondary.find((group) => group.items.some((item) => item.id === current.id))?.group ?? null;
   const [toolsOpen, setToolsOpen] = useState(!!selectedGroup), [openGroup, setOpenGroup] = useState<string | null>(selectedGroup);
-  useEffect(() => { setToolsOpen(!!selectedGroup); setOpenGroup(selectedGroup); }, [current.id, selectedGroup]);
+  useLayoutEffect(() => { setToolsOpen(!!selectedGroup); setOpenGroup(selectedGroup); }, [current.id, selectedGroup]);
   useEffect(() => { navigation.current?.querySelector('[aria-current=page]')?.scrollIntoView({ block: 'nearest' }); }, [current.id, toolsOpen, openGroup]);
   const pageButton = (item: WorkspaceItem) => <button key={item.id} type="button" aria-current={current.id === item.id ? 'page' : undefined} onClick={() => onNavigate(item.id)} className={cx('m-nav-item', current.id === item.id && 'm-nav-active')}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>;
   useEffect(() => {

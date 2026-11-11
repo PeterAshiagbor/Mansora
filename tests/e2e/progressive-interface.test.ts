@@ -82,6 +82,17 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     await admin.getByText('Onboarding & plan details', { exact: true }).click(); await admin.getByRole('heading', { name: 'Onboarding in progress', exact: true }).waitFor();
     await navigate(admin, 'Account security'); await admin.getByRole('heading', { name: 'Account security', exact: true }).waitFor();
   });
+  it('refreshes the overview from a real sale entered in another session', async () => {
+    await navigate(shop, 'Dashboard'); await shop.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
+    const total = shop.getByText('Sales today', { exact: true }).locator('..'); await expect.poll(() => total.innerText()).toContain('84.00');
+    const token = (await host.engine.execute(null, 'auth.login', owner)).token;
+    const [product] = await host.engine.execute(token, 'product.list', { search: 'Simple item' });
+    await host.engine.execute(token, 'sale.complete', { id: randomUUID(), lines: [{ productId: product.id, quantity: 1 }], tenders: [{ method: 'cash', amount: 1200 }] }); host.engine.endSession(token);
+    expect(await total.innerText()).toContain('84.00');
+    await shop.getByRole('button', { name: 'Refresh overview', exact: true }).click();
+    await expect.poll(() => shop.getByText('Sales today', { exact: true }).locator('..').innerText()).toContain('96.00');
+    expect(await shop.getByRole('table').getByRole('row').count()).toBe(6);
+  });
   it('retains cashier restrictions across the complete collapsed page set', async () => {
     await shop.getByRole('button', { name: 'Lock / sign out', exact: true }).click(); await shop.getByLabel('Username', { exact: true }).fill(cashier.username); await shop.getByLabel('Password', { exact: true }).fill(cashier.password); await shop.getByRole('button', { name: 'Sign in', exact: true }).click();
     await shop.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor(); const nav = shop.getByRole('navigation');

@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import '../../../packages/ui/src/brand.css';
 @import '../../../packages/ui/src/workspace.css';
+@import '../../../packages/ui/src/polish.css';
 @source '../../../packages/ui/src';
 
 

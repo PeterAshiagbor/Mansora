@@ -12,20 +12,21 @@ export function Dashboard() {
   const own = d.scope === 'own';
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle={`Good day, ${state.user?.name.split(' ')[0]}. ${own ? 'Here is your sales activity today.' : 'Here is how your business is doing today.'}`} actions={can('sale.create') && <Button variant="primary" onClick={() => go('checkout')}><Icon name="plus" />Create a sale</Button>} />
+      <PageHeader title="Dashboard" subtitle={`Good day, ${state.user?.name.split(' ')[0]}. ${own ? 'Here is your sales activity today.' : 'Here is how your business is doing today.'}`} actions={<><Button onClick={dashboard.reload}><Icon name="sync" />Refresh overview</Button>{can('sale.create') && <Button variant="primary" onClick={() => go('checkout')}><Icon name="plus" />Create a sale</Button>}</>} />
       {state.user?.role === 'owner' && <FirstUsePrompt />}
       {sync?.tenantStatus === 'suspended' && <Alert tone="warn" className="mb-4">Your Mansora service plan needs attention. Please contact Mansora. You can keep selling as normal.</Alert>}
       {sync && sync.unprotected > 0 && sync.state === 'offline' && (
         <Alert tone="warn" className="mb-4">{sync.unprotected} recent change(s) exist only on this laptop. They will be protected when the internet returns, or when you make a backup.</Alert>
       )}
+      <div className="m-overview-caption"><strong>At a glance</strong><span>Today and month to date</span></div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Stat label={own ? 'My sales today' : 'Sales today'} value={money(d.today.net)} hint={`${d.today.count} transaction(s)${d.today.refunds ? ` · ${money(d.today.refunds)} refunded` : ''}`} />
-        <Stat label={own ? 'My sales this month' : 'Sales this month'} value={money(d.month.net)} hint={`${d.month.count} transaction(s)`} />
-        {d.outstandingCredit != null && <Stat label="Customer credit outstanding" value={money(d.outstandingCredit)} tone={d.outstandingCredit > 0 ? 'warn' : 'default'} />}
-        {d.lowStock && <Stat label="Low or out of stock" value={d.lowStock.length >= 10 ? '10+' : d.lowStock.length} tone={d.lowStock.length ? 'warn' : 'good'} hint="products at or below reorder level" />}
+        <Stat icon={<Icon name="wallet" />} label={own ? 'My sales today' : 'Sales today'} value={money(d.today.net)} hint={`${d.today.count} transaction(s)${d.today.refunds ? ` · ${money(d.today.refunds)} refunded` : ''}`} />
+        <Stat icon={<Icon name="chart" />} label={own ? 'My sales this month' : 'Sales this month'} value={money(d.month.net)} hint={`${d.month.count} transaction(s)`} />
+        {d.outstandingCredit != null && <Stat icon={<Icon name="users" />} label="Customer credit outstanding" value={money(d.outstandingCredit)} tone={d.outstandingCredit > 0 ? 'warn' : 'default'} />}
+        {d.lowStock && <Stat icon={<Icon name="box" />} label="Low or out of stock" value={d.lowStock.length >= 10 ? '10+' : d.lowStock.length} tone={d.lowStock.length ? 'warn' : 'good'} hint="products at or below reorder level" />}
       </div>
       <div className="mt-5"><Card title="Recent transactions" pad={false} actions={<Button size="sm" variant="ghost" onClick={() => go('sales')}>View sales history</Button>}>
-        <Table caption="Latest transactions, up to five" rows={d.recent.slice(0, 5)} empty="No sales yet" onRowClick={(r: any) => go('sales', r.id)} columns={[{ header: 'Receipt', cell: (r: any) => r.receipt_no }, { header: 'Time', cell: (r: any) => dateTime(r.created_at) }, { header: 'Cashier', cell: (r: any) => r.cashier_name }, { header: 'Total', align: 'right', cell: (r: any) => money(r.total) }]} />
+        <Table caption="Latest transactions, up to five" rows={d.recent.slice(0, 5)} empty={<div><strong className="text-sm font-medium text-slate-700">No sales yet</strong><p className="m-empty-hint">Completed sales will appear here, with a receipt and a clear audit trail. Use Create a sale when you are ready.</p></div>} onRowClick={(r: any) => go('sales', r.id)} columns={[{ header: 'Receipt', cell: (r: any) => r.receipt_no }, { header: 'Time', cell: (r: any) => dateTime(r.created_at) }, { header: 'Cashier', cell: (r: any) => r.cashier_name }, { header: 'Total', align: 'right', cell: (r: any) => money(r.total) }]} />
       </Card></div>
       <Disclosure title="Daily breakdown" description="Sales activity, payment methods and products running low">
       {can('report.sales') && <DashboardActivity />}

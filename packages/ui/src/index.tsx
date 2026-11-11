@@ -31,7 +31,7 @@ export function Button({ variant = 'secondary', size = 'md', className, type = '
     }
     if (dismiss && guardedDismiss) { guardedDismiss(() => onClick?.(event)); return; }
     onClick?.(event);
-  }} className={cx('m-button inline-flex items-center justify-center gap-2 rounded-md border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50', focus, variants[variant], sizes[size], className)} {...rest} />;
+  }} data-variant={variant} data-size={size} className={cx('m-button inline-flex items-center justify-center gap-2 rounded-md border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50', focus, variants[variant], sizes[size], className)} {...rest} />;
 }
 
 export function Field({ label, hint, error, children, className }: { label: string; hint?: string; error?: string | null; children: ReactNode; className?: string }) {
@@ -109,7 +109,7 @@ export function Modal({ title, open, onClose, children, footer, wide, trackChang
   }, [open]);
   if (!open) return null;
   return (
-    <DialogDismiss.Provider value={dismiss}><div className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && dismiss(onClose)}>
+    <DialogDismiss.Provider value={dismiss}><div className="m-dialog-backdrop fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && dismiss(onClose)}>
       <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1} onChangeCapture={(event) => { if ((event.target as HTMLElement).closest('[role="dialog"]') === event.currentTarget) setModified(true); }} className={cx('m-dialog w-full rounded-lg bg-white shadow-xl outline-none', wide ? 'max-w-3xl' : 'max-w-lg')}>
         <div className="m-dialog-header flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2 id={id} className="text-base font-semibold text-slate-900">{title}</h2>
@@ -138,10 +138,11 @@ export function Card({ title, actions, children, className, pad = true }: { titl
   );
 }
 
-export function Stat({ label, value, hint, tone = 'default' }: { label: string; value: ReactNode; hint?: ReactNode; tone?: 'default' | 'good' | 'warn' | 'bad' }) {
+export function Stat({ label, value, hint, icon, tone = 'default' }: { label: string; value: ReactNode; hint?: ReactNode; icon?: ReactNode; tone?: 'default' | 'good' | 'warn' | 'bad' }) {
   const tones = { default: 'text-slate-900', good: 'text-emerald-700', warn: 'text-amber-700', bad: 'text-red-700' };
   return (
-    <div className="m-stat min-w-0 rounded-lg border border-slate-200 bg-white p-4">
+    <div data-tone={tone} data-icon={icon ? true : undefined} className="m-stat min-w-0 rounded-lg border border-slate-200 bg-white p-4">
+      {icon && <span className="m-stat-icon" aria-hidden="true">{icon}</span>}
       <div className="m-stat-label break-words text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
       <div className={cx('m-stat-value mt-1 text-2xl font-semibold tabular-nums', tones[tone])}>{value}</div>
       {hint && <div className="m-stat-hint mt-1 text-xs text-slate-500">{hint}</div>}
@@ -199,7 +200,7 @@ export function Table<T>({ columns, rows, onRowClick, empty = 'Nothing to show y
           ))}
         </tbody>
       </table>
-      {rows && rows.length === 0 && <div className="px-3 py-8 text-center text-sm text-slate-500">{empty}</div>}
+      {rows && rows.length === 0 && <div className="m-table-empty px-3 py-8 text-center text-sm text-slate-500">{empty}</div>}
       {!rows && <div className="px-3 py-8 text-center text-sm text-slate-600">Loading…</div>}
     </div>{ordered.length > pageSize && <p className="hidden print:block">This printout shows the current table page. Use the report’s Print / PDF button for all loaded rows.</p>}{ordered.length > pageSize && <div className="no-print flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-600"><span role="status">Showing {activePage * pageSize + 1}–{Math.min((activePage + 1) * pageSize, ordered.length)} of {ordered.length} loaded rows</span><div className="flex gap-2"><Button size="sm" disabled={activePage === 0} onClick={() => setPage(activePage - 1)}>Previous page</Button><Button size="sm" disabled={(activePage + 1) * pageSize >= ordered.length} onClick={() => setPage(activePage + 1)}>Next page</Button></div></div>}</div>
   );
@@ -207,7 +208,7 @@ export function Table<T>({ columns, rows, onRowClick, empty = 'Nothing to show y
 
 export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'good' | 'warn' | 'bad' | 'info'; children: ReactNode }) {
   const tones = { neutral: 'bg-slate-100 text-slate-700', good: 'bg-emerald-100 text-emerald-800', warn: 'bg-amber-100 text-amber-900', bad: 'bg-red-100 text-red-800', info: 'bg-sky-100 text-sky-800' };
-  return <span className={cx('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap', tones[tone])}>{children}</span>;
+  return <span className={cx('m-badge inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap', tones[tone])}>{children}</span>;
 }
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
@@ -217,14 +218,14 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
         <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
         {subtitle && <p className="mt-0.5 text-sm text-slate-600">{subtitle}</p>}
       </div>
-      <div className="flex flex-wrap items-center gap-2 print:hidden">{actions}</div>
+      <div className="m-page-actions flex flex-wrap items-center gap-2 print:hidden">{actions}</div>
     </div>
   );
 }
 
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string }[]; value: T; onChange: (id: T) => void }) {
   return (
-    <div role="tablist" aria-label="View" className="mb-4 flex flex-wrap gap-1 border-b border-slate-200 print:hidden">
+    <div role="tablist" aria-label="View" className="m-tabs mb-4 flex flex-wrap gap-1 border-b border-slate-200 print:hidden">
       {tabs.map((t) => (
         <button key={t.id} role="tab" type="button" aria-selected={value === t.id} tabIndex={value === t.id ? 0 : -1} onClick={() => onChange(t.id)}
           onKeyDown={(e) => {
@@ -235,7 +236,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: 
             onChange(tabs[next].id);
             (e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role=tab]')[next])?.focus();
           }}
-          className={cx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', focus, value === t.id ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-600 hover:text-slate-900')}>
+          className={cx('m-tab -mb-px border-b-2 px-3 py-2 text-sm font-medium', focus, value === t.id ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-600 hover:text-slate-900')}>
           {t.label}
         </button>
       ))}
