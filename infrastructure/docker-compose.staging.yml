@@ -10,16 +10,17 @@ x-gateway: &gateway
   security_opt: [no-new-privileges:true]
   tmpfs: ["/tmp:size=128m,mode=1777"]
   stop_grace_period: 45s
-  networks: [backend]
+  network_mode: service:api
   volumes: [staging_data:/data/staging]
   environment: &gateway-env
     MANSORA_STAGING_MODE: team-test
     STAGING_ORIGIN: ${STAGING_ORIGIN:?Set the HTTPS staging origin}
-    STAGING_API_URL: http://api:4000
+    STAGING_API_URL: http://127.0.0.1:4000
     STAGING_DB_KEY_FILE: /run/secrets/staging_db_key
   secrets: [staging_db_key]
 services:
   api:
+    ports: ['127.0.0.1:${GATEWAY_PORT:-4500}:4500']
     environment:
       ADMIN_ORIGINS: ${STAGING_ORIGIN:?Set the HTTPS staging origin}
       PUBLIC_BASE_URL: ${STAGING_ORIGIN:?Set the HTTPS staging origin}/api
@@ -39,8 +40,8 @@ services:
   gateway:
     <<: *gateway
     restart: unless-stopped
-    ports: ['127.0.0.1:${GATEWAY_PORT:-4500}:4500']
     depends_on:
+
       staging-bootstrap: {condition: service_completed_successfully}
   https:
     image: caddy:2-alpine

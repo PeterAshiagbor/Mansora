@@ -1,4 +1,4 @@
 {$STAGING_DOMAIN} {
   encode gzip
-  reverse_proxy gateway:4500
+  reverse_proxy api:4500
 }

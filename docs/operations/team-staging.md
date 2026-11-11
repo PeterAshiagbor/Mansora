@@ -1,6 +1,6 @@
 # Persistent team test deployment
 
-This deployment runs the real encrypted retail engine and PostgreSQL API behind one HTTPS origin. It is separate from the public sample interface. No server account is connected yet: the deployment bundle is prepared, but there is no online team-test URL until a server and hostname are supplied. The public sample remains a sample.
+This deployment runs the real encrypted retail engine and PostgreSQL API behind one HTTPS origin. The gateway and bootstrap share the API container network namespace so the unchanged engine can reach its API through loopback; Caddy reaches that namespace at `api:4500`. The engine's HTTPS-or-loopback activation requirement remains enforced. It is separate from the public sample interface. No server account is connected yet: the deployment bundle is prepared, but there is no online team-test URL until a server and hostname are supplied. The public sample remains a sample.
 
 ## Provision a server
 
