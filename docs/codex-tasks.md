@@ -66,6 +66,7 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 | C26 hosted review fixes | Codex (this review/domain session) | Claimed: walkthrough language/document metadata and phone preview overflow; browser regression coverage and review report. Leave engine, sync, billing/provider code untouched | `codex/C26-hosted-review-fixes` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
 | C28 workflow redesign implementation | Codex — done | PR #41 merged as `e1c0d92`; all six exact merged workflows green, 283 local tests pass. Public sample version 9 published; Railway SUCCESS and both client/operator live browser acceptance pass | `codex/C28-workflow-implementation` |
+| C30 comprehensive software review | Codex — claimed | Owner requested closing legacy PRs and a comprehensive review. Review latest merged software, current CI/live health, workflows, security, permissions, data integrity, accessibility and operational readiness. Preserve C29 invitation/provider ownership and protected engine/billing files | `codex/C30-comprehensive-review` |
 
 | C29 friendly test access and invitations | Codex (review/domain/email session) | Claimed on owner request: readable unique owner passphrases, crash-safe private rotation and invitation delivery to assigned tester emails, narrow sign-in usability changes. Do not alter initial password variables concurrently; sending/rotation waits for Resend availability | `codex/C29-test-invitations` |
 | Dependency bumps | Claude | pglite 0.5.15, esbuild 0.28.2, plugin-react 6.2.1, Actions v7 applied. **Held back:** better-sqlite3-multiple-ciphers 13 (typings break, Windows build unverifiable), @types/node 26 (runtime is Node 22) | `4192cc7` |
@@ -98,6 +99,11 @@ Default branch: `claude/relaxed-lovelace-0179ut`. Tests on the latest merged sta
 - The exact error text and layer of the "integration failure" reported from the hosted demo, so it can be diagnosed rather than guessed.
 
 ## Handoff log (newest first; append, never rewrite)
+
+### 2026-11-11 — Codex (C30 comprehensive review claimed)
+- Owner authorised merging or closing remaining PRs, then a comprehensive software review. Verified both #24/#25 head commits are ancestors of latest default `fcb488d`; closed both as already integrated via `769981d`. No open PRs remain at review start.
+- C30 reviews the latest merged baseline, records reproducible findings and fixes only authorised, unowned areas when justified. Protected engine/sync/billing internals remain read-only. No account reset, real email/payment, domain or provider changes are part of this review.
+
 
 ### 2026-11-11 — Codex (C28 merged, public preview version 9)
 - PR #41 merged as `e1c0d92e26efe47be65fcd45e00071196c567ac2` after all six workflows passed on exact feature `a62b825b4763f25b49429f90fc10cec0830c8fa5`, for both push and pull_request. Typecheck/build and full audit pass (zero vulnerabilities); all **283 tests in 41 files** pass locally, no skips. Focused workflow/accessibility/phone-preview integration: 19/19. All 49 screenshots regenerated after resolving the old C26 CSS rail-hiding conflict.
