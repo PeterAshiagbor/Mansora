@@ -1,6 +1,8 @@
 // Shared-browser import/request/header guards do not change the native Electron IPC allowlist.
 // Railway binds DATABASE_URL, RAILWAY_PUBLIC_DOMAIN/STAGING_ORIGIN, STAGING_TESTER_EMAILS/STAGING_TESTER_PASSWORDS and /data.
 // Email aliases exist only in the staging HTTP gateway; native bridge capabilities remain unchanged.
+// Resend delivery is server-only (RESEND_API_KEY/FROM_EMAIL/REPLY_TO,
+// PLATFORM_ALERT_EMAIL and the team-test RESEND_ALLOWED_RECIPIENTS); none enters IPC.
 /**
  * Launches the PACKAGED desktop application and checks the security shell:
  * the window opens on the activation screen, the page has no Node access,

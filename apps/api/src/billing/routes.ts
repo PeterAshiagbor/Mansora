@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { RateLimiter, sha256 } from '../security';
-import { asHttp, audit, displayStatus, fail, loadSettings, nowIso, openException, outstanding, payUrl, readPayToken, saveSettings, today, REMINDER_STEPS, type Actor, type Billing } from './core';
+import { asHttp, audit, billingContact, deliverQueued, queueEmail, displayStatus, fail, loadSettings, nowIso, openException, outstanding, payUrl, readPayToken, saveSettings, today, REMINDER_STEPS, type Actor, type Billing } from './core';
 import { addDays } from './dates';
 import { invoiceHtml, receiptHtml } from './documents';
 import { cancelInvoice, createInvoice, creditNote, getInvoice, issueInvoice, openDispute, resolveDispute, writeOffInvoice } from './invoices';
@@ -231,6 +231,40 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
     });
   });
   app.get(`${A}/notifications`, async (req) => { await admin(req); return run((q) => q(`SELECT n.*, t.name AS client FROM notifications n LEFT JOIN tenants t ON t.id = n.tenant_id ORDER BY n.created_at DESC LIMIT 200`)); });
+  const communicationLimiter = new RateLimiter(10, 60_000);
+  app.post(`${A}/notifications`, async req => {
+    const actor = await admin(req);
+    communicationLimiter.check(actor.id!);
+    const input = z.object({ id, tenantId: id, subject: text(160).refine(s => !/[\r\n]/.test(s), 'Use a single-line subject'), body: text(10_000) }).parse(req.body);
+    return run(async q => {
+      const [client] = await q('SELECT id FROM tenants WHERE id = $1', [input.tenantId]);
+      if (!client) fail(404, 'NOT_FOUND', 'Client not found');
+      const [existing] = await q('SELECT tenant_id, subject, body FROM notifications WHERE id = $1', [input.id]);
+      if (existing) {
+        if (existing.tenant_id !== input.tenantId || existing.subject !== input.subject || existing.body !== input.body) fail(409, 'CONFLICT', 'This message identifier has already been used.');
+        return { id: input.id, queued: true, duplicate: true };
+      }
+      const contact = await billingContact(q, input.tenantId);
+      if (!contact.email) fail(400, 'EMAIL_REQUIRED', 'Add a billing email address for this client first.');
+      await queueEmail(q, { id: input.id, tenantId: input.tenantId, to: contact.email, subject: input.subject, body: input.body, kind: 'service_communication' });
+      await audit(q, { actor, action: 'communication.queued', entityType: 'notification', entityId: input.id, tenantId: input.tenantId });
+      return { id: input.id, queued: true };
+    });
+  });
+  app.post(`${A}/notifications/deliver`, async req => { const actor = await admin(req); communicationLimiter.check(actor.id!); return deliverQueued(b); });
+  app.post(`${A}/notifications/:id/retry`, async req => {
+    const actor = await admin(req); communicationLimiter.check(actor.id!);
+    const input = z.object({ id }).parse(req.params);
+    return run(async q => {
+      const [message] = await q('SELECT * FROM notifications WHERE id = $1 FOR UPDATE', [input.id]);
+      if (!message) fail(404, 'NOT_FOUND', 'Message not found');
+      if (message.status !== 'failed') fail(409, 'NOT_FAILED', 'Only failed messages can be retried.');
+      if (message.delivery_started_at && b.now().getTime() - Date.parse(message.delivery_started_at) >= 23 * 3_600_000) fail(409, 'RECONCILIATION_REQUIRED', 'Check this message in Resend before creating a replacement; the retry protection window expired.');
+      await q("UPDATE notifications SET status = 'queued', attempt_count = 0, next_attempt_at = $2 WHERE id = $1", [input.id, nowIso(b)]);
+      await audit(q, { actor, action: 'communication.retry_queued', entityType: 'notification', entityId: input.id, tenantId: message.tenant_id });
+      return { queued: true };
+    });
+  });
   app.get(`${A}/audit`, async (req) => {
     await admin(req);
     const f = z.object({ entityType: z.string().max(30).optional(), entityId: z.string().max(80).optional(), tenantId: id.optional() }).parse(req.query);

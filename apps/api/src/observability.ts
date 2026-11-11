@@ -6,6 +6,8 @@ import { sha256 } from './security';
 export interface ObservabilityOptions {
   metricsToken?: string;
   errorWebhookUrl?: string;
+  /** Durable notification callback; receives sanitized metadata only. */
+  queueErrorEmail?: (message: { subject: string; body: string }) => Promise<void>;
   /** Injectable destination for tests/hosting; no request bodies are serialized. */
   logStream?: { write(message: string): unknown };
 }
@@ -53,6 +55,7 @@ export function installObservability(app: FastifyInstance, db: Database, options
   const counters = new Map<string, number>();
   const histograms = new Map<string, { count: number; sum: number; buckets: number[] }>();
   const pending = new Set<Promise<unknown>>();
+  const alerted = new Map<string, number>();
   let accepted = 0, rejected = 0, loginFailures = 0;
   const route = (req: FastifyRequest) => req.routeOptions.url ?? 'unmatched';
   function identity(req: FastifyRequest): Promise<Identity> {
@@ -83,9 +86,22 @@ export function installObservability(app: FastifyInstance, db: Database, options
     return { requestId: req.id, method: req.method, route: route(req), statusCode, ...actor, ...tenant };
   }
   function reportError(error: unknown, ctx: ErrorContext): void {
-    if (!webhook || pending.size >= 8) return;
+    if ((!webhook && !options.queueErrorEmail) || pending.size >= 8) return;
     // Pick fields explicitly; never spread an Error, arbitrary context or request object.
     const payload = { requestId: ctx.requestId, method: ctx.method, route: ctx.route, statusCode: ctx.statusCode, adminId: ctx.adminId, tenantId: ctx.tenantId, deviceId: ctx.deviceId, error: safeError(error) };
+    if (options.queueErrorEmail) {
+      const key = JSON.stringify([ctx.method, ctx.route, ctx.statusCode, safeError(error)]);
+      const now = Date.now();
+      for (const [k, expiry] of alerted) if (expiry <= now) alerted.delete(k);
+      if (!alerted.has(key) && alerted.size < 1000) {
+        alerted.set(key, now + 5 * 60_000);
+        const job = options.queueErrorEmail({ subject: `Mansora platform error (${ctx.statusCode})`, body: JSON.stringify({ requestId: ctx.requestId, method: ctx.method, route: ctx.route, statusCode: ctx.statusCode, error: safeError(error) }, null, 2) })
+          .catch(() => { alerted.delete(key); app.log.warn({ event: 'error_email_queue_failed', requestId: ctx.requestId }, 'Error email could not be queued'); })
+          .finally(() => pending.delete(job));
+        pending.add(job);
+      }
+    }
+    if (!webhook) return;
     const job = fetch(webhook, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(5000), headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
       .then(async (response) => { await response.body?.cancel(); if (!response.ok) throw new Error('Webhook rejected'); })
       .catch(() => app.log.warn({ event: 'error_webhook_failed', requestId: ctx.requestId }, 'Error webhook delivery failed'))

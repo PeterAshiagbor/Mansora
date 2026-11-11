@@ -61,6 +61,11 @@ services:
       DATABASE_PASSWORD_FILE: /run/secrets/runtime_password
       ADMIN_TOTP_KEY_FILE: /run/secrets/admin_totp_key
       BILLING_ENCRYPTION_KEY_FILE: /run/secrets/billing_encryption_key
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+      RESEND_REPLY_TO: ${RESEND_REPLY_TO:-}
+      PLATFORM_ALERT_EMAIL: ${PLATFORM_ALERT_EMAIL:-}
+      RESEND_ALLOWED_RECIPIENTS: ${RESEND_ALLOWED_RECIPIENTS:-}
       PAY_LINK_SECRET_FILE: /run/secrets/pay_link_secret
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:4000}
       ADMIN_ORIGINS: ${ADMIN_ORIGINS:-http://localhost:5174}

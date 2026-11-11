@@ -672,4 +672,15 @@ GRANT SELECT, INSERT, UPDATE ON payment_allocations TO mansora_platform;
 GRANT SELECT, INSERT ON credit_notes, billing_audit_logs TO mansora_platform;
 `,
   },
+  {
+    id: 5,
+    name: 'notification_delivery',
+    sql: `
+ALTER TABLE notifications ADD COLUMN attempt_count integer NOT NULL DEFAULT 0;
+ALTER TABLE notifications ADD COLUMN next_attempt_at timestamptz NOT NULL DEFAULT '-infinity';
+ALTER TABLE notifications ADD COLUMN delivery_started_at timestamptz;
+ALTER TABLE notifications ADD COLUMN provider_message_id text;
+CREATE INDEX notifications_due ON notifications(next_attempt_at, created_at) WHERE status = 'queued';
+`,
+  },
 ];

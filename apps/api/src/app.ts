@@ -5,7 +5,7 @@ import { ZodError } from 'zod';
 import type { Database } from './db';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
-import { createBillingFromEnv, registerBillingRoutes, type Billing } from './billing';
+import { createBillingFromEnv, registerBillingRoutes, queueEmail, deliverQueued, type Billing } from './billing';
 import { HttpError } from './security';
 import { BackupStorageError, FileStorage, type BackupStorage } from './storage';
 import { installObservability, loggerOptions, requestId, safeError, type ObservabilityOptions } from './observability';
@@ -30,7 +30,17 @@ export interface AppOptions extends Omit<AppContext, 'backupStorage'>, Observabi
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   const context: AppContext = { db: opts.db, backupStorage: opts.backupStorage ?? new FileStorage(opts.backupDir) };
   const app = Fastify({ logger: opts.logger || opts.logStream ? loggerOptions(opts.logStream) : false, logController: new LogController({ disableRequestLogging: true }), requestIdHeader: false, genReqId: requestId, bodyLimit: 8 * 1024 * 1024, trustProxy: opts.trustProxy ?? false });
-  const observability = installObservability(app, opts.db, opts);
+  const billing = opts.billing ?? createBillingFromEnv(opts.db).billing;
+  const alertTo = process.env.PLATFORM_ALERT_EMAIL?.trim();
+  if (alertTo && !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(alertTo)) throw new Error('PLATFORM_ALERT_EMAIL must be an email address.');
+  const observability = installObservability(app, opts.db, { ...opts, queueErrorEmail: opts.queueErrorEmail ?? (alertTo && billing.email.configured() ? async message => { await opts.db.platform(q => queueEmail(q, { ...message, to: alertTo, kind: 'platform_error' })); } : undefined) });
+  let emailRun: Promise<unknown> | undefined;
+  const emailTimer = setInterval(() => {
+    if (!billing.email.configured() || emailRun) return;
+    emailRun = deliverQueued(billing).catch(() => app.log.warn({ event: 'email_worker_failed' }, 'Email worker failed')).finally(() => { emailRun = undefined; });
+  }, 60_000);
+  emailTimer.unref();
+  app.addHook('onClose', async () => { clearInterval(emailTimer); await emailRun; });
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: opts.adminOrigins ?? false, methods: ['GET', 'POST', 'PUT'] });
   app.addHook('onSend', async (_req, reply, payload) => {
@@ -62,6 +72,6 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.setNotFoundHandler((req, reply) => reply.code(404).send({ code: 'NOT_FOUND', message: 'Not found', requestId: req.id }));
   registerDeviceRoutes(app, context);
   registerAdminRoutes(app, context);
-  registerBillingRoutes(app, opts.billing ?? createBillingFromEnv(opts.db).billing);
+  registerBillingRoutes(app, billing);
   return app;
 }
