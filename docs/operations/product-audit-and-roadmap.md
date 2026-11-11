@@ -205,7 +205,7 @@ task for C30 findings F03/F04.
 
 | Lane | Tasks | Done when |
 | --- | --- | --- |
-| **Claude** (engine, sync, billing) | Done in PR #47: C31 mobile money check · C30 F01/F02 · C43 non-payment policy. Next: C33 owner's closing summary (opt-in) · C34 activity signals (counts only) · C44 decimal quantities and pack sizes · C45 price levels and supervised override · C46 VAT, NHIL and GETFund · C47 customer credit limit | Each engine change ships with tests, a documented command contract for the interface, and green CI |
+| **Claude** (engine, sync, billing) | Done in PR #47: C31 mobile money check · C30 F01/F02 · C52 non-payment policy. Next: C33 owner's closing summary (opt-in) · C34 activity signals (counts only) · C44 decimal quantities and pack sizes · C45 price levels and supervised override · C46 VAT, NHIL and GETFund · C47 customer credit limit | Each engine change ships with tests, a documented command contract for the interface, and green CI |
 | **Codex session 1** (Platform and offline tier) | C32 runtime and backup-storage wiring (C30 F03/F04, already claimed) · C36 create a shop without a redeploy · C37 gateway client mode and sign-in throttling · C38 off-site backups, rehearsed restore, alerts · C48 signed installer and automatic updates · C49 silent printing and cash drawer | Third shop created and isolated with no restart · one person's wrong passwords cannot lock out another shop · restore rehearsed and recorded · an update installs itself on a test machine · a receipt prints without a dialog in the packaged app |
 | **Codex session 2** (Client and sales surface) | C40 Contact Mansora panel · C41 parked sales and quick keys · C39 demo-request intake · C50 WhatsApp receipts, debt reminders and statements · C35 first-client billing walkthrough · C51 interface for C44–C47 · C42 board housekeeping | Contact comes from settings · parked basket resumes once only · test request appears in Leads · a statement opens in WhatsApp with the right balance · runbook followed without help · each new engine feature usable from the till |
 
@@ -251,7 +251,7 @@ Ranked by how much they block.
 3. **Hosting decided 2026-11-11:** the existing Railway project (D-12). Still open: confirm the Railway region, and have a lawyer clear Act 843 registration and any cross-border transfer before real client data.
 4. **Pricing.** A starting point to react to: one plan, monthly, with a setup
    and training fee; add tiers after the pilot.
-5. ~~What happens when a client does not pay?~~ **Decided and built 2026-11-11** (D-28, task C43): the till never stops; reminder, then a dated warning, then management reports and report exports pause from 30 days late until paid. Hardened as described in the decision log.
+5. ~~What happens when a client does not pay?~~ **Decided and built 2026-11-11** (D-28, task C52): the till never stops; reminder, then a dated warning, then management reports and report exports pause from 30 days late until paid. Hardened as described in the decision log.
 6. **Paystack business account.** Start the paperwork now; approval takes time.
 7. **Approve the decision log in one sitting.** Of the 35 defaults in
    `docs/decisions/decision-log.md`, most can be accepted as written. The ones
