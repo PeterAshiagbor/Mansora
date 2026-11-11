@@ -31,7 +31,7 @@ export async function runRailwayServer() {
     const { billing } = createBillingFromEnv(db);
     app = await buildApp({ db, billing, backupDir: join(config.dataDir, 'cloud-backups'), adminOrigins: [config.origin], logger: false });
     await app.listen({ host: '127.0.0.1', port: 4000 });
-    await provisionStaging(stagingConfig(), { email: config.adminEmail, password: adminPassword }, config.emails);
+    await provisionStaging(stagingConfig(), { email: config.adminEmail, password: adminPassword }, config.emails, config.passwords);
     gateway = await startConfiguredStaging(async () => { const r = await fetch('http://127.0.0.1:4000/health/ready', { signal: AbortSignal.timeout(3000) }); return r.ok; });
     let billingRun: Promise<unknown> | undefined;
     timer = setInterval(() => { if (billingRun) return; billingRun = runDaily(billing).catch(() => console.error('Sandbox billing job failed; inspect application health.')).finally(() => { billingRun = undefined; }); }, 15 * 60_000); timer.unref();

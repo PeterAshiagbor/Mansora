@@ -5,14 +5,17 @@ import { join } from 'node:path';
 import { openEngine, syncNow } from '../../apps/desktop/src/core';
 import { stagingConfig, loadWorkspaces, workspaceKey, type StagingConfig, type WorkspaceRecord } from './config';
 export interface TestAccount { workspace: string; username: string; role: string; password: string; email?: string }
-import { testerEmails } from './accounts';
+import { testerEmails, testerPasswords } from './accounts';
 export { testerEmails, loadLoginAliases } from './accounts';
-export async function provisionStaging(config: StagingConfig, admin: { email: string; password: string }, emails: string[] = []) {
+export async function provisionStaging(config: StagingConfig, admin: { email: string; password: string }, emails: string[] = [], passwords: string[] = []) {
   const identities = testerEmails(emails.length ? JSON.stringify(emails) : undefined);
+  const suppliedPasswords = testerPasswords(passwords.length ? JSON.stringify(passwords) : undefined);
+  if (suppliedPasswords.length && identities.length !== 2) throw new Error('Generated tester passwords require two configured identities.');
   mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
   if (existsSync(join(config.dataDir, 'workspaces.json'))) {
     const saved = JSON.parse(readFileSync(join(config.dataDir, 'test-accounts.json'), 'utf8')) as TestAccount[];
     if (identities.some(email => !saved.some(a => a.email === email))) throw new Error('Tester identities changed after provisioning. Review the existing accounts; passwords will not be reset automatically.');
+    if (suppliedPasswords.length && identities.some((email, i) => !saved.some(a => a.email === email && createHash('sha256').update(a.password).digest('hex') === createHash('sha256').update(suppliedPasswords[i]).digest('hex')))) throw new Error('Configured tester passwords changed. Existing passwords will not be reset automatically.');
     const opened = loadWorkspaces(config); for (const w of opened) w.engine.db.close(); return { existing: true }; }
   let token = '';
   const phase = (name: string) => console.log('Staging setup: ' + name);
@@ -38,7 +41,7 @@ export async function provisionStaging(config: StagingConfig, admin: { email: st
       try {
         const email = identities[id === 'shop-a' ? 0 : 1];
         const username = email ? 'tester-' + createHash('sha256').update(email).digest('hex').slice(0, 12) : 'owner';
-        const password = randomBytes(24).toString('base64url'); accounts.push({ workspace: id, username, role: 'owner', password, ...(email ? { email } : {}) });
+        const password = suppliedPasswords[id === 'shop-a' ? 0 : 1] ?? randomBytes(24).toString('base64url'); accounts.push({ workspace: id, username, role: 'owner', password, ...(email ? { email } : {}) });
         phase(id + ' activation');
         await engine.execute(null, 'activation.activate', { apiUrl: config.apiUrl, code, deviceName: `${label} shared browser gateway`, owner: { name: email ? email.split('@')[0].slice(0, 100) : 'Test owner', username, password } });
         const session = (await engine.execute(null, 'auth.login', { username, password })).token;

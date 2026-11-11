@@ -16,3 +16,12 @@ export function loadLoginAliases(dataDir: string): Record<string, Record<string,
   for (const a of accounts) if (a.email) (aliases[a.workspace] ??= {})[a.email.toLowerCase()] = a.username;
   return aliases;
 }
+
+/** Optional generated credentials, held only in private service variables and the private manifest. */
+export function testerPasswords(raw: string | undefined): string[] {
+  if (!raw) return [];
+  let values: unknown;
+  try { values = JSON.parse(raw); } catch { throw new Error('STAGING_TESTER_PASSWORDS must be a private JSON array of two passwords.'); }
+  if (!Array.isArray(values) || values.length !== 2 || values.some(v => typeof v !== 'string' || v.length < 24 || v.length > 200) || values[0] === values[1]) throw new Error('Provide two distinct generated passwords of at least 24 characters.');
+  return values;
+}

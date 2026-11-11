@@ -1,4 +1,4 @@
-// Railway binds DATABASE_URL, RAILWAY_PUBLIC_DOMAIN/STAGING_ORIGIN, STAGING_TESTER_EMAILS and /data.
+// Railway binds DATABASE_URL, RAILWAY_PUBLIC_DOMAIN/STAGING_ORIGIN, STAGING_TESTER_EMAILS/STAGING_TESTER_PASSWORDS and /data.
 // Email aliases exist only in the staging HTTP gateway; native bridge capabilities remain unchanged.
 /**
  * Launches the PACKAGED desktop application and checks the security shell:
