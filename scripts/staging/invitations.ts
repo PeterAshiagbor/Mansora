@@ -19,7 +19,7 @@ function save(path: string, value: unknown) {
 }
 export async function inviteTesters(options: { id?: string; dataDir: string; origin: string; workspaces: StagingWorkspace[]; email: EmailAdapter; now?: () => Date; onActivated?: (tenantId: string, email: string) => Promise<void> }) {
   const { id, dataDir, workspaces, email } = options;
-  if (!id) return { accepted: 0, activated: 0, waiting: 0, disabled: true };
+  if (!id) return { accepted: 0, activated: 0, waiting: 0, disabled: true, failureReasons: [] as string[] };
   if (!/^[a-zA-Z0-9_-]{8,80}$/.test(id)) throw new Error('STAGING_TESTER_INVITATION_ID must be an explicit operation identifier.');
   const origin = new URL(options.origin);
   if (origin.protocol !== 'https:' && !['127.0.0.1', 'localhost'].includes(origin.hostname)) throw new Error('Use HTTPS for tester invitations.');
@@ -29,7 +29,7 @@ export async function inviteTesters(options: { id?: string; dataDir: string; ori
   const owners = accounts.filter(a => a.role === 'owner' && a.email);
   if (!owners.length) throw new Error('No assigned tester emails were provisioned.');
   // No provider means no credential mutation and no private passphrase plan yet.
-  if (!email.configured()) return { accepted: 0, activated: 0, waiting: owners.length, disabled: false };
+  if (!email.configured()) return { accepted: 0, activated: 0, waiting: owners.length, disabled: false, failureReasons: ['RESEND_NOT_CONFIGURED'] };
   let journal: Journal | undefined = existsSync(journalPath) ? JSON.parse(readFileSync(journalPath, 'utf8')) : undefined;
   if (journal && journal.id !== id && journal.invitations.some(i => !i.activatedAt)) throw new Error('Finish or reconcile the pending tester invitation operation first.');
   if (!journal || journal.id !== id) {
@@ -38,6 +38,7 @@ export async function inviteTesters(options: { id?: string; dataDir: string; ori
   }
   if (journal.invitations.length !== owners.length || new Set(journal.invitations.map(i => i.workspace)).size !== owners.length) throw new Error('The private invitation plan does not match assigned tester accounts.');
   let accepted = 0, activated = 0;
+  const failureReasons = new Set<string>();
   for (const invitation of journal.invitations) {
     const account = owners.find(a => a.workspace === invitation.workspace && a.username === invitation.username && a.email === invitation.email);
     const workspace = workspaces.find(w => w.id === invitation.workspace);
@@ -76,10 +77,12 @@ export async function inviteTesters(options: { id?: string; dataDir: string; ori
       }
       invitation.activatedAt = now().toISOString(); invitation.error = undefined; save(journalPath, journal); activated++;
     } catch (error) {
+      const status = error instanceof EmailDeliveryError ? error.message.match(/^Resend rejected delivery \(HTTP (\d{3})\)\.$/)?.[1] : undefined;
+      failureReasons.add(status ? `RESEND_HTTP_${status}` : error instanceof EmailDeliveryError && error.message === 'Resend sender domain is not verified.' ? 'RESEND_SENDER_UNVERIFIED' : error instanceof EmailDeliveryError ? 'RESEND_DELIVERY_UNAVAILABLE' : 'ACTIVATION_REVIEW_REQUIRED');
       // No addresses, provider responses or credential text enters deployment logs.
       invitation.error = error instanceof EmailDeliveryError ? error.message : 'Invitation needs retry or administrator review. Current credentials are preserved unless activation already committed.';
       save(journalPath, journal);
     }
   }
-  return { accepted, activated, waiting: journal.invitations.length - activated, disabled: false };
+  return { accepted, activated, waiting: journal.invitations.length - activated, disabled: false, failureReasons: [...failureReasons] };
 }

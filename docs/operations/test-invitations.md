@@ -31,6 +31,10 @@ password fingerprint remains checked on provisioning restarts, so changing an
 environment variable still cannot silently reset an existing store.
 
 Deployment logs report aggregate accepted/activated/waiting counts only.
+Failures also emit fixed diagnostic categories such as `RESEND_HTTP_401`,
+`RESEND_SENDER_UNVERIFIED` or `ACTIVATION_REVIEW_REQUIRED`. Raw provider bodies,
+addresses and credential contents are never included. Diagnose these before
+retrying; a healthy web deployment alone does not prove invitation delivery.
 “Accepted” means Resend accepted the email, not that a person read it. Confirm
 actual inbox receipt before calling an invitation delivered. Do not delete the
 journal or replace the persistent volume to retry this operation.
