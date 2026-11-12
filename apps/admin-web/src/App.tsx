@@ -96,7 +96,7 @@ function Login({ onDone }: { onDone: () => void }) {
   return (
     <AuthLayout platform>
       <form className="m-auth-card w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
-        <div><div className="mb-5"><MansoraBrand /></div><p className="mb-1 text-sm font-medium text-brand-700">Platform administration</p><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
+        <div><div className="mb-5"><MansoraBrand /></div><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
         {error && <Alert tone="bad">{error}</Alert>}
         {challenge ? <>
           <p className="text-sm text-slate-600">Enter a code from your authenticator app, or one of your unused recovery codes. This sign-in challenge expires after five minutes.</p>

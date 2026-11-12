@@ -157,11 +157,11 @@ function Login({ onDone }: { onDone: () => void }) {
     }
   };
   return (
-    <AuthFrame title={state.business.name || 'Sign in'} subtitle="Sign in with the account details provided by your administrator.">
+    <AuthFrame title={state.business.name || 'Sign in'} subtitle="Sign in to manage your sales, stock and daily business.">
       <form onSubmit={submit} className="space-y-4">
         {error && <Alert tone="bad">{error}</Alert>}
-        <Field label="Username" hint="Use the email address from your invitation, or your staff username."><Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Your email or staff username" autoFocus autoComplete="username" autoCapitalize="none" spellCheck={false} /></Field>
-        <Field label="Password" hint="You can paste your passphrase, including its hyphens and numbers."><Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
+        <Field label="Username" hint="Use your invitation email or staff username."><Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Your email or staff username" autoFocus autoComplete="username" autoCapitalize="none" spellCheck={false} /></Field>
+        <Field label="Password" hint="Paste your password or passphrase as it was shared with you."><Input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></Field>
         <button type="button" aria-pressed={showPassword} className="text-sm font-medium text-brand-700 hover:underline" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide password' : 'Show password'}</button>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !username || !password}>{busy ? 'Signing in…' : 'Sign in'}</Button>
       </form>
