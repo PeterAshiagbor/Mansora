@@ -67,3 +67,7 @@ C49 branch: `codex/C49-printing-drawer`, after C48. Use the existing Electron sh
 ## Working and handoff rules
 
 One branch/PR per task; branch from current default, preserve concurrent changes, run required typecheck/build/tests/audit and inspect CI. Change no Claude-owned engine/sync/billing file without coordination. Keep the current UI, hardening and actual-platform test records intact. Update the board and this document with exact completed/pending evidence when work stops. Reserve C42's board archiving for Codex session 2.
+
+## 12 November continuation
+
+C37 #58 and the separate owner-requested UI refinement #59 are merged; 349 combined tests and six feature workflows passed. Their live release acceptance is being checked. C38 part 1 is a separate non-root HTTPS/Resend monitor; see [operations and remaining recovery scope](uptime-monitor.md). Five focused tests and an isolated Docker image probe pass locally. Off-site backups, independent key custody and the full restore rehearsal remain open; C48/C49 are still reserved, with signing/hardware acceptance unchanged.
