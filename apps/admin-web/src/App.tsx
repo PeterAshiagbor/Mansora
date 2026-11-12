@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
 import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, AuthLayout, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure } from '@mansora/ui';
+import { Leads } from './leads';
 import { ContactSettings } from './contact';
 import { api, getToken, setToken, useApi } from './api';
 import { Collections, Invoices, PaymentSettings, Payments, RevenueReports, Subscriptions } from './billing';
@@ -52,7 +53,7 @@ function AdminApplication() {
     else navigate(() => setPage({ id, param }));
   };
   const groups = [
-    { group: 'Workspace', items: [{ id: 'overview', label: 'Overview', icon: 'home' }, { id: 'clients', label: 'Clients', icon: 'users' }, { id: 'plans', label: 'Service plans', icon: 'wallet' }] },
+    { group: 'Workspace', items: [{ id: 'overview', label: 'Overview', icon: 'home' }, { id: 'clients', label: 'Clients', icon: 'users' }, { id: 'leads', label: 'Leads', icon: 'users' }, { id: 'plans', label: 'Service plans', icon: 'wallet' }] },
     { group: 'Billing', items: [{ id: 'collections', label: 'Collections', icon: 'wallet' }, { id: 'subscriptions', label: 'Subscriptions', icon: 'sync' }, { id: 'invoices', label: 'Invoices', icon: 'file' }, { id: 'payments', label: 'Payments', icon: 'sale' }, { id: 'revenue', label: 'Revenue reports', icon: 'chart' }, { id: 'paysettings', label: 'Payment settings', icon: 'settings' }] },
     { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'security', label: 'Account security', icon: 'shield' }, { id: 'contact', label: 'Support contact', icon: 'help' }] },
   ];
@@ -61,6 +62,7 @@ function AdminApplication() {
       <div key={page.id + (page.param ?? '')}>
         {page.id === 'overview' && <Overview go={go} />}
         {page.id === 'clients' && <Clients go={go} />}
+        {page.id === 'leads' && <Leads />}
         {page.id === 'client' && page.param && <Client id={page.param} go={go} />}
         {page.id === 'plans' && <Plans />}
         {page.id === 'collections' && <Collections go={go} />}

@@ -683,4 +683,18 @@ ALTER TABLE notifications ADD COLUMN provider_message_id text;
 CREATE INDEX notifications_due ON notifications(next_attempt_at, created_at) WHERE status = 'queued';
 `,
   },
+  {
+    id: 6,
+    name: 'demo_requests',
+    sql: `
+CREATE TABLE demo_requests (
+  id uuid PRIMARY KEY, name text NOT NULL, business text NOT NULL, email text NOT NULL,
+  phone text NOT NULL DEFAULT '', message text NOT NULL DEFAULT '',
+  status text NOT NULL DEFAULT 'new' CHECK (status IN ('new','contacted','qualified','closed')),
+  consent_at timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX demo_requests_created ON demo_requests(created_at DESC, id);
+GRANT SELECT, INSERT, UPDATE ON demo_requests TO mansora_platform;
+`,
+  },
 ];

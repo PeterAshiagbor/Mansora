@@ -1,6 +1,6 @@
 {
-  "notice": "DRAFT — not legal advice — for review by a Ghanaian data-protection lawyer",
-  "schemaBasis": "Released migrations 1–4 plus notification delivery migration 5; migrated schema metadata only, no customer records inspected.",
+  "notice": "DRAFT \u2014 not legal advice \u2014 for review by a Ghanaian data-protection lawyer",
+  "schemaBasis": "Released migrations 1\u20135 plus proposed migration 6 demo requests; schema metadata and synthetic fixtures only.",
   "fields": [
     {
       "key": "cloud.activation_codes.code_hash",
@@ -11077,6 +11077,136 @@
         "Privileged hosting/database operators subject to deployment controls still to be agreed"
       ],
       "assessment": "Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling."
+    },
+    {
+      "key": "cloud.demo_requests.id",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; id is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.name",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; name is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.business",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; business is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.email",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; email is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.phone",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; phone is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.message",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; message is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.status",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.consent_at",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; consent_at is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.created_at",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; created_at is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.updated_at",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; updated_at is business contact/request metadata, not a client account or financial record.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
     }
   ]
 }
