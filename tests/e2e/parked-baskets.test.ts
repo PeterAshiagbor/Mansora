@@ -58,7 +58,10 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
     expect(count()).toBe(1); expect(quantity()).toBe(8);
   });
   it('clears parked data when the user signs out instead of exposing a prior session after login', async () => {
-    await scan(); await page.keyboard.press('F4'); await page.getByRole('button', { name: 'Parked baskets (1) · F6', exact: true }).waitFor();
+    await scan();
+    expect(await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', altKey: true, cancelable: true })))).toBe(true);
+    await page.getByLabel('Quantity of Paper', { exact: true }).waitFor();
+    await page.keyboard.press('F4'); await page.getByRole('button', { name: 'Parked baskets (1) · F6', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Lock / sign out', exact: true }).click(); await signIn(); await navigate(page, 'New sale');
     await page.getByRole('button', { name: 'Parked baskets (0) · F6', exact: true }).waitFor(); expect(count()).toBe(1);
   });
