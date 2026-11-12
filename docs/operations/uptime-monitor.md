@@ -36,3 +36,7 @@ Local focused tests, typecheck, bundled build and the isolated Docker smoke pass
 The live inventory on 12 November found one app replica with 1 GiB `/data` and a separate 5 GiB PostgreSQL volume in sfo; no application `BACKUP_S3_*` destination, bucket or Railway alert webhook. Snapshot schedules are not exposed by this inventory and were not verified.
 
 This monitor does not complete off-site recovery. C38 still requires a protected remote destination and retention policy, consistent PostgreSQL plus encrypted-store/registry/private-key capture, independent key custody, and a rehearsed restore into an isolated destination with authentication, balances, stock, tenant isolation and sync continuity. Do not mark C38 complete from a green restart, the existing same-volume backups or this monitor alone.
+
+### Railway builder compatibility
+
+Railway rejects Docker BuildKit secret mounts, including optional development CA mounts. The deployed `Dockerfile` has no secret mount. Managed-cloud local builds use `Dockerfile.local` with the provided proxy CA mounted for the dependency-install step only; it is not retained in the final image. The runtime stage and bundled monitor are identical. CI builds the production Dockerfile. The initial Railway attempt failed during Dockerfile parsing, before running code or sending a canary; the platform service was unaffected.

@@ -3,9 +3,7 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /build
 COPY . .
-RUN --mount=type=secret,id=proxy_ca \
-    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; \
-    npm ci --ignore-scripts && node scripts/monitor/build.mjs
+RUN npm ci --ignore-scripts && node scripts/monitor/build.mjs
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production PORT=8080
 WORKDIR /app
