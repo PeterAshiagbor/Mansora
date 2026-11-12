@@ -1,7 +1,10 @@
+import { ShareWhatsApp } from '../components/ShareWhatsApp';
+import { debtMessage, statementMessage } from '../customer-sharing';
+import { tableReportHtml } from '../reporting';
 import { useState } from 'react';
 import { TaskLinks } from '../components/TaskLinks';
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Textarea, QueryView } from '@mansora/ui';
-import { call, dateTime, ExportButtons, METHOD, money, MoneyInput, plain, useAction, useQuery, uuid } from '../lib';
+import { call, dateTime, ExportButtons, METHOD, money, MoneyInput, plain, useAction, useQuery, useApp, printHtml, today, uuid } from '../lib';
 
 export function CustomersPage() {
   const [search, setSearch] = useState('');
@@ -40,12 +43,14 @@ export function CustomersPage() {
 }
 
 function CustomerView({ id, onClose }: { id: string; onClose: () => void }) {
+  const { state } = useApp();
+  const { run, busy } = useAction();
   const customerDetail = useQuery<any>('customer.get', { id });
   const { data } = customerDetail;
   if (!data) return <Modal title="Customer details" open trackChanges={false} onClose={onClose}><QueryView query={customerDetail} label="customer details">{null}</QueryView></Modal>;
   const owed = data.credit.reduce((a: number, c: any) => a + c.outstanding_balance, 0);
   return (
-    <Modal title={data.customer.name} open onClose={onClose} wide>
+    <Modal title={data.customer.name} open onClose={onClose} wide footer={<><ShareWhatsApp phone={data.customer.phone} message={statementMessage(state.business.name, data, today())} label="Share statement on WhatsApp" /><Button disabled={busy} onClick={() => run(async () => printHtml(tableReportHtml({ title: `Current customer statement — ${data.customer.name} — ${today()}`, businessName: state.business.name, columns: ['Receipt', 'Credit given', 'Still owed', 'Due date'], rows: [...data.credit.map((c: any) => [c.receipt_no, plain(c.original_balance), plain(c.outstanding_balance), c.due_date ?? 'Not set']), ['TOTAL CURRENTLY OWED', '', plain(owed), 'Current position; not historical']] })))}>Print customer statement</Button></>}>
       <p className="mb-3 text-sm text-slate-600">{[data.customer.phone, data.customer.email].filter(Boolean).join(' · ') || 'No contact details'} · Currently owes <strong>{money(owed)}</strong></p>
       <h4 className="mb-1 text-xs font-semibold uppercase text-slate-500">Credit</h4>
       <Table rows={data.credit} empty="No credit sales" columns={[{ header: 'Receipt', cell: (r: any) => r.receipt_no }, { header: 'Date', cell: (r: any) => dateTime(r.created_at) }, { header: 'Credit given', align: 'right', cell: (r: any) => money(r.original_balance) }, { header: 'Still owed', align: 'right', cell: (r: any) => money(r.outstanding_balance) }, { header: 'Due', cell: (r: any) => r.due_date ?? '' }]} />
@@ -58,6 +63,7 @@ function CustomerView({ id, onClose }: { id: string; onClose: () => void }) {
 }
 
 export function CreditPage() {
+  const { state } = useApp();
   const [status, setStatus] = useState<'open' | 'all'>('open');
   const creditQuery = useQuery<any>('credit.list', { status });
   const { data, reload } = creditQuery;
@@ -81,7 +87,7 @@ export function CreditPage() {
             { header: 'Credit given', align: 'right', cell: (a: any) => money(a.original_balance) },
             { header: 'Still owed', align: 'right', cell: (a: any) => <strong>{money(a.outstanding_balance)}</strong> },
             { header: 'Due', cell: (a: any) => (a.overdue ? <Badge tone="bad">Overdue {a.due_date}</Badge> : a.status === 'settled' ? <Badge tone="good">Settled</Badge> : a.due_date ?? '') },
-            { header: '', align: 'right', cell: (a: any) => a.status === 'open' && <Button size="sm" variant="primary" onClick={() => setRepay(a)}>Receive payment</Button> },
+            { header: '', align: 'right', cell: (a: any) => a.status === 'open' && <div className="flex flex-wrap justify-end gap-2"><ShareWhatsApp phone={a.customer_phone} message={debtMessage(state.business.name, a)} label="Review debt reminder" /><Button size="sm" variant="primary" onClick={() => setRepay(a)}>Receive payment</Button></div> },
           ]} />
       </Card></QueryView>
       <Card title="Recent repayments" pad={false} className="mt-4">
