@@ -6,6 +6,7 @@ import type { ServiceStanding } from '@mansora/domain';
 import type { Database } from './db';
 import type { BrowserWorkspaceProvisioner } from './browser-workspaces';
 import { tenantStanding } from './billing/standing';
+import { registerContactRoutes } from './modules/contact';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
 import { createBillingFromEnv, registerBillingRoutes, queueEmail, deliverQueued, type Billing } from './billing';
@@ -79,6 +80,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   context.standing = (tenantId) => opts.db.platform((q) => tenantStanding(billing, q, tenantId));
   registerDeviceRoutes(app, context);
   registerAdminRoutes(app, context);
+  registerContactRoutes(app, context);
   registerBillingRoutes(app, billing);
   return app;
 }

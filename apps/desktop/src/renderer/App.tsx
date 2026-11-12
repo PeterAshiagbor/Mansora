@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { can as canDo, type Permission } from '@mansora/domain';
 import { Alert, Button, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard } from '@mansora/ui';
 import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
+import { ContactMansora } from './components/ContactMansora';
 import { Checkout } from './pages/Checkout';
 import { Dashboard } from './pages/Dashboard';
 import { HelpPage } from './pages/Help';
@@ -162,6 +163,7 @@ function Login({ onDone }: { onDone: () => void }) {
         <button type="button" aria-pressed={showPassword} className="text-sm font-medium text-brand-700 hover:underline" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide password' : 'Show password'}</button>
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !username || !password}>{busy ? 'Signing in…' : 'Sign in'}</Button>
       </form>
+      <div className="mt-3"><ContactMansora recovery /></div>
       <OwnerRecovery />
     </AuthFrame>
   );

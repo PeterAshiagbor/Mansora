@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { ContactMansora } from '../components/ContactMansora';
 import { TaskLinks } from '../components/TaskLinks';
 import { ROLE_DEFAULTS, type Role } from '@mansora/domain';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, QueryView, WorkflowSteps, useUnsavedChanges } from '@mansora/ui';
@@ -72,6 +73,7 @@ export function SettingsPage() {
     <div className="max-w-3xl space-y-4">
       <PageHeader title="Settings" subtitle="Manage your business profile, staff access and service tools." />
       <TaskLinks group="settings" />
+      <ContactMansora />
       {manage && (
         <Card title="Business profile (printed on receipts)">
           <div className="grid grid-cols-2 gap-3">
