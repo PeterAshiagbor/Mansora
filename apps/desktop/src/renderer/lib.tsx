@@ -41,6 +41,7 @@ const READ_ONLY = /\.(list|get|status|queue|current|overview|movements|lookup|re
 export async function call<T = any>(command: string, input: unknown = {}): Promise<T> {
   const res = await bridge.invoke(command, input);
   if (res.ok) {
+    if (command === 'auth.logout' || (command === 'app.state' && !res.data?.user)) window.dispatchEvent(new Event('mansora:session-ended'));
     if (!READ_ONLY.test(command)) window.dispatchEvent(new Event('mansora:changed'));
     return res.data as T;
   }

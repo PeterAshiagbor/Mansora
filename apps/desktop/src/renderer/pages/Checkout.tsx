@@ -1,3 +1,4 @@
+import { parkBasket, parkedBaskets, takeParkedBasket } from '../parked-baskets';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { priceCart, settlePayments } from '@mansora/domain';
 import { Alert, Badge, Button, cx, Field, Input, Modal, Select, QueryView, PageHeader, WorkflowSteps, useUnsavedChanges, useNavigationGuard } from '@mansora/ui';
@@ -21,8 +22,16 @@ interface Line {
 export function Checkout() {
   const { can, state } = useApp();
   const toast = useToast();
+  const scope = `${(state.business as any).tenantId ?? state.business.name}:${state.user?.id}`;
+  const [parked, setParked] = useState(() => parkedBaskets<Line>(scope));
+  const [discardParked, setDiscardParked] = useState<string | null>(null);
+  const [showParked, setShowParked] = useState(false), [resuming, setResuming] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const transition = useRef(false), basketVersion = useRef(0), pendingScans = useRef(0);
+  const [scanning, setScanning] = useState(false);
   const navigate = useNavigationGuard();
-  const [saleId, setSaleId] = useState(uuid);
+  const [saleId, setSaleId] = useState<string>(uuid);
   const [lines, setLines] = useState<Line[]>([]);
   const [quantityEdits, setQuantityEdits] = useState<Record<string, string>>({});
   const [requestingDiscount, setRequestingDiscount] = useState(false);
@@ -60,20 +69,25 @@ export function Checkout() {
   // Scans arrive as fast keystrokes ending in Enter. Process them strictly one after another so none is lost or mixed up.
   const scanQueue = useRef(Promise.resolve());
   const onEnter = () => {
+    if (transition.current) return;
+    const version = basketVersion.current;
     const code = search.trim();
     if (!code) return;
     setSearch('');
+    pendingScans.current++; setScanning(true);
     scanQueue.current = scanQueue.current.then(async () => {
       try {
         const exact = await call<Product | null>('product.lookup', { code });
+        if (version !== basketVersion.current) return;
         if (exact) return add(exact);
         const found = await call<Product[]>('product.list', { search: code, limit: 2 });
+        if (version !== basketVersion.current) return;
         if (found.length === 1) add(found[0]);
         else if (found.length === 0) toast(`No product found for "${code}"`, 'bad');
         else setSearch(code); // several matches: leave them on screen to choose from
       } catch (e: any) {
         toast(e.message, 'bad');
-      }
+      } finally { pendingScans.current--; setScanning(pendingScans.current > 0); }
     });
   };
 
@@ -88,6 +102,7 @@ export function Checkout() {
   const total = cart && 'total' in cart ? cart.total : 0;
 
   const reset = () => {
+    basketVersion.current++;
     setLines([]);
     setQuantityEdits({});
     setCartDiscount(0);
@@ -101,21 +116,52 @@ export function Checkout() {
     setTimeout(() => searchRef.current?.focus(), 0);
   };
 
+  const park = () => {
+    if (transition.current || paying || done || pendingScans.current || !lines.length || quantityProblem || !cart || 'error' in cart) return;
+    try {
+      parkBasket(scope, { id: saleId, createdAt: new Date().toISOString(), lines: lines.map(line => ({ ...line, product: Object.fromEntries(['id', 'name', 'sku', 'barcode', 'selling_price', 'quantity', 'category_id'].map(key => [key, (line.product as any)[key]])) as unknown as Product })), cartDiscount: cartDiscount ?? 0, customerId, customer: customerId ? { id: customerId, name: selectedCustomer?.name ?? customers.find(c => c.id === customerId)?.name ?? 'Customer' } : null, requestingDiscount });
+      setParked(parkedBaskets<Line>(scope)); reset(); toast('Basket parked for this signed-in session. Stock has not changed.');
+    } catch (error: any) { toast(error.message, 'bad'); }
+  };
+  const resume = async (id: string) => {
+    if (transition.current || lines.length || pendingScans.current) { toast('Park or clear the current basket before resuming another.', 'bad'); return; }
+    transition.current = true; setResuming(true);
+    try {
+      const draft = parkedBaskets<Line>(scope).find(d => d.id === id);
+      if (!draft) throw new Error('This basket has already been resumed or discarded.');
+      const refreshed: Line[] = [];
+      for (const line of draft.lines) {
+        const matches = await call<Product[]>('product.list', { search: line.product.name.slice(0, 100), limit: 1000 });
+        const product = matches.find(p => p.id === line.product.id);
+        if (!product) throw new Error(`${line.product.name} changed or is unavailable. The parked basket is preserved; review the catalogue before retrying.`);
+        refreshed.push({ ...line, product });
+      }
+      if (!mounted.current) return;
+      if (!takeParkedBasket<Line>(scope, id)) throw new Error('This basket has already been resumed.');
+      basketVersion.current++; setLines(refreshed); setQuantityEdits({}); setSaleId(draft.id); setCartDiscount(draft.cartDiscount);
+      setCustomerId(draft.customerId); setSelectedCustomer(draft.customer); setRequestingDiscount(draft.requestingDiscount);
+      setParked(parkedBaskets<Line>(scope)); setShowParked(false); toast('Basket resumed. Review current prices and stock before payment.');
+    } catch (error: any) { toast(error.message, 'bad'); }
+    finally { transition.current = false; setResuming(false); }
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F4' && !document.querySelector('[role=dialog]')) { e.preventDefault(); park(); }
+      if (e.key === 'F6' && !document.querySelector('[role=dialog]')) { e.preventDefault(); setShowParked(true); }
       if (e.key === 'F2') (e.preventDefault(), searchRef.current?.focus());
       if (e.key === 'F9' && document.querySelector<HTMLInputElement>('section[aria-label="Basket"] input:invalid')) { e.preventDefault(); document.querySelector<HTMLInputElement>('section[aria-label="Basket"] input:invalid')?.reportValidity(); return; }
-      if (e.key === 'F9' && lines.length && !stockProblem && !quantityProblem && !paying && !done && cart && 'total' in cart) (e.preventDefault(), setPaying(true));
+      if (e.key === 'F9' && !scanning && lines.length && !stockProblem && !quantityProblem && !paying && !done && cart && 'total' in cart) (e.preventDefault(), setPaying(true));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lines.length, stockProblem, quantityProblem, paying, done, cart]);
+  }, [lines, stockProblem, quantityProblem, paying, done, cart, customerId, selectedCustomer, requestingDiscount, saleId, scanning]);
 
   if (shift.data === undefined) return <QueryView query={shift} label="your current shift">{null}</QueryView>;
   if (shift.data === null) return <OpenShift onOpened={shift.reload} />;
 
   return (
-    <div><PageHeader title="New sale" subtitle="Scan or search. Add items. Take payment." /><div className="m-checkout">
+    <div><PageHeader title="New sale" subtitle="Scan or search. Add items. Take payment." actions={<><Button disabled={!lines.length || paying || !!done || scanning || quantityProblem || !cart || 'error' in cart} onClick={park}>Park basket (F4)</Button><Button onClick={() => setShowParked(true)}>Parked baskets ({parked.length}) · F6</Button></>} /><div className="m-checkout">
       <section aria-label="Products" className="flex min-h-64 min-w-0 flex-1 flex-col">
         <div className="flex gap-2">
           <Input ref={searchRef as any} autoFocus value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onEnter())}
@@ -201,7 +247,7 @@ export function Checkout() {
             <span className="text-sm font-medium text-slate-600">Total</span>
             <span className="text-4xl font-bold tabular-nums text-slate-900" data-testid="basket-total">{money(total)}</span>
           </div>
-          <Button variant="primary" size="lg" className="w-full !py-4 !text-lg" disabled={!cart || 'error' in cart || stockProblem || quantityProblem} onClick={() => setPaying(true)}>Pay  (F9)</Button>
+          <Button variant="primary" size="lg" className="w-full !py-4 !text-lg" disabled={scanning || !cart || 'error' in cart || stockProblem || quantityProblem} onClick={() => setPaying(true)}>Pay  (F9)</Button>
         </div>
       </section>
 
@@ -217,6 +263,12 @@ export function Checkout() {
             setDone({ id: res.id, receiptNo: res.receiptNo, total: res.total ?? total, change: res.change ?? 0 });
           }} />
       )}
+      {showParked && <Modal title="Parked baskets" trackChanges={false} open onClose={() => { if (!resuming) setShowParked(false); }}>
+        <p className="mb-4 text-sm text-slate-600">Drafts belong to your current business and user. They reserve no stock and are cleared on sign-out, lock or closing this tab. No payment has been recorded.</p>
+        {!parked.length && <p>No parked baskets.</p>}
+        {parked.map((draft, index) => <div key={draft.id} className="mb-3 rounded-lg border p-4"><strong>Basket {index + 1}</strong><p className="my-2 text-sm">{draft.lines.map(line => `${line.quantity} × ${line.product.name}`).join(', ')}</p><div className="flex gap-2"><Button disabled={resuming || !!lines.length || scanning} onClick={() => void resume(draft.id)}>Resume basket {index + 1}</Button><Button disabled={resuming} onClick={() => setDiscardParked(draft.id)}>Discard basket {index + 1}</Button></div></div>)}
+      </Modal>}
+      {discardParked && <Modal title="Discard parked basket?" trackChanges={false} open onClose={() => setDiscardParked(null)} footer={<><Button onClick={() => setDiscardParked(null)}>Keep basket</Button><Button variant="danger" onClick={() => { takeParkedBasket(scope, discardParked); setParked(parkedBaskets<Line>(scope)); setDiscardParked(null); }}>Discard parked basket</Button></>}><p>This removes only this unfinished draft. No sale or stock movement has been recorded.</p></Modal>}
       {done && <DoneModal sale={done} onNew={reset} />}
     </div></div>
   );
