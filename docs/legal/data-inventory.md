@@ -1415,3 +1415,22 @@ These fields remain in the existing platform notification retention/access scope
 | `cloud.notifications.delivery_started_at` | Prevent retry after provider idempotency protection expires. Operational delivery evidence linked to the existing notification and recipient. Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling. |
 | `cloud.notifications.next_attempt_at` | Schedule and lease queued email delivery. Operational delivery evidence linked to the existing notification and recipient. Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling. |
 | `cloud.notifications.provider_message_id` | Reconcile provider acceptance without storing API credentials. Operational delivery evidence linked to the existing notification and recipient. Delivery metadata is linked to recipient/client records; assess necessity, retention and provider cross-border handling. |
+
+### Demo-request contact data (migration 6, C39)
+
+The public request form stores business contact details after explicit contact consent. These are platform prospects, not client businesses or financial accounts. Only active platform administrators can list or update them; the tenant database role has no table permission. The public submission response contains no stored record, lead identifier or existing-email signal. Free text must not include credentials, sensitive client data or payment information.
+
+| Field | Purpose |
+| --- | --- |
+| `cloud.demo_requests.id` | Deduplicate a submitted request identifier without overwriting earlier content |
+| `cloud.demo_requests.name` | Contact the person who requested a demo |
+| `cloud.demo_requests.business` | Understand the requested business use |
+| `cloud.demo_requests.email` | Respond to the explicit request |
+| `cloud.demo_requests.phone` | Optional business contact method |
+| `cloud.demo_requests.message` | Optional description of requested help |
+| `cloud.demo_requests.status` | Track manual follow-up; never creates a client/subscription |
+| `cloud.demo_requests.consent_at` | Record when the contact request was submitted with consent |
+| `cloud.demo_requests.created_at` | Order incoming requests |
+| `cloud.demo_requests.updated_at` | Track manual status changes |
+
+All fields live in the PostgreSQL platform plane and any protected provider backups. Hosted infrastructure logs may additionally record network metadata, governed separately. Public contact settings under `billing_settings.public_contact` (C40) deliberately publish only the business support channels the administrator enters; those values must never contain private credentials or customer contacts.

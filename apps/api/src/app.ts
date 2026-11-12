@@ -6,6 +6,7 @@ import type { ServiceStanding } from '@mansora/domain';
 import type { Database } from './db';
 import type { BrowserWorkspaceProvisioner } from './browser-workspaces';
 import { tenantStanding } from './billing/standing';
+import { registerLeadRoutes } from './modules/leads';
 import { registerContactRoutes } from './modules/contact';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
@@ -81,6 +82,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   registerDeviceRoutes(app, context);
   registerAdminRoutes(app, context);
   registerContactRoutes(app, context);
+  registerLeadRoutes(app, context);
   registerBillingRoutes(app, billing);
   return app;
 }

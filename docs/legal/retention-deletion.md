@@ -107,3 +107,7 @@ Financial records and local audit facts are immutable by design. Current code ha
 ### Evidence and operating process to agree
 
 Who receives and verifies a request, confirms the controller instruction and checks legal holds? Who approves a redaction, which IDs/copies are affected, how are offline devices and restored snapshots prevented from undoing it, and how is completion evidenced without retaining unnecessary personal detail? What deadline and communication process applies under Ghanaian law? Which residual owner-controlled receipts, exported files and removable backups must the shop handle? These are unanswered design/legal questions.
+
+### `cloud.demo_requests` (C39)
+
+Proposal for legal/owner review: choose a short retention window for unqualified or closed demo requests, and preserve only the minimum contact-consent evidence needed for a justified period. No automatic deletion period is silently chosen by this release. Qualified leads do not become clients automatically. A deletion procedure must cover the prospect row, linked lead-ID audit metadata where appropriate, and expiry of provider backups; it must not delete unrelated client/financial records. Who may approve and execute a prospect data request, and what retention period applies?
