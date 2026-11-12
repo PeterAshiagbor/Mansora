@@ -1,3 +1,5 @@
+import { ShareWhatsApp } from '../components/ShareWhatsApp';
+import { receiptMessage } from '../customer-sharing';
 import { useEffect, useState } from 'react';
 import { refundLineAmount } from '@mansora/domain';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, Textarea, QueryView } from '@mansora/ui';
@@ -36,6 +38,7 @@ export function SalesPage({ openId }: { openId?: string }) {
 }
 
 function SaleDetail({ id, onClose }: { id: string; onClose: () => void }) {
+  const { state } = useApp();
   const saleQuery = useQuery<any>('sale.get', { id });
   const { data, reload } = saleQuery;
   const [refunding, setRefunding] = useState(false);
@@ -48,6 +51,7 @@ function SaleDetail({ id, onClose }: { id: string; onClose: () => void }) {
     <Modal trackChanges={false} title={`Receipt ${sale.receipt_no}`} open onClose={onClose} wide
       footer={<>
         {refundable && <Button variant="danger" onClick={() => setRefunding(true)}>Refund…</Button>}
+        <ShareWhatsApp phone={sale.customer_phone} message={receiptMessage(state.business.name, data)} label="Share receipt on WhatsApp" />
         <Button disabled={busy} onClick={() => run(async () => { const r = await receipt(); await savePdf(r.html, `${r.receiptNo}.pdf`); })}>Save PDF</Button>
         <Button variant="primary" disabled={busy} onClick={() => run(async () => printHtml((await receipt()).html))}>Reprint receipt</Button>
       </>}>
