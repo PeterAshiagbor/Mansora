@@ -27,7 +27,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
       const account = accounts.find(a => a.workspace === 'shop-a' && a.role === role)!;
       await page.goto(gateway.url + '/client/shop-a/#email=invited%40example.test');
       expect(await page.getByLabel('Username', { exact: true }).inputValue()).toBe('invited@example.test');
-      await page.getByText('Use the email address from your invitation, or your staff username.', { exact: true }).waitFor();
+      await page.getByText('Use your invitation email or staff username.', { exact: true }).waitFor();
       await page.getByLabel('Username', { exact: true }).fill(account.username);
       await page.getByLabel('Password', { exact: true }).fill(account.password);
       await page.getByRole('button', { name: 'Show password', exact: true }).click();
