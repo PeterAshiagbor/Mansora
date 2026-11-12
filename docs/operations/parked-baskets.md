@@ -9,3 +9,5 @@ Resuming requires an empty current basket and consumes the draft only after curr
 A resumed draft is removed atomically from the parked store; duplicate resume cannot create a second active draft. Completing it sends its preserved identifier to the existing idempotent sale command. Explicit discard confirmation removes only that unfinished draft, with no stock effect.
 
 Validation: meaningful browser checks cover no-write parking, navigation survival, changed-price refresh, one actual sale/stock decrement, unavailable-product resume preservation, confirmed discard and sign-out clearing. Unit checks cover user/business isolation, one-time consumption, copy isolation and the ten-draft bound. Existing retail-pricing and accessibility checks remain unchanged. Exact full-suite/CI and rollout results belong in the task-board handoff after observed completion.
+
+Completion review (2026-11-12): checkout quick keys are inactive while a dialog is open, so F9 cannot open payment behind the parked-basket review. A real browser regression reproduces the previous nested payment and verifies the guard without a sale or stock movement.

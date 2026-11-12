@@ -65,4 +65,16 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
     await page.getByRole('button', { name: 'Lock / sign out', exact: true }).click(); await signIn(); await navigate(page, 'New sale');
     await page.getByRole('button', { name: 'Parked baskets (0) · F6', exact: true }).waitFor(); expect(count()).toBe(1);
   });
+  it('keeps payment shortcuts inactive while the parked-basket dialog is open', async () => {
+    await scan();
+    await page.keyboard.press('F6');
+    const parked = page.getByRole('dialog', { name: 'Parked baskets', exact: true });
+    await parked.waitFor();
+    await page.keyboard.press('F9');
+    expect(await page.getByRole('dialog', { name: 'Take payment', exact: true }).count()).toBe(0);
+    expect(await parked.isVisible()).toBe(true);
+    expect(count()).toBe(1); expect(quantity()).toBe(8);
+    await page.keyboard.press('Escape');
+  });
+
 });

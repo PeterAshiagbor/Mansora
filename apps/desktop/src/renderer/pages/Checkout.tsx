@@ -148,6 +148,7 @@ export function Checkout() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (document.querySelector('[role="dialog"]')) return;
       if (e.key === 'F4' && !document.querySelector('[role=dialog]')) { e.preventDefault(); park(); }
       if (e.key === 'F6' && !document.querySelector('[role=dialog]')) { e.preventDefault(); setShowParked(true); }
       if (e.key === 'F2') (e.preventDefault(), searchRef.current?.focus());
