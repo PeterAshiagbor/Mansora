@@ -13,14 +13,14 @@ export function Dashboard() {
   const own = d.scope === 'own';
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle={`Good day, ${state.user?.name.split(' ')[0]}. ${own ? 'Here is your sales activity today.' : 'Here is how your business is doing today.'}`} actions={<><Button onClick={dashboard.reload}><Icon name="sync" />Refresh overview</Button>{can('sale.create') && <Button variant="primary" onClick={() => go('checkout')}><Icon name="plus" />Create a sale</Button>}</>} />
+      <PageHeader title="Dashboard" subtitle={own ? 'Your sales activity today.' : 'Sales, stock and customer balances in one view.'} actions={<><Button onClick={dashboard.reload}><Icon name="sync" />Refresh overview</Button>{can('sale.create') && <Button variant="primary" onClick={() => go('checkout')}><Icon name="plus" />Create a sale</Button>}</>} />
       <StandingNotice />
       {state.user?.role === 'owner' && <FirstUsePrompt />}
       {sync?.tenantStatus === 'suspended' && <Alert tone="warn" className="mb-4">Your Mansora service plan needs attention. Please contact Mansora. You can keep selling as normal.</Alert>}
       {sync && sync.unprotected > 0 && sync.state === 'offline' && (
         <Alert tone="warn" className="mb-4">{sync.unprotected} recent change(s) exist only on this laptop. They will be protected when the internet returns, or when you make a backup.</Alert>
       )}
-      <div className="m-overview-caption"><strong>At a glance</strong><span>Today and month to date</span></div>
+      <div className="m-overview-caption"><span>Today and month to date</span></div>
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
         <Stat icon={<Icon name="wallet" />} label={own ? 'My sales today' : 'Sales today'} value={money(d.today.net)} hint={`${d.today.count} ${d.today.count === 1 ? 'transaction' : 'transactions'}${d.today.refunds ? ` · ${money(d.today.refunds)} refunded` : ''}`} />
         <Stat icon={<Icon name="chart" />} label={own ? 'My sales this month' : 'Sales this month'} value={money(d.month.net)} hint={`${d.month.count} ${d.month.count === 1 ? 'transaction' : 'transactions'}`} />

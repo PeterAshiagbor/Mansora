@@ -1,12 +1,12 @@
 /* C28 · authored Mansora workflow design. Shared by real client and operator apps. */
 :root {
-  --m-canvas:#f7f7f5; --m-surface:#fff; --m-line:#e6e3e9;
-  --m-text:#251e2d; --m-muted:#6c6674; --m-rail:#251c32;
-  --m-rail-hover:#3b2b4d; --m-on-rail:#d6cedf; --m-gold:#d9bb78;
-  --m-shadow:0 1px 3px rgb(37 28 50 / 2%); --m-radius:8px;
+  --m-canvas:#faf8f5; --m-surface:#fff; --m-line:#e1d7e8;
+  --m-text:#221634; --m-muted:#5e5269; --m-rail:#2a1844;
+  --m-rail-hover:#43285b; --m-on-rail:#d6cedf; --m-gold:#d9bb78;
+  --m-shadow:0 2px 5px rgb(56 20 92 / 3%),0 8px 24px rgb(92 45 133 / 3%); --m-radius:8px;
 }
 .m-workspace { color:var(--m-text); background:var(--m-canvas); }
-.m-content-scroll { background:var(--m-canvas); }
+.m-content-scroll { background:radial-gradient(ellipse 900px 360px at 100% 0,rgb(196 139 23 / 4%),transparent 75%),var(--m-canvas); }
 .m-sidebar { width:224px; background:var(--m-rail); border-color:var(--m-rail); color:var(--m-on-rail); }
 .m-sidebar-brand { padding:24px 20px 28px; }
 .m-sidebar-brand [data-testid=mansora-brand]>div>div:first-child { color:#fff; border-color:var(--m-gold); }
@@ -18,7 +18,7 @@
 .m-nav-group>p { margin-bottom:12px; padding-left:12px; color:#bfb3ca; font-size:11px; letter-spacing:.08em; }
 .m-nav-item { min-height:44px; padding:11px 12px; gap:12px; margin:4px 0; border:0; border-radius:8px; color:var(--m-on-rail); font-size:14px; font-weight:450; }
 .m-nav-item:hover { background:var(--m-rail-hover); color:#fff; }
-.m-nav-active { background:var(--m-rail-hover)!important; color:#fff!important; box-shadow:none; font-weight:550; }
+.m-nav-active { background:var(--m-rail-hover)!important; color:#fff!important; box-shadow:inset 3px 0 0 var(--m-gold),0 2px 12px rgb(92 45 133 / 12%); font-weight:550; }
 .m-nav-active svg { color:var(--m-gold); }
 .m-sidebar .m-nav-item:focus-visible,.m-sidebar summary:focus-visible { outline:2px solid var(--m-gold)!important; outline-offset:-2px!important; }
 .m-nav-tools>summary,.m-nav-section>summary { min-height:44px; border-radius:8px; color:var(--m-on-rail); font-size:13px; }
@@ -53,7 +53,7 @@
 .m-stat-hint { margin-top:14px; font-size:12px; line-height:1.6; color:var(--m-muted); }
 .m-stat-icon { display:none; }
 .m-table { color:var(--m-text); }
-.m-table thead tr { background:#f7f7f5; color:var(--m-muted); font-size:12px; }
+.m-table thead tr { background:#faf8fc; color:var(--m-muted); font-size:12px; }
 .m-table th { padding:16px; font-weight:500; }
 .m-table td { padding:18px 16px; font-size:14px; color:var(--m-text); }
 .m-table tbody tr { border-color:var(--m-line); }
@@ -63,8 +63,8 @@
 .m-button { min-height:44px; border-radius:8px; font-size:14px; font-weight:500; box-shadow:none; transition:background .15s,border-color .15s,box-shadow .15s; }
 .m-button[data-size=sm] { min-height:34px; font-size:13px; }
 .m-button[data-size=lg] { min-height:48px; font-size:16px; }
-.m-button[data-variant=primary] { background:#5c2d85; border-color:#5c2d85; box-shadow:0 3px 12px rgb(92 45 133 / 10%); }
-.m-button[data-variant=primary]:hover:not(:disabled) { background:#4a2370; box-shadow:0 4px 14px rgb(92 45 133 / 16%); }
+.m-button[data-variant=primary] { background:#5c2d85; border-color:#5c2d85; box-shadow:0 3px 14px rgb(92 45 133 / 14%); }
+.m-button[data-variant=primary]:hover:not(:disabled) { background:#4a2370; box-shadow:0 4px 20px rgb(92 45 133 / 20%); }
 .m-button[data-variant=secondary] { background:#fff; border-color:var(--m-line); }
 .m-button:disabled { box-shadow:none; }
 .m-control { min-height:44px; border-color:#d9d3df; border-radius:8px; font-size:14px; }
@@ -93,11 +93,11 @@
 .m-auth-frame { background:var(--m-canvas); }
 .m-auth-card { border:1px solid var(--m-line); border-radius:12px; box-shadow:0 12px 50px rgb(37 28 50 / 6%); }
 .m-auth-layout { display:grid; grid-template-columns:minmax(300px,.9fr) minmax(400px,1.1fr); min-height:100%; background:#fff; }
-.m-auth-story { display:flex; flex-direction:column; justify-content:center; gap:28px; padding:64px; background:radial-gradient(ellipse at 20% 25%,#493156 0,transparent 65%),var(--m-rail); color:var(--m-on-rail); }
+.m-auth-story { display:flex; flex-direction:column; justify-content:center; gap:28px; padding:64px; background:radial-gradient(ellipse at 15% 20%,rgb(92 45 133 / 80%),transparent 65%),radial-gradient(ellipse at 95% 95%,rgb(196 139 23 / 14%),transparent 55%),var(--m-rail); color:var(--m-on-rail); }
 .m-auth-story h2 { font-size:42px; line-height:1.2; color:#fff; font-weight:600; letter-spacing:-.035em; }
 .m-auth-story p { font-size:16px; line-height:1.8; }
 .m-auth-story strong { color:var(--m-gold); }
-.m-auth-panel { display:flex; align-items:center; justify-content:center; padding:48px; min-width:0; }
+.m-auth-panel { background:radial-gradient(ellipse at 85% 5%,rgb(196 139 23 / 5%),transparent 55%),radial-gradient(ellipse at 0 100%,rgb(92 45 133 / 4%),transparent 60%),#fff; display:flex; align-items:center; justify-content:center; padding:48px; min-width:0; }
 .m-auth-panel .m-auth-card { padding:0; border:0; border-radius:0; box-shadow:none; }
 .m-app-footer { min-height:34px; border-color:var(--m-line); font-size:11px; color:var(--m-muted); background:#fff; }
 .m-overview-caption { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin:0 0 14px; font-size:12px; color:var(--m-muted); }

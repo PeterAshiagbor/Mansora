@@ -96,7 +96,7 @@ describe.skipIf(!pw || !built)('Mansora provider branding and client workspace i
   });
   it('identifies provider administration separately from client workspaces', async () => {
     await admin.goto(web.url); await checkBrand(admin);
-    await admin.getByText('Platform administration', { exact: true }).waitFor();
+    await admin.getByRole('heading', { name: 'Administrator sign in', exact: true }).waitFor();
     await screenshot(admin, 'platform-sign-in');
     await admin.getByLabel('Email').fill(ADMIN.email); await admin.getByLabel('Password', { exact: true }).fill(ADMIN.password);
     await admin.getByRole('button', { name: 'Sign in', exact: true }).click();

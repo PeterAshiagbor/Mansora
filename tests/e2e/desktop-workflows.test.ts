@@ -37,7 +37,7 @@ describe.skipIf(!pw || !built)('remaining desktop workflows through the real int
   const read = (sql: string, ...params: unknown[]): any => host.engine.db.prepare(sql).get(...params);
   const balance = () => read('SELECT quantity, average_cost FROM stock_balances WHERE product_id = ?', productId);
   async function signIn(who: typeof owner) {
-    await page.getByText('Sign in with the account details provided by your administrator.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
     await page.getByLabel('Username', { exact: true }).fill(who.username);
     await page.getByLabel('Password', { exact: true }).fill(who.password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
