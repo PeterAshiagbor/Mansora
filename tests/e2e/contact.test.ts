@@ -1,0 +1,45 @@
+import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { startCloud, type Cloud } from '../cloud';
+import { OWNER, tempDir } from '../helpers';
+import { startDevHost } from '../../apps/desktop/dev/host';
+import { navigate } from './navigation';
+const pw = (() => { try { return createRequire(import.meta.url)('playwright'); } catch { return null; } })();
+describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop/dist/renderer/index.html')))('client support and recovery guidance', () => {
+  let cloud: Cloud, host: Awaited<ReturnType<typeof startDevHost>>, browser: any, page: any;
+  beforeAll(async () => {
+    cloud = await startCloud(); const client = await cloud.createClient('Support journey');
+    host = await startDevHost({ dataDir: tempDir(), port: 0 });
+    await host.engine.execute(null, 'activation.activate', { apiUrl: cloud.url, code: client.code, deviceName: 'Support test', owner: OWNER });
+    await cloud.api('PUT', '/v1/admin/contact-settings', { name: 'Mansora support desk', email: 'desk@example.test', phone: '', whatsapp: '', hours: 'Weekdays', website: '' });
+    browser = await pw.chromium.launch(); page = await browser.newPage(); page.setDefaultTimeout(10_000);
+    await page.route('**/api/v1/public/contact', async (route: any) => { const response = await cloud.api('GET', '/v1/public/contact', undefined, null); await route.fulfill({ status: response.status, contentType: 'application/json', body: JSON.stringify(response.body) }); });
+    await page.goto(host.url);
+  });
+  afterAll(async () => { await browser?.close(); if (host) { await new Promise<void>(r => host.server.close(() => r())); host.engine.db.close(); } await cloud?.close(); });
+  it('uses the public configured contact on sign-in and explains staff/owner recovery without exposing credentials', async () => {
+    await page.getByRole('button', { name: 'Forgot password? Get help', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Help signing in', exact: true });
+    await dialog.getByText('Mansora support desk', { exact: true }).waitFor();
+    expect(await dialog.getByRole('link', { name: 'desk@example.test' }).getAttribute('href')).toBe('mailto:desk@example.test');
+    expect(await dialog.innerText()).toContain('ask your business owner');
+    expect(await dialog.innerText()).toContain('Never send your password');
+    await page.keyboard.press('Escape');
+    await page.getByLabel('Username', { exact: true }).fill(OWNER.username);
+    await page.getByLabel('Password', { exact: true }).fill(OWNER.password);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await navigate(page, 'Help & getting started');
+    await page.getByRole('button', { name: 'Contact Mansora', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Contact Mansora', exact: true }).getByRole('link', { name: 'desk@example.test' }).waitFor();
+    await page.keyboard.press('Escape');
+    await navigate(page, 'Settings');
+    await page.unroute('**/api/v1/public/contact');
+    await page.route('**/api/v1/public/contact', (route: any) => route.abort());
+    const before = host.engine.db.prepare('SELECT password_hash FROM users').all();
+    await page.getByRole('button', { name: 'Contact Mansora', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: 'Contact details could not be loaded' }).waitFor();
+    expect(host.engine.db.prepare('SELECT password_hash FROM users').all()).toEqual(before);
+  });
+});
