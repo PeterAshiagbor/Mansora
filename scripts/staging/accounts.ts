@@ -12,7 +12,8 @@ export function testerEmails(raw: string | undefined): string[] {
   return emails;
 }
 export function loadLoginAliases(dataDir: string): Record<string, Record<string, string>> {
-  const accounts = JSON.parse(readFileSync(join(dataDir, 'test-accounts.json'), 'utf8')) as TestAccount[];
+  const manifest = join(dataDir, 'test-accounts.json');
+  const accounts = (existsSync(manifest) ? JSON.parse(readFileSync(manifest, 'utf8')) : []) as TestAccount[];
   const aliases: Record<string, Record<string, string>> = {};
   for (const a of accounts) if (a.email) (aliases[a.workspace] ??= {})[a.email.toLowerCase()] = a.username;
   const registry = join(dataDir, 'workspaces.json');

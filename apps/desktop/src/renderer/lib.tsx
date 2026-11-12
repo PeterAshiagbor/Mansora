@@ -19,6 +19,7 @@ interface Bridge {
 declare global {
   interface Window {
     mansora?: Bridge;
+    MANSORA_OWNER_RECOVERY_URL?: string;
   }
 }
 

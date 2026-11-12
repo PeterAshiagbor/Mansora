@@ -13,6 +13,10 @@ describe('Railway deployment configuration', () => {
     expect(() => railwayConfig({ ...env, DATABASE_URL: 'postgres://user:fixture@production.example/db' })).toThrow('private Railway');
     expect(() => railwayConfig({ ...env, STAGING_TESTER_EMAILS: undefined })).toThrow(); expect(() => railwayConfig({ ...env, PAYSTACK_SECRET_KEY: 'fixture' })).toThrow();
   });
+  it('permits explicitly selected client mode without creating tester identities and rejects conflicting modes', () => {
+    expect(railwayConfig({ ...env, MANSORA_STAGING_MODE: undefined, MANSORA_DEPLOYMENT_MODE: 'client', STAGING_TESTER_EMAILS: undefined })).toMatchObject({ mode: 'client', emails: [] });
+    expect(() => railwayConfig({ ...env, MANSORA_DEPLOYMENT_MODE: 'client' })).toThrow('disagree');
+  });
   it('rejects insecure public origins, port collision, malformed and duplicate identities', () => {
     expect(() => railwayConfig({ ...env, STAGING_ORIGIN: 'http://example.com' })).toThrow(); expect(() => railwayConfig({ ...env, PORT: '4000' })).toThrow(); expect(() => railwayConfig({ ...env, PORT: 'NaN' })).toThrow();
     for (const raw of ['bad JSON', '["too short","also short"]', JSON.stringify(['same'.repeat(10), 'same'.repeat(10)])]) expect(() => testerPasswords(raw)).toThrow();

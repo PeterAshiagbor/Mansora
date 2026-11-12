@@ -2,11 +2,12 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { stagingOrigin } from '../staging/gateway';
+import { deploymentMode } from '../staging/gateway-policy';
 import { testerEmails, testerPasswords } from '../staging/accounts';
 
 /** Railway supplies only the private PostgreSQL reference, public hostname and tester identities. */
 export function railwayConfig(env: NodeJS.ProcessEnv = process.env) {
-  if (env.MANSORA_STAGING_MODE !== 'team-test') throw new Error('Explicit team-test mode is required.');
+  const mode = deploymentMode(env);
   if (env.PAYSTACK_SECRET_KEY || env.HUBTEL_CLIENT_SECRET) throw new Error('Live payment credentials are forbidden in team testing.');
   const origin = stagingOrigin(env.STAGING_ORIGIN || (env.RAILWAY_PUBLIC_DOMAIN ? `https://${env.RAILWAY_PUBLIC_DOMAIN}` : '')).origin;
   const db = new URL(env.DATABASE_URL ?? '');
@@ -14,9 +15,9 @@ export function railwayConfig(env: NodeJS.ProcessEnv = process.env) {
   const port = Number(env.PORT ?? 8080);
   if (!Number.isInteger(port) || port < 1 || port > 65535 || port === 4000) throw new Error('Choose a valid public port distinct from the loopback API port 4000.');
   const emails = testerEmails(env.STAGING_TESTER_EMAILS);
-  if (emails.length !== 2) throw new Error('Two tester identities are required.');
+  if (mode === 'team-test' && emails.length !== 2) throw new Error('Two tester identities are required.');
   const passwords = testerPasswords(env.STAGING_TESTER_PASSWORDS);
-  return { passwords, origin, databaseUrl: db.toString(), port, emails, dataDir: '/data', adminEmail: 'staging.operator@mansora.example' };
+  return { mode, passwords, origin, databaseUrl: db.toString(), port, emails, dataDir: '/data', adminEmail: 'staging.operator@mansora.example' };
 }
 export function persistentSecret(directory: string, name: string, encoding: 'hex' | 'base64' = 'hex'): string {
   if (!/^[a-z][a-z0-9_-]+$/.test(name)) throw new Error('Invalid secret identifier.');
