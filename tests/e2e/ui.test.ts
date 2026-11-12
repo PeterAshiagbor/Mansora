@@ -135,6 +135,8 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
     }
     await shop.getByText('3 item(s)').waitFor();
     expect(await shop.getByTestId('basket-total').innerText()).toBe('GHS 61.00');
+    // A displayed basket can precede the final scan lookup/refresh completing.
+    await expect.poll(() => shop.getByRole('button', { name: /^Pay.*F9/ }).isEnabled()).toBe(true);
     await shop.keyboard.press('F9');
     await shop.getByLabel('Cash received').fill('100');
     expect(await shop.getByTestId('change').innerText()).toBe('GHS 39.00');
