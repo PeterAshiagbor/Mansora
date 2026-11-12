@@ -39,6 +39,6 @@ export function resendFromEnv(): ResendEmail {
   const allowedRecipients = (process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').map(a => a.trim()).filter(Boolean);
   if (allowedRecipients.some(a => !address.test(a))) throw new Error('RESEND_ALLOWED_RECIPIENTS must contain email addresses.');
   // A team-test deployment must explicitly allow its recipients before it can send.
-  if (process.env.MANSORA_STAGING_MODE === 'team-test' && process.env.RESEND_API_KEY && !allowedRecipients.length) throw new Error('Set RESEND_ALLOWED_RECIPIENTS before enabling team-test email.');
+  if ((process.env.MANSORA_DEPLOYMENT_MODE === 'team-test' || process.env.MANSORA_STAGING_MODE === 'team-test') && process.env.RESEND_API_KEY && !allowedRecipients.length) throw new Error('Set RESEND_ALLOWED_RECIPIENTS before enabling team-test email.');
   return new ResendEmail({ apiKey: process.env.RESEND_API_KEY, from, replyTo, allowedRecipients });
 }

@@ -51,7 +51,7 @@
 | C33 owner's closing summary by email, opt-in, message bodies cleared after delivery (N2) | Claude | Next | – |
 | C34 activity signals for Mansora, counts only, never amounts (N5) | Claude | Queued | – |
 | C36 live third-shop acceptance | Codex Platform session | #51 merged; third-shop browser/API/container/restart tests pass and code is deployed through the live default. Actual live administrator-created third shop remains unclaimed; do not infer it from CI | PR #51; `docs/operations/browser-workspaces.md` |
-| C37 client mode, proxy/account throttling and browser owner recovery | Codex Platform session | Active; partial implementation retained/restored after completing approved client-sales PRs. Rebase onto latest default before publication; live test mode stays unchanged | `codex/C37-client-gateway` |
+| C37 client mode, proxy/account throttling and browser owner recovery | Codex Platform session | Implemented: explicit modes/bounds, isolated sign-in/resource budgets and recorded-owner email recovery through the existing device command. Regression/PR review in progress; live proxy and owner recovery acceptance pending | `codex/C37-client-gateway` |
 | C38 off-site backups of database and data volume with keys, one rehearsed restore, uptime check, error alerts to a person (N1) | **Codex session 1 — this review/domain/email session** | Reserved in this lane; follows C32/C36/C37. Provider/key retention and isolated recovery evidence required; not claimed deployed | `codex/C38-recovery-monitoring` (reserved) |
 | C44 decimal quantities and saved pack sizes: engine, schema, sync contract (X3). Publishes the command contract for C51 | Claude | Queued | – |
 | C45 wholesale/retail price levels and supervised price override: engine (X4) | Claude | Queued | – |
@@ -60,7 +60,6 @@
 | C48 offline tier: signed-installer pipeline and automatic updates for the Windows till (L1) | **Codex session 1 — this review/domain/email session** | Reserved after C36–C38 per latest rebalanced plan. Test-certificate plumbing first; real certificate and Windows acceptance remain explicit prerequisites | `codex/C48-signed-updates` (reserved) |
 | C49 offline tier: silent receipt printing and cash-drawer signal in the Electron shell (X2) | **Codex session 1 — this review/domain/email session** | Reserved after C48. Preserve restricted IPC bridge; physical printer/drawer acceptance must be recorded separately | `codex/C49-printing-drawer` (reserved) |
 | C51 interface for C44–C47: quantity entry, pack sizes, price levels, tax lines, credit limits. Each part starts after Claude's engine PR for it merges | **Codex session 2 — workflow/review session** | Reserved; waits for Claude command contracts | – |
-| C42 board housekeeping | Codex Platform completion takeover | Implemented on this branch: complete historical snapshot, active-only board and integrity checks. Awaiting PR/CI; not yet marked complete | `codex/C42-board-housekeeping` |
 
 ## Current verification and recent integrations
 
@@ -101,4 +100,8 @@ Owner requested completion of another unfinished session, then explicitly approv
 
 C42 stores the entire pre-archive board verbatim with its source commit and SHA-256; every still-active/reserved/unclaimed task listed above is retained. Corporate ownership is unchanged. Historical claims are snapshots, not instructions to duplicate completed work.
 
-C37 partial work remains in the separate Platform worktree/branch, with its named stash/patch backup retained. It has been restored and adapted to merged C40/C39; initial policy tests are being completed. It is not published or deployed yet. Next: finish exact merged release checks for the completed PRs, then continue C37 → C38 → C48/C49. Do not reset test credentials, bypass hardening or overwrite active sessions' source.
+C37 has been restored and rebased onto the approved combined default, including C42. Gateway isolation and real owner recovery integration/browser tests pass locally; full regression and CI review are in progress. Live proxy trust and owner recovery acceptance remain explicit. Continue C37 → C38 → C48/C49. Do not reset test credentials, bypass hardening or overwrite active sessions' source.
+
+### 2026-11-12 — Platform continuation
+
+Approved unfinished-session PRs #53/#56/#55 are merged; combined 334 tests passed, and Railway deployment 95d62c15 reached SUCCESS. C42 archive #57 passed all six checks and merged as c747a6b. C37 continues in its claimed lane; see [gateway/recovery operations](operations/browser-gateway.md). The owner additionally requested restrained platform UI refinement using the existing website palette; that work uses a separate branch and preserves current structure.

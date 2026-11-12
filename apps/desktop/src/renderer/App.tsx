@@ -131,6 +131,8 @@ function AuthFrame({ title, subtitle, children }: { title: string; subtitle: str
 function Login({ onDone }: { onDone: () => void }) {
   const { state, refresh } = useApp();
   const [username, setUsername] = useState(() => {
+    const recovered = new URLSearchParams(window.location.hash.slice(1)).get('username');
+    if (recovered && recovered.length <= 100 && !/[\x00-\x1f]/.test(recovered)) return recovered;
     const email = new URLSearchParams(window.location.hash.slice(1)).get('email') ?? '';
     return email.length <= 100 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
   });
@@ -174,6 +176,7 @@ function OwnerRecovery() {
   const [f, setF] = useState({ code: '', next: '', confirm: '' });
   const [msg, setMsg] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  if (window.MANSORA_OWNER_RECOVERY_URL) return <a className="mt-4 inline-block text-sm font-medium text-brand-700 hover:underline" href={window.MANSORA_OWNER_RECOVERY_URL}>Reset owner password</a>;
   if (!open) return <button type="button" className="mt-4 text-sm font-medium text-brand-700 hover:underline" onClick={() => setOpen(true)}>Owner forgot their password?</button>;
   return (
     <form className="mt-4 space-y-3 border-t border-slate-200 pt-4" onSubmit={async (e) => {
