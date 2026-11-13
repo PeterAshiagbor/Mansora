@@ -711,4 +711,15 @@ CREATE INDEX admin_invitations_email ON admin_invitations(email) WHERE used_at I
 GRANT SELECT, INSERT, UPDATE ON admin_invitations TO mansora_platform;
 `,
   },
+  {
+    id: 8,
+    name: 'device_activity',
+    sql: `
+-- Usage counts reported by each laptop on sync (C34). Counts only, never amounts or names.
+ALTER TABLE devices ADD COLUMN activity_day date;
+ALTER TABLE devices ADD COLUMN sales_today integer;
+ALTER TABLE devices ADD COLUMN staff_active_today integer;
+ALTER TABLE devices ADD COLUMN last_sale_at timestamptz;
+`,
+  },
 ];

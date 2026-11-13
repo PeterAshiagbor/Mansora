@@ -522,6 +522,17 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       ),
     }));
   });
+  // ----- C34: which live shops are actually using the till (counts only, never amounts) -----
+  app.get('/v1/admin/activity', async (req) => {
+    await admin(req);
+    return db.platform((q) => q(`SELECT t.id, t.name, t.status, d.last_sync_at, d.last_sale_at,
+        CASE WHEN d.activity_day = CURRENT_DATE THEN d.sales_today ELSE 0 END AS sales_today,
+        CASE WHEN d.activity_day = CURRENT_DATE THEN d.staff_active_today ELSE 0 END AS staff_active_today,
+        CASE WHEN d.id IS NULL THEN 'no_device' WHEN d.last_sale_at IS NULL THEN 'never_sold'
+             WHEN d.last_sale_at < now() - interval '7 days' THEN 'quiet' WHEN d.last_sale_at < now() - interval '2 days' THEN 'slowing' ELSE 'active' END AS usage
+      FROM tenants t LEFT JOIN devices d ON d.tenant_id = t.id AND d.status = 'active'
+      WHERE t.status IN ('onboarding', 'active') ORDER BY d.last_sale_at DESC NULLS LAST, t.name`));
+  });
   app.get('/v1/admin/audit', async (req) => {
     await admin(req);
     const { tenantId } = z.object({ tenantId: z.string().uuid().optional() }).parse(req.query);

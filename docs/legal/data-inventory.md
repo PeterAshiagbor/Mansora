@@ -243,6 +243,10 @@ Bind one activated laptop and its cloud credential to the correct business.
 | `cloud.devices.pending_count` | Reconcile the exact money, stock, version or operational count represented by pending count. Operational/catalogue/financial metadata, often nonpersonal alone but potentially personal when linked to a customer, worker or sole trader. Lawyer to classify. |
 | `cloud.devices.last_backup_at` | Measure backup recency. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
 | `cloud.devices.activated_at` | Record device activation chronology. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
+| `cloud.devices.activity_day` | Calendar day the counts refer to. Operational metadata. Lawyer to classify. |
+| `cloud.devices.sales_today` | Number of sales recorded that day (a count, no amounts). Aggregate business activity of a client; not personal on its own, but may relate to a sole trader. Lawyer to classify. |
+| `cloud.devices.staff_active_today` | Number of staff who recorded any action that day (a count, no names). Aggregate count; potentially personal for a one-person business. Lawyer to classify. |
+| `cloud.devices.last_sale_at` | Time of the most recent sale, to spot shops that have stopped using the till. Activity chronology of a client business; may relate to a sole trader. Lawyer to classify. |
 
 #### `cloud.expenses`
 

@@ -1,6 +1,6 @@
 {
   "notice": "DRAFT — not legal advice — for review by a Ghanaian data-protection lawyer",
-  "schemaBasis": "Released migrations 1–5 plus proposed migration 6 demo requests; schema metadata and synthetic fixtures only; laptop migration 2 adds the optional staff email and one-time staff invitations; cloud migration 7 adds administrator invitations.",
+  "schemaBasis": "Released migrations 1–5 plus proposed migration 6 demo requests; schema metadata and synthetic fixtures only; laptop migration 2 adds the optional staff email and one-time staff invitations; cloud migration 7 adds administrator invitations; cloud migration 8 adds device activity counts.",
   "fields": [
     {
       "key": "cloud.activation_codes.code_hash",
@@ -11432,6 +11432,58 @@
         "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
       ],
       "assessment": "Activity chronology. What legal purpose and access limits apply?"
+    },
+    {
+      "key": "cloud.devices.activity_day",
+      "purpose": "Calendar day the counts refer to. Supports: Show Mansora which client shops are using the till, from counts reported at each sync (C34). No amounts or names.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Mansora administrators on the Overview's Shop activity table",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational metadata. Lawyer to classify."
+    },
+    {
+      "key": "cloud.devices.sales_today",
+      "purpose": "Number of sales recorded that day (a count, no amounts). Supports: Show Mansora which client shops are using the till, from counts reported at each sync (C34). No amounts or names.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Mansora administrators on the Overview's Shop activity table",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Aggregate business activity of a client; not personal on its own, but may relate to a sole trader. Lawyer to classify."
+    },
+    {
+      "key": "cloud.devices.staff_active_today",
+      "purpose": "Number of staff who recorded any action that day (a count, no names). Supports: Show Mansora which client shops are using the till, from counts reported at each sync (C34). No amounts or names.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Mansora administrators on the Overview's Shop activity table",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Aggregate count; potentially personal for a one-person business. Lawyer to classify."
+    },
+    {
+      "key": "cloud.devices.last_sale_at",
+      "purpose": "Time of the most recent sale, to spot shops that have stopped using the till. Supports: Show Mansora which client shops are using the till, from counts reported at each sync (C34). No amounts or names.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Mansora administrators on the Overview's Shop activity table",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Activity chronology of a client business; may relate to a sole trader. Lawyer to classify."
     }
   ]
 }

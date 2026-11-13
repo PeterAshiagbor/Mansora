@@ -107,6 +107,8 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
         break;
       }
     }
+    const act = body.device.activity;
+    if (act) await db.platform((q) => q(`UPDATE devices SET activity_day = $2, sales_today = $3, staff_active_today = $4, last_sale_at = GREATEST(last_sale_at, $5::timestamptz) WHERE id = $1`, [dev.id, act.day, act.salesToday, act.staffActiveToday, act.lastSaleAt]));
     await db.platform((q) =>
       q(`UPDATE devices SET last_seen_at = now(), app_version = $2, pending_count = $3, last_backup_at = COALESCE($4::timestamptz, last_backup_at), last_sync_at = CASE WHEN $5::boolean THEN now() ELSE last_sync_at END WHERE id = $1`, [
         dev.id, body.device.appVersion, Math.max(0, body.device.pendingCount - result.accepted.length - result.rejected.length), body.device.lastBackupAt,

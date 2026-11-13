@@ -251,6 +251,7 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
             columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Last sync', cell: (r: any) => ago(r.last_sync_at) }, { header: 'Unsynced', align: 'right', cell: (r: any) => r.pending_count ?? '—' }, { header: 'Last backup', cell: (r: any) => ago(r.last_backup_at) }]} />
         </Card>
       </div>
+      <ShopActivity go={go} />
       <Disclosure title="Onboarding & plan details" description="Setup progress, upcoming renewals and clients per plan"><div className="grid gap-4 xl:grid-cols-2">
         <Card title="Onboarding in progress" pad={false}>
           <Table rows={d.onboarding} rowKey={(r: any) => r.id} onRowClick={(r: any) => go('client', r.id)} empty="No clients are being onboarded" columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Progress', cell: (r: any) => <Progress done={r.done} total={r.total} /> }]} />
@@ -262,6 +263,16 @@ function Overview({ go }: { go: (id: string, param?: string) => void }) {
       </div></Disclosure>
     </div>
   );
+}
+
+const USAGE: Record<string, { text: string; tone: 'good' | 'info' | 'warn' | 'bad' }> = { active: { text: 'Active', tone: 'good' }, slowing: { text: 'No sales for 2+ days', tone: 'warn' }, quiet: { text: 'No sales for 7+ days', tone: 'bad' }, never_sold: { text: 'No sales yet', tone: 'info' }, no_device: { text: 'Not set up', tone: 'info' } };
+/** C34: whether each shop is using the till. Counts only; no amounts leave the shop for this. */
+function ShopActivity({ go }: { go: (id: string, param?: string) => void }) {
+  const q = useApi<any[]>('/v1/admin/activity');
+  return <div className="mt-5"><Card title="Shop activity" pad={false} actions={<span className="text-xs text-slate-500">Counts reported at each sync</span>}>
+    <QueryView query={q} label="shop activity"><Table rows={q.data} rowKey={(r: any) => r.id} onRowClick={(r: any) => go('client', r.id)} empty="No client shops yet"
+      columns={[{ header: 'Client', cell: (r: any) => r.name }, { header: 'Usage', cell: (r: any) => <Badge tone={USAGE[r.usage]?.tone ?? 'info'}>{USAGE[r.usage]?.text ?? r.usage}</Badge> }, { header: 'Sales today', align: 'right', cell: (r: any) => r.sales_today }, { header: 'Staff active today', align: 'right', cell: (r: any) => r.staff_active_today }, { header: 'Last sale', cell: (r: any) => ago(r.last_sale_at) }, { header: 'Last sync', cell: (r: any) => ago(r.last_sync_at) }]} /></QueryView>
+  </Card></div>;
 }
 
 function Progress({ done, total }: { done: number; total: number }) {
