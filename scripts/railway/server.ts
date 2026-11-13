@@ -11,6 +11,7 @@ import { prepareRailwayDatabase } from './database';
 import { provisionStaging } from '../staging/bootstrap';
 import { stagingConfig } from '../staging/config';
 import { startConfiguredStaging } from '../staging/server';
+import { ROLE_LOGINS_OPERATION, sendRoleLogins } from '../staging/role-logins';
 import { inviteTesters } from '../staging/invitations';
 import { apiRuntimeOptions } from '../../apps/api/src/runtime';
 import { seedTestWorkspaces } from '../staging/sample-data';
@@ -35,7 +36,8 @@ export async function runRailwayServer() {
     await db.platform(async q => { if (!(await q('SELECT id FROM admins WHERE email = $1', [config.adminEmail])).length) await createAdmin(q, { email: config.adminEmail, name: 'Staging operator', password: adminPassword }); });
     const operatorFile = join(directory, 'operator-account.json');
     if (!existsSync(operatorFile)) writeFileSync(operatorFile, JSON.stringify({ email: config.adminEmail, password: adminPassword }) + '\n', { flag: 'wx', mode: 0o600 });
-    if (process.env.STAGING_TESTER_INVITATION_ID) {
+    // Tester invitations and the one-time role-logins operation may email only the configured tester addresses.
+    if (process.env.STAGING_TESTER_INVITATION_ID || (config.mode === 'team-test' && (process.env.STAGING_ROLE_LOGINS_ID ?? ROLE_LOGINS_OPERATION) !== 'off')) {
       process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').filter(Boolean), ...config.emails])].join(',');
     }
     const { billing } = createBillingFromEnv(db);
@@ -58,6 +60,13 @@ export async function runRailwayServer() {
       } });
       if (!result.disabled) console.log(`Tester invitations: ${result.accepted} accepted, ${result.activated} activated, ${result.waiting} awaiting setup or review.`);
       if (result.failureReasons.length) console.warn('Tester invitation status: ' + result.failureReasons.join(', '));
+      if (config.mode === 'team-test') {
+        // C55: once per operation id, tell each tester about the owner, manager and cashier logins of their shop.
+        const roles = await sendRoleLogins({ id: process.env.STAGING_ROLE_LOGINS_ID ?? ROLE_LOGINS_OPERATION, dataDir: join(config.dataDir, 'staging'), origin: config.origin, workspaces, email: billing.email })
+          .catch(() => ({ sent: 0, skipped: 0, waiting: 0, disabled: false, failureReasons: ['ROLE_LOGINS_FAILED'] }));
+        if (!roles.disabled) console.log(`Role logins: ${roles.sent} emails sent, ${roles.skipped} already sent, ${roles.waiting} waiting.`);
+        if (roles.failureReasons.length) console.warn('Role logins status: ' + roles.failureReasons.join(', '));
+      }
       if (config.mode === 'team-test' && process.env.STAGING_SAMPLE_DATA_VERSION) {
         let prepared = 0, preserved = 0, pending = 0;
         for (const workspace of workspaces) {
