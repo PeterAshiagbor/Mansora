@@ -164,7 +164,7 @@ export class Engine {
   private commands: Commands = {};
   private beforeCommit?: (command: string) => void;
   /** Result of the most recent sync attempt (in memory only). */
-  syncState: { running: boolean; online: boolean | null; lastError: string | null; lastAttemptAt: string | null } = {
+  syncState: { running: boolean; online: boolean | null; lastError: string | null; lastAttemptAt: string | null; activityUnsupported?: boolean } = {
     running: false, online: null, lastError: null, lastAttemptAt: null,
   };
 

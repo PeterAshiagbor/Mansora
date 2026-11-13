@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zCalendarDate } from './dates';
 
 /**
  * Sync protocol v1.
@@ -121,7 +122,7 @@ export const syncPushSchema = z.strictObject({
     pendingCount: z.number().int().nonnegative(),
     lastBackupAt: z.string().datetime().nullable(),
     /** Usage counts for Mansora's support view (C34). Counts only, never amounts. Optional for older laptops. */
-    activity: z.strictObject({ day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), salesToday: z.number().int().nonnegative().max(1_000_000), staffActiveToday: z.number().int().nonnegative().max(1000), lastSaleAt: z.string().datetime().nullable() }).optional(),
+    activity: z.strictObject({ day: zCalendarDate, salesToday: z.number().int().nonnegative().max(1_000_000), staffActiveToday: z.number().int().nonnegative().max(1000), lastSaleAt: z.string().datetime().nullable() }).optional(),
   }),
   events: z.array(z.unknown()).max(200),
 });

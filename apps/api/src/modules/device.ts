@@ -57,7 +57,8 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       const [code] = await q(`SELECT * FROM activation_codes WHERE code_hash = $1 FOR UPDATE`, [sha256(normaliseCode(body.code))]);
       if (!code || code.used_at || Date.parse(code.expires_at) < Date.now()) httpError(400, 'INVALID_ACTIVATION_CODE', 'This activation code is not valid or has expired');
       if (body.expectTenantId && body.expectTenantId !== code.tenant_id) httpError(400, 'INVALID_ACTIVATION_CODE', 'This activation code is not valid or has expired');
-      const [tenant] = await q(`SELECT * FROM tenants WHERE id = $1`, [code.tenant_id]);
+      // Lock the business row so two codes redeemed at once cannot both activate a laptop.
+      const [tenant] = await q(`SELECT * FROM tenants WHERE id = $1 FOR UPDATE`, [code.tenant_id]);
       if (tenant.status === 'closed') httpError(403, 'ACCOUNT_CLOSED', 'This account has been closed');
       // Version one supports exactly one checkout laptop per store.
       const active = await q(`SELECT id FROM devices WHERE tenant_id = $1 AND status = 'active'`, [tenant.id]);
@@ -108,7 +109,10 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       }
     }
     const act = body.device.activity;
-    if (act) await db.platform((q) => q(`UPDATE devices SET activity_day = $2, sales_today = $3, staff_active_today = $4, last_sale_at = GREATEST(last_sale_at, $5::timestamptz) WHERE id = $1`, [dev.id, act.day, act.salesToday, act.staffActiveToday, act.lastSaleAt]));
+    // Optional telemetry (C34): never fail an accepted push because of it. A laptop clock running fast cannot
+    // record a sale in the future.
+    if (act) await db.platform((q) => q(`UPDATE devices SET activity_day = $2, sales_today = $3, staff_active_today = $4, last_sale_at = CASE WHEN $5::timestamptz IS NULL THEN last_sale_at ELSE LEAST($5::timestamptz, now()) END WHERE id = $1`, [dev.id, act.day, act.salesToday, act.staffActiveToday, act.lastSaleAt]))
+      .catch((e) => req.log.warn({ err: e }, 'device activity not recorded'));
     await db.platform((q) =>
       q(`UPDATE devices SET last_seen_at = now(), app_version = $2, pending_count = $3, last_backup_at = COALESCE($4::timestamptz, last_backup_at), last_sync_at = CASE WHEN $5::boolean THEN now() ELSE last_sync_at END WHERE id = $1`, [
         dev.id, body.device.appVersion, Math.max(0, body.device.pendingCount - result.accepted.length - result.rejected.length), body.device.lastBackupAt,
