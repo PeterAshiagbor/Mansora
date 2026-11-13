@@ -50,6 +50,8 @@ interface Session {
 
 export class Ctx {
   private touched = new Map<SyncTable, Set<string>>();
+  /** The caller's own session, so a command can end a user's other sessions but keep this one. */
+  sessionToken: string | null = null;
   constructor(
     public readonly engine: Engine,
     public readonly command: string,
@@ -231,8 +233,8 @@ export class Engine {
   endSession(token: string | null): void {
     if (token) this.sessions.delete(token);
   }
-  endSessionsFor(userId: string): void {
-    for (const [t, s] of this.sessions) if (s.userId === userId) this.sessions.delete(t);
+  endSessionsFor(userId: string, except?: string | null): void {
+    for (const [t, s] of this.sessions) if (s.userId === userId && t !== except) this.sessions.delete(t);
   }
 
   private resolve(token: string | null): UserRow | null {
@@ -282,6 +284,7 @@ export class Engine {
       fail('INVALID_INPUT', `${first.path.join('.') || 'input'}: ${first.message}`, parsed.error.issues);
     }
     const ctx = new Ctx(this, name, actor);
+    ctx.sessionToken = token;
     try {
       if (def.async) return await def.run(ctx, parsed.data);
       if (!def.mutates) return def.run(ctx, parsed.data);
@@ -338,6 +341,9 @@ function friendlyConstraint(message: string): string {
   if (message.includes('immutable') || message.includes('cannot be deleted')) return 'Completed financial records cannot be changed';
   return 'This change conflicts with an existing record';
 }
+
+/** A LIKE pattern that matches `text` literally; use with ESCAPE '\\'. */
+export const likeContains = (text: string) => `%${text.replace(/[\\%_]/g, '\\$&')}%`;
 
 export const zId = z.string().uuid();
 export const zMoney = z.number().int().nonnegative().max(1_000_000_000_00);

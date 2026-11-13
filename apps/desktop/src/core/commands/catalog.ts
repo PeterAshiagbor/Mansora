@@ -119,10 +119,11 @@ export const catalogCommands = defineCommands({
     perm: 'stock.view',
     input: z.object({ filter: z.enum(['all', 'low', 'out']).default('all') }),
     run: (ctx, input) => {
-      const rows = hideCost(ctx, ctx.all(`${PRODUCT_SELECT} WHERE p.active = 1 ORDER BY p.name`)).filter((r) =>
-        input.filter === 'out' ? r.quantity <= 0 : input.filter === 'low' ? r.quantity <= r.reorder_level : true,
+      // One read serves the rows and the summary. "Low" means in stock but at or below reorder level, in both.
+      const all = ctx.all(`${PRODUCT_SELECT} WHERE p.active = 1 ORDER BY p.name`);
+      const rows = hideCost(ctx, all.map((r) => ({ ...r }))).filter((r) =>
+        input.filter === 'out' ? r.quantity <= 0 : input.filter === 'low' ? r.quantity > 0 && r.quantity <= r.reorder_level : true,
       );
-      const all = ctx.all(`${PRODUCT_SELECT} WHERE p.active = 1`);
       return {
         rows,
         summary: {
@@ -171,6 +172,8 @@ export const catalogCommands = defineCommands({
     mutates: true,
     input: z.object({ note: zOptText(300), lines: z.array(z.object({ productId: zId, counted: z.number().int().nonnegative().max(10_000_000) })).min(1).max(5000) }),
     run: (ctx, input) => {
+      // One physical count per product: two lines for the same product would compound into extra adjustments.
+      if (new Set(input.lines.map((l) => l.productId)).size !== input.lines.length) fail('INVALID_INPUT', 'Each product may appear only once in a stock count');
       const countId = ctx.id();
       const adjustments: { productId: string; system: number; counted: number; delta: number }[] = [];
       for (const line of input.lines) {
@@ -203,21 +206,28 @@ export const catalogCommands = defineCommands({
   'purchase.list': {
     perm: 'purchase.manage',
     input: empty,
-    run: (ctx) =>
-      ctx.all(
+    run: (ctx) => {
+      const rows = ctx.all(
         `SELECT pu.*, s.name AS supplier_name, u.name AS created_by_name,
            (SELECT COUNT(*) FROM purchase_items i WHERE i.purchase_id = pu.id) AS item_count
          FROM purchases pu LEFT JOIN suppliers s ON s.id = pu.supplier_id JOIN users u ON u.id = pu.created_by
          ORDER BY pu.received_at DESC LIMIT 300`,
-      ),
+      );
+      // Purchase costs reveal cost prices: only people allowed to see costs get them.
+      if (!ctx.can('product.cost')) for (const r of rows) delete r.total_cost;
+      return rows;
+    },
   },
   'purchase.get': {
     perm: 'purchase.manage',
     input: z.object({ id: zId }),
-    run: (ctx, input) => ({
-      purchase: ctx.get('SELECT pu.*, s.name AS supplier_name FROM purchases pu LEFT JOIN suppliers s ON s.id = pu.supplier_id WHERE pu.id = ?', input.id),
-      items: ctx.all('SELECT i.*, p.name AS product_name FROM purchase_items i JOIN products p ON p.id = i.product_id WHERE i.purchase_id = ?', input.id),
-    }),
+    run: (ctx, input) => {
+      const purchase = ctx.get('SELECT pu.*, s.name AS supplier_name FROM purchases pu LEFT JOIN suppliers s ON s.id = pu.supplier_id WHERE pu.id = ?', input.id);
+      if (!purchase) fail('NOT_FOUND', 'Purchase not found');
+      const items = ctx.all('SELECT i.*, p.name AS product_name FROM purchase_items i JOIN products p ON p.id = i.product_id WHERE i.purchase_id = ?', input.id);
+      if (!ctx.can('product.cost')) { delete purchase.total_cost; for (const i of items) delete i.unit_cost; }
+      return { purchase, items };
+    },
   },
   /** Receive stock from a supplier: increases stock and re-averages cost. */
   'purchase.receive': {
@@ -230,10 +240,14 @@ export const catalogCommands = defineCommands({
     run: (ctx, input) => {
       const id = input.id ?? ctx.id();
       if (ctx.get('SELECT 1 FROM purchases WHERE id = ?', id)) return { id, duplicate: true };
+      // Receiving sets catalogue costs and the moving average, so it needs permission to edit cost prices.
+      ctx.require('product.cost');
       const now = ctx.now();
+      const totalCost = sum(input.items.map((i) => i.quantity * i.unitCost));
+      if (!Number.isSafeInteger(totalCost)) fail('INVALID_AMOUNT', 'This purchase is too large to record. Split it into smaller purchases.');
       ctx.insert('purchases', {
         id, supplier_id: input.supplierId ?? null, reference: input.reference, status: 'received',
-        total_cost: sum(input.items.map((i) => i.quantity * i.unitCost)), received_at: now, created_by: ctx.user.id,
+        total_cost: totalCost, received_at: now, created_by: ctx.user.id,
       });
       for (const item of input.items) {
         ctx.insert('purchase_items', { id: ctx.id(), purchase_id: id, product_id: item.productId, quantity: item.quantity, unit_cost: item.unitCost });

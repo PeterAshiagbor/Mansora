@@ -114,7 +114,11 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
     state.lastError = null;
     return { ok: true, pushed, rejected, pending: pendingCount(engine) };
   } catch (e) {
-    const message = (e as Error).name === 'TimeoutError' || (e as Error).name === 'TypeError' ? 'No connection to the Mansora server' : (e as Error).message;
+    const err = e as Error & { cause?: { code?: string } };
+    const unreachable = err.name === 'TimeoutError' || (err.name === 'TypeError' && /fetch failed|network|ECONN|ENOTFOUND|EAI_AGAIN/i.test(`${err.message} ${err.cause?.code ?? ''}`));
+    // A programming or data error must not masquerade as being offline.
+    const message = unreachable ? 'No connection to the Mansora server' : err.message || 'Sync failed';
+    if (!unreachable) console.error('Sync failed', err);
     state.online = false;
     state.lastError = message;
     return { ok: false, pushed, rejected, pending: pendingCount(engine), error: message };

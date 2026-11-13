@@ -9,7 +9,12 @@ export function movingAverageCost(onHand: number, currentAverage: Pesewas, recei
   if (receivedQty <= 0) fail('INVALID_QUANTITY', 'Received quantity must be greater than zero');
   if (receivedUnitCost < 0) fail('INVALID_AMOUNT', 'Cost cannot be negative');
   if (onHand <= 0) return receivedUnitCost;
-  return mulDivRound(onHand * currentAverage + receivedQty * receivedUnitCost, 1, onHand + receivedQty);
+  // Exact integer arithmetic: the products can exceed 2^53 for large stock values.
+  const total = BigInt(onHand) * BigInt(currentAverage) + BigInt(receivedQty) * BigInt(receivedUnitCost);
+  const units = BigInt(onHand + receivedQty);
+  const average = Number((total * 2n + units) / (units * 2n)); // round half up
+  if (!Number.isSafeInteger(average)) fail('INVALID_AMOUNT', 'Cost is too large');
+  return average;
 }
 
 export const MOVEMENT_TYPES = [

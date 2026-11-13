@@ -18,9 +18,14 @@ const CACHE = 'billing_cache';
 function cached(engine: { meta(k: string): string | null | undefined }): { at: string; data: any } | null {
   try { return JSON.parse(engine.meta(CACHE) ?? 'null'); } catch { return null; }
 }
+/** True for connection problems only, never for an HTTP response from the server. */
+function unreachable(e: unknown): boolean {
+  const err = e as Error & { cause?: { code?: string } };
+  return err?.name === 'TimeoutError' || (err?.name === 'TypeError' && /fetch failed|network|ECONN|ENOTFOUND|EAI_AGAIN/i.test(`${err.message} ${err.cause?.code ?? ''}`));
+}
 function needsServer(e: unknown): never {
   const msg = String((e as Error)?.message ?? '');
-  if (/fetch failed|timeout|abort|network|ENOTFOUND|ECONNREFUSED|ECONNRESET|EAI_AGAIN/i.test(msg) || (e as Error)?.name === 'TimeoutError') fail('OFFLINE', 'This needs an internet connection. Please connect and try again.');
+  if (unreachable(e)) fail('OFFLINE', 'This needs an internet connection. Please connect and try again.');
   fail('BILLING_FAILED', msg || 'Mansora could not complete that request');
 }
 
@@ -36,8 +41,9 @@ export const billingCommands = defineCommands({
         e.setMeta(CACHE, JSON.stringify({ at: e.now().toISOString(), data }));
         return { offline: false, fetchedAt: e.now().toISOString(), ...data };
       } catch (err) {
+        // Show the last copy only when the server cannot be reached; a refusal (such as a deactivated laptop) is reported.
         const last = cached(e);
-        if (last) return { offline: true, fetchedAt: last.at, ...last.data };
+        if (last && unreachable(err)) return { offline: true, fetchedAt: last.at, ...last.data };
         return needsServer(err);
       }
     },

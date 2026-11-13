@@ -6,7 +6,7 @@ import type { Engine } from './engine';
  * address. It never includes costs or profit. Mansora's server sends it immediately and keeps
  * only a delivery record with the figures removed.
  */
-export const SUMMARY_KEYS = { email: 'daily_summary_email', hour: 'daily_summary_hour', sentFor: 'daily_summary_sent_for' } as const;
+export const SUMMARY_KEYS = { email: 'daily_summary_email', hour: 'daily_summary_hour', sentFor: 'daily_summary_sent_for', lastAttempt: 'daily_summary_last_attempt' } as const;
 const money = (p: number) => formatGHS(p);
 const one = (engine: Engine, sql: string, ...p: unknown[]) => (engine.db.prepare(sql).get(...p) as any) ?? {};
 const all = (engine: Engine, sql: string, ...p: unknown[]) => engine.db.prepare(sql).all(...p) as any[];
@@ -49,13 +49,13 @@ export function dailySummary(engine: Engine, day: string): { subject: string; te
 }
 
 /** Send through Mansora's server. Throws on failure; the caller decides whether to retry later. */
-export async function sendSummary(engine: Engine, to: string, day: string): Promise<void> {
+export async function sendSummary(engine: Engine, to: string, day: string, test = false): Promise<void> {
   const { subject, text } = dailySummary(engine, day);
   let res: Response;
   try {
     res = await engine.fetch(`${engine.meta('api_url')}/v1/devices/daily-summary`, {
       method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${engine.meta('device_token')}` },
-      body: JSON.stringify({ to, subject, body: text, day }), signal: AbortSignal.timeout(30_000),
+      body: JSON.stringify({ to, subject, body: text, day, test }), signal: AbortSignal.timeout(30_000),
     });
   } catch { throw Object.assign(new Error('Sending the summary needs an internet connection.'), { code: 'OFFLINE' }); }
   if (!res.ok) { const body: any = await res.json().catch(() => ({})); throw Object.assign(new Error(body.message ?? 'The summary could not be sent.'), { code: body.code ?? 'SUMMARY_FAILED' }); }
@@ -68,6 +68,12 @@ export async function maybeSendDailySummary(engine: Engine): Promise<boolean> {
   const now = engine.now();
   const day = now.toISOString().slice(0, 10);
   if (lastSentFor === day || now.getUTCHours() < hour) return false;
+  // Management figures are paused while reports are restricted for non-payment (D-28).
+  if (engine.standing()?.stage === 'restricted') return false;
+  // After a failure, wait an hour before retrying so frequent syncs cannot use up the daily send limit.
+  const last = Date.parse(engine.meta(SUMMARY_KEYS.lastAttempt) ?? '');
+  if (Number.isFinite(last) && now.getTime() - last < 3_600_000) return false;
+  engine.setMeta(SUMMARY_KEYS.lastAttempt, now.toISOString());
   await sendSummary(engine, email, day);
   engine.setMeta(SUMMARY_KEYS.sentFor, day);
   return true;

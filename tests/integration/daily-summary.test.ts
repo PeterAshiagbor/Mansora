@@ -58,6 +58,9 @@ describe('the owner\'s daily closing summary email (C33)', () => {
     await shop.run(shop.owner, 'sync.run', {});
     cloud.billing.email = { configured: () => true, send: vi.fn(async (m: any) => { sent.push(m); return { id: 'x' }; }) };
     await shop.run(shop.owner, 'sync.run', {});
+    expect(sent.filter((m) => m.subject.includes('2034-09-04'))).toHaveLength(0); // waits an hour after a failure
+    await at('2034-09-04T22:15:00.000Z');
+    await shop.run(shop.owner, 'sync.run', {});
     expect(sent.filter((m) => m.subject.includes('2034-09-04'))).toHaveLength(1);
     await shop.run(shop.owner, 'summary.sendTest', {});
     expect(sent.filter((m) => m.subject.includes('2034-09-04'))).toHaveLength(2);

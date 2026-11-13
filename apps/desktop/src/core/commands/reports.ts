@@ -213,7 +213,7 @@ export const reportCommands = defineCommands({
       if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can send the daily summary');
       const { email } = summarySettings(ctx.engine);
       if (!email) fail('EMAIL_REQUIRED', 'Save an email address for the summary first');
-      try { await sendSummary(ctx.engine, email, ctx.now().slice(0, 10)); }
+      try { await sendSummary(ctx.engine, email, ctx.now().slice(0, 10), true); }
       catch (e: any) { fail(e.code ?? 'SUMMARY_FAILED', e.message); }
       return { sentTo: email };
     },

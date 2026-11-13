@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { deviceActivitySchema, SYNC_TABLES, syncEventSchema, syncPushSchema, validateEventRows, type SyncPullResult, type SyncPushResult, type SyncTable } from '@mansora/domain';
+import { deviceActivitySchema, zCalendarDate, SYNC_TABLES, syncEventSchema, syncPushSchema, validateEventRows, type SyncPullResult, type SyncPushResult, type SyncTable } from '@mansora/domain';
 import type { Query } from '../db';
 import { httpError, newToken, normaliseCode, RateLimiter, sha256 } from '../security';
 import type { AppContext } from '../app';
@@ -193,12 +193,13 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
   app.post('/v1/devices/daily-summary', async (req) => {
     const dev = await device(req);
     summaryLimiter.check(dev.id);
-    const body = z.object({ to: z.string().trim().toLowerCase().email().max(160), subject: z.string().trim().min(1).max(200), body: z.string().min(1).max(8000), day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(req.body);
+    const body = z.object({ to: z.string().trim().toLowerCase().email().max(160), subject: z.string().trim().min(1).max(200), body: z.string().min(1).max(8000), day: zCalendarDate, test: z.boolean().default(false) }).parse(req.body);
     const email = ctx.email;
     if (!email || !email.configured()) return httpError(503, 'EMAIL_UNAVAILABLE', 'Email is not set up on the Mansora server yet, so the summary could not be sent.');
     const id = randomUUID();
     try {
-      await email.send({ to: body.to, subject: body.subject, body: body.body, idempotencyKey: `mansora-daily-summary/${dev.id}/${body.day}/${id}` });
+      await email.send({ to: body.to, subject: body.subject, body: body.body, // The automatic summary uses one key per laptop and day, so a retry after a timeout cannot send it twice.
+      idempotencyKey: body.test ? `mansora-daily-summary-test/${id}` : `mansora-daily-summary/${dev.id}/${body.day}` });
     } catch (e: any) {
       httpError(502, 'EMAIL_FAILED', e?.message && /allowlist/i.test(e.message) ? 'This test environment can only email approved test addresses.' : 'The summary could not be sent. It will be tried again after the next sync.');
     }

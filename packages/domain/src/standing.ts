@@ -34,8 +34,9 @@ export const MIN_WARNING_DAYS = 7;
 /** Longest payment arrangement an administrator can grant at once. */
 export const MAX_HOLD_DAYS = 60;
 
-/** Commands paused while a client is restricted. Everything else keeps working. */
-export const RESTRICTED_COMMANDS = ['report.sales', 'report.profit', 'report.stock', 'report.wallet', 'export.table'] as const;
+/** Commands paused while a client is restricted. Everything else keeps working; exports of lists such as
+ *  customers and stock stay available, and report exports stop because the reports themselves are paused. */
+export const RESTRICTED_COMMANDS = ['report.sales', 'report.profit', 'report.stock', 'report.wallet'] as const;
 
 export interface ServiceStanding {
   stage: StandingStage;

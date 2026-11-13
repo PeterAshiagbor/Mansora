@@ -32,7 +32,7 @@ export function parseCsv(text: string): string[][] {
       if (ch === '"' && src[i + 1] === '"') (cell += '"'), i++;
       else if (ch === '"') quoted = false;
       else cell += ch;
-    } else if (ch === '"') quoted = true;
+    } else if (ch === '"' && cell === '') quoted = true; // a quote opens a quoted cell only at its start (TV 32" stays literal)
     else if (ch === ',') (row.push(cell), (cell = ''));
     else if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && src[i + 1] === '\n') i++;
@@ -61,7 +61,8 @@ export async function toXlsx(sheets: { name: string; rows: unknown[][] }[]): Pro
   wb.creator = 'Mansora Sales & Stock';
   for (const s of sheets) {
     const ws = wb.addWorksheet(s.name.slice(0, 31).replace(/[\\/?*[\]:]/g, ' '));
-    s.rows.forEach((r) => ws.addRow(r.map((v) => (typeof v === 'string' && /^[=+\-@]/.test(v) ? `'${v}` : v))));
+    // ExcelJS stores strings as text, never as formulas, so values such as -5.00 are written exactly as they are.
+    s.rows.forEach((r) => ws.addRow(r));
     if (s.rows.length) ws.getRow(1).font = { bold: true };
     ws.columns.forEach((c) => (c.width = 18));
   }
