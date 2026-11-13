@@ -20,6 +20,8 @@ Under **Settings → Discount limit** you can set the largest discount (as a per
 
 ## Staff
 
+**Sending sign-in details by email.** When you add a staff member you can enter their email address instead of a password and tick *Email them a one-time code*. They receive their username and a one-time code, valid for 48 hours. On the sign-in screen they choose *I have a sign-in code* and set their own password, so you never need to know it. To send a fresh code later, use *Email sign-in code* on the Staff page; a new code replaces the old one. Mansora never emails anyone's password: passwords are stored in a form that cannot be read back. The email address stays on this device and is used for nothing else. Sending needs an internet connection; offline, set a password yourself and tell them in person.
+
 **Staff → Add staff member.** Give every person their own login. Tick what each
 person may do. Disable a login the day someone leaves; it takes effect at once.
 

@@ -1,6 +1,6 @@
 {
-  "notice": "DRAFT \u2014 not legal advice \u2014 for review by a Ghanaian data-protection lawyer",
-  "schemaBasis": "Released migrations 1\u20135 plus proposed migration 6 demo requests; schema metadata and synthetic fixtures only.",
+  "notice": "DRAFT — not legal advice — for review by a Ghanaian data-protection lawyer",
+  "schemaBasis": "Released migrations 1–5 plus proposed migration 6 demo requests; schema metadata and synthetic fixtures only; laptop migration 2 adds the optional staff email and one-time staff invitations.",
   "fields": [
     {
       "key": "cloud.activation_codes.code_hash",
@@ -11207,6 +11207,119 @@
         "Privileged hosting/database operators subject to deployment controls; no tenant role access"
       ],
       "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "laptop.users.email",
+      "purpose": "Optional staff email address, used only to send that person a one-time sign-in code. Supports: Send a staff member a one-time sign-in code by email so they choose their own password.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Not synced to the cloud tenant mirror",
+        "Transmitted once to Mansora's email provider (Resend) when a code is sent; the cloud keeps a delivery record with the code removed (cloud.notifications)"
+      ],
+      "access": [
+        "Owner and staff with Manage staff permission through permission-checked commands",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls"
+      ],
+      "assessment": "Direct contact detail of a worker. Is consent or employment necessity the right basis, and should it be erased when the account is disabled?"
+    },
+    {
+      "key": "laptop.staff_invites.user_id",
+      "purpose": "Link the pending invitation to one staff account. Supports: Send a staff member a one-time sign-in code by email so they choose their own password.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Not synced to the cloud tenant mirror"
+      ],
+      "access": [
+        "Owner and staff with Manage staff permission through permission-checked commands",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls"
+      ],
+      "assessment": "Linkable identifier for a worker's account. What legal purpose and access limits apply?"
+    },
+    {
+      "key": "laptop.staff_invites.code_hash",
+      "purpose": "Verify the emailed code using its SHA-256 hash; the code itself is not stored. Supports: Send a staff member a one-time sign-in code by email so they choose their own password.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Not synced to the cloud tenant mirror"
+      ],
+      "access": [
+        "Owner and staff with Manage staff permission through permission-checked commands",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls"
+      ],
+      "assessment": "Security credential material linked to an account; hashing is not anonymisation. Which protection and retention duties apply?"
+    },
+    {
+      "key": "laptop.staff_invites.expires_at",
+      "purpose": "Stop the code working after 48 hours. Supports: Send a staff member a one-time sign-in code by email so they choose their own password.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Not synced to the cloud tenant mirror"
+      ],
+      "access": [
+        "Owner and staff with Manage staff permission through permission-checked commands",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls"
+      ],
+      "assessment": "Operational security metadata, potentially personal when linked to a worker. Lawyer to classify."
+    },
+    {
+      "key": "laptop.staff_invites.attempts",
+      "purpose": "Cancel the invitation after five wrong codes. Supports: Send a staff member a one-time sign-in code by email so they choose their own password.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Not synced to the cloud tenant mirror"
+      ],
+      "access": [
+        "Owner and staff with Manage staff permission through permission-checked commands",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls"
+      ],
+      "assessment": "Operational security metadata, potentially personal when linked to a worker. Lawyer to classify."
+    },
+    {
+      "key": "laptop.staff_invites.created_by",
+      "purpose": "Attribute who sent the invitation. Supports: Send a staff member a one-time sign-in code by email so they choose their own password.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Not synced to the cloud tenant mirror"
+      ],
+      "access": [
+        "Owner and staff with Manage staff permission through permission-checked commands",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls"
+      ],
+      "assessment": "Linkable staff identifier and activity attribution. What legal purpose and access limits apply?"
+    },
+    {
+      "key": "laptop.staff_invites.created_at",
+      "purpose": "Record when the invitation was sent. Supports: Send a staff member a one-time sign-in code by email so they choose their own password.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Not synced to the cloud tenant mirror"
+      ],
+      "access": [
+        "Owner and staff with Manage staff permission through permission-checked commands",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls"
+      ],
+      "assessment": "Activity chronology linked to a worker. What legal purpose and access limits apply?"
+    },
+    {
+      "key": "laptop.staff_invites.used_at",
+      "purpose": "Make the code single-use and record when the password was set. Supports: Send a staff member a one-time sign-in code by email so they choose their own password.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Not synced to the cloud tenant mirror"
+      ],
+      "access": [
+        "Owner and staff with Manage staff permission through permission-checked commands",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls"
+      ],
+      "assessment": "Activity chronology linked to a worker. What legal purpose and access limits apply?"
     }
   ]
 }

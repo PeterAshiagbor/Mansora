@@ -48,6 +48,7 @@
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | unclaimed | Open | – |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
+| C53 staff sign-in details by email: optional local staff email, one-time 48-hour codes, `I have a sign-in code` on the sign-in screen (owner request 2026-11-13; D-37). Touches engine/auth, device API, Staff page and a narrow sign-in addition | Claude | Done on branch, PR open | `claude/elegant-bohr-mjeotl` |
 | C33 owner's closing summary by email, opt-in, message bodies cleared after delivery (N2) | Claude | Next | – |
 | C34 activity signals for Mansora, counts only, never amounts (N5) | Claude | Queued | – |
 | C36 live third-shop acceptance | Codex Platform session | #51 merged; third-shop browser/API/container/restart tests pass and code is deployed through the live default. Actual live administrator-created third shop remains unclaimed; do not infer it from CI | PR #51; `docs/operations/browser-workspaces.md` |

@@ -304,4 +304,22 @@ CREATE TABLE backup_records (
 ${immutableTriggers}
 `,
   },
+  {
+    id: 2,
+    name: 'staff_email_invitations',
+    sql: `
+-- Optional contact address for emailing a one-time sign-in code. Local only: not synced to the cloud.
+ALTER TABLE users ADD COLUMN email TEXT;
+-- One pending invitation per staff member. Only a hash of the code is stored.
+CREATE TABLE staff_invites (
+  user_id TEXT PRIMARY KEY REFERENCES users(id),
+  code_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL,
+  used_at TEXT
+);
+`,
+  },
 ];

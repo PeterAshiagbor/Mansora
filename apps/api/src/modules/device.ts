@@ -133,6 +133,46 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
     };
   });
 
+  /**
+   * Email a staff member the one-time sign-in code their shop generated (staff.invite).
+   * Sent immediately: the code is never queued or stored here. The Messages log keeps a
+   * record of the send with the code removed. Limited per laptop to stop misuse as a mailer.
+   */
+  const inviteLimiter = new RateLimiter(20, 60 * 60_000);
+  app.post('/v1/devices/staff-invitations', async (req) => {
+    const dev = await device(req);
+    inviteLimiter.check(dev.id);
+    const body = z.object({
+      to: z.string().trim().toLowerCase().email().max(160), staffName: z.string().trim().min(1).max(100), username: z.string().trim().min(1).max(100),
+      businessName: z.string().trim().max(200), code: z.string().regex(/^[A-Z2-9]{5}-[A-Z2-9]{5}$/), expiresAt: z.string().datetime(),
+    }).parse(req.body);
+    const email = ctx.email;
+    if (!email || !email.configured()) return httpError(503, 'EMAIL_UNAVAILABLE', 'Email is not set up yet. Set a password for this staff member yourself and give it to them in person.');
+    const [tenant] = await db.platform((q) => q(`SELECT name FROM tenants WHERE id = $1`, [dev.tenant_id]));
+    const shop = body.businessName || tenant?.name || 'your shop';
+    const until = new Date(body.expiresAt).toUTCString().replace(' GMT', ' (Ghana time)');
+    const text = (code: string) => [
+      `Hello ${body.staffName},`, '',
+      `You have been given a staff account for ${shop} on Mansora Sales & Stock.`, '',
+      `Username: ${body.username}`, `One-time sign-in code: ${code}`, '',
+      'On the sign-in screen choose "I have a sign-in code", enter your username and this code, then choose your own password.',
+      `The code works once and expires on ${until}. If it expires, ask the owner to send a new one.`, '',
+      'Mansora will never ask you for your password. If you did not expect this email, you can ignore it.',
+    ].join('\n');
+    const id = randomUUID();
+    try {
+      await email.send({ to: body.to, subject: `Your sign-in details for ${shop}`, body: text(body.code), idempotencyKey: `mansora-staff-invite/${id}` });
+    } catch (e: any) {
+      httpError(502, 'EMAIL_FAILED', e?.message && /allowlist/i.test(e.message) ? 'This test environment can only email approved test addresses.' : 'The email could not be sent. Try again shortly, or set a password for them yourself.');
+    }
+    await db.platform(async (q) => {
+      await q(`INSERT INTO notifications (id, tenant_id, to_address, subject, body, status, kind, sent_at) VALUES ($1, $2, $3, $4, $5, 'sent', 'staff_invitation', now())`,
+        [id, dev.tenant_id, body.to, `Your sign-in details for ${shop}`, text('[one-time code removed after sending]')]);
+      await q(`INSERT INTO admin_audit_logs (id, action, tenant_id, detail) VALUES ($1, 'staff_invitation.sent', $2, $3)`, [randomUUID(), dev.tenant_id, JSON.stringify({ deviceId: dev.id, notificationId: id })]);
+    });
+    return { sent: true };
+  });
+
   /** Confirm an owner-recovery code for this laptop's business. Single use. */
   const recoveryLimiter = new RateLimiter(10, 10 * 60_000);
   app.post('/v1/devices/owner-recovery', async (req) => {

@@ -2,6 +2,8 @@
 
 ## Starting your day
 
+**First time signing in with an emailed code.** On the sign-in screen choose *I have a sign-in code*. Enter your username and the code from the email, then choose a password of at least 8 characters. The code works once and expires after 48 hours; if it has expired, ask the owner to send a new one.
+
 1. Sign in with your own username and password. This works without internet.
 2. Choose **New sale**. Count the cash in the till and enter it as the opening float. **Open shift**.
 
