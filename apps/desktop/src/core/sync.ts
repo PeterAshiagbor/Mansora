@@ -12,6 +12,20 @@ export interface SyncOutcome {
   error?: string;
 }
 
+/** Counts only (C34): how many sales today, how many staff recorded anything today, and when the last sale was. */
+function activity(engine: Engine) {
+  const day = engine.now().toISOString().slice(0, 10);
+  const from = `${day}T00:00:00.000Z`;
+  const one = (sql: string) => (engine.db.prepare(sql).get(from) as { v: any }).v;
+  const last = (engine.db.prepare('SELECT MAX(created_at) AS v FROM sales').get() as { v: string | null }).v;
+  return {
+    day,
+    salesToday: one('SELECT COUNT(*) AS v FROM sales WHERE created_at >= ?') as number,
+    staffActiveToday: one(`SELECT COUNT(DISTINCT actor_id) AS v FROM audit_logs WHERE actor_id IS NOT NULL AND occurred_at >= ? AND action <> 'permission.denied'`) as number,
+    lastSaleAt: last ? new Date(last).toISOString() : null,
+  };
+}
+
 function pendingCount(engine: Engine): number {
   return (engine.db.prepare(`SELECT COUNT(*) AS n FROM outbox WHERE status = 'pending'`).get() as { n: number }).n;
 }
@@ -55,7 +69,7 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
           method: 'POST',
           body: JSON.stringify({
             protocol: SYNC_PROTOCOL_VERSION,
-            device: { appVersion: engine.appVersion, pendingCount: pendingCount(engine), lastBackupAt: lastBackup.t },
+            device: { appVersion: engine.appVersion, pendingCount: pendingCount(engine), lastBackupAt: lastBackup.t, activity: activity(engine) },
             events: rows.map((r) => ({ id: r.id, seq: r.seq, type: r.type, occurredAt: r.occurred_at, actorId: r.actor_id, payload: JSON.parse(r.payload) })),
           }),
         });
