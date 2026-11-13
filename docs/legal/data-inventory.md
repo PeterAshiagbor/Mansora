@@ -93,6 +93,21 @@ Verify and consume a one-use administrator MFA recovery code.
 | `cloud.admin_totp_recovery_codes.admin_id` | Link the responsible or authenticated Mansora administrator. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
 | `cloud.admin_totp_recovery_codes.code_hash` | Verify a one-use activation/recovery credential without storing the issued code in plaintext. Security credential/authenticator material linked to an account; encryption or hashing is not anonymisation. Which protection and retention duties apply? |
 
+#### `cloud.admin_invitations`
+
+Invite a new Mansora administrator by email with a one-time link; they choose their own password. Only a hash of the link token is stored.
+
+| Field | Purpose / personal-data review |
+| --- | --- |
+| `cloud.admin_invitations.id` | Stable record identifier for the invitation. Linkable identifier. What legal purpose and access limits apply? |
+| `cloud.admin_invitations.email` | Address the invitation is sent to and the future administrator login. Direct contact detail of a prospective administrator. Should unused invitations be erased after expiry? |
+| `cloud.admin_invitations.name` | Name used to greet the invitee and on their new account. Direct identity detail. Should collection/redaction restrictions be added for this field? |
+| `cloud.admin_invitations.token_hash` | Verify the one-time link using its SHA-256 hash; the link itself is not stored. Security credential material; hashing is not anonymisation. Which protection and retention duties apply? |
+| `cloud.admin_invitations.expires_at` | Stop the link working after 48 hours. Operational security metadata. Lawyer to classify. |
+| `cloud.admin_invitations.created_by` | Attribute which administrator sent the invitation. Linkable staff identifier and activity attribution. What legal purpose and access limits apply? |
+| `cloud.admin_invitations.created_at` | Record when the invitation was sent. Activity chronology. What legal purpose and access limits apply? |
+| `cloud.admin_invitations.used_at` | Make the link single-use; also set when an invitation is replaced or cancelled. Activity chronology. What legal purpose and access limits apply? |
+
 #### `cloud.admins`
 
 Maintain Mansora administrator identity, account status and password verification.

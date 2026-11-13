@@ -146,6 +146,69 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     return { ok: true };
   });
   app.get('/v1/admin/me', async (req) => admin(req));
+
+  // ----- Inviting administrators by email (one-time link; the new administrator chooses the password) -----
+  const INVITE_HOURS = 48;
+  const acceptLimiter = new RateLimiter(10, 10 * 60_000);
+  app.get('/v1/admin/admins', async (req) => {
+    await admin(req);
+    return db.platform(async (q) => ({
+      admins: await q(`SELECT a.id, a.name, a.email, a.status, a.created_at, (t.enabled_at IS NOT NULL) AS two_factor FROM admins a LEFT JOIN admin_totp t ON t.admin_id = a.id ORDER BY a.name`),
+      invitations: await q(`SELECT id, name, email, expires_at, created_at FROM admin_invitations WHERE used_at IS NULL AND expires_at > now() ORDER BY created_at DESC`),
+    }));
+  });
+  app.post('/v1/admin/admins/invitations', async (req) => {
+    const a = await admin(req);
+    const body = z.object({ name: z.string().trim().min(1).max(100), email: z.string().trim().toLowerCase().email().max(200) }).parse(req.body);
+    const email = ctx.email;
+    if (!email || !email.configured()) return httpError(503, 'EMAIL_UNAVAILABLE', 'Email is not set up on this server, so invitations cannot be sent.');
+    if (!ctx.adminUrl) return httpError(503, 'ADMIN_URL_UNKNOWN', 'Set ADMIN_PUBLIC_URL so invitation links point at the administration dashboard.');
+    const token = newToken();
+    const id = randomUUID();
+    const expiresAt = new Date(Date.now() + INVITE_HOURS * 3_600_000).toISOString();
+    await db.platform(async (q) => {
+      if ((await q(`SELECT 1 FROM admins WHERE email = $1`, [body.email])).length) httpError(409, 'ALREADY_ADMIN', 'That person already has an administrator account.');
+      // A new invitation replaces any earlier unused one for the same address.
+      await q(`UPDATE admin_invitations SET used_at = now() WHERE email = $1 AND used_at IS NULL`, [body.email]);
+      await q(`INSERT INTO admin_invitations (id, email, name, token_hash, expires_at, created_by) VALUES ($1, $2, $3, $4, $5, $6)`, [id, body.email, body.name, sha256(token), expiresAt, a.id]);
+    });
+    const link = `${ctx.adminUrl}#admin-invite=${token}`;
+    const until = new Date(expiresAt).toUTCString().replace(' GMT', ' (Ghana time)');
+    try {
+      await email.send({ to: body.email, subject: 'You have been invited to administer Mansora', idempotencyKey: `mansora-admin-invite/${id}`, body: [
+        `Hello ${body.name},`, '',
+        `${a.name} has invited you to become a Mansora administrator. Administrators manage client businesses, onboarding, billing and support for the Mansora Sales & Stock platform.`, '',
+        `Open this private link to choose your password: ${link}`, '',
+        `The link works once and expires on ${until}. After signing in, set up two-factor authentication under Account security.`, '',
+        'If you did not expect this invitation, ignore this email.',
+      ].join('\n') });
+    } catch {
+      await db.platform((q) => q(`UPDATE admin_invitations SET used_at = now() WHERE id = $1`, [id]));
+      return httpError(502, 'EMAIL_FAILED', 'The invitation email could not be sent. Check the email settings and try again.');
+    }
+    await db.platform((q) => audit(q, a, 'admin.invited', null, { invitationId: id, name: body.name }));
+    return { id, expiresAt };
+  });
+  app.post('/v1/admin/admins/invitations/:id/cancel', async (req) => {
+    const a = await admin(req);
+    const { id } = zId.parse(req.params);
+    const done = await db.platform((q) => q(`UPDATE admin_invitations SET used_at = now() WHERE id = $1 AND used_at IS NULL RETURNING id`, [id]));
+    if (done.length) await db.platform((q) => audit(q, a, 'admin.invitation_cancelled', null, { invitationId: id }));
+    return { ok: true };
+  });
+  app.post('/v1/admin/invitations/accept', async (req) => {
+    acceptLimiter.check(req.ip);
+    const body = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/), password: z.string().min(12, 'Choose a password of at least 12 characters').max(200) }).parse(req.body);
+    return db.platform(async (q) => {
+      const [inv] = await q(`SELECT * FROM admin_invitations WHERE token_hash = $1 FOR UPDATE`, [sha256(body.token)]);
+      if (!inv || inv.used_at || Date.parse(inv.expires_at) <= Date.now()) httpError(410, 'INVITATION_UNAVAILABLE', 'This invitation link is not valid, has expired or was already used. Ask an administrator to send a new one.');
+      if ((await q(`SELECT 1 FROM admins WHERE email = $1`, [inv.email])).length) httpError(409, 'ALREADY_ADMIN', 'This administrator account already exists. Sign in instead.');
+      await q(`UPDATE admin_invitations SET used_at = now() WHERE id = $1`, [inv.id]);
+      const adminId = await createAdmin(q, { email: inv.email, name: inv.name, password: body.password });
+      await q(`INSERT INTO admin_audit_logs (id, admin_id, action, detail) VALUES ($1, $2, 'admin.invitation_accepted', $3)`, [randomUUID(), adminId, JSON.stringify({ invitationId: inv.id, invitedBy: inv.created_by })]);
+      return { email: inv.email };
+    });
+  });
   app.get('/v1/admin/totp', async (req) => {
     const a = await admin(req);
     return db.platform(async (q) => {

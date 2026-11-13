@@ -55,7 +55,7 @@ function AdminApplication() {
   const groups = [
     { group: 'Workspace', items: [{ id: 'overview', label: 'Overview', icon: 'home' }, { id: 'clients', label: 'Clients', icon: 'users' }, { id: 'leads', label: 'Leads', icon: 'users' }, { id: 'plans', label: 'Service plans', icon: 'wallet' }] },
     { group: 'Billing', items: [{ id: 'collections', label: 'Collections', icon: 'wallet' }, { id: 'subscriptions', label: 'Subscriptions', icon: 'sync' }, { id: 'invoices', label: 'Invoices', icon: 'file' }, { id: 'payments', label: 'Payments', icon: 'sale' }, { id: 'revenue', label: 'Revenue reports', icon: 'chart' }, { id: 'paysettings', label: 'Payment settings', icon: 'settings' }] },
-    { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'security', label: 'Account security', icon: 'shield' }, { id: 'contact', label: 'Support contact', icon: 'help' }] },
+    { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'admins', label: 'Administrators', icon: 'users' }, { id: 'security', label: 'Account security', icon: 'shield' }, { id: 'contact', label: 'Support contact', icon: 'help' }] },
   ];
   const current = groups.flatMap((g) => g.items).find((item) => item.id === (page.id === 'client' ? 'clients' : page.id))!;
   return <WorkspaceShell primaryIds={['overview', 'clients', 'collections', 'invoices', 'payments']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>
@@ -72,14 +72,47 @@ function AdminApplication() {
         {page.id === 'revenue' && <RevenueReports />}
         {page.id === 'paysettings' && <PaymentSettings />}
         {page.id === 'audit' && <Audit />}
+        {page.id === 'admins' && <Administrators />}
         {page.id === 'security' && <AccountSecurity />}
         {page.id === 'contact' && <ContactSettings />}
       </div>
     </WorkspaceShell>;
 }
 
+/** Opened from an emailed invitation: the invited person chooses their own administrator password. */
+function AcceptInvitation({ token, onDone }: { token: string; onDone: (email: string) => void }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const { run, busy, error } = useAction();
+  const mismatch = confirm.length > 0 && password !== confirm;
+  return (
+    <AuthLayout platform>
+      <form className="m-auth-card w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" aria-label="Accept administrator invitation" onSubmit={(e) => { e.preventDefault(); if (mismatch) return; run(async () => { const r = await api('POST', '/v1/admin/invitations/accept', { token, password }); onDone(r.email); }); }}>
+        <div><div className="mb-5"><MansoraBrand /></div><h1 className="text-2xl font-semibold">Set up your administrator account</h1></div>
+        <p className="text-sm text-slate-600">Choose a password of at least 12 characters. This link works once. After signing in, turn on two-factor authentication under Account security.</p>
+        {error && <Alert tone="bad">{error}</Alert>}
+        <Field label="New password"><Input type="password" minLength={12} maxLength={200} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" autoFocus /></Field>
+        <Field label="Repeat password" error={mismatch ? 'The two passwords do not match' : undefined}><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" /></Field>
+        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || password.length < 12 || password !== confirm}>Create my account</Button>
+      </form>
+    </AuthLayout>
+  );
+}
+
 function Login({ onDone }: { onDone: () => void }) {
-  const [email, setEmail] = useState('');
+  // The invitation token arrives in the URL fragment and is removed from history straight away.
+  const [invite, setInvite] = useState<string | null>(() => {
+    const token = new URLSearchParams(window.location.hash.slice(1)).get('admin-invite');
+    if (token) history.replaceState(null, '', window.location.pathname + window.location.search);
+    return token && /^[A-Za-z0-9_-]{43}$/.test(token) ? token : null;
+  });
+  const [welcome, setWelcome] = useState<string | null>(null);
+  if (invite) return <AcceptInvitation token={invite} onDone={(address) => { setInvite(null); setWelcome(address); }} />;
+  return <PasswordLogin onDone={onDone} initialEmail={welcome ?? ''} welcome={!!welcome} />;
+}
+
+function PasswordLogin({ onDone, initialEmail, welcome }: { onDone: () => void; initialEmail: string; welcome: boolean }) {
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [challenge, setChallenge] = useState<string | null>(null);
   const [code, setCode] = useState('');
@@ -97,6 +130,7 @@ function Login({ onDone }: { onDone: () => void }) {
     <AuthLayout platform>
       <form className="m-auth-card w-full max-w-sm space-y-4 rounded-xl bg-white p-8 shadow-2xl" onSubmit={(e) => { e.preventDefault(); signIn(); }}>
         <div><div className="mb-5"><MansoraBrand /></div><h1 className="text-2xl font-semibold">{challenge ? 'Two-factor verification' : 'Administrator sign in'}</h1></div>
+        {welcome && !error && <Alert tone="good">Your administrator account is ready. Sign in with your new password.</Alert>}
         {error && <Alert tone="bad">{error}</Alert>}
         {challenge ? <>
           <p className="text-sm text-slate-600">Enter a code from your authenticator app, or one of your unused recovery codes. This sign-in challenge expires after five minutes.</p>
@@ -111,6 +145,32 @@ function Login({ onDone }: { onDone: () => void }) {
       </form>
     </AuthLayout>
   );
+}
+
+function Administrators() {
+  const list = useApi<{ admins: any[]; invitations: any[] }>('/v1/admin/admins');
+  const [f, setF] = useState({ name: '', email: '' });
+  const { run, busy, error } = useAction();
+  const [sent, setSent] = useState<string | null>(null);
+  return <div className="max-w-3xl space-y-4">
+    <PageHeader title="Administrators" subtitle="People who can manage Mansora's clients, billing and support. Every administrator has full access." />
+    {error && <Alert tone="bad">{error}</Alert>}
+    {sent && <Alert tone="good">{sent}</Alert>}
+    <Card title="Invite an administrator">
+      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(async () => { const r = await api('POST', '/v1/admin/admins/invitations', f); setSent(`Invitation emailed to ${f.email}. The link works once, until ${when(r.expiresAt)}.`); setF({ name: '', email: '' }); list.reload(); }); }}>
+        <p className="text-sm text-slate-600">They receive a private link to choose their own password. You never see or send a password. Ask them to turn on two-factor authentication after signing in.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Full name"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} maxLength={100} /></Field>
+          <Field label="Email"><Input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} maxLength={200} autoComplete="off" /></Field>
+        </div>
+        <Button type="submit" variant="primary" disabled={busy || !f.name.trim() || !f.email.trim()}>Send invitation</Button>
+      </form>
+    </Card>
+    <QueryView query={list} label="administrators">{list.data && <>
+      <Card title="Administrators" pad={false}><Table rows={list.data.admins} rowKey={(r: any) => r.id} columns={[{ header: 'Name', cell: (r: any) => r.name }, { header: 'Email', cell: (r: any) => r.email }, { header: 'Two-factor', cell: (r: any) => <Badge tone={r.two_factor ? 'good' : 'warn'}>{r.two_factor ? 'On' : 'Off'}</Badge> }, { header: 'Status', cell: (r: any) => r.status }]} /></Card>
+      <Card title="Pending invitations" pad={false}><Table rows={list.data.invitations} rowKey={(r: any) => r.id} empty="No pending invitations" columns={[{ header: 'Name', cell: (r: any) => r.name }, { header: 'Email', cell: (r: any) => r.email }, { header: 'Expires', cell: (r: any) => when(r.expires_at) }, { header: '', align: 'right', cell: (r: any) => <Button size="sm" disabled={busy} onClick={() => run(async () => { await api('POST', `/v1/admin/admins/invitations/${r.id}/cancel`, {}); setSent(null); list.reload(); })}>Cancel</Button> }]} /></Card>
+    </>}</QueryView>
+  </div>;
 }
 
 function AccountSecurity() {

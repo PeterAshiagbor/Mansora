@@ -697,4 +697,18 @@ CREATE INDEX demo_requests_created ON demo_requests(created_at DESC, id);
 GRANT SELECT, INSERT, UPDATE ON demo_requests TO mansora_platform;
 `,
   },
+  {
+    id: 7,
+    name: 'admin_invitations',
+    sql: `
+-- An existing administrator invites a colleague by email. Only a hash of the one-time link token is stored.
+CREATE TABLE admin_invitations (
+  id uuid PRIMARY KEY, email text NOT NULL, name text NOT NULL, token_hash text NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL, created_by uuid NOT NULL REFERENCES admins(id),
+  created_at timestamptz NOT NULL DEFAULT now(), used_at timestamptz
+);
+CREATE INDEX admin_invitations_email ON admin_invitations(email) WHERE used_at IS NULL;
+GRANT SELECT, INSERT, UPDATE ON admin_invitations TO mansora_platform;
+`,
+  },
 ];

@@ -7,6 +7,10 @@ Administrator accounts are created from the server with `npm run api:create-admi
 12 hours. There is one administrator role in version one. Administrators can
 enrol in two-factor authentication under **Account security**.
 
+## Inviting another administrator
+
+Open **Administrators**, enter the person's name and email, and choose **Send invitation**. They receive a private link that works once for 48 hours and choose their own password of at least 12 characters; nobody else sees it. Ask them to turn on two-factor authentication under **Account security** straight away. Sending again replaces the earlier link, and **Cancel** stops a pending one. Every administrator has full access, so invite only people who need it. Invitations, acceptance and cancellation appear in the audit log. The server needs working email (Resend) and the dashboard's public address: the live Railway service sets it automatically; other deployments set `ADMIN_PUBLIC_URL`.
+
 ## Authenticator setup and sign-in
 
 1. Open **Account security**, enter your current password, and choose **Set up authenticator**.
