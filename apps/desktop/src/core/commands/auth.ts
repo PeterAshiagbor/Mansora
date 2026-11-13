@@ -1,3 +1,4 @@
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { ALL_PERMISSIONS, fail, PERMISSIONS, ROLE_DEFAULTS, ROLES, sanitisePermissions } from '@mansora/domain';
 import { defineCommands, empty, zId, zOptText, zText, type Ctx } from '../engine';
@@ -223,7 +224,9 @@ export const authCommands = defineCommands({
   'staff.list': {
     perm: 'staff.manage',
     input: empty,
-    run: (ctx) => ctx.all('SELECT id, username, name, role, status, permissions, created_at FROM users ORDER BY name').map((u) => ({ ...u, permissions: JSON.parse(u.permissions) })),
+    run: (ctx) => ctx.all(`SELECT u.id, u.username, u.name, u.role, u.status, u.permissions, u.created_at, u.email,
+      (SELECT expires_at FROM staff_invites i WHERE i.user_id = u.id AND i.used_at IS NULL AND i.expires_at > ?) AS invite_expires_at
+      FROM users u ORDER BY u.name`, ctx.now()).map((u) => ({ ...u, permissions: JSON.parse(u.permissions) })),
   },
   'staff.save': {
     perm: 'staff.manage',
@@ -231,6 +234,8 @@ export const authCommands = defineCommands({
     input: z.object({
       id: zId.optional(), name: zText(100), username: zUsername, role: z.enum(ROLES), status: z.enum(['active', 'disabled']).default('active'),
       permissions: z.array(z.string()).optional(), password: zPassword.optional(),
+      /** Optional address for emailing a one-time sign-in code (staff.invite). Kept on this device only. */
+      email: z.string().trim().toLowerCase().email().max(160).nullish().or(z.literal('').transform(() => null)),
     }),
     run: (ctx, input) => {
       const now = ctx.now();
@@ -243,17 +248,105 @@ export const authCommands = defineCommands({
       const id = existing?.id ?? ctx.id();
       if (existing) {
         ctx.update('users', id, { name: input.name, username: input.username, role: input.role, status: input.status, permissions, updated_at: now });
+        if (input.email !== undefined) ctx.run('UPDATE users SET email = ? WHERE id = ?', input.email, id);
         if (input.password) ctx.run('UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?', strongPassword(input.password), id);
         if (input.status !== 'active' || input.password) ctx.engine.endSessionsFor(id);
       } else {
-        if (!input.password) fail('INVALID_INPUT', 'A password is required for new staff');
+        if (!input.password && !input.email) fail('INVALID_INPUT', 'Give new staff a password, or an email address to send them a sign-in code');
         ctx.insert('users', {
           id, username: input.username, name: input.name, role: input.role, status: input.status, permissions,
-          password_hash: strongPassword(input.password), created_at: now, updated_at: now,
+          // Without a password the account cannot sign in until its emailed code is used.
+          password_hash: input.password ? strongPassword(input.password) : hashPassword(randomBytes(32).toString('hex')), created_at: now, updated_at: now,
         });
+        if (input.email) ctx.run('UPDATE users SET email = ? WHERE id = ?', input.email, id);
       }
-      ctx.audit('user', id, { name: input.name, role: input.role, status: input.status, permissions: JSON.parse(permissions), passwordReset: !!input.password && !!existing });
+      ctx.audit('user', id, { name: input.name, role: input.role, status: input.status, permissions: JSON.parse(permissions), passwordReset: !!input.password && !!existing, emailRecorded: input.email === undefined ? undefined : !!input.email });
       return { id };
     },
   },
+
+  /**
+   * Email a staff member a one-time sign-in code so they choose their own password.
+   * The password itself is never emailed: it is stored only as a hash and could not be.
+   * The code works once, for 48 hours, and only a hash of it is kept on this device.
+   * Mansora's server sends the email straight away and does not store the code.
+   */
+  'staff.invite': {
+    perm: 'staff.manage',
+    async: true,
+    input: z.object({ userId: zId }),
+    run: async (ctx, input) => {
+      const user = ctx.get('SELECT id, username, name, role, status, email FROM users WHERE id = ?', input.userId);
+      if (!user) fail('NOT_FOUND', 'Staff member not found');
+      if (user.role === 'owner') fail('OWNER_PROTECTED', 'Owners reset their own password from the sign-in screen, or with a code from Mansora');
+      if (user.status !== 'active') fail('ACCOUNT_DISABLED', 'Activate this account before sending sign-in details');
+      if (!user.email) fail('EMAIL_REQUIRED', 'Add an email address for this staff member first');
+      const code = newInviteCode();
+      const now = ctx.now();
+      const expiresAt = new Date(ctx.engine.now().getTime() + INVITE_HOURS * 3_600_000).toISOString();
+      const previous = ctx.get('SELECT * FROM staff_invites WHERE user_id = ?', user.id);
+      ctx.tx(() => {
+        ctx.run(`INSERT INTO staff_invites (user_id, code_hash, expires_at, attempts, created_by, created_at, used_at) VALUES (?, ?, ?, 0, ?, ?, NULL)
+          ON CONFLICT(user_id) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0, created_by = excluded.created_by, created_at = excluded.created_at, used_at = NULL`,
+          user.id, inviteHash(code), expiresAt, ctx.user.id, now);
+      });
+      try {
+        await deviceCall(ctx, '/v1/devices/staff-invitations', { to: user.email, staffName: user.name, username: user.username, businessName: ctx.setting('business_name') ?? '', code, expiresAt },
+          'Sending sign-in details needs an internet connection. Try again when online, or set a password for them yourself.');
+      } catch (error) {
+        // The unsent code is useless: put back any earlier code the person may already have, or remove the row.
+        ctx.tx(() => {
+          ctx.run('DELETE FROM staff_invites WHERE user_id = ? AND code_hash = ?', user.id, inviteHash(code));
+          if (previous) ctx.run('INSERT OR IGNORE INTO staff_invites (user_id, code_hash, expires_at, attempts, created_by, created_at, used_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            previous.user_id, previous.code_hash, previous.expires_at, previous.attempts, previous.created_by, previous.created_at, previous.used_at);
+        });
+        throw error;
+      }
+      ctx.tx(() => { ctx.audit('user', user.id, { emailedSignInCode: true, expiresAt }, 'staff.invite'); ctx.flush(); });
+      return { sentTo: maskEmail(user.email), expiresAt };
+    },
+  },
+
+  /** A staff member uses their emailed code to choose a password. Five wrong codes cancel the invitation. */
+  'auth.acceptInvite': {
+    perm: 'public',
+    async: true,
+    input: z.object({ username: z.string().trim().min(1).max(100), code: z.string().trim().min(4).max(40), newPassword: zPassword }),
+    run: async (ctx, input) => {
+      const invalid = () => fail('INVALID_INVITE', 'That code is not valid, has expired or was already used. Ask the owner to send a new one.');
+      const user = ctx.get('SELECT id, username, status FROM users WHERE username = ?', input.username);
+      const invite = user ? ctx.get('SELECT * FROM staff_invites WHERE user_id = ?', user.id) : undefined;
+      if (!user || !invite || invite.used_at || invite.expires_at <= ctx.now() || invite.attempts >= INVITE_ATTEMPTS) invalid();
+      if (user.status !== 'active') fail('ACCOUNT_DISABLED', 'This account has been disabled');
+      if (!safeEqualHex(inviteHash(input.code), invite.code_hash)) {
+        ctx.tx(() => { ctx.run('UPDATE staff_invites SET attempts = attempts + 1 WHERE user_id = ?', user.id); });
+        invalid();
+      }
+      const hash = strongPassword(input.newPassword);
+      ctx.tx(() => {
+        const used = ctx.run('UPDATE staff_invites SET used_at = ? WHERE user_id = ? AND used_at IS NULL AND code_hash = ?', ctx.now(), user.id, invite.code_hash);
+        if (used.changes !== 1) invalid();
+        ctx.run('UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?', hash, user.id);
+        ctx.audit('user', user.id, { viaEmailedCode: true }, 'auth.invite_accepted');
+        ctx.flush();
+      });
+      ctx.engine.endSessionsFor(user.id);
+      return { username: user.username };
+    },
+  },
 });
+
+const INVITE_HOURS = 48;
+const INVITE_ATTEMPTS = 5;
+const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+/** Ten characters from a 32-symbol alphabet (50 bits), e.g. K7QM2-XW9DP. Easy to type, single use, short-lived. */
+function newInviteCode(): string {
+  const chars = [...randomBytes(10)].map((b) => INVITE_ALPHABET[b % 32]).join('');
+  return `${chars.slice(0, 5)}-${chars.slice(5)}`;
+}
+const inviteHash = (code: string) => createHash('sha256').update(code.toUpperCase().replace(/[^A-Z0-9]/g, '')).digest('hex');
+const safeEqualHex = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
+function maskEmail(email: string): string {
+  const [name, domain] = email.split('@');
+  return `${name.slice(0, 1)}${'*'.repeat(Math.max(1, name.length - 1))}@${domain}`;
+}

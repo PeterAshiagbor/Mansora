@@ -12,23 +12,34 @@ export function StaffPage() {
   const { data, reload } = staffQuery;
   const [edit, setEdit] = useState<any | null>(null);
   const { run, busy } = useAction();
+  const toast = useToast();
+  const sendCode = async (userId: string) => {
+    const r = await call('staff.invite', { userId });
+    toast(`Sign-in code emailed to ${r.sentTo}. It works once and expires on ${dateTime(r.expiresAt)}.`);
+    reload();
+  };
+  const invite = (userId: string) => run(() => sendCode(userId));
   const save = () => run(async () => {
-    await call('staff.save', { id: edit.id, name: edit.name, username: edit.username, role: edit.role, status: edit.status, permissions: edit.permissions, ...(edit.password ? { password: edit.password } : {}) });
+    const r = await call('staff.save', { id: edit.id, name: edit.name, username: edit.username, role: edit.role, status: edit.status, permissions: edit.permissions, email: edit.email?.trim() || null, ...(edit.password ? { password: edit.password } : {}) });
+    const sendNow = edit.sendCode && edit.email?.trim() && edit.role !== 'owner';
     setEdit(null);
     reload();
-  }, 'Staff member saved');
+    // A failed email leaves the saved account in place; the error explains how to retry.
+    if (sendNow) await sendCode(r.id);
+    else toast('Staff member saved');
+  });
   const owner = edit?.role === 'owner';
   return (
     <div>
       <PageHeader title="Staff" subtitle="Each person signs in with their own username so every action is traceable."
-        actions={<Button variant="primary" onClick={() => setEdit({ name: '', username: '', role: 'cashier', status: 'active', permissions: ROLE_DEFAULTS.cashier, password: '' })}>Add staff member</Button>} />
+        actions={<Button variant="primary" onClick={() => setEdit({ name: '', username: '', role: 'cashier', status: 'active', permissions: ROLE_DEFAULTS.cashier, password: '', email: '', sendCode: true })}>Add staff member</Button>} />
       <QueryView query={staffQuery} label="staff"><Card pad={false}>
-        <Table rows={data} rowKey={(r) => r.id} onRowClick={(u) => setEdit({ ...u, password: '' })}
-          columns={[{ header: 'Name', cell: (u) => <span className="font-medium">{u.name}</span> }, { header: 'Username', cell: (u) => u.username }, { header: 'Role', cell: (u) => <span className="capitalize">{u.role}</span> }, { header: 'Status', cell: (u) => (u.status === 'active' ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>) }]} />
+        <Table rows={data} rowKey={(r) => r.id} onRowClick={(u) => setEdit({ ...u, password: '', email: u.email ?? '', sendCode: false })}
+          columns={[{ header: 'Name', cell: (u) => <span className="font-medium">{u.name}</span> }, { header: 'Username', cell: (u) => u.username }, { header: 'Role', cell: (u) => <span className="capitalize">{u.role}</span> }, { header: 'Status', cell: (u) => (u.status === 'active' ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>) }, { header: 'Sign-in by email', cell: (u) => u.role === 'owner' ? '' : !u.email ? <span className="text-xs text-slate-500">No email recorded</span> : u.invite_expires_at ? <span className="text-xs text-slate-600">Code sent, valid until {dateTime(u.invite_expires_at)}</span> : <span className="text-xs text-slate-600">{u.email}</span> }, { header: '', align: 'right', cell: (u) => u.role !== 'owner' && u.email && u.status === 'active' ? <Button size="sm" disabled={busy} onClick={(e) => { e.stopPropagation(); invite(u.id); }}>{u.invite_expires_at ? 'Send a new code' : 'Email sign-in code'}</Button> : null }]} />
       </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? `Edit ${edit.name}` : 'Add staff member'} open onClose={() => setEdit(null)} wide
-          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim() || !edit.username.trim() || (!edit.id && !edit.password)} onClick={save}>Save</Button></>}>
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim() || !edit.username.trim() || (!edit.id && !edit.password && !(edit.email?.trim() && edit.sendCode))} onClick={save}>{edit.sendCode && edit.email?.trim() && !owner ? 'Save and email code' : 'Save'}</Button></>}>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Full name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <Field label="Username" hint="3–40 letters, numbers, dots, dashes or underscores."><Input minLength={3} maxLength={40} pattern="[a-zA-Z0-9._\-]+" value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="off" /></Field>
@@ -38,7 +49,9 @@ export function StaffPage() {
               </Select>
             </Field>
             <Field label="Status"><Select value={edit.status} disabled={owner} onChange={(e) => setEdit({ ...edit, status: e.target.value })}><option value="active">Active</option><option value="disabled">Disabled (cannot sign in)</option></Select></Field>
-            <Field label={edit.id ? 'New password (leave empty to keep)' : 'Password'} hint="At least 8 characters" className="col-span-2"><Input type="password" minLength={8} maxLength={200} required={!edit.id} value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field>
+            {!owner && <Field label="Email (optional)" hint="Used only to send a one-time sign-in code. Stays on this device." className="col-span-2"><Input type="email" maxLength={160} value={edit.email ?? ''} onChange={(e) => setEdit({ ...edit, email: e.target.value })} autoComplete="off" /></Field>}
+            {!owner && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={!!edit.sendCode} disabled={!edit.email?.trim()} onChange={(e) => setEdit({ ...edit, sendCode: e.target.checked })} /> Email them a one-time code so they choose their own password</label>}
+            <Field label={edit.id ? 'New password (leave empty to keep)' : edit.sendCode && edit.email?.trim() ? 'Password (optional when emailing a code)' : 'Password'} hint="At least 8 characters" className="col-span-2"><Input type="password" minLength={8} maxLength={200} value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field>
           </div>
           {!owner && (
             <fieldset className="mt-4">

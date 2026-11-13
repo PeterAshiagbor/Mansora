@@ -48,6 +48,7 @@ Each is isolated so it can be changed.
 | D-35 | Tax and invoice content | No VAT/levy is added unless an invoice line or tax rate is entered. Invoice issuer details (name, address, TIN, payment instructions) are settings Mansora must fill in | `billing_settings` | **Needs Mansora decision** |
 
 | D-36 | Delivery order | Pilot on the browser version at app.mansora-consulting.com first; the offline Windows till follows as the second tier on the same engine | `docs/operations/product-audit-and-roadmap.md` §4 | **Approved by owner 2026-11-11** |
+| D-37 | Sending staff their sign-in details by email | Passwords are never emailed: they are stored only as scrypt hashes, and an emailed password stays usable in the inbox. The owner records an optional staff email and sends a **one-time sign-in code** (10 characters, 50 bits, valid 48 hours, single use, cancelled after five wrong tries); the staff member sets their own password. Only the code's hash is kept on the laptop; Mansora's server sends the email immediately and keeps a delivery record with the code removed. Staff emails stay on the laptop and are not synced. Owners keep their own recovery routes (C37 email link, Mansora code) | `staff.invite`, `auth.acceptInvite`, `POST /v1/devices/staff-invitations` | Owner asked 2026-11-13 to "send users their passwords via email"; implemented as one-time codes for the reasons given |
 
 ## B. Architecture decisions
 

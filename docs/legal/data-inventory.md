@@ -998,6 +998,21 @@ Attribute shop activity to named staff and enforce staff account permissions.
 | `laptop.users.locked_until` | Enforce a temporary account lockout. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
 | `laptop.users.created_at` | Record creation chronology for reconciliation, security or lifecycle review. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
 | `laptop.users.updated_at` | Order current-record changes and reconciliation. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
+| `laptop.users.email` | Optional staff email, used only to send a one-time sign-in code. Stays on the laptop; sent once to the email provider. Direct contact detail of a worker. Is consent or employment necessity the right basis, and should it be erased when the account is disabled? |
+
+#### `laptop.staff_invites`
+
+Send a staff member a one-time sign-in code by email so they choose their own password. Only a hash of the code is stored; the cloud keeps a delivery record with the code removed.
+
+| Field | Purpose / personal-data review |
+| --- | --- |
+| `laptop.staff_invites.user_id` | Link the pending invitation to one staff account. Linkable identifier for a worker's account. What legal purpose and access limits apply? |
+| `laptop.staff_invites.code_hash` | Verify the emailed code using its SHA-256 hash; the code itself is not stored. Security credential material linked to an account; hashing is not anonymisation. Which protection and retention duties apply? |
+| `laptop.staff_invites.expires_at` | Stop the code working after 48 hours. Operational security metadata, potentially personal when linked to a worker. Lawyer to classify. |
+| `laptop.staff_invites.attempts` | Cancel the invitation after five wrong codes. Operational security metadata, potentially personal when linked to a worker. Lawyer to classify. |
+| `laptop.staff_invites.created_by` | Attribute who sent the invitation. Linkable staff identifier and activity attribution. What legal purpose and access limits apply? |
+| `laptop.staff_invites.created_at` | Record when the invitation was sent. Activity chronology linked to a worker. What legal purpose and access limits apply? |
+| `laptop.staff_invites.used_at` | Make the code single-use and record when the password was set. Activity chronology linked to a worker. What legal purpose and access limits apply? |
 
 
 

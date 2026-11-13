@@ -6,6 +6,7 @@ import type { ServiceStanding } from '@mansora/domain';
 import type { Database } from './db';
 import type { BrowserWorkspaceProvisioner } from './browser-workspaces';
 import { tenantStanding } from './billing/standing';
+import type { EmailAdapter } from './email';
 import { registerLeadRoutes } from './modules/leads';
 import { registerContactRoutes } from './modules/contact';
 import { registerAdminRoutes } from './modules/admin';
@@ -21,6 +22,8 @@ export interface AppContext {
   browserWorkspaces?: BrowserWorkspaceProvisioner;
   /** Non-payment standing for a business, sent to its laptop on every sync. */
   standing?: (tenantId: string) => Promise<ServiceStanding>;
+  /** Outbound email (Resend in production). Staff sign-in codes are sent directly, never queued or stored. */
+  email?: EmailAdapter;
 }
 
 export interface AppOptions extends Omit<AppContext, 'backupStorage'>, ObservabilityOptions {
@@ -78,6 +81,8 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.get('/health/ready', ready);
   app.get('/health', ready); // Compatibility with existing deployment health checks.
   app.setNotFoundHandler((req, reply) => reply.code(404).send({ code: 'NOT_FOUND', message: 'Not found', requestId: req.id }));
+  // Delegate at call time, so swapping billing.email (tests, reconfiguration) takes effect here too.
+  context.email = { configured: () => billing.email.configured(), send: (m) => billing.email.send(m) };
   context.standing = (tenantId) => opts.db.platform((q) => tenantStanding(billing, q, tenantId));
   registerDeviceRoutes(app, context);
   registerAdminRoutes(app, context);

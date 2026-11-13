@@ -166,8 +166,46 @@ function Login({ onDone }: { onDone: () => void }) {
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !username || !password}>{busy ? 'Signing in…' : 'Sign in'}</Button>
       </form>
       <div className="mt-3"><ContactMansora recovery /></div>
+      <SignInCode onUsername={setUsername} />
       <OwnerRecovery />
     </AuthFrame>
+  );
+}
+
+/** Staff who were emailed a one-time sign-in code choose their own password here (staff.invite). */
+function SignInCode({ onUsername }: { onUsername: (username: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ username: '', code: '', next: '', confirm: '' });
+  const [msg, setMsg] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!open) return <button type="button" className="mt-4 block text-sm font-medium text-brand-700 hover:underline" onClick={() => setOpen(true)}>I have a sign-in code</button>;
+  return (
+    <form className="mt-4 space-y-3 border-t border-slate-200 pt-4" aria-label="Use a sign-in code" onSubmit={async (e) => {
+      e.preventDefault();
+      if (busy) return;
+      if (f.next !== f.confirm) return setMsg({ tone: 'bad', text: 'The two passwords do not match' });
+      setBusy(true);
+      try {
+        const r = await call('auth.acceptInvite', { username: f.username.trim(), code: f.code, newPassword: f.next });
+        setMsg({ tone: 'good', text: `Password set. Sign in above as "${r.username}" with your new password.` });
+        onUsername(r.username);
+        setF({ username: '', code: '', next: '', confirm: '' });
+      } catch (err: any) {
+        setMsg({ tone: 'bad', text: err.message });
+      } finally {
+        setBusy(false);
+      }
+    }}>
+      <p className="text-sm text-slate-600">Enter the username and one-time code from your email, then choose your own password. The code works once.</p>
+      {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Username"><Input value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} autoComplete="username" autoCapitalize="none" spellCheck={false} /></Field>
+        <Field label="Sign-in code"><Input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="XXXXX-XXXXX" autoComplete="one-time-code" autoCapitalize="characters" spellCheck={false} /></Field>
+        <Field label="New password" hint="At least 8 characters"><Input type="password" minLength={8} maxLength={200} value={f.next} onChange={(e) => setF({ ...f, next: e.target.value })} autoComplete="new-password" /></Field>
+        <Field label="Repeat new password"><Input type="password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} autoComplete="new-password" /></Field>
+      </div>
+      <Button type="submit" disabled={busy || !f.username || !f.code || !f.next}>{busy ? 'Checking…' : 'Set my password'}</Button>
+    </form>
   );
 }
 
