@@ -1,5 +1,6 @@
 import { SYNC_PROTOCOL_VERSION, type SyncPullResult, type SyncPushResult } from '@mansora/domain';
 import type { Engine } from './engine';
+import { maybeSendDailySummary } from './summary';
 
 const BATCH = 50;
 
@@ -84,6 +85,8 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
       engine.setMeta('last_sync_at', engine.now().toISOString());
     })();
     state.online = true;
+    // The owner's opt-in closing summary rides on a successful sync; a failure only waits for the next one.
+    await maybeSendDailySummary(engine).catch(() => {});
     state.lastError = null;
     return { ok: true, pushed, rejected, pending: pendingCount(engine) };
   } catch (e) {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { fail, grossMarginBps, sum } from '@mansora/domain';
 import { dayBounds, defineCommands, empty, zRange, type Ctx } from '../engine';
+import { dailySummary, sendSummary, summarySettings, SUMMARY_KEYS } from '../summary';
 
 /**
  * Report definitions (also documented in docs/architecture/report-definitions.md):
@@ -183,6 +184,38 @@ export const reportCommands = defineCommands({
       for (const e of entries) if (e.reference) { const key = String(e.reference).replace(/\s+/g, '').toUpperCase(); seen.set(key, (seen.get(key) ?? 0) + 1); }
       const duplicateReferences = [...seen].filter(([, n]) => n > 1).map(([reference, count]) => ({ reference, count }));
       return { scope: own ? 'own' : 'business', entries, byMethod, duplicateReferences };
+    },
+  },
+
+  /** Daily closing summary email (C33). Owner only: it sends the business's figures to an inbox. */
+  'summary.settings': {
+    perm: 'settings.manage',
+    input: empty,
+    run: (ctx) => ({ ...summarySettings(ctx.engine), preview: ctx.user.role === 'owner' ? dailySummary(ctx.engine, ctx.now().slice(0, 10)) : null }),
+  },
+  'summary.save': {
+    perm: 'settings.manage',
+    mutates: true,
+    input: z.object({ email: z.string().trim().toLowerCase().email().max(160).nullable(), hour: z.number().int().min(0).max(23) }),
+    run: (ctx, input) => {
+      if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can turn the daily summary email on or off');
+      ctx.engine.setMeta(SUMMARY_KEYS.email, input.email);
+      ctx.engine.setMeta(SUMMARY_KEYS.hour, String(input.hour));
+      ctx.audit('business', null, { dailySummary: input.email ? 'on' : 'off', hour: input.hour }, 'summary.save');
+      return summarySettings(ctx.engine);
+    },
+  },
+  'summary.sendTest': {
+    perm: 'settings.manage',
+    async: true,
+    input: empty,
+    run: async (ctx) => {
+      if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can send the daily summary');
+      const { email } = summarySettings(ctx.engine);
+      if (!email) fail('EMAIL_REQUIRED', 'Save an email address for the summary first');
+      try { await sendSummary(ctx.engine, email, ctx.now().slice(0, 10)); }
+      catch (e: any) { fail(e.code ?? 'SUMMARY_FAILED', e.message); }
+      return { sentTo: email };
     },
   },
 

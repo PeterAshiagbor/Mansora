@@ -33,6 +33,8 @@ person may do. Disable a login the day someone leaves; it takes effect at once.
 
 ## Reports
 
+**Daily summary email.** In Settings, *Daily summary email*, enter an address and the time to send after, then choose *Turn on*. Once a day, after that time and when the till is online, you get one email with net sales, payments taken, refunds, discounts, any cash shortages at shift close, low stock and customer credit owed. Costs and profit are never included. It travels through Mansora's email service, which does not keep the figures. Use *Send today's summary now* to check it, or *Turn off* to stop.
+
 **Mobile money & card check** (Reports): at closing, compare the expected mobile money and card totals with your wallet statement and card terminal report. Every payment is listed with its transaction ID. A red warning means the same ID was entered twice, which can be a fake or reused payment message; a yellow one means a payment has no ID to match.
 
 Sales, payments, gross profit and stock for any dates, exportable to Excel, CSV
