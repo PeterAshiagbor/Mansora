@@ -173,6 +173,28 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
     return { sent: true };
   });
 
+  /**
+   * The owner's opt-in daily closing summary (C33). Sent immediately; the figures are never
+   * stored here. The Messages log keeps a delivery record with the body removed.
+   */
+  const summaryLimiter = new RateLimiter(8, 24 * 60 * 60_000);
+  app.post('/v1/devices/daily-summary', async (req) => {
+    const dev = await device(req);
+    summaryLimiter.check(dev.id);
+    const body = z.object({ to: z.string().trim().toLowerCase().email().max(160), subject: z.string().trim().min(1).max(200), body: z.string().min(1).max(8000), day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(req.body);
+    const email = ctx.email;
+    if (!email || !email.configured()) return httpError(503, 'EMAIL_UNAVAILABLE', 'Email is not set up on the Mansora server yet, so the summary could not be sent.');
+    const id = randomUUID();
+    try {
+      await email.send({ to: body.to, subject: body.subject, body: body.body, idempotencyKey: `mansora-daily-summary/${dev.id}/${body.day}/${id}` });
+    } catch (e: any) {
+      httpError(502, 'EMAIL_FAILED', e?.message && /allowlist/i.test(e.message) ? 'This test environment can only email approved test addresses.' : 'The summary could not be sent. It will be tried again after the next sync.');
+    }
+    await db.platform((q) => q(`INSERT INTO notifications (id, tenant_id, to_address, subject, body, status, kind, sent_at) VALUES ($1, $2, $3, $4, $5, 'sent', 'daily_summary', now())`,
+      [id, dev.tenant_id, body.to, `Daily summary for ${body.day}`, '[business figures removed after sending]']));
+    return { sent: true };
+  });
+
   /** Confirm an owner-recovery code for this laptop's business. Single use. */
   const recoveryLimiter = new RateLimiter(10, 10 * 60_000);
   app.post('/v1/devices/owner-recovery', async (req) => {

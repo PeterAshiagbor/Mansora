@@ -73,6 +73,34 @@ export function StaffPage() {
 }
 
 // ---------------------------------------------------------------- Settings
+/** C33: the owner's opt-in closing summary email. */
+function DailySummaryCard() {
+  const query = useQuery<any>('summary.settings');
+  const { run, busy } = useAction();
+  const toast = useToast();
+  const [f, setF] = useState<{ email: string; hour: string } | null>(null);
+  const d = query.data;
+  if (!d) return <QueryView query={query} label="daily summary">{null}</QueryView>;
+  const form = f ?? { email: d.email ?? '', hour: String(d.hour) };
+  const save = (email: string | null) => run(async () => { await call('summary.save', { email, hour: Number(form.hour) }); setF(null); query.reload(); }, email ? 'Daily summary turned on' : 'Daily summary turned off');
+  return (
+    <Card title="Daily summary email">
+      <p className="mb-3 text-sm text-slate-600">After closing each day, get one email with net sales, payments taken, refunds, discounts, cash shortages, low stock and customer credit. Costs and profit are never included. It is sent through Mansora's email service and the figures are not stored there.</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Send to"><Input type="email" maxLength={160} value={form.email} onChange={(e) => setF({ ...form, email: e.target.value })} placeholder="owner@example.com" /></Field>
+        <Field label="Send after"><Select value={form.hour} onChange={(e) => setF({ ...form, hour: e.target.value })}>{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}</Select></Field>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">{d.email ? `On. Sends once a day after ${String(d.hour).padStart(2, '0')}:00 when the till is online${d.lastSentFor ? `; last sent for ${d.lastSentFor}` : ''}.` : 'Off.'}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button variant="primary" disabled={busy || !form.email.trim()} onClick={() => save(form.email.trim())}>{d.email ? 'Save' : 'Turn on'}</Button>
+        {d.email && <Button disabled={busy} onClick={() => run(async () => { const r = await call('summary.sendTest', {}); toast(`Today's summary sent to ${r.sentTo}`); })}>Send today's summary now</Button>}
+        {d.email && <Button variant="ghost" disabled={busy} onClick={() => save(null)}>Turn off</Button>}
+      </div>
+      {d.preview && <details className="mt-3 text-sm"><summary className="cursor-pointer text-brand-700">Preview today's summary</summary><pre className="mt-2 whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs">{d.preview.text}</pre></details>}
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const { state, refresh, can } = useApp();
   const [f, setF] = useState({ ...state.business, lockMinutes: String(state.business.lockMinutes), maxDiscountPercent: String(state.business.maxDiscountBps / 100) });
@@ -105,6 +133,7 @@ export function SettingsPage() {
           <Button variant="primary" className="mt-4" disabled={busy || !validSettings || !f.name.trim()} onClick={() => run(async () => { await call('business.update', { name: f.name, phone: f.phone, address: f.address, receiptFooter: f.receiptFooter, lockMinutes: Number(f.lockMinutes), allowNegativeStock: f.allowNegativeStock, maxDiscountPercent: Number(f.maxDiscountPercent) }); setOriginal(JSON.stringify(f)); await refresh(); }, 'Settings saved')}>Save settings</Button>
         </Card>
       )}
+      {state.user?.role === 'owner' && <DailySummaryCard />}
       <Card title="Change my password">
         <div className="grid grid-cols-3 gap-3">
           <Field label="Current password"><Input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} autoComplete="current-password" /></Field>
