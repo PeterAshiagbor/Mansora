@@ -1,6 +1,6 @@
 {
   "notice": "DRAFT — not legal advice — for review by a Ghanaian data-protection lawyer",
-  "schemaBasis": "Released migrations 1–5 plus proposed migration 6 demo requests; schema metadata and synthetic fixtures only; laptop migration 2 adds the optional staff email and one-time staff invitations.",
+  "schemaBasis": "Released migrations 1–5 plus proposed migration 6 demo requests; schema metadata and synthetic fixtures only; laptop migration 2 adds the optional staff email and one-time staff invitations; cloud migration 7 adds administrator invitations.",
   "fields": [
     {
       "key": "cloud.activation_codes.code_hash",
@@ -11320,6 +11320,118 @@
         "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls"
       ],
       "assessment": "Activity chronology linked to a worker. What legal purpose and access limits apply?"
+    },
+    {
+      "key": "cloud.admin_invitations.id",
+      "purpose": "Stable record identifier for the invitation. Supports: Invite a new Mansora administrator by email with a one-time link; they choose their own password.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once to the email provider (Resend) in the invitation email"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Administrators page; token hashes are never returned",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Linkable identifier. What legal purpose and access limits apply?"
+    },
+    {
+      "key": "cloud.admin_invitations.email",
+      "purpose": "Address the invitation is sent to and the future administrator login. Supports: Invite a new Mansora administrator by email with a one-time link; they choose their own password.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once to the email provider (Resend) in the invitation email"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Administrators page; token hashes are never returned",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Direct contact detail of a prospective administrator. Should unused invitations be erased after expiry?"
+    },
+    {
+      "key": "cloud.admin_invitations.name",
+      "purpose": "Name used to greet the invitee and on their new account. Supports: Invite a new Mansora administrator by email with a one-time link; they choose their own password.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once to the email provider (Resend) in the invitation email"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Administrators page; token hashes are never returned",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Direct identity detail. Should collection/redaction restrictions be added for this field?"
+    },
+    {
+      "key": "cloud.admin_invitations.token_hash",
+      "purpose": "Verify the one-time link using its SHA-256 hash; the link itself is not stored. Supports: Invite a new Mansora administrator by email with a one-time link; they choose their own password.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once to the email provider (Resend) in the invitation email"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Administrators page; token hashes are never returned",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Security credential material; hashing is not anonymisation. Which protection and retention duties apply?"
+    },
+    {
+      "key": "cloud.admin_invitations.expires_at",
+      "purpose": "Stop the link working after 48 hours. Supports: Invite a new Mansora administrator by email with a one-time link; they choose their own password.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once to the email provider (Resend) in the invitation email"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Administrators page; token hashes are never returned",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational security metadata. Lawyer to classify."
+    },
+    {
+      "key": "cloud.admin_invitations.created_by",
+      "purpose": "Attribute which administrator sent the invitation. Supports: Invite a new Mansora administrator by email with a one-time link; they choose their own password.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once to the email provider (Resend) in the invitation email"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Administrators page; token hashes are never returned",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Linkable staff identifier and activity attribution. What legal purpose and access limits apply?"
+    },
+    {
+      "key": "cloud.admin_invitations.created_at",
+      "purpose": "Record when the invitation was sent. Supports: Invite a new Mansora administrator by email with a one-time link; they choose their own password.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once to the email provider (Resend) in the invitation email"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Administrators page; token hashes are never returned",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Activity chronology. What legal purpose and access limits apply?"
+    },
+    {
+      "key": "cloud.admin_invitations.used_at",
+      "purpose": "Make the link single-use; also set when an invitation is replaced or cancelled. Supports: Invite a new Mansora administrator by email with a one-time link; they choose their own password.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once to the email provider (Resend) in the invitation email"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Administrators page; token hashes are never returned",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Activity chronology. What legal purpose and access limits apply?"
     }
   ]
 }

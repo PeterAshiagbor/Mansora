@@ -24,6 +24,8 @@ export interface AppContext {
   standing?: (tenantId: string) => Promise<ServiceStanding>;
   /** Outbound email (Resend in production). Staff sign-in codes are sent directly, never queued or stored. */
   email?: EmailAdapter;
+  /** Public address of the administration dashboard (invitation links). */
+  adminUrl?: string;
 }
 
 export interface AppOptions extends Omit<AppContext, 'backupStorage'>, ObservabilityOptions {
@@ -34,6 +36,8 @@ export interface AppOptions extends Omit<AppContext, 'backupStorage'>, Observabi
   logger?: boolean;
   /** Billing and payment collection. Created from the environment when not supplied. */
   billing?: Billing;
+  /** Public address of the administration dashboard, used in administrator invitation links. */
+  adminUrl?: string;
   /** Explicit proxy addresses/CIDRs only; forwarded headers are untrusted by default. */
   trustProxy?: string[];
 }
@@ -82,6 +86,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.get('/health', ready); // Compatibility with existing deployment health checks.
   app.setNotFoundHandler((req, reply) => reply.code(404).send({ code: 'NOT_FOUND', message: 'Not found', requestId: req.id }));
   // Delegate at call time, so swapping billing.email (tests, reconfiguration) takes effect here too.
+  context.adminUrl = (opts.adminUrl ?? process.env.ADMIN_PUBLIC_URL ?? (opts.adminOrigins?.[0] ? `${opts.adminOrigins[0]}/` : undefined))?.replace(/\/*$/, '/');
   context.email = { configured: () => billing.email.configured(), send: (m) => billing.email.send(m) };
   context.standing = (tenantId) => opts.db.platform((q) => tenantStanding(billing, q, tenantId));
   registerDeviceRoutes(app, context);
