@@ -60,7 +60,9 @@ describe('shop activity for Mansora (counts only)', () => {
     await fast.run(fast.cashier, 'sale.complete', { id: randomUUID(), lines: [{ productId: fast.products.soap, quantity: 1 }], tenders: [{ method: 'cash', amount: 500 }] });
     await fast.run(fast.owner, 'sync.run', {});
     const [row] = await cloud.db.platform((q) => q(`SELECT last_sale_at FROM devices d JOIN tenants t ON t.id = d.tenant_id WHERE t.name = 'Fast Clock Mart'`));
-    expect(new Date(row.last_sale_at).getTime()).toBeLessThanOrEqual(Date.now() + 5_000);
+    expect(row.last_sale_at).toBeNull(); // a sale time ahead of the server's clock is ignored, not trusted
+    const activity = (await cloud.api('GET', '/v1/admin/activity')).body.find((r: any) => r.name === 'Fast Clock Mart');
+    expect(activity.usage).toBe('never_sold');
   });
 
   it('keeps suspended shops in view, since suspension does not stop selling', async () => {

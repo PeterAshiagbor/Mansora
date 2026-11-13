@@ -115,6 +115,9 @@ export function validateEventRows(rows: SyncEvent['payload']['rows']): Partial<R
   return out;
 }
 
+/** Usage counts for Mansora's support view (C34). Counts only, never amounts. */
+export const deviceActivitySchema = z.strictObject({ day: zCalendarDate, salesToday: z.number().int().nonnegative().max(1_000_000), staffActiveToday: z.number().int().nonnegative().max(1000), lastSaleAt: z.string().datetime().nullable() });
+
 export const syncPushSchema = z.strictObject({
   protocol: z.literal(SYNC_PROTOCOL_VERSION),
   device: z.strictObject({
@@ -122,7 +125,8 @@ export const syncPushSchema = z.strictObject({
     pendingCount: z.number().int().nonnegative(),
     lastBackupAt: z.string().datetime().nullable(),
     /** Usage counts for Mansora's support view (C34). Counts only, never amounts. Optional for older laptops. */
-    activity: z.strictObject({ day: zCalendarDate, salesToday: z.number().int().nonnegative().max(1_000_000), staffActiveToday: z.number().int().nonnegative().max(1000), lastSaleAt: z.string().datetime().nullable() }).optional(),
+    /** Optional usage counts (C34). Checked separately so a bad value is dropped, never a reason to refuse a push. */
+    activity: z.unknown().optional(),
   }),
   events: z.array(z.unknown()).max(200),
 });
