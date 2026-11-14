@@ -336,9 +336,9 @@ function ChangePlan({ subscriptionId, onDone }: { subscriptionId: string; onDone
       <QueryView query={plansQuery} label="service plans">{null}</QueryView>
       <Alert tone="info">The new price applies from the next invoice. Invoices already issued are never changed.</Alert>
       <Field label="New plan"><Select value={planId} onChange={(e) => setPlanId(e.target.value)}><option value="">Choose…</option>{plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} · {ghs(p.price)} {p.billing_period}{p.annual_price != null && p.billing_period !== 'yearly' ? ` or ${ghs(p.annual_price)} yearly` : ''}</option>)}</Select></Field>
-      {yearlyOffered && <Field label="Billed"><Select value={frequency || plan.billing_period} onChange={(e) => setFrequency(e.target.value)}><option value={plan.billing_period}>{label(plan.billing_period)} · {ghs(plan.price)}</option><option value="yearly">Yearly · {ghs(plan.annual_price)}</option></Select></Field>}
+      {yearlyOffered && <Field label="Billed" hint={frequency ? undefined : 'Unchanged unless you choose: the client keeps being billed as now.'}><Select value={frequency || ''} onChange={(e) => setFrequency(e.target.value)}><option value="">As now</option><option value={plan.billing_period}>{label(plan.billing_period)} · {ghs(plan.price)}</option><option value="yearly">Yearly · {ghs(plan.annual_price)}</option></Select></Field>}
       <MoneyField label="Agreed amount per period (leave empty for the plan price)" value={amount} onChange={setAmount} />
-      <Button variant="primary" disabled={act.busy || !planId || !plansQuery.data} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/subscriptions/${subscriptionId}/change-plan`, { planId, agreedAmount: toPesewas(amount), frequency: yearlyOffered ? (frequency || plan.billing_period) : null }); onDone(); })}>Change plan</Button>
+      <Button variant="primary" disabled={act.busy || !planId || !plansQuery.data} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/subscriptions/${subscriptionId}/change-plan`, { planId, agreedAmount: toPesewas(amount), frequency: yearlyOffered && frequency ? frequency : null }); onDone(); })}>Change plan</Button>
     </div>
   );
 }

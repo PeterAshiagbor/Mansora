@@ -210,7 +210,9 @@ export async function changePlan(b: Billing, q: Query, subId: string, o: { planI
   if (!sub) fail(404, 'NOT_FOUND', 'Subscription not found');
   if (['cancelled', 'expired'].includes(sub.status)) fail(409, 'INVALID_TRANSITION', 'A cancelled subscription cannot change plan');
   const plan = await planOf(q, o.planId), oldPlan = await planOf(q, sub.plan_id);
-  const { frequency: freq, listPrice } = frequencyFor(plan, o.frequency ?? (o.planId === sub.plan_id ? sub.billing_frequency : null));
+  // Keep how the client is billed (monthly or yearly) when the new plan offers it, unless a frequency is chosen.
+  const offers = (f: string) => f === plan.billing_period || (f === 'yearly' && plan.annual_price != null);
+  const { frequency: freq, listPrice } = frequencyFor(plan, o.frequency ?? (offers(sub.billing_frequency) ? sub.billing_frequency : null));
   const amount = o.agreedAmount ?? listPrice;
   if (!Number.isSafeInteger(amount) || amount < 0) fail(400, 'INVALID_AMOUNT', 'The agreed amount must be a whole number of pesewas');
   let prorationInvoiceId: string | null = null;

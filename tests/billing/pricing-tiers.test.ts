@@ -65,3 +65,13 @@ describe('approved pricing (owner, 14 November 2026)', () => {
     expect((await a().post('/subscriptions', { tenantId: t.id, planId: starter.id, discountBps: 1000, discountUntil: '2026-11-01' })).body.code).toBe('INVALID_DATE');
   });
 });
+
+describe('changing plan keeps how the client is billed', () => {
+  it('a yearly client moved from Starter to Business stays yearly at the Business yearly price', async () => {
+    at(cloud, '2026-11-14');
+    const t = await mkClient(cloud, 'Upgrade Shop');
+    const { subscriptionId } = await subscribe(cloud, t.id, (await plan('Mansora Starter')).id, { frequency: 'yearly' });
+    expect((await a().post(`/subscriptions/${subscriptionId}/change-plan`, { planId: (await plan('Mansora Business')).id })).status).toBe(200);
+    expect(await one(cloud, `SELECT agreed_amount, billing_frequency FROM client_subscriptions WHERE id = $1`, [subscriptionId])).toEqual({ agreed_amount: GHS(2290), billing_frequency: 'yearly' });
+  });
+});
