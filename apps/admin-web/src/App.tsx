@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, AuthLayout, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure, ReportProblemButton, ReportProblemNavItem } from '@mansora/ui';
+import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, AuthLayout, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure, ReportProblemButton, ReportProblemNavItem, usePersistentPage } from '@mansora/ui';
 import { Leads } from './leads';
 import { ContactSettings } from './contact';
 import { api, getToken, setToken, useApi } from './api';
@@ -40,7 +40,8 @@ export function App() { return <DraftProvider><AdminApplication /></DraftProvide
 function AdminApplication() {
   const navigate = useNavigationGuard();
   const [signedIn, setSignedIn] = useState(!!getToken());
-  const [page, setPage] = useState<{ id: string; param?: string }>({ id: 'overview' });
+  // Remembered per browser tab, so a refresh stays on the same page.
+  const [page, setPage] = usePersistentPage<{ id: string; param?: string }>('mansora:admin-page', { id: 'overview' });
   useEffect(() => {
     const out = () => setSignedIn(false);
     window.addEventListener('mansora:signed-out', out);

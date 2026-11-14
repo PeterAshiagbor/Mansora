@@ -186,7 +186,7 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
 
   it('TEST 14 - with consent, the admin sees the summary and the view is logged', async () => {
     await admin.reload();
-    await admin.getByRole('button', { name: 'Clients' }).click();
+    await navigate(admin, 'Clients'); // a refresh keeps the previous page (the client), so use the menu
     await admin.getByText('Adwoa Provisions').click();
     await admin.getByText('The owner has allowed report access').waitFor();
     await admin.getByRole('button', { name: 'View sales summary' }).click();

@@ -50,12 +50,13 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   });
   it('keeps every permitted tool discoverable and reveals a searched page in its group', async () => {
     await navigate(shop, 'Stock'); expect(await shop.getByRole('navigation').getByRole('button', { name: 'Stock', exact: true }).getAttribute('aria-current')).toBe('page');
-    expect(await shop.locator('details[data-nav-group][open]').count()).toBe(1);
+    // The section holding the current page is open; sections the person opened stay open (nothing jumps).
+    expect(await shop.locator('details[data-nav-group][open]').filter({ has: shop.getByRole('button', { name: 'Stock', exact: true }) }).count()).toBe(1);
     await navigate(shop, 'Dashboard'); await expect.poll(() => shop.locator('details.m-nav-tools').getAttribute('open')).toBe(null);
     await shop.keyboard.press('Control+k'); const finder = shop.getByRole('dialog', { name: 'Find a page', exact: true });
     await finder.getByLabel('Find a page', { exact: true }).fill('backup'); await finder.getByRole('button', { name: /Backup & recovery/ }).click();
     await shop.getByRole('heading', { name: 'Backup & recovery', exact: true }).waitFor(); expect(await shop.getByRole('navigation').getByRole('button', { name: 'Backup & recovery', exact: true }).isVisible()).toBe(true);
-    expect(await shop.locator('details[data-nav-group][open]').count()).toBe(1);
+    expect(await shop.locator('details[data-nav-group][open]').filter({ has: shop.getByRole('button', { name: 'Backup & recovery', exact: true }) }).count()).toBe(1);
   });
   it('retains optional product entries and reveals a collapsed invalid field before saving', async () => {
     await navigate(shop, 'Products'); await shop.getByRole('button', { name: 'Add product', exact: true }).click(); const form = shop.getByRole('dialog', { name: 'Add product', exact: true });
