@@ -51,6 +51,8 @@ describe('importing a statement and accepting lines (owner request 2026-11-14)',
 
     const r = await shop.run(shop.owner, 'statement.import', { ...file(csv), source: 'momo', mapping: p.mapping });
     expect(r).toMatchObject({ lines: 4, duplicates: 0 });
+    // The import's audit entry is queued for the cloud like every other change.
+    expect(shop.engine.db.prepare(`SELECT COUNT(*) AS n FROM outbox WHERE type = 'statement.import'`).get()).toEqual({ n: 1 });
     importId = r.id;
     const { lines } = await shop.run(shop.owner, 'statement.lines', { importId });
     const kinds = lines.map((l: any) => l.suggestion.kind);
