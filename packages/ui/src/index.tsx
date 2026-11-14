@@ -257,3 +257,4 @@ export { QueryView } from './query';
 export { DraftProvider, useNavigationGuard, useUnsavedChanges } from './drafts';
 export * from './report-problem';
 export { usePersistentPage } from './workspace';
+export { searchPages, RELATED_WORDS, type SearchablePage, type PageMatch } from './page-search';

@@ -20,55 +20,56 @@ import { AuditPage, BackupPage, DataPage, SettingsPage, StaffPage, SupportPage, 
 interface NavItem {
   id: string;
   label: string;
+  keywords?: string[];
   perm?: Permission;
   render: (param?: string) => ReactNode;
 }
 const NAV: { group: string; items: NavItem[] }[] = [
-  { group: 'Workspace', items: [{ id: 'dashboard', label: 'Dashboard', render: () => <Dashboard /> }, { id: 'getting-started', label: 'Getting started', perm: 'staff.manage', render: () => <GettingStartedPage /> }] },
+  { group: 'Workspace', items: [{ id: 'dashboard', label: 'Dashboard', keywords: ['overview', 'today', 'home', 'payment mix', 'recent transactions', 'running low', 'sales this month'], render: () => <Dashboard /> }, { id: 'getting-started', label: 'Getting started', keywords: ['setup', 'first steps', 'checklist', 'onboarding'], perm: 'staff.manage', render: () => <GettingStartedPage /> }] },
   {
     group: 'Sell',
     items: [
-      { id: 'checkout', label: 'New sale', perm: 'sale.create', render: () => <Checkout /> },
-      { id: 'sales', label: 'Sales history', perm: 'sale.create', render: (p) => <SalesPage openId={p} /> },
-      { id: 'shifts', label: 'Cashier shifts', perm: 'shift.own', render: () => <ShiftsPage /> },
+      { id: 'checkout', label: 'New sale', keywords: ['sell', 'till', 'pos', 'point of sale', 'ring up', 'basket', 'cart', 'take payment', 'credit sale', 'scan'], perm: 'sale.create', render: () => <Checkout /> },
+      { id: 'sales', label: 'Sales history', keywords: ['receipts', 'transactions', 'past sales', 'reprint receipt', 'refund', 'returns', 'void', 'income', 'takings'], perm: 'sale.create', render: (p) => <SalesPage openId={p} /> },
+      { id: 'shifts', label: 'Cashier shifts', keywords: ['till', 'cash up', 'float', 'end of day', 'close shift', 'open shift', 'cash in drawer', 'cash count'], perm: 'shift.own', render: () => <ShiftsPage /> },
     ],
   },
   {
     group: 'Customers',
     items: [
-      { id: 'customers', label: 'Customers', perm: 'customer.manage', render: () => <CustomersPage /> },
-      { id: 'credit', label: 'Credit & repayments', perm: 'credit.repayment', render: () => <CreditPage /> },
+      { id: 'customers', label: 'Customers', keywords: ['clients', 'buyers', 'contacts', 'phone numbers', 'customer statement', 'whatsapp'], perm: 'customer.manage', render: () => <CustomersPage /> },
+      { id: 'credit', label: 'Credit & repayments', keywords: ['debt', 'debtors', 'owe', 'owing', 'outstanding', 'repayment', 'collect money', 'overdue', 'book debt'], perm: 'credit.repayment', render: () => <CreditPage /> },
     ],
   },
   {
     group: 'Stock',
     items: [
-      { id: 'products', label: 'Products', perm: 'product.view', render: () => <ProductsPage /> },
-      { id: 'categories', label: 'Categories', perm: 'product.manage', render: () => <CategoriesPage /> },
-      { id: 'stock', label: 'Stock', perm: 'stock.view', render: (p) => <StockPage initialTab={p === 'count' ? 'count' : 'overview'} /> },
-      { id: 'purchases', label: 'Purchases & suppliers', perm: 'purchase.manage', render: () => <PurchasesPage /> },
+      { id: 'products', label: 'Products', keywords: ['items', 'goods', 'price list', 'selling price', 'barcode', 'sku', 'add product'], perm: 'product.view', render: () => <ProductsPage /> },
+      { id: 'categories', label: 'Categories', keywords: ['groups', 'departments', 'product types'], perm: 'product.manage', render: () => <CategoriesPage /> },
+      { id: 'stock', label: 'Stock', keywords: ['inventory', 'stock count', 'stock take', 'stocktake', 'low stock', 'reorder', 'needs reordering', 'stock movements', 'damages', 'adjust stock', 'quantity'], perm: 'stock.view', render: (p) => <StockPage initialTab={p === 'count' ? 'count' : 'overview'} /> },
+      { id: 'purchases', label: 'Purchases & suppliers', keywords: ['suppliers', 'receive stock', 'restock', 'buy stock', 'deliveries', 'vendors', 'wholesaler', 'purchase history'], perm: 'purchase.manage', render: () => <PurchasesPage /> },
     ],
   },
   {
     group: 'Business',
     items: [
-      { id: 'reports', label: 'Reports', perm: 'report.sales', render: () => <ReportsPage /> },
-      { id: 'expenses', label: 'Expenses', perm: 'expense.manage', render: () => <ExpensesPage /> },
-      { id: 'statements', label: 'Bank & MoMo statements', perm: 'expense.manage', render: () => <StatementsPage /> },
+      { id: 'reports', label: 'Reports', keywords: ['sales report', 'income', 'revenue', 'takings', 'turnover', 'profit', 'gross profit', 'margin', 'daily sales', 'monthly sales', 'best sellers', 'best-selling products', 'sales by cashier', 'sales by product', 'payments received', 'mobile money check', 'expenses by category', 'customer balances', 'stock on hand', 'refunds paid out', 'reconciliation', 'summary', 'performance'], perm: 'report.sales', render: () => <ReportsPage /> },
+      { id: 'expenses', label: 'Expenses', keywords: ['spending', 'costs', 'bills', 'overheads', 'rent', 'electricity', 'ecg', 'transport', 'salaries', 'money out'], perm: 'expense.manage', render: () => <ExpensesPage /> },
+      { id: 'statements', label: 'Bank & MoMo statements', keywords: ['bank statement', 'momo statement', 'mobile money', 'mtn', 'telecel', 'reconcile', 'reconciliation', 'import transactions', 'match payments'], perm: 'expense.manage', render: () => <StatementsPage /> },
     ],
   },
   {
     group: 'Manage',
     items: [
-      { id: 'staff', label: 'Staff', perm: 'staff.manage', render: () => <StaffPage /> },
-      { id: 'settings', label: 'Settings', render: () => <SettingsPage /> },
-      { id: 'data', label: 'Import & export', perm: 'data.import', render: () => <DataPage /> },
-      { id: 'billing', label: 'Billing & payments', perm: 'billing.view', render: () => <BillingPage /> },
-      { id: 'sync', label: 'Sync status', render: () => <SyncPage /> },
-      { id: 'backup', label: 'Backup & recovery', perm: 'backup.manage', render: () => <BackupPage /> },
-      { id: 'support', label: 'Mansora access', perm: 'support.grant', render: () => <SupportPage /> },
-      { id: 'audit', label: 'Audit history', perm: 'audit.view', render: () => <AuditPage /> },
-      { id: 'help', label: 'Help & getting started', render: () => <HelpPage /> },
+      { id: 'staff', label: 'Staff', keywords: ['employees', 'workers', 'cashiers', 'managers', 'users', 'permissions', 'roles', 'reset password', 'logins'], perm: 'staff.manage', render: () => <StaffPage /> },
+      { id: 'settings', label: 'Settings', keywords: ['business details', 'receipt', 'receipt footer', 'logo', 'discount limit', 'negative stock', 'preferences'], render: () => <SettingsPage /> },
+      { id: 'data', label: 'Import & export', keywords: ['excel', 'csv', 'spreadsheet', 'upload products', 'download data', 'opening stock', 'template', 'sample shop'], perm: 'data.import', render: () => <DataPage /> },
+      { id: 'billing', label: 'Billing & payments', keywords: ['subscription', 'plan', 'invoice', 'invoices', 'pay mansora', 'receipts from mansora', 'automatic payments'], perm: 'billing.view', render: () => <BillingPage /> },
+      { id: 'sync', label: 'Sync status', keywords: ['online', 'offline', 'internet', 'cloud', 'upload', 'waiting to sync', 'repair'], render: () => <SyncPage /> },
+      { id: 'backup', label: 'Backup & recovery', keywords: ['restore', 'recovery', 'lost laptop', 'passphrase', 'backup file', 'copy of data'], perm: 'backup.manage', render: () => <BackupPage /> },
+      { id: 'support', label: 'Mansora access', keywords: ['mansora support', 'support access', 'help desk access'], perm: 'support.grant', render: () => <SupportPage /> },
+      { id: 'audit', label: 'Audit history', keywords: ['history', 'activity log', 'who did what', 'changes', 'log'], perm: 'audit.view', render: () => <AuditPage /> },
+      { id: 'help', label: 'Help & getting started', keywords: ['guide', 'how to', 'tutorial', 'questions', 'faq', 'learn'], render: () => <HelpPage /> },
     ],
   },
 ];
