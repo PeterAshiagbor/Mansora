@@ -835,4 +835,19 @@ ALTER TABLE demo_requests
 ALTER TABLE tenants ADD COLUMN lead_id uuid UNIQUE REFERENCES demo_requests(id);
 `,
   },
+  {
+    id: 16,
+    name: 'email_delivery_events',
+    sql: `
+-- What happened to an email after the provider accepted it (acquisition spec PR-07). 'sent' keeps its meaning
+-- (accepted by Resend); delivery_status adds the outcome Resend reports: delivered, bounced, complained or delayed.
+ALTER TABLE notifications
+  ADD COLUMN delivery_status text CHECK (delivery_status IS NULL OR delivery_status IN ('delivered','bounced','complained','delayed')),
+  ADD COLUMN delivery_updated_at timestamptz;
+CREATE INDEX notifications_provider_message ON notifications(provider_message_id) WHERE provider_message_id IS NOT NULL;
+-- Each signed webhook message is processed once, however often it is retried.
+CREATE TABLE email_webhook_events (id text PRIMARY KEY, type text NOT NULL, received_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT ON email_webhook_events TO mansora_platform;
+`,
+  },
 ];

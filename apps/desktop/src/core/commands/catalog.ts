@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fail, sum } from '@mansora/domain';
+import { fail, PRESET_IDS, PRESETS, sum, type PresetId } from '@mansora/domain';
 import { defineCommands, empty, zId, zMoney, zOptText, zQty, zText, type Ctx } from '../engine';
 import { moveStock } from '../stock';
 
@@ -43,6 +43,22 @@ function hideCost(ctx: Ctx, rows: any[]): any[] {
 
 export const catalogCommands = defineCommands({
   'category.list': { perm: 'product.view', input: empty, run: (ctx) => ctx.all('SELECT id, name, active FROM categories ORDER BY name') },
+  /**
+   * Apply a business-type preset (PR-06): adds the preset's categories that are not already there (by name, ignoring
+   * case) and records which preset and version the shop uses. Applying again, or switching, never removes, renames or
+   * changes anything that exists. Settings are only recommended, never changed here.
+   */
+  'preset.apply': {
+    perm: 'settings.manage',
+    mutates: true,
+    input: z.object({ presetId: z.enum(PRESET_IDS) }),
+    run: (ctx, input) => applyPreset(ctx, input.presetId),
+  },
+  'preset.current': {
+    perm: 'auth',
+    input: z.object({}).default({}),
+    run: (ctx) => ({ presetId: ctx.setting('business_preset') || null, version: Number(ctx.setting('business_preset_version') || 0) || null, businessType: ctx.setting('business_type') || null }),
+  },
   'category.save': {
     perm: 'product.manage',
     mutates: true,
@@ -303,3 +319,19 @@ export const catalogCommands = defineCommands({
     },
   },
 });
+
+export function applyPreset(ctx: Ctx, presetId: PresetId) {
+  const preset = PRESETS[presetId];
+  const existing = new Set((ctx.all('SELECT name FROM categories') as any[]).map((c) => String(c.name).trim().toLowerCase()));
+  const added: string[] = [];
+  for (const name of preset.categories) {
+    if (existing.has(name.toLowerCase())) continue;
+    const id = ctx.id();
+    ctx.insert('categories', { id, name, active: 1, updated_at: ctx.now() });
+    added.push(name);
+  }
+  ctx.engine.setMeta('business_preset', preset.id);
+  ctx.engine.setMeta('business_preset_version', String(preset.version));
+  ctx.audit('preset', null, { presetId: preset.id, version: preset.version, categoriesAdded: added.length }, 'preset.applied');
+  return { presetId: preset.id, version: preset.version, categoriesAdded: added };
+}

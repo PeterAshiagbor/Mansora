@@ -12,7 +12,8 @@ const STATUSES = ['new', 'contacted', 'qualified', 'closed'] as const;
 const label = (s: string) => s[0].toUpperCase() + s.slice(1);
 const TYPE: Record<string, string> = { retail: 'Retail shop', mini_mart: 'Mini mart', general_merchandise: 'General merchandise', wholesale: 'Wholesale', other: 'Other' };
 const EVENT: Record<string, string> = { note: 'Note', call: 'Phone call', meeting: 'Meeting', email_out: 'Email sent', email_in_logged: 'Email received', status: 'Status', assignment: 'Assigned', follow_up: 'Follow-up', opt_out: 'Opt-out', conversion: 'Converted', system: 'System' };
-const EMAIL: Record<string, string> = { lead_ack: 'Acknowledgement to prospect', lead_alert: 'Team alert', lead_team_reminder: 'Team reminder (24 h)', lead_customer_followup: 'Prospect follow-up (48 h)' };
+const EMAIL: Record<string, string> = { lead_ack: 'Acknowledgement to prospect', lead_alert: 'Team alert', lead_team_reminder: 'Team reminder (24 h)', lead_customer_followup: 'Prospect follow-up (48 h)', client_onboarding: 'Welcome email to client' };
+const DELIVERY: Record<string, [string, string]> = { delivered: ['Delivered to inbox server', 'good'], bounced: ['Bounced', 'bad'], complained: ['Marked as spam', 'bad'], delayed: ['Delayed', 'warn'] };
 // Times are stored in UTC and shown in Ghana time (GMT, no daylight saving), labelled as such.
 const accra = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('en-GB', { timeZone: 'Africa/Accra', dateStyle: 'medium', timeStyle: 'short' }) + ' GMT' : '');
 const tone = (s: string) => (s === 'new' ? 'warn' : s === 'closed' ? 'neutral' : 'good') as any;
@@ -92,9 +93,9 @@ function LeadDetail({ id, onClose, onChanged }: { id: string; onClose: () => voi
 
       <Card title="Emails about this request" pad={false}><Table rows={d.emails} rowKey={(m: any) => m.id} empty="No emails" columns={[
         { header: 'Email', cell: (m: any) => EMAIL[m.kind] ?? m.kind }, { header: 'To', cell: (m: any) => m.to_address ?? '' },
-        { header: 'Status', cell: (m: any) => <Badge tone={m.status === 'sent' ? 'good' : m.status === 'failed' ? 'bad' : m.status === 'skipped' ? 'neutral' : 'warn'}>{m.status === 'sent' ? 'Accepted by email provider' : m.status === 'queued' ? (new Date(m.next_attempt_at) > new Date() ? `Due ${accra(m.next_attempt_at)}` : 'Waiting to send') : m.status === 'skipped' ? 'Not sent' : 'Failed'}</Badge> },
+        { header: 'Status', cell: (m: any) => m.delivery_status ? <Badge tone={DELIVERY[m.delivery_status][1] as any}>{DELIVERY[m.delivery_status][0]}</Badge> : <Badge tone={m.status === 'sent' ? 'good' : m.status === 'failed' ? 'bad' : m.status === 'skipped' ? 'neutral' : 'warn'}>{m.status === 'sent' ? 'Accepted by email provider' : m.status === 'queued' ? (new Date(m.next_attempt_at) > new Date() ? `Due ${accra(m.next_attempt_at)}` : 'Waiting to send') : m.status === 'skipped' ? 'Not sent' : 'Failed'}</Badge> },
         { header: 'Note', cell: (m: any) => m.error ?? '' }]} /></Card>
-      <p className="text-xs text-slate-600">"Accepted by email provider" means Resend took the email; it is not proof it reached the inbox.</p>
+      <p className="text-xs text-slate-600">"Accepted by email provider" means Resend took the email. "Delivered to inbox server" appears once Resend confirms delivery; it does not mean the person has read it.</p>
     </div>}</QueryView>
   </Modal>;
 }

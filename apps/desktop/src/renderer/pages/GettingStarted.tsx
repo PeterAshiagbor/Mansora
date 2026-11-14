@@ -1,6 +1,7 @@
+import { isPresetId, PRESET_IDS, PRESETS, type PresetId } from '@mansora/domain';
 import { useState } from 'react';
-import { Alert, Badge, Button, Card, Icon, PageHeader, QueryView, Disclosure } from '@mansora/ui';
-import { dateTime, useApp, useQuery } from '../lib';
+import { Select, Field, Alert, Badge, Button, Card, Icon, PageHeader, QueryView, Disclosure } from '@mansora/ui';
+import { useAction, call, dateTime, useApp, useQuery } from '../lib';
 
 export function GettingStartedPage() {
   const { state } = useApp();
@@ -23,6 +24,7 @@ function OwnerSetup() {
     { title: 'Check sync before handover', description: 'Connect to the internet and review waiting changes, errors and the last successful sync.', page: 'sync', action: 'Review sync status', state: sync.data?.lastSyncAt && sync.data?.pending === 0 && sync.data?.rejected === 0 ? 'No changes waiting' : 'Review sync', icon: 'sync', detail: sync.data ? `Last successful sync: ${dateTime(sync.data.lastSyncAt)}. ${sync.data.pending} waiting; ${sync.data.rejected} rejected.` : '', query: sync },
   ];
   return <div className="space-y-5"><PageHeader title="Getting started" subtitle={`Set up ${state.business.name} for day-to-day work. Track the essentials for a confident start.`} />
+    <BusinessPreset />
     <Alert>Work through this with the business owner and your Mansora representative. Hardware, training, business policies and service arrangements need a separate handover review.</Alert>
     <div className="m-setup-layout"><div className="m-setup-checklist" role="group" aria-label="Business setup steps">{steps.map((step, index) => <button type="button" key={step.page} aria-current={active === index ? 'step' : undefined} onClick={() => setActive(index)}><span>{index + 1}. {step.title}</span><small>{active === index ? 'Current step' : step.query?.loading ? 'Checking…' : step.state}</small></button>)}</div><Card title={steps[active].title}><p className="text-sm leading-relaxed text-slate-600">{steps[active].description}</p>{steps[active].query ? <QueryView query={steps[active].query!} label={steps[active].title.toLowerCase()}><div className="mt-4"><Badge>{steps[active].state}</Badge><p className="mt-3 text-sm leading-relaxed text-slate-600">{steps[active].detail}</p></div></QueryView> : <div className="mt-4"><Badge>{steps[active].state}</Badge><p className="mt-3 text-sm text-slate-600">{steps[active].detail}</p></div>}<div className="mt-6 flex flex-wrap gap-3"><Button variant="primary" onClick={() => go(steps[active].page)}><Icon name={steps[active].icon} />{steps[active].action}</Button>{active === 1 && <Button onClick={() => go('data')}>Import Excel / CSV</Button>}{active < steps.length - 1 && <Button onClick={() => setActive(active + 1)}>Next setup step</Button>}</div></Card></div>
     <Disclosure title="Review with Mansora before serving customers" description="Hardware, training, permissions and recovery checks"><Card title="Handover review"><ul className="list-disc space-y-3 pl-5 text-sm leading-relaxed text-slate-700"><li>Check the barcode scanner, actual receipt printer and cash drawer on the laptop you will use.</li><li>Rehearse a sale, refund, repayment and shift close in a separate training business. Made-up sales must not be entered into live client records.</li><li>Agree who may discount, approve refunds, grant credit, count stock and sign off cash differences.</li><li>Confirm the support contact, training, hosting/privacy arrangements and commercial terms with Mansora.</li><li>Rehearse restoring a backup on a replacement laptop with the owner present. Record what has been verified in the handover checklist.</li></ul><div className="mt-5 flex flex-wrap gap-2"><Button variant="primary" onClick={() => go('checkout')}>Open the selling workspace</Button><Button onClick={() => go('help')}>Read task guides</Button></div></Card></Disclosure>
@@ -33,4 +35,30 @@ export function FirstUsePrompt() {
   const products = useQuery<any[]>('product.list', { limit: 1 });
   if (!products.data || products.data.length > 0) return null;
   return <div className="mb-5 rounded-xl border border-brand-200 bg-brand-50 p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-lg font-semibold">Welcome. Let’s set up your business.</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">Start with your business details, catalogue and physical opening stock. Then check staff access, backups and sync before your first live sale.</p></div><Button variant="primary" onClick={() => go('getting-started')}>Start business setup</Button></div></div>;
+}
+
+/** PR-06: start from the kind of business. Adds suggested categories only; recommended settings stay a choice. */
+function BusinessPreset() {
+  const { go } = useApp();
+  const current = useQuery<any>('preset.current');
+  const [choice, setChoice] = useState<PresetId | ''>('');
+  const { run, busy } = useAction();
+  const id = (choice || current.data?.presetId || current.data?.businessType || '') as PresetId | '';
+  const preset = id && isPresetId(id) ? PRESETS[id] : null;
+  const applied = current.data?.presetId === id && current.data?.version === preset?.version;
+  return <Card title="Set up for your kind of business">
+    <div className="grid gap-4 md:grid-cols-[minmax(0,16rem)_1fr]">
+      <Field label="Kind of business"><Select value={id} onChange={(e) => setChoice(e.target.value as PresetId)}><option value="">Choose…</option>{PRESET_IDS.map((p) => <option key={p} value={p}>{PRESETS[p].label}</option>)}</Select></Field>
+      {preset && <div className="space-y-2 text-sm text-slate-700">
+        <p>{preset.summary}</p>
+        <p><strong>Suggested categories:</strong> {preset.categories.join(', ')}. Only missing ones are added; nothing you have is changed or removed.</p>
+        <p><strong>Recommended settings</strong> (change them in Settings if you agree): {preset.recommended.allowNegativeStock ? 'allow' : 'do not allow'} selling below recorded stock; lock the screen after {preset.recommended.lockMinutes} minutes; discount limit {preset.recommended.maxDiscountPercent}% for staff.</p>
+        <ul className="list-disc space-y-1 pl-5">{preset.guidance.map((g) => <li key={g.text}><button type="button" className="text-left text-brand-800 underline" onClick={() => go(g.page)}>{g.text}</button></li>)}</ul>
+      </div>}
+    </div>
+    <div className="mt-3 flex items-center gap-3">
+      <Button variant="primary" disabled={!preset || busy || applied} onClick={() => run(async () => { const r = await call('preset.apply', { presetId: id }); current.reload(); return r; }, 'Setup applied')}>{applied ? 'Applied' : 'Apply suggested categories'}</Button>
+      {current.data?.presetId && <span className="text-xs text-slate-600">In use: {PRESETS[current.data.presetId as PresetId]?.label ?? current.data.presetId} (version {current.data.version})</span>}
+    </div>
+  </Card>;
 }

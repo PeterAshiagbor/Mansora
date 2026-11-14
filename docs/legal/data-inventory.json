@@ -10261,6 +10261,76 @@
       "assessment": "Links an email to an identifiable prospect record; kept and deleted with the lead."
     },
     {
+      "key": "cloud.email_webhook_events.received_at",
+      "purpose": "Queue billing communications, their recipient/content and delivery or failure evidence. Field: when the event was received.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Processing record only; holds no email address or content. Used to process each event once."
+    },
+    {
+      "key": "cloud.email_webhook_events.type",
+      "purpose": "Queue billing communications, their recipient/content and delivery or failure evidence. Field: event type.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Processing record only; holds no email address or content. Used to process each event once."
+    },
+    {
+      "key": "cloud.email_webhook_events.id",
+      "purpose": "Queue billing communications, their recipient/content and delivery or failure evidence. Field: provider message id of a processed delivery event.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Processing record only; holds no email address or content. Used to process each event once."
+    },
+    {
+      "key": "cloud.notifications.delivery_updated_at",
+      "purpose": "Queue billing communications, their recipient/content and delivery or failure evidence. Field: when that outcome was reported.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Timing metadata for an email to an identifiable person."
+    },
+    {
+      "key": "cloud.notifications.delivery_status",
+      "purpose": "Queue billing communications, their recipient/content and delivery or failure evidence. Field: what the email provider reported after accepting the email (delivered, bounced, complained, delayed).",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Delivery outcome for an email to an identifiable person; kept with the email record."
+    },
+    {
       "key": "cloud.notifications.kind",
       "purpose": "Queue billing communications, their recipient/content and delivery or failure evidence. Field: kind.",
       "locations": [

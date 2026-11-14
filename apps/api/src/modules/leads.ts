@@ -110,7 +110,7 @@ export function registerLeadRoutes(app: FastifyInstance, { db, demoIntakeSecret,
       if (!lead) httpError(404, 'NOT_FOUND', 'Demo request not found');
       const events = await q(`SELECT e.id, e.kind, e.body, e.occurred_at, e.created_at, a.name AS actor_name FROM lead_events e LEFT JOIN admins a ON a.id = e.actor_admin_id WHERE e.lead_id = $1 ORDER BY e.occurred_at DESC, e.created_at DESC LIMIT 200`, [id]);
       // Email history: what was sent, held back or failed (accepted by the provider is not proof of delivery).
-      const emails = await q(`SELECT id, kind, to_address, subject, status, error, next_attempt_at, sent_at, created_at FROM notifications WHERE lead_id = $1 ORDER BY created_at, kind`, [id]);
+      const emails = await q(`SELECT id, kind, to_address, subject, status, error, next_attempt_at, sent_at, created_at, delivery_status FROM notifications WHERE lead_id = $1 OR (kind = 'client_onboarding' AND tenant_id = (SELECT tenant_id FROM demo_requests WHERE id = $1)) ORDER BY created_at, kind`, [id]);
       const admins = await q(`SELECT id, name FROM admins WHERE status = 'active' ORDER BY name`);
       return { lead, events, emails, admins };
     });
