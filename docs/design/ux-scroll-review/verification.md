@@ -20,6 +20,10 @@
 
 All 408 unique tests were verified across the full run and the isolated accessibility rerun. The concurrent full command itself had the two recorded timeouts; it is not represented as a single green run. Run the long axe suite separately when this machine is under contention. Raw output: `full-suite.log` and `accessibility-isolated.log`. Typecheck/build logs are included.
 
+## Release integration
+
+The owner subsequently authorized updates, push and merge. Rebased onto `767897b` (PR #73/C68), retaining problem-report actions/dialogs and adding the Problem reports admin page to accessibility coverage. Rebased typecheck/build and 23 focused browser/integration tests pass; dependency audit reports zero vulnerabilities. The completed serial regression, final tested head, merge SHA and exact merged-commit CI results are recorded in [release PR #74](https://github.com/PeterAshiagbor/Mansora/pull/74). Earlier review measurements and limits above remain historical evidence, not a claim that the new server feature was present in the original sweep.
+
 ## Viewports and keyboard
 
 - 1366 × 768 and 1440 × 900: long catalogue, 12-line basket, independent keyboard scrolling, visible total/Pay and payment opening.
