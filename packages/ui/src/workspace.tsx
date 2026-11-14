@@ -1,3 +1,4 @@
+import { searchPages } from './page-search';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Input, Modal, cx } from './index';
 import { MansoraBrand } from './brand';
@@ -22,7 +23,8 @@ const paths: Record<string, string> = {
 export function Icon({ name, className }: { name: string; className?: string }) {
   return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={cx('shrink-0', className)}><path d={paths[name] ?? paths.file} /></svg>;
 }
-export interface WorkspaceItem { id: string; label: string; icon?: string }
+/** keywords: the everyday words for what the page does, so Find a page finds it by meaning, not only its name. */
+export interface WorkspaceItem { id: string; label: string; icon?: string; keywords?: string[] }
 export interface Guide { title: string; intro: string; steps: string[]; notes?: string[] }
 export function GuideBody({ guide }: { guide: Guide }) {
   return <div className="space-y-5"><p className="text-sm leading-relaxed text-slate-600">{guide.intro}</p><ol className="space-y-4">{guide.steps.map((step, i) => <li key={step} className="flex gap-3 text-sm leading-relaxed"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-800">{i + 1}</span><span>{step}</span></li>)}</ol>{guide.notes?.length && <div className="rounded-lg border border-brand-200 bg-brand-50 p-4"><h3 className="mb-2 text-sm font-semibold text-brand-900">Good to know</h3><ul className="list-disc space-y-2 pl-4 text-sm leading-relaxed text-slate-700">{guide.notes.map((note) => <li key={note}>{note}</li>)}</ul></div>}</div>;
@@ -45,8 +47,10 @@ export function ActionMenu({ label, children }: { label: string; children: React
   return <details ref={ref} className="m-action-menu no-print" open={open}><summary aria-label={label} onClick={(event) => { event.preventDefault(); setOpen(!open); }}>{label}<Icon name="chevron" /></summary>{open && <div role="group" aria-label={`${label} options`} onClick={() => setOpen(false)}>{children}</div>}</details>;
 }
 
-export function WorkspaceShell({ groups, primaryIds, current, pageKey = current.id, pageLabel, onNavigate, workspace, workspaceLabel, user, userRole, guide, onSignOut, signOutLabel = 'Sign out', footerActions, children }: {
+export function WorkspaceShell({ groups, primaryIds, current, pageKey = current.id, pageLabel, onNavigate, workspace, workspaceLabel, user, userRole, guide, onSignOut, signOutLabel = 'Sign out', footerActions, searchExtras = [], children }: {
   groups: { group: string; items: WorkspaceItem[] }[]; current: WorkspaceItem; onNavigate: (id: string) => void;
+  /** Parts of pages (tabs) that Find a page can open directly; they are not shown in the menu. */
+  searchExtras?: (WorkspaceItem & { group: string })[];
   primaryIds: string[];
   /** Include detail IDs: the selected sidebar item alone does not identify a subpage. */
   pageKey?: string; pageLabel?: string;
@@ -94,7 +98,8 @@ export function WorkspaceShell({ groups, primaryIds, current, pageKey = current.
     const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && !document.querySelector('[role=dialog]')) { e.preventDefault(); setQuery(''); setFinding(true); } };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, []);
-  const results = pages.filter((item) => `${item.label} ${item.group}`.toLowerCase().includes(query.toLowerCase()));
+  const matches = useMemo(() => searchPages([...pages, ...searchExtras], query), [pages, searchExtras, query]);
+  const results = matches.map((m) => m.page);
   const sidebar = (<nav aria-label="Main" className="m-sidebar no-print">
       <div className="m-sidebar-brand"><MansoraBrand compact /></div>
       <div className="m-company"><span>{workspaceLabel}</span><strong title={workspace}>{workspace}</strong></div>
@@ -113,7 +118,7 @@ export function WorkspaceShell({ groups, primaryIds, current, pageKey = current.
       <div className="m-content-scroll" ref={content}><div className="m-page-tools no-print">{guide && <button type="button" onClick={() => setHelp(true)}><Icon name="help" />How to use this page</button>}</div><main ref={main} id="workspace-main" aria-label={pageLabel ?? current.label} tabIndex={-1} className="m-main" key={pageKey}>{children}</main></div>
       {compact && <nav aria-label="Quick tasks" className="m-mobile-shortcuts no-print">{primary.slice(0, 4).map(item => <button type="button" key={item.id} aria-current={item.id === current.id ? 'page' : undefined} onClick={() => navigatePage(item.id)}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>)}</nav>}
     </div>
-    {finding && <Modal title="Find a page" trackChanges={false} open onClose={() => setFinding(false)}><Input aria-label="Find a page" placeholder="Search sales, products, reports…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && results[0]) { e.preventDefault(); navigatePage(results[0].id); setFinding(false); } if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.m-search-result')?.focus(); } }} autoFocus /><div className="mt-3 max-h-80 overflow-y-auto">{results.map((item) => <button type="button" className="m-search-result" key={item.id} onClick={() => { navigatePage(item.id); setFinding(false); }}><Icon name={item.icon ?? 'file'} /><span>{item.label}<small>{item.group}</small></span><span aria-hidden="true">↗</span></button>)}{!results.length && <p className="py-6 text-center text-sm text-slate-600">No matching pages. Try a different name.</p>}</div></Modal>}
+    {finding && <Modal title="Find a page" trackChanges={false} open onClose={() => setFinding(false)}><Input aria-label="Find a page" placeholder="A page or what you need: income, stock, debtors…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && results[0]) { e.preventDefault(); navigatePage(results[0].id); setFinding(false); } if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.m-search-result')?.focus(); } }} autoFocus /><div className="mt-3 max-h-80 overflow-y-auto">{matches.map(({ page: item, reason }) => <button type="button" className="m-search-result" key={item.id} onClick={() => { navigatePage(item.id); setFinding(false); }}><Icon name={item.icon ?? 'file'} /><span>{item.label}<small>{item.group}{reason ? ` · ${reason}` : ''}</small></span><span aria-hidden="true">↗</span></button>)}{!results.length && <p className="py-6 text-center text-sm text-slate-600">No matching pages. Try another word, for example sales, stock, expenses or customers.</p>}</div></Modal>}
     {help && guide && <Modal title={`How to use: ${guide.title}`} open onClose={() => setHelp(false)} wide footer={<Button variant="primary" onClick={() => setHelp(false)}>Got it</Button>}><GuideBody guide={guide} /></Modal>}
   </div>;
 }

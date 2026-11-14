@@ -68,10 +68,21 @@ Expenses appear in **Reports → Expenses** and are kept apart from the cost of 
 
 **Bank & MoMo statements** checks your money against your bank or Mobile Money wallet, and records money out as expenses without retyping.
 
-1. In your bank's internet banking or your Mobile Money app, download a statement as **Excel or CSV**.
+1. Get your statement as **Excel (.xlsx) or CSV**:
+   - **Bank**: in internet banking, open the account, choose the dates and download the statement as Excel or CSV.
+   - **MTN MoMo**: request a statement in the MoMo app or by dialling \*170#; MTN sends it by email.
+   - **Telecel Cash**: request a statement in the Telecel app or by dialling \*110#; it is sent by email.
+   - Mobile Money statements usually arrive as **PDF**. Until Mansora reads PDF files, open the PDF in Excel or
+     Google Sheets and save it as .xlsx or .csv.
+   - To try the screen first, press **Download a practice statement**: a statement in MTN's layout made from this
+     shop's own Mobile Money sales of the last two weeks plus typical spending. Lines you accept from it become real
+     expenses, so use it in a test shop only.
 2. In Mansora choose **Statement from** (Mobile Money or Bank), optionally name the account, and choose the file.
 3. Check **Match your columns**. Mansora usually recognises them. It needs the date, and either one amount column
    (with a minus or a Type column for money out) or separate money in and money out columns. Press **Import**.
+   On an MTN MoMo statement Mansora reads the **balance before and after** to tell money in from money out, uses
+   the **transaction ID** (F_ID, the number in the customer's SMS) as the reference, and puts **fees and E-Levy** on
+   a line of their own (category Bank charges), so a supplier paid GHS 500 still shows as GHS 500.
 4. Each line gets a suggestion:
    - **Matches Sale R-…** or **Matches debt repayment**: money in that matches a sale or repayment you recorded,
      by its transaction ID, or by the same amount and date;

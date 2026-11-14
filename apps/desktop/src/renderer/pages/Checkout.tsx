@@ -1,5 +1,6 @@
 import { parkBasket, parkedBaskets, takeParkedBasket } from '../parked-baskets';
 import { CameraScanButton } from '../components/CameraScanner';
+import { CustomerPicker, type PickedCustomer } from '../components/CustomerPicker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { priceCart, settlePayments } from '@mansora/domain';
 import { Alert, Badge, Button, cx, Field, Input, Modal, Select, QueryView, PageHeader, WorkflowSteps, useUnsavedChanges, useNavigationGuard } from '@mansora/ui';
@@ -41,8 +42,7 @@ export function Checkout() {
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [customerId, setCustomerId] = useState('');
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<PickedCustomer | null>(null);
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState<{ id: string; receiptNo: string; total: number; change: number } | null>(null);
   useUnsavedChanges(lines.length > 0 && !done, 'the current basket');
@@ -52,8 +52,6 @@ export function Checkout() {
   const categories = categoryQuery.data ?? [];
   const productQuery = useQuery<Product[]>('product.list', { search, categoryId, limit: 60 }, [done]);
   const products = productQuery.data;
-  const customerQuery = useQuery<any[]>('customer.list', { search: customerSearch });
-  const customers = customerQuery.data ?? [];
   const quantityProblem = Object.values(quantityEdits).some((value) => value.trim() === '' || !Number.isSafeInteger(Number(value)) || Number(value) < 1);
   const stockProblem = !state.business.allowNegativeStock && lines.some((line) => line.quantity > line.product.quantity);
 
@@ -110,7 +108,6 @@ export function Checkout() {
     setRequestingDiscount(false);
     setCustomerId('');
     setSelectedCustomer(null);
-    setCustomerSearch('');
     setDone(null);
     setSaleId(uuid());
     setSearch('');
@@ -120,7 +117,7 @@ export function Checkout() {
   const park = () => {
     if (transition.current || paying || done || pendingScans.current || !lines.length || quantityProblem || !cart || 'error' in cart) return;
     try {
-      parkBasket(scope, { id: saleId, createdAt: new Date().toISOString(), lines: lines.map(line => ({ ...line, product: Object.fromEntries(['id', 'name', 'sku', 'barcode', 'selling_price', 'quantity', 'category_id'].map(key => [key, (line.product as any)[key]])) as unknown as Product })), cartDiscount: cartDiscount ?? 0, customerId, customer: customerId ? { id: customerId, name: selectedCustomer?.name ?? customers.find(c => c.id === customerId)?.name ?? 'Customer' } : null, requestingDiscount });
+      parkBasket(scope, { id: saleId, createdAt: new Date().toISOString(), lines: lines.map(line => ({ ...line, product: Object.fromEntries(['id', 'name', 'sku', 'barcode', 'selling_price', 'quantity', 'category_id'].map(key => [key, (line.product as any)[key]])) as unknown as Product })), cartDiscount: cartDiscount ?? 0, customerId, customer: customerId ? { id: customerId, name: selectedCustomer?.name ?? 'Customer' } : null, requestingDiscount });
       setParked(parkedBaskets<Line>(scope)); reset(); toast('Basket parked for this signed-in session. Stock has not changed.');
     } catch (error: any) { toast(error.message, 'bad'); }
   };
@@ -227,16 +224,13 @@ export function Checkout() {
         <div className="m-basket-summary space-y-2 border-t border-slate-200 p-4">
           <div className="grid grid-cols-2 gap-2">
             {discountEntry ? <Field label={can('sale.discount') ? 'Basket discount (GHS)' : 'Requested discount (GHS)'}><MoneyInput value={cartDiscount} onChange={setCartDiscount} aria-label="Basket discount" /></Field> : <Button onClick={() => setRequestingDiscount(true)}>Request discount</Button>}
-            <Field label="Customer (optional)">
-              <Select value={customerId} onChange={(e) => { setCustomerId(e.target.value); setSelectedCustomer(customers.find((customer) => customer.id === e.target.value) ?? null); }}>
-                <option value="">Walk-in customer</option>
-                {selectedCustomer && !customers.some((customer) => customer.id === selectedCustomer.id) && <option value={selectedCustomer.id}>{selectedCustomer.name}</option>}
-                {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </Select>
-            </Field>
           </div>
-          <details className="text-xs text-slate-600"><summary className="cursor-pointer py-1">Customer not listed? Search customers</summary><Input className="mt-2" aria-label="Find a customer" placeholder="Name or phone number" value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} />{customerQuery.loading && <p className="mt-1" role="status">Loading customer matches…</p>}{customerQuery.data?.length === 0 && <p className="mt-1">No customers match. Try another name or ask the owner to add the customer.</p>}{customers.length === 500 && <p className="mt-1">Showing up to 500 matches. Refine the name or phone number.</p>}</details>
-          {customerQuery.error && <QueryView query={customerQuery} label="customers">{null}</QueryView>}
+          <div>
+            {/* Not a <label>: the chosen customer shows a Change button that a label would press on any click. */}
+            <span className="mb-1 block text-sm font-medium text-slate-700">Customer (optional)</span>
+            <CustomerPicker value={selectedCustomer} onChange={(c) => { setSelectedCustomer(c); setCustomerId(c?.id ?? ''); }} />
+            {!selectedCustomer && <span className="mt-1 block text-xs text-slate-500">Needed to sell on credit. Leave empty for a walk-in sale.</span>}
+          </div>
           {quantityProblem && <Alert tone="bad">Enter a whole-number quantity of at least 1 for each item. Use Remove to take an item out of the basket.</Alert>}
           {stockProblem && <Alert tone="bad">One or more quantities exceed recorded stock. Reduce the quantity or ask the owner to receive or count the stock before taking payment.</Alert>}
           {!can('sale.discount') && requestingDiscount && <p className="text-sm text-amber-900">Discount requests need an authorised approver at payment. You cannot apply a discount yourself.</p>}
@@ -256,7 +250,7 @@ export function Checkout() {
       </section>
 
       {paying && cart && 'total' in cart && (
-        <PayModal total={cart.total} needsDiscountApproval={cart.discountTotal > 0 && (!can('sale.discount') || (state.business.maxDiscountBps > 0 && state.user?.role !== 'owner' && cart.discountTotal * 10_000 > state.business.maxDiscountBps * cart.subtotal))} customerId={customerId} customerName={customers.find((c) => c.id === customerId)?.name ?? selectedCustomer?.name}
+        <PayModal total={cart.total} needsDiscountApproval={cart.discountTotal > 0 && (!can('sale.discount') || (state.business.maxDiscountBps > 0 && state.user?.role !== 'owner' && cart.discountTotal * 10_000 > state.business.maxDiscountBps * cart.subtotal))} customerId={customerId} customerName={selectedCustomer?.name}
           onClose={() => setPaying(false)}
           submit={async (tenders, dueDate, approver) => {
             const res = await call('sale.complete', {

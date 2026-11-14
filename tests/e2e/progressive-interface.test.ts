@@ -57,6 +57,12 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     await finder.getByLabel('Find a page', { exact: true }).fill('backup'); await finder.getByRole('button', { name: /Backup & recovery/ }).click();
     await shop.getByRole('heading', { name: 'Backup & recovery', exact: true }).waitFor(); expect(await shop.getByRole('navigation').getByRole('button', { name: 'Backup & recovery', exact: true }).isVisible()).toBe(true);
     expect(await shop.locator('details[data-nav-group][open]').filter({ has: shop.getByRole('button', { name: 'Backup & recovery', exact: true }) }).count()).toBe(1);
+    // Searching by meaning: "income" finds the sales pages and reports, with the reason shown.
+    await shop.keyboard.press('Control+k'); const finder2 = shop.getByRole('dialog', { name: 'Find a page', exact: true });
+    await finder2.getByLabel('Find a page', { exact: true }).fill('income');
+    await finder2.getByRole('button', { name: /Reports/ }).waitFor(); await finder2.getByRole('button', { name: /Sales history/ }).waitFor();
+    await finder2.getByLabel('Find a page', { exact: true }).press('Enter');
+    await shop.getByRole('heading', { name: /^(Sales history|Reports)$/ }).first().waitFor();
   });
   it('retains optional product entries and reveals a collapsed invalid field before saving', async () => {
     await navigate(shop, 'Products'); await shop.getByRole('button', { name: 'Add product', exact: true }).click(); const form = shop.getByRole('dialog', { name: 'Add product', exact: true });

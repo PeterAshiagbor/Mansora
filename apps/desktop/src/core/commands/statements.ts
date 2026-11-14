@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { fail } from '@mansora/domain';
 import { defineCommands, empty, zId, zText, type Ctx } from '../engine';
-import { fileHash, readTable } from '../importer';
+import { fileHash, readTable, toCsv, toXlsx } from '../importer';
 import { fileFingerprints, guessCategory, normaliseRef, readStatementRows, STATEMENT_FIELDS, suggestStatementMapping, type StatementRow } from '../statements';
 
 const zFile = z.object({ fileName: zText(200), contentBase64: z.string().max(15_000_000) });
@@ -53,6 +53,50 @@ function suggest(ctx: Ctx, source: 'bank' | 'momo', r: Row, taken: Set<string>, 
   return { kind: 'expense', category: guessCategory(r.description) };
 }
 
+/** Marks a practice statement made by Mansora, so the screen can warn before anything is accepted from it. */
+export const PRACTICE_MARK = 'MANSORA PRACTICE';
+const MTN_HEADER = ['TRANSACTION DATE', 'FROM ACCT', 'FROM NAME', 'FROM NO.', 'TRANS. TYPE', 'AMOUNT', 'FEES', 'E-LEVY', 'BAL BEFORE', 'BAL AFTER', 'TO NO.', 'TO NAME', 'TO ACCT', 'F_ID', 'REF', 'OVA'];
+const cedis = (p: number) => (p / 100).toFixed(2);
+
+/**
+ * A practice Mobile Money statement in MTN's layout, built from this shop's own Mobile Money sales of the last 14
+ * days plus typical shop spending (power, airtime, transport, a supplier, the Mansora subscription) and one deposit
+ * nothing matches. Used to try the import in a test shop; every line is marked MANSORA PRACTICE.
+ */
+function practiceStatement(ctx: Ctx): string[][] {
+  const shop = String(ctx.setting('business_name') ?? 'MY SHOP').toUpperCase().slice(0, 40);
+  const wallet = '233240000000';
+  const now = Date.parse(ctx.now());
+  const stamp = (t: number) => new Date(t).toISOString().slice(0, 19).replace('T', ' ');
+  let fid = 61000000000 + (now % 1_000_000) * 100;
+  const events: { t: number; type: string; amount: number; fee: number; inbound: boolean; name: string; number: string; ref?: string }[] = [];
+  const sales = ctx.all(`SELECT p.amount, p.reference, s.created_at FROM payments p JOIN sales s ON s.id = p.sale_id
+    WHERE p.method = 'momo' AND s.created_at >= ? ORDER BY s.created_at LIMIT 15`, new Date(now - 14 * 86_400_000).toISOString()) as any[];
+  const payers = ['AMA MENSAH', 'KOJO BOATENG', 'ABENA OWUSU', 'YAW DARKO', 'EFUA ASARE'];
+  sales.forEach((p, i) => events.push({ t: Date.parse(p.created_at) + 60_000, type: 'TRANSFER', amount: p.amount, fee: 0, inbound: true, name: payers[i % payers.length], number: `23324${String(1000000 + i * 7919).slice(0, 7)}`, ref: p.reference || undefined }));
+  const supplier = (ctx.get(`SELECT name FROM suppliers ORDER BY name LIMIT 1`) as any)?.name ?? 'WHOLESALE SUPPLIER';
+  const day = (n: number, h: number) => now - n * 86_400_000 + h * 3_600_000 - 12 * 3_600_000;
+  events.push(
+    { t: day(6, 2), type: 'PAYMENT', amount: 5000, fee: 50, inbound: false, name: 'ECG PREPAID', number: '' },
+    { t: day(5, 1), type: 'DEBIT', amount: 1000, fee: 0, inbound: false, name: 'AIRTIME TOPUP', number: '' },
+    { t: day(4, 3), type: 'TRANSFER', amount: 40000, fee: 300, inbound: false, name: String(supplier).toUpperCase(), number: '233201234567' },
+    { t: day(3, 4), type: 'PAYMENT', amount: 2500, fee: 0, inbound: false, name: 'BOLT GHANA TRANSPORT', number: '' },
+    { t: day(2, 2), type: 'PAYMENT', amount: 12900, fee: 0, inbound: false, name: 'MANSORA CONSULTING', number: '' },
+    { t: day(1, 5), type: 'TRANSFER', amount: 6000, fee: 0, inbound: true, name: 'KWAME ASANTE', number: '233551234567' },
+  );
+  events.sort((a, b) => a.t - b.t);
+  let balance = 85000;
+  const rows = events.map((e) => {
+    const before = balance;
+    balance = e.inbound ? balance + e.amount : balance - e.amount - e.fee;
+    const from = e.inbound ? [`FRI:${e.number || '233200000000'}/MSISDN`, e.name, e.number] : [`FRI:${wallet}/MSISDN`, shop, wallet];
+    const to = e.inbound ? [wallet, shop, `FRI:${wallet}/MSISDN`] : [e.number, e.name, e.number ? `FRI:${e.number}/MSISDN` : ''];
+    fid += 137;
+    return [stamp(e.t), ...from, e.type, cedis(e.amount), cedis(e.fee), '0.00', cedis(before), cedis(balance), ...to, e.ref ?? String(fid), PRACTICE_MARK, ''];
+  });
+  return [MTN_HEADER, ...rows];
+}
+
 async function readFile(input: { fileName: string; contentBase64: string }) {
   const content = Buffer.from(input.contentBase64, 'base64');
   return { content, table: await readTable(input.fileName, content) };
@@ -73,7 +117,8 @@ export const statementCommands = defineCommands({
       const prints = fileFingerprints(input.source, read);
       const rows = read.map((r, i) => ({ ...r, duplicate: !!(r.date && !r.errors.length && ctx.get(`SELECT 1 FROM statement_lines WHERE fingerprint = ?`, prints[i])) }));
       const already = ctx.get(`SELECT created_at FROM statement_imports WHERE file_hash = ?`, fileHash(content)) as { created_at: string } | undefined;
-      return { headers, mapping, needsMapping, rows, alreadyImportedAt: already?.created_at ?? null };
+      const practice = table.some((cells) => cells.some((c) => c.trim().toUpperCase() === PRACTICE_MARK));
+      return { headers, mapping, needsMapping, rows, practice, alreadyImportedAt: already?.created_at ?? null };
     },
   },
 
@@ -109,6 +154,20 @@ export const statementCommands = defineCommands({
       ctx.audit('statement_import', id, { source: input.source, lines: rows.length, duplicates });
       return { id, lines: rows.length, duplicates };
       });
+    },
+  },
+
+  /** A practice MTN Mobile Money statement for trying the import (see practiceStatement). */
+  'statement.sample': {
+    perm: 'expense.manage',
+    async: true,
+    input: z.object({ format: z.enum(['csv', 'xlsx']) }),
+    run: async (ctx, input) => {
+      const rows = practiceStatement(ctx);
+      const name = 'mansora-practice-momo-statement';
+      return input.format === 'csv'
+        ? { fileName: `${name}.csv`, mime: 'text/csv', contentBase64: Buffer.from(toCsv(rows)).toString('base64') }
+        : { fileName: `${name}.xlsx`, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', contentBase64: (await toXlsx([{ name: 'Statement', rows }])).toString('base64') };
     },
   },
 

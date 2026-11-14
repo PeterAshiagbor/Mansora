@@ -3,6 +3,7 @@ import { debtMessage, statementMessage } from '../customer-sharing';
 import { tableReportHtml } from '../reporting';
 import { useState } from 'react';
 import { TaskLinks } from '../components/TaskLinks';
+import { CustomerFields } from '../components/CustomerPicker';
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Textarea, QueryView } from '@mansora/ui';
 import { call, dateTime, ExportButtons, METHOD, money, MoneyInput, plain, useAction, useQuery, useApp, printHtml, today, uuid } from '../lib';
 
@@ -27,14 +28,7 @@ export function CustomersPage() {
       {edit && (
         <Modal title={edit.id ? 'Edit customer' : 'Add customer'} open onClose={() => setEdit(null)}
           footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('customer.save', { id: edit.id, name: edit.name, phone: edit.phone, email: edit.email ?? '', notes: edit.notes }); setEdit(null); reload(); }, 'Customer saved')}>Save</Button></>}>
-          <div className="space-y-3">
-            <Field label="Name" hint="Required when saving a customer record."><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Phone (optional)"><Input value={edit.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
-              <Field label="Email (optional)"><Input type="email" value={edit.email ?? ''} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Field>
-            </div>
-            <Field label="Notes"><Textarea value={edit.notes ?? ''} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} /></Field>
-          </div>
+          <CustomerFields value={{ name: edit.name ?? '', phone: edit.phone ?? '', email: edit.email ?? '', notes: edit.notes ?? '' }} onChange={(v) => setEdit({ ...edit, ...v })} />
         </Modal>
       )}
       {view && <CustomerView id={view} onClose={() => setView(null)} />}

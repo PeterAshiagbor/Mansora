@@ -5,6 +5,13 @@
 **Dashboard** shows today's and this month's sales, how customers paid, what is
 running low and what customers owe you.
 
+## Finding a page
+
+Press **Ctrl K** (or **Find a page** at the top) and type a page's name or what you want to do, in your own words:
+*income*, *takings* or *revenue* finds Reports and Sales history; *inventory* finds Stock; *debtors* or *who owes
+me* finds Credit; *momo* finds Bank & MoMo statements. Small typing mistakes are forgiven. Press **Enter** to open
+the first result.
+
 ## Products and stock
 
 - **Products**: add or edit items, prices, barcodes and reorder levels. Scan a barcode into the Barcode box with a scanner or the **Camera** button.

@@ -4,7 +4,7 @@ import { flakyNetwork, startCloud, type Cloud } from '../cloud';
 import { makeShop, type TestShop } from '../helpers';
 import { admin, GHS, mkPlan, subscribe } from '../billing/helpers';
 import { mansoraExpenseId } from '../../apps/desktop/src/core/mansora-expenses';
-import { parseStatementAmount, parseStatementDate } from '../../apps/desktop/src/core/statements';
+import { parseStatementAmount, parseStatementDate, readStatementRows, suggestStatementMapping } from '../../apps/desktop/src/core/statements';
 
 let cloud: Cloud;
 let shop: TestShop;
@@ -97,6 +97,32 @@ describe('importing a statement and accepting lines (owner request 2026-11-14)',
   it('records bank expenses with the bank payment method', async () => {
     await shop.run(shop.owner, 'expense.create', { id: randomUUID(), category: 'Rent', description: 'Shop rent', amount: 50000, expenseDate: today(), paymentMethod: 'bank' });
     expect((shop.engine.db.prepare(`SELECT payment_method FROM expenses WHERE description = 'Shop rent'`).get() as any).payment_method).toBe('bank');
+  });
+});
+
+describe('MTN Mobile Money statement layout', () => {
+  // The columns of an MTN MoMo statement: amounts carry no sign; the balance shows which way money moved.
+  const header = ['TRANSACTION DATE', 'FROM ACCT', 'FROM NAME', 'FROM NO.', 'TRANS. TYPE', 'AMOUNT', 'FEES', 'E-LEVY', 'BAL BEFORE', 'BAL AFTER', 'TO NO.', 'TO NAME', 'TO ACCT', 'F_ID', 'REF', 'OVA'];
+  const table = [header,
+    ['2026-11-10 09:14:02', 'FRI:233241112222/MSISDN', 'AMA MENSAH', '233241112222', 'TRANSFER', '45.00', '0.00', '0.00', '120.00', '165.00', '233249990000', 'MANSORA TSB', 'FRI:233249990000/MSISDN', '61234567890', 'soap', ''],
+    ['2026-11-10 16:40:51', 'FRI:233249990000/MSISDN', 'MANSORA TSB', '233249990000', 'TRANSFER', '500.00', '0.00', '5.00', '165.00', '-340.00', '233201234567', 'KOFI WHOLESALE', 'FRI:233201234567/MSISDN', '61234567999', 'stock', ''],
+    ['2026-11-11 08:02:10', 'FRI:233249990000/MSISDN', 'MANSORA TSB', '233249990000', 'PAYMENT', '30.00', '0.30', '0.00', '400.00', '369.70', '', 'ECG PREPAID', '', '61234568000', '', ''],
+  ];
+  it('finds the columns, reads direction from the balance, uses the transaction ID, and separates fees and E-Levy', () => {
+    const mapping = suggestStatementMapping(header);
+    expect(mapping).toMatchObject({ date: 'TRANSACTION DATE', amount: 'AMOUNT', direction: 'TRANS. TYPE', reference: 'F_ID', balance_before: 'BAL BEFORE', balance_after: 'BAL AFTER', fees: 'FEES', levy: 'E-LEVY', from_name: 'FROM NAME', to_name: 'TO NAME' });
+    const rows = readStatementRows(table, mapping);
+    expect(rows.map((r) => [r.lineNo, r.date, r.description, r.reference, r.amountIn, r.amountOut])).toEqual([
+      [2, '2026-11-10', 'TRANSFER AMA MENSAH', '61234567890', 4500, 0],
+      [3, '2026-11-10', 'TRANSFER KOFI WHOLESALE', '61234567999', 0, 50000],
+      [3, '2026-11-10', 'Charges (E-Levy) on line 3', '61234567999', 0, 500],
+      [4, '2026-11-11', 'PAYMENT ECG PREPAID', '61234568000', 0, 3000],
+      [4, '2026-11-11', 'Charges (fees) on line 4', '61234568000', 0, 30],
+    ]);
+    expect(rows.every((r) => !r.errors.length)).toBe(true);
+  });
+  it('does not treat a lone running balance as a direction', () => {
+    expect(suggestStatementMapping(['Date', 'Description', 'Debit', 'Credit', 'Balance']).balance_after).toBeUndefined();
   });
 });
 

@@ -3,6 +3,9 @@ import { cashVariance, EXPENSE_METHODS, expectedCash, fail, isOvernightShift, SE
 import { dayBounds, defineCommands, empty, likeContains, zApprover, zId, zMoney, zOptText, zRange, zText, type Ctx } from '../engine';
 import { openShift, requireOpenShift } from '../stock';
 
+/** The last nine digits of a Ghanaian number, so 024 123 4567 and +233 24 123 4567 count as the same phone. */
+export const phoneKey = (phone: string | null | undefined) => { const d = (phone ?? '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : null; };
+
 /** Live cash position of a shift, straight from the transaction records. */
 export function shiftTotals(ctx: Ctx, shift: any) {
   const one = (sql: string) => (ctx.get(sql, shift.id) as { v: number }).v;
@@ -29,12 +32,42 @@ export const peopleCommands = defineCommands({
     perm: 'sale.create',
     input: z.object({ search: z.string().max(80).optional() }),
     run: (ctx, input) => {
-      const q = likeContains((input.search ?? '').trim());
+      const text = (input.search ?? '').trim();
+      const q = likeContains(text);
+      // Phone numbers match however they are written: "024 111 2222", "0241112222" and "+233 24 111 2222".
+      let digits = /^[+\d][\d\s()-]*$/.test(text) ? text.replace(/\D/g, '') : '';
+      if (digits.startsWith('233')) digits = digits.slice(3);
+      else if (digits.startsWith('0')) digits = digits.slice(1);
       return ctx.all(
         `SELECT c.*, COALESCE((SELECT SUM(outstanding_balance) FROM credit_accounts a WHERE a.customer_id = c.id), 0) AS outstanding
-         FROM customers c WHERE c.active = 1 AND (c.name LIKE ? ESCAPE '\\' OR COALESCE(c.phone, '') LIKE ? ESCAPE '\\') ORDER BY c.name LIMIT 500`,
-        q, q,
+         FROM customers c WHERE c.active = 1 AND (c.name LIKE ? ESCAPE '\\' OR COALESCE(c.phone, '') LIKE ? ESCAPE '\\'
+           OR (? <> '' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(c.phone, ''), ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE '%' || ? || '%'))
+         ORDER BY c.name LIMIT 500`,
+        q, q, digits, digits,
       );
+    },
+  },
+  /**
+   * Add a new customer while selling (owner request 2026-11-14): the same details as the Customers page. Anyone who
+   * makes sales can add one at the till (a cashier may sell on credit with a manager's approval, and needs the
+   * customer to do it); editing existing customers stays with customer.manage. A phone number already on another
+   * customer is refused, so the same person is not added twice.
+   */
+  'customer.add': {
+    perm: 'sale.create',
+    mutates: true,
+    input: z.object({ name: zText(120), phone: zOptText(40), email: z.string().trim().email().max(160).or(z.literal('')).nullish().transform((v) => v || null), notes: zOptText(500) }),
+    run: (ctx, input) => {
+      const key = phoneKey(input.phone);
+      if (key) {
+        const same = (ctx.all(`SELECT id, name, phone FROM customers WHERE active = 1 AND phone IS NOT NULL`) as any[]).find((c) => phoneKey(c.phone) === key);
+        if (same) fail('DUPLICATE_CUSTOMER', `${same.name} already has this phone number. Choose them from the list instead.`, { id: same.id, name: same.name });
+      }
+      const now = ctx.now();
+      const id = ctx.id();
+      ctx.insert('customers', { id, name: input.name, phone: input.phone, email: input.email, notes: input.notes, active: 1, created_at: now, updated_at: now });
+      ctx.audit('customer', id, { name: input.name, active: true, addedAtSale: true });
+      return { id, name: input.name, phone: input.phone };
     },
   },
   'customer.save': {

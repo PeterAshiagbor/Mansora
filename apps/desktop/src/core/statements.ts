@@ -13,26 +13,39 @@
 import { createHash } from 'node:crypto';
 import { isCalendarDate } from '@mansora/domain';
 
-export const STATEMENT_FIELDS = ['date', 'description', 'reference', 'amount_in', 'amount_out', 'amount', 'direction'] as const;
+export const STATEMENT_FIELDS = ['date', 'description', 'reference', 'amount_in', 'amount_out', 'amount', 'direction', 'balance_before', 'balance_after', 'fees', 'levy', 'from_name', 'to_name'] as const;
 export type StatementField = (typeof STATEMENT_FIELDS)[number];
 export type StatementMapping = Partial<Record<StatementField, string>>;
 
 const ALIASES: Record<StatementField, string[]> = {
   date: ['date', 'transaction date', 'txn date', 'trans date', 'value date', 'posting date', 'date/time', 'date time', 'booking date'],
   description: ['description', 'narration', 'narrative', 'details', 'particulars', 'remarks', 'memo', 'transaction details', 'from/to', 'counterparty'],
-  reference: ['reference', 'ref', 'ref no', 'reference number', 'transaction id', 'txn id', 'financial transaction id', 'external transaction id', 'id', 'receipt', 'receipt no', 'cheque number'],
+  // Earlier names win: on an MTN statement the transaction ID (F_ID, the number in the customer's SMS) is the
+  // reference a cashier types at the till; REF is the sender's own note.
+  reference: ['transaction id', 'financial transaction id', 'f_id', 'f id', 'fid', 'txn id', 'trans id', 'external transaction id', 'reference', 'ref', 'ref no', 'reference number', 'id', 'receipt', 'receipt no', 'cheque number'],
   amount_in: ['credit', 'credits', 'money in', 'amount in', 'deposit', 'deposits', 'cr', 'paid in', 'received', 'inflow'],
   amount_out: ['debit', 'debits', 'money out', 'amount out', 'withdrawal', 'withdrawals', 'dr', 'paid out', 'sent', 'outflow'],
   amount: ['amount', 'value', 'transaction amount', 'amount (ghs)', 'amount ghs'],
-  direction: ['type', 'transaction type', 'direction', 'dr/cr', 'cr/dr'],
+  direction: ['type', 'transaction type', 'trans. type', 'trans type', 'direction', 'dr/cr', 'cr/dr'],
+  balance_before: ['bal before', 'balance before', 'opening balance', 'bal. before'],
+  balance_after: ['bal after', 'balance after', 'closing balance', 'bal. after', 'balance', 'running balance'],
+  fees: ['fees', 'fee', 'charges', 'charge'],
+  levy: ['e-levy', 'e levy', 'elevy', 'levy', 'tax'],
+  from_name: ['from name', 'sender', 'sender name', 'from'],
+  to_name: ['to name', 'recipient', 'recipient name', 'beneficiary', 'to'],
 };
 
 export function suggestStatementMapping(headers: string[]): StatementMapping {
   const out: StatementMapping = {};
+  const used = new Set<string>();
   for (const f of STATEMENT_FIELDS) {
-    const hit = headers.find((h) => ALIASES[f].includes(h.trim().toLowerCase()));
-    if (hit) out[f] = hit;
+    for (const alias of ALIASES[f]) {
+      const hit = headers.find((h) => !used.has(h) && h.trim().toLowerCase() === alias);
+      if (hit) { out[f] = hit; used.add(hit); break; }
+    }
   }
+  // A running balance alone cannot tell money in from money out without the balance before it.
+  if (out.balance_after && !out.balance_before && /^(balance|running balance)$/i.test(out.balance_after.trim())) delete out.balance_after;
   return out;
 }
 
@@ -75,23 +88,34 @@ export function parseStatementDate(raw: string): string | null {
 }
 
 // Money-in words are checked first, so 'Payment received' or 'Transfer from' is money in, not out.
-const IN_WORDS = /\b(credit|cr|in|received|receive|deposit\w*|cash ?in|incoming|transfer from|refund(ed)? to you|reversal)\b/i;
-const OUT_WORDS = /\b(debit|dr|out|sent|send|payment|paid|withdraw\w*|transfer to|cash ?out|purchase|bill)\b/i;
+const IN_WORDS = /\b(credit|cr|in|received|receive|deposit\w*|cash[ _]?in|incoming|transfer from|refund(ed)? to you|reversal)\b/i;
+const OUT_WORDS = /\b(debit|dr|out|sent|send|payment|paid|withdraw\w*|transfer to|cash[ _]?out|purchase|bill)\b/i;
 
 export interface StatementRow {
   lineNo: number; date: string | null; description: string | null; reference: string | null;
   amountIn: number; amountOut: number; errors: string[];
 }
 
+/**
+ * Mobile Money statements (MTN's among them) list every amount as a plain number. Whether it came in or went out
+ * shows in the balance: up is money in, down is money out. Fees and E-Levy are charged on top of the amount sent;
+ * they become a line of their own, so a supplier paid GHS 500 still matches GHS 500.
+ */
+
 export function readStatementRows(table: string[][], mapping: StatementMapping): StatementRow[] {
   const headers = table[0] ?? [];
   const col = (f: StatementField) => (mapping[f] ? headers.indexOf(mapping[f]!) : -1);
   const get = (cells: string[], f: StatementField) => { const i = col(f); return i >= 0 ? (cells[i] ?? '').trim() : ''; };
-  return table.slice(1).map((cells, i) => {
+  const out: StatementRow[] = [];
+  table.slice(1).forEach((cells, i) => {
     const errors: string[] = [];
+    const lineNo = i + 2;
     const date = parseStatementDate(get(cells, 'date'));
     if (!date) errors.push('The date could not be read');
     let amountIn = 0, amountOut = 0;
+    const before = col('balance_before') >= 0 ? parseStatementAmount(get(cells, 'balance_before')) : null;
+    const after = col('balance_after') >= 0 ? parseStatementAmount(get(cells, 'balance_after')) : null;
+    const balanceSays = before != null && after != null && get(cells, 'balance_before') !== '' && get(cells, 'balance_after') !== '' && after !== before ? (after > before ? 'in' : 'out') : null;
     if (col('amount_in') >= 0 || col('amount_out') >= 0) {
       const a = parseStatementAmount(get(cells, 'amount_in')), b = parseStatementAmount(get(cells, 'amount_out'));
       if (a == null || b == null) errors.push('An amount could not be read');
@@ -99,12 +123,30 @@ export function readStatementRows(table: string[][], mapping: StatementMapping):
     } else {
       const v = parseStatementAmount(get(cells, 'amount'));
       if (v == null) errors.push('The amount could not be read');
-      else { const dir = get(cells, 'direction'); if (v < 0 || (!IN_WORDS.test(dir) && OUT_WORDS.test(dir))) amountOut = Math.abs(v); else amountIn = v; }
+      else {
+        const dir = get(cells, 'direction');
+        const isOut = balanceSays ? balanceSays === 'out' : v < 0 || (!IN_WORDS.test(dir) && OUT_WORDS.test(dir));
+        if (isOut) amountOut = Math.abs(v); else amountIn = Math.abs(v);
+      }
     }
     if (!errors.length && amountIn === 0 && amountOut === 0) errors.push('No amount on this line');
     if (amountIn > 0 && amountOut > 0) errors.push('A line cannot be both money in and money out');
-    return { lineNo: i + 2, date, description: get(cells, 'description') || null, reference: get(cells, 'reference') || null, amountIn, amountOut, errors };
+    let description = get(cells, 'description') || null;
+    if (!description) {
+      // No description column: say what it was and who was on the other side, as the statement shows it.
+      const who = amountIn > 0 ? get(cells, 'from_name') : get(cells, 'to_name');
+      description = [get(cells, 'direction'), who].filter(Boolean).join(' ').replace(/_/g, ' ') || null;
+    }
+    const reference = get(cells, 'reference') || null;
+    out.push({ lineNo, date, description, reference, amountIn, amountOut, errors });
+    const fee = parseStatementAmount(get(cells, 'fees')), levy = parseStatementAmount(get(cells, 'levy'));
+    const charges = Math.abs(fee ?? 0) + Math.abs(levy ?? 0);
+    if (!errors.length && charges > 0) {
+      const parts = [fee ? 'fees' : '', levy ? 'E-Levy' : ''].filter(Boolean).join(' and ');
+      out.push({ lineNo, date, description: `Charges (${parts}) on line ${lineNo}`, reference, amountIn: 0, amountOut: charges, errors: [] });
+    }
   });
+  return out;
 }
 
 export const normaliseRef = (r: string | null | undefined) => (r ?? '').replace(/[\s-]/g, '').toUpperCase();

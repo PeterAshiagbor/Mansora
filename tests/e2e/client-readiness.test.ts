@@ -197,11 +197,9 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/desktop/dist/renderer/index.
       if (i === 500) chosen = customer.id;
     }
     await nav('New sale'); await page.getByRole('button').filter({ hasText: 'Readiness product' }).click();
-    await page.getByText('Customer not listed? Search customers', { exact: true }).click();
-    await page.getByLabel('Find a customer', { exact: true }).fill('ZZ Search');
-    await page.getByLabel('Customer (optional)', { exact: true }).selectOption({ label: 'ZZ Search Customer' });
-    await page.getByLabel('Find a customer', { exact: true }).fill('Customer 001');
-    await expect.poll(() => page.getByLabel('Customer (optional)', { exact: true }).inputValue()).toBe(chosen);
+    await page.getByRole('combobox', { name: 'Customer', exact: true }).fill('ZZ Search');
+    await page.getByRole('option', { name: 'ZZ Search Customer', exact: true }).click();
+    await page.getByRole('button', { name: 'Remove customer ZZ Search Customer', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
     const payment = page.getByRole('dialog', { name: 'Take payment', exact: true });
     await payment.getByLabel('Cash received', { exact: true }).fill('12');
