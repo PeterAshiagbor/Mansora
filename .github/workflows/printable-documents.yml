@@ -1,0 +1,33 @@
+name: Printable billing documents
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: printable-documents-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  chromium-pdf-content:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      MANSORA_REQUIRE_PDF_TEXT: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install PDF text extraction for output verification
+        run: apt-get update && apt-get install -y --no-install-recommends poppler-utils
+      - run: npm ci
+      - name: Build the administrator interface used by the document flow
+        run: npm run build -w @mansora/admin-web
+      - name: Use the browser client matching the provisioned Chromium
+        run: npm install --no-save --package-lock=false playwright@1.65.0
+      - name: Verify real invoice and receipt PDFs, pagination, figures and access controls
+        run: npm test -- tests/e2e/printable-billing-documents.test.ts --maxWorkers=2

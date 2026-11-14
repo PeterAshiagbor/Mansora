@@ -97,3 +97,7 @@ Each is isolated so it can be changed.
 | --- | --- | --- | --- |
 | C36-01 | Owner chooses their password through a tenant-bound private setup link; Mansora does not assign it. Proof lasts 30 minutes, is single-use and encrypted at rest while pending. Existing active-device migration is refused | Preserves the existing engine ownership contract. Repeated administrator requests return the same pending link; completed links return only the ordinary workspace URL. No new billing or role policy | Implementation default within the owner's Platform-lane authorization; see `docs/operations/browser-workspaces.md` |
 | C36-02 | Keep the existing ten-workspace capacity, add bounds of six administrator setup requests per minute and two parallel activations, and exclude dynamic shops from test-data seeding | Preserve hardening and existing customer/test records while adding runtime registration. Client-mode tuning belongs to C37; independent backup/retention belongs to C38 | Conservative implementation limits, not a production capacity claim |
+
+### C17-01 — 2026-11-14: document print defaults
+
+Use A4 CSS page defaults and the existing browser/Electron PDF facilities for invoices and receipts. Keep server output as script-free printable HTML, as permitted by the original C17 scope; add no heavy production PDF dependency. Users retain their own print settings. This is a presentation default, not a tax/issuer or legal-compliance decision. Verify actual generated PDF content in a dedicated Chromium/Poppler CI job.

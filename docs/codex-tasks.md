@@ -46,7 +46,7 @@
 | Task | Owner | Current state / dependency | Branch / evidence |
 | --- | --- | --- | --- |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
-| C17 printable PDF invoices/receipts | Codex platform session | Claimed: printable invoice/receipt layout and real PDF-output acceptance using existing browser/Electron facilities. Preserve billing/provider logic; no heavy server PDF dependency | `codex/C17-printable-documents` |
+| C17 printable PDF invoices/receipts | Codex platform session | Implemented on branch: A4 pagination, repeated headings, wrapped long content, issuer/TIN consistency and missing-document 404s. Real Chromium/Poppler tests pass locally; full regression/CI pending. Existing print/PDF facilities retained | `codex/C17-printable-documents` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
 | C53 staff sign-in details by email: optional local staff email, one-time 48-hour codes, `I have a sign-in code` on the sign-in screen (owner request 2026-11-13; D-37). Touches engine/auth, device API, Staff page and a narrow sign-in addition | Claude | **Merged** PR #62 | `claude/elegant-bohr-mjeotl` |
 | C54 invite Mansora administrators by email: one-time 48-hour link, invitee chooses a 12+ character password; Administrators page; migration 7 `admin_invitations` (owner request 2026-11-13) | Claude | **Merged** PR #63. Adds `adminUrl` to the Railway `buildApp` call in `scripts/railway/server.ts` (one line, Codex area) | `claude/elegant-bohr-mjeotl` |
@@ -126,3 +126,7 @@ Approved unfinished-session PRs #53/#56/#55 are merged; combined 334 tests passe
 ### 2026-11-12 — C38 independent monitoring
 
 C37 #58 and the owner-requested UI refinement #59 are merged. The exact combined UI head passed all six workflows and all 349 local tests. C38 now implements a separate non-root monitor: HTTPS readiness, bounded Resend outage/recovery messages and an expiring, clearly labelled delivery canary. Five focused tests plus the isolated Docker HTTPS image smoke pass. See [monitor operations](operations/uptime-monitor.md). Deployment and real delivery remain pending; independent backup/key-custody/restore are not represented as complete.
+
+### 2026-11-14 — C17 implementation evidence
+
+Reproduced Letter PDF defaults and missing-document 500s with new real-API/Chromium tests. A4 invoice/receipt output now passes the focused checks, including a five-page, 100-line invoice, final line/totals, issuer details, sandbox context, escaping and unchanged source figures. New dedicated PDF-text CI job uses Poppler. No provider/ledger/route/permission/bridge change or production PDF dependency. Full verification and merge remain pending. C38 in-flight work is handed to Claude in draft #68; it is not being merged or enabled by this session.
