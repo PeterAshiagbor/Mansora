@@ -45,6 +45,7 @@
 
 | Task | Owner | Current state / dependency | Branch / evidence |
 | --- | --- | --- | --- |
+| Review #70: end-to-end engineering/security/QA and deployment readiness | Codex review session | Owner gave go on 14 November. Baseline and review in progress; synthetic data only. Preserve existing task ownership. Claim recorded in issue #70; board change stays on review branch to avoid default-branch auto-deployment | `codex/review-70-deployment-readiness` |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | Codex platform session | **Merged and deployed** PR #69, merge `f67b515`. All eight exact merged workflows passed; Railway `840345e5-7d8f-4274-8149-469519eebf88` SUCCESS. Four focused real PDF/admin-browser tests; full local regression 373 tests; typecheck/build/audit passed | `codex/C17-printable-documents` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
