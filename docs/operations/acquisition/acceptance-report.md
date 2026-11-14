@@ -8,8 +8,8 @@ acceptance with real email delivery or a real prospect. Live gates are listed se
 | --- | --- | --- |
 | Website demo requests | PASS (automated); live pending | website#2: form, signed forward, retry-safe id, 4 tests; platform #86 signature, source, reference tests; cross-repo signature check |
 | Administrator lead capture | PASS (automated) | `tests/security/leads.test.ts`, `tests/e2e/leads.test.ts` |
-| Demo confirmation emails | PASS (automated); live pending | #87: queued with the lead in one transaction; content tests (reference, no promised time, no charge) |
-| Internal alerts | PASS (automated); live pending | #87: team alert to `LEAD_ALERT_EMAIL` (set on Railway) |
+| Demo confirmation emails | **PASS (live)** 14 Nov 2026: MSD-261114-GPWH confirmation received at an allow-listed test inbox | #87: queued with the lead in one transaction; content tests (reference, no promised time, no charge) |
+| Internal alerts | **PASS (live)** 14 Nov 2026: team alert for MSD-261114-GPWH received at the team inbox | #87: team alert to `LEAD_ALERT_EMAIL` (set on Railway) |
 | Follow-up suppression | PASS (automated) | #87/#88: held until due (23 h held, 25 h/49 h sent), skipped once contacted/qualified/closed, prospect opt-out |
 | Lead-to-client conversion | PASS (automated) | #88: qualified only, explicit confirmation, duplicate stop, link-existing, 3-way race creates one client, draft-only subscription |
 | Onboarding emails | PASS (automated); live pending | #88: exactly one per client, no secrets, survives email failure |
@@ -18,6 +18,13 @@ acceptance with real email delivery or a real prospect. Live gates are listed se
 | Resend deliverability | **FAIL until configured** | PR-07 webhook built and tested; needs `RESEND_WEBHOOK_SECRET` + Resend webhook, verified sending domain on the app's Resend account, and a real inbox test |
 | Existing workflow regressions | PASS (automated) | Full suite (480+ tests, browser tests included) and CI green on every PR |
 | End-to-end staging journey (A22) | **Not yet run live** | Needs the items below, then one synthetic prospect from website to activated test workspace |
+
+## Live evidence
+
+- 14 Nov 2026: test demo request MSD-261114-GPWH posted to the live platform; the owner confirmed both the prospect
+  confirmation and the team alert arrived. Close that test lead so its follow-ups are skipped.
+- 14 Nov 2026: platform alert recipient moved to the team inbox; monitoring delivery drill accepted by Resend
+  ("Mansora monitoring test — no platform outage"); drill settings removed afterwards.
 
 ## Live gates (owner / operator)
 
