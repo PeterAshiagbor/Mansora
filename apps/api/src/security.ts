@@ -62,7 +62,7 @@ export function newActivationCode(): string {
 export const normaliseCode = (code: string) => code.trim().toUpperCase().replace(/\s+/g, '');
 
 export class HttpError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  constructor(public status: number, public code: string, message: string, public details?: Record<string, unknown>) {
     super(message);
   }
 }

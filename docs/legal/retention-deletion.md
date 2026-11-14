@@ -117,3 +117,7 @@ Who receives and verifies a request, confirms the controller instruction and che
 ### `cloud.demo_requests` (C39)
 
 Proposal for legal/owner review: choose a short retention window for unqualified or closed demo requests, and preserve only the minimum contact-consent evidence needed for a justified period. No automatic deletion period is silently chosen by this release. Qualified leads do not become clients automatically. A deletion procedure must cover the prospect row, linked lead-ID audit metadata where appropriate, and expiry of provider backups; it must not delete unrelated client/financial records. Who may approve and execute a prospect data request, and what retention period applies?
+
+### `cloud.lead_events` (acquisition spec PR-03)
+
+The lead timeline (calls, meetings, emails, notes, status changes) has the same retention as its demo request and is deleted with it. It is append-only for the application role; deleting a lead's timeline for a prospect data request is an operator action with the database owner role, recorded in the admin audit log. Proposal for review: 24 months after the lead's last activity for unconverted leads; for converted leads, keep while the client relationship lasts.

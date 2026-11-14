@@ -4235,6 +4235,19 @@
       "assessment": "Operational/catalogue/financial metadata, often nonpersonal alone but potentially personal when linked to a customer, worker or sole trader. Lawyer to classify."
     },
     {
+      "key": "cloud.tenants.lead_id",
+      "purpose": "Enforce or display lifecycle/accounting state, not erase the underlying record. Supports: Maintain client business/owner contact details, account status and onboarding identity.Field: demo request the client came from.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Mansora platform administration/authentication/backup service as permitted by its endpoint; secret hashes/seeds are not returned as general dashboard fields",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Links a prospect record to a client record and to the administrator who approved it; kept with both records."
+    },
+    {
       "key": "cloud.tenants.support_contact",
       "purpose": "Record the assigned support contact or supplied contact details. Supports: Maintain client business/owner contact details, account status and onboarding identity.",
       "locations": [
@@ -11331,6 +11344,214 @@
         "Privileged hosting/database operators subject to deployment controls; no tenant role access"
       ],
       "assessment": "Business contact/request data may identify a person. What retention period and lawful basis apply? Do not enter sensitive customer or payment information."
+    },
+    {
+      "key": "cloud.demo_requests.tenant_id",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: client the lead became.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Links a prospect record to a client record and to the administrator who approved it; kept with both records."
+    },
+    {
+      "key": "cloud.demo_requests.converted_at",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: when the lead was converted.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Links a prospect record to a client record and to the administrator who approved it; kept with both records."
+    },
+    {
+      "key": "cloud.demo_requests.converted_by",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: administrator who approved the conversion.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Links a prospect record to a client record and to the administrator who approved it; kept with both records."
+    },
+    {
+      "key": "cloud.demo_requests.assigned_admin_id",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: administrator who looks after the lead.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Links a Mansora administrator to a prospect record; internal operational data."
+    },
+    {
+      "key": "cloud.demo_requests.follow_up_opt_out_at",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: when the prospect asked not to be followed up.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Records a prospect's communication preference; must be honoured and kept while the lead exists."
+    },
+    {
+      "key": "cloud.demo_requests.last_contacted_at",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: when the prospect was last contacted.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Contact history linked to an identifiable prospect."
+    },
+    {
+      "key": "cloud.demo_requests.next_follow_up_at",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: next planned follow-up.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Planning data linked to an identifiable prospect."
+    },
+    {
+      "key": "cloud.demo_requests.qualification",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: what was learned about the prospect's business (shops, tills, current system, needs, budget, plan interest).",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Business and commercial information about an identifiable prospect, entered by Mansora; keep minimal and factual."
+    },
+    {
+      "key": "cloud.lead_events.id",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: timeline entry identifier.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Identifier of a record about an identifiable prospect."
+    },
+    {
+      "key": "cloud.lead_events.lead_id",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: demo request the entry belongs to.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Links the entry to an identifiable prospect."
+    },
+    {
+      "key": "cloud.lead_events.kind",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: kind of entry (call, meeting, email, note, status change).",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Operational metadata about contact with an identifiable prospect."
+    },
+    {
+      "key": "cloud.lead_events.body",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: what was said, agreed or noted.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Free text written by Mansora staff about a prospect; may contain personal details. Keep factual and minimal; deleted with the lead."
+    },
+    {
+      "key": "cloud.lead_events.actor_admin_id",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: administrator who recorded the entry.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Links a Mansora administrator to the entry."
+    },
+    {
+      "key": "cloud.lead_events.notification_id",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: email the entry refers to, if any.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Links the entry to an email sent to or about a prospect."
+    },
+    {
+      "key": "cloud.lead_events.occurred_at",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: when the contact or change happened.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Contact history linked to an identifiable prospect."
+    },
+    {
+      "key": "cloud.lead_events.created_at",
+      "purpose": "Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: when the entry was recorded.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Provider backups, if configured; retention and hosting review required"
+      ],
+      "access": [
+        "Authenticated active Mansora administrators only through Leads endpoints",
+        "Privileged hosting/database operators subject to deployment controls; no tenant role access"
+      ],
+      "assessment": "Record-keeping metadata."
     },
     {
       "key": "cloud.demo_requests.business_type",

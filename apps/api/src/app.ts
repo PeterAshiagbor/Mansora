@@ -70,7 +70,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 
   app.setErrorHandler(async (err: any, req, reply) => {
-    if (err instanceof HttpError || err instanceof BackupStorageError) return reply.status(err.status).send({ code: err.code, message: err.message, requestId: req.id });
+    if (err instanceof HttpError || err instanceof BackupStorageError) return reply.status(err.status).send({ code: err.code, message: err.message, ...((err as HttpError).details ? { details: (err as HttpError).details } : {}), requestId: req.id });
     if (err instanceof ZodError) return reply.status(400).send({ code: 'INVALID_INPUT', message: `${err.issues[0].path.join('.') || 'request'}: ${err.issues[0].message}`, requestId: req.id });
     if (err.code === '23505') return reply.status(409).send({ code: 'CONFLICT', message: 'A record with these details already exists', requestId: req.id });
     if (err.statusCode && err.statusCode < 500) return reply.status(err.statusCode).send({ code: 'BAD_REQUEST', message: err.message, requestId: req.id });
