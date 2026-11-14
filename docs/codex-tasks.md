@@ -45,7 +45,7 @@
 
 | Task | Owner | Current state / dependency | Branch / evidence |
 | --- | --- | --- | --- |
-| Review #70: end-to-end engineering/security/QA and deployment readiness | Codex review session | Implemented on review branch; PR #71. Combined local strict checks pass 405 tests with zero skips after refresh onto #67. Expense dates are fixed by #67; stock validation, release-source protection and operational gates remain open. No merge/deployment | `codex/review-70-deployment-readiness` |
+| Review #70: end-to-end engineering/security/QA and deployment readiness | Codex review session | Implemented on review branch; PR #71. Completion pass on #73: stock validation fixed; 417 tests pass with zero skips. Owner authorizes merge when inactive; fresh CI/merge/deploy evidence in #70. External release gates remain | `codex/review-70-deployment-readiness` |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | Codex platform session | **Merged and deployed** PR #69, merge `f67b515`. All eight exact merged workflows passed; Railway `840345e5-7d8f-4274-8149-469519eebf88` SUCCESS. Four focused real PDF/admin-browser tests; full local regression 373 tests; typecheck/build/audit passed | `codex/C17-printable-documents` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
@@ -116,6 +116,10 @@ intake; it never provisions testers. App invitations, Resend diagnostics, DNS an
 infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
+
+### 2026-11-14 — Codex review #70 completion and authorized merge
+
+Owner authorized merging inactive work and completing the review. PR #71 had no later contributions; refreshed onto default #73 (`767897b`) and preserved #72/#73. Closed R70-06 with a product-existence check before stock.count's zero-delta shortcut. New real-engine regression failed before the fix and now checks unknown zero counts, mixed-count rollback (stock/balances/audit/outbox), duplicate rejection, valid/repeated counts and counting an existing product to zero. Strict local completion run: **417 tests in 82 files, zero skips**, including 82 browser tests; three infrastructure Node tests, typecheck/build, PDF content and audit (zero vulnerabilities) pass. Exact-head CI, merge and automatic deployment outcomes are recorded in issue #70 / PR #71. New UX PR #74 is active and excluded from this merge scope. All confirmed application defects from this review are addressed; release-source protection needs a repository administrator, while recovery/alert/provider/legal/live/device acceptance remains external and is not marked complete. No direct live data/credential edits, real charge or test email is part of this completion pass.
 
 ### 2026-11-14 — Codex review #70 (no merge or deployment)
 

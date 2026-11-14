@@ -177,6 +177,7 @@ export const catalogCommands = defineCommands({
       const countId = ctx.id();
       const adjustments: { productId: string; system: number; counted: number; delta: number }[] = [];
       for (const line of input.lines) {
+        if (!ctx.get('SELECT 1 FROM products WHERE id = ?', line.productId)) fail('NOT_FOUND', 'Product not found');
         const bal = ctx.get('SELECT quantity FROM stock_balances WHERE product_id = ?', line.productId);
         const system = bal?.quantity ?? 0;
         const delta = line.counted - system;
