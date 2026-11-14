@@ -101,9 +101,9 @@ export function settlePayments(total: Pesewas, tenders: TenderInput[]): Settleme
     if (!PAYMENT_METHODS.includes(t.method)) fail('INVALID_PAYMENT', `Unknown payment method "${t.method}"`);
     assertNonNegative(t.amount, 'payment amount');
     if (t.amount === 0) continue;
-    if (t.method === 'cash') cashTendered += t.amount;
+    if (t.method === 'cash') cashTendered = sum([cashTendered, t.amount]);
     else {
-      nonCash += t.amount;
+      nonCash = sum([nonCash, t.amount]);
       payments.push({ method: t.method, amount: t.amount, reference: t.reference?.trim() || null });
     }
   }
