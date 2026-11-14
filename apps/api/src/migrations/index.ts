@@ -722,4 +722,14 @@ ALTER TABLE devices ADD COLUMN staff_active_today integer;
 ALTER TABLE devices ADD COLUMN last_sale_at timestamptz;
 `,
   },
+  {
+    id: 9,
+    name: 'supplier_details',
+    sql: `
+-- C60: fuller supplier records synced from the shop (Mobile Money number, location, what they supply).
+ALTER TABLE suppliers ADD COLUMN momo_number text;
+ALTER TABLE suppliers ADD COLUMN location text;
+ALTER TABLE suppliers ADD COLUMN supplies text;
+`,
+  },
 ];

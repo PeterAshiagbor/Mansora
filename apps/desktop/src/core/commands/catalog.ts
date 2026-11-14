@@ -189,14 +189,55 @@ export const catalogCommands = defineCommands({
     },
   },
 
-  'supplier.list': { perm: 'purchase.manage', input: empty, run: (ctx) => ctx.all('SELECT * FROM suppliers ORDER BY name') },
+  /** Suppliers with how often and how recently the shop bought from them. Amounts only for staff who may see costs. */
+  'supplier.list': {
+    perm: 'purchase.manage',
+    input: empty,
+    run: (ctx) => {
+      const rows = ctx.all(`SELECT s.*, COUNT(p.id) AS purchases, COALESCE(SUM(p.total_cost), 0) AS total_bought, MAX(p.received_at) AS last_purchase_at
+        FROM suppliers s LEFT JOIN purchases p ON p.supplier_id = s.id GROUP BY s.id ORDER BY s.name`);
+      return ctx.can('product.cost') ? rows : rows.map((r: any) => ({ ...r, total_bought: null }));
+    },
+  },
+  /** C60: one supplier's purchases, newest first, and the products usually bought from them. */
+  'supplier.get': {
+    perm: 'purchase.manage',
+    input: z.object({ id: zId }),
+    run: (ctx, input) => {
+      const supplier = ctx.get('SELECT * FROM suppliers WHERE id = ?', input.id);
+      if (!supplier) fail('NOT_FOUND', 'Supplier not found');
+      const costs = ctx.can('product.cost');
+      const purchases = ctx.all(`SELECT p.id, p.reference, p.received_at, p.total_cost, (SELECT COUNT(*) FROM purchase_items i WHERE i.purchase_id = p.id) AS lines
+        FROM purchases p WHERE p.supplier_id = ? ORDER BY p.received_at DESC LIMIT 200`, input.id).map((r: any) => (costs ? r : { ...r, total_cost: null }));
+      const products = ctx.all(`SELECT pr.id, pr.name, SUM(i.quantity) AS quantity, MAX(p.received_at) AS last_received_at, COALESCE(b.quantity, 0) AS in_stock, pr.reorder_level
+        FROM purchase_items i JOIN purchases p ON p.id = i.purchase_id JOIN products pr ON pr.id = i.product_id LEFT JOIN stock_balances b ON b.product_id = pr.id
+        WHERE p.supplier_id = ? GROUP BY pr.id ORDER BY pr.name`, input.id);
+      return { supplier, purchases, products };
+    },
+  },
+  /**
+   * C60: what to reorder. Every active product at or below its reorder level, with the supplier it was last bought
+   * from and a suggested quantity that brings stock back to twice the reorder level.
+   */
+  'stock.reorderList': {
+    perm: 'stock.view',
+    input: empty,
+    run: (ctx) => ctx.all(`SELECT pr.id, pr.name, pr.sku, pr.unit, pr.reorder_level, COALESCE(b.quantity, 0) AS quantity,
+        (SELECT p.supplier_id FROM purchase_items i JOIN purchases p ON p.id = i.purchase_id WHERE i.product_id = pr.id AND p.supplier_id IS NOT NULL ORDER BY p.received_at DESC LIMIT 1) AS supplier_id
+      FROM products pr LEFT JOIN stock_balances b ON b.product_id = pr.id
+      WHERE pr.active = 1 AND pr.reorder_level > 0 AND COALESCE(b.quantity, 0) <= pr.reorder_level ORDER BY pr.name`)
+      .map((r: any) => {
+        const supplier = r.supplier_id ? ctx.get('SELECT id, name, phone FROM suppliers WHERE id = ?', r.supplier_id) : null;
+        return { ...r, supplier, suggested: Math.max(1, r.reorder_level * 2 - Math.max(0, r.quantity)) };
+      }),
+  },
   'supplier.save': {
     perm: 'purchase.manage',
     mutates: true,
-    input: z.object({ id: zId.optional(), name: zText(120), phone: zOptText(40), notes: zOptText(500) }),
+    input: z.object({ id: zId.optional(), name: zText(120), phone: zOptText(40), momoNumber: zOptText(40), location: zOptText(160), supplies: zOptText(300), notes: zOptText(500) }),
     run: (ctx, input) => {
       const id = input.id ?? ctx.id();
-      const row = { name: input.name, phone: input.phone, notes: input.notes, updated_at: ctx.now() };
+      const row = { name: input.name, phone: input.phone, momo_number: input.momoNumber ?? null, location: input.location ?? null, supplies: input.supplies ?? null, notes: input.notes, updated_at: ctx.now() };
       if (input.id) ctx.update('suppliers', id, row);
       else ctx.insert('suppliers', { id, ...row });
       ctx.audit('supplier', id, { name: input.name });

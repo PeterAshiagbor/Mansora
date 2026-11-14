@@ -76,7 +76,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
   const json = (res: ServerResponse, status: number, data: unknown) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); };
   const server = createServer(async (req, res) => {
     res.setHeader('cache-control', 'no-store'); res.setHeader('x-content-type-options', 'nosniff'); res.setHeader('referrer-policy', 'no-referrer'); res.setHeader('x-frame-options', 'DENY');
-    res.setHeader('x-robots-tag', 'noindex, nofollow, noarchive'); res.setHeader('permissions-policy', 'geolocation=(), microphone=(), camera=(self)'); // camera: barcode scanning (C57) res.setHeader('cross-origin-resource-policy', 'same-origin');
+    res.setHeader('x-robots-tag', 'noindex, nofollow, noarchive'); res.setHeader('permissions-policy', 'geolocation=(), microphone=(), camera=(self)' /* camera: barcode scanning, C57 */); res.setHeader('cross-origin-resource-policy', 'same-origin');
     if (origin.protocol === 'https:') res.setHeader('strict-transport-security', 'max-age=31536000');
     res.setHeader('content-security-policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
     const counted = req.url !== '/healthz'; let admitted = false, workspaceAdmitted: string | undefined;

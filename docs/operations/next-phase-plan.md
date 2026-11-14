@@ -20,6 +20,7 @@ updates in the same PR. Task numbers continue the board in `docs/codex-tasks.md`
 ## Phase 1: pilot essentials (browser)
 
 ### C59 Shifts, owner and shop logins: explained and made firm
+**Built 2026-11-14** (PR #67).
 Today: owner, manager and cashier roles, personal logins, shifts with opening float and cash-up exist.
 What is missing is one clear rule set and the checks that enforce it.
 - One page, "Who can do what", for owners and cashiers: each role's permissions, generated from the
@@ -32,6 +33,7 @@ What is missing is one clear rule set and the checks that enforce it.
 - Tests: role permission matrix test, shift ownership test, overnight shift test.
 
 ### C60 Expenses, restocking, purchases and suppliers: clear and documented
+**Built 2026-11-14** (PR #67): supplier details and history, Needs reordering, `docs/user-guide/stock-purchases-expenses.md`. Reorder-to-purchase (C60c) assigned to Codex.
 Today: expenses, purchase receiving with moving-average cost, and a basic supplier list (name, phone, notes) exist.
 - Supplier list made complete: Mobile Money number, location, what they supply, and each supplier's
   purchase history and total bought.
@@ -42,6 +44,7 @@ Today: expenses, purchase receiving with moving-average cost, and a basic suppli
 - Supplier debts (what the shop owes suppliers) are part of C63, not this task.
 
 ### C58 Sample shop Excel file
+**Built 2026-11-14** (PR #67): Download sample shop, template guide sheet, QuickBooks and Xero columns recognised, `docs/user-guide/moving-to-mansora.md`.
 - A realistic Ghanaian provisions-shop workbook (about 150 products: drinks, provisions, toiletries,
   household; cartons and units; cost and selling prices in cedis; opening stock; reorder levels) that
   imports cleanly with the existing importer.
@@ -49,6 +52,7 @@ Today: expenses, purchase receiving with moving-average cost, and a basic suppli
 - Test: the workbook imports with zero errors and the stock value matches the sheet.
 
 ### C57 Barcode scanning
+**Built 2026-11-14** (PR #67): camera scanning on New sale, Products and Stock count; `docs/user-guide/scanners-and-printers.md`. Labels (C57b) assigned to Codex; device acceptance (C67) needs real phones.
 Today: a USB or Bluetooth scanner that types like a keyboard already works in New sale.
 - Phone and tablet camera scanning on New sale, Products and Stock count (browser barcode detection, with
   a fallback library where the browser has none).
@@ -58,6 +62,7 @@ Today: a USB or Bluetooth scanner that types like a keyboard already works in Ne
   Windows till is in the offline phase.
 
 ### C61 Consistent colours on every screen
+**Assigned to Codex session 2** (brief in `docs/operations/codex-handoff-2026-11-14.md`).
 - One colour token set shared by the shop app and the admin dashboard; remove one-off colours.
 - Every text and status colour meets WCAG AA contrast, checked automatically in tests.
 - Status colours (paid, owed, low stock, restricted) never rely on colour alone: each has an icon or word,

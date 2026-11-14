@@ -141,7 +141,7 @@ function StockCount({ onDone }: { onDone: () => void }) {
 }
 
 export function PurchasesPage() {
-  const [tab, setTab] = useState<'purchases' | 'suppliers'>('purchases');
+  const [tab, setTab] = useState<'purchases' | 'reorder' | 'suppliers'>('purchases');
   const purchases = useQuery<any[]>('purchase.list');
   const suppliers = useQuery<any[]>('supplier.list');
   const [receiving, setReceiving] = useState(false);
@@ -153,7 +153,8 @@ export function PurchasesPage() {
       <PageHeader title="Purchases & suppliers" subtitle="Record stock you receive. This adds to stock and updates the average cost."
         actions={tab === 'purchases' ? <Button variant="primary" onClick={() => setReceiving(true)}>Receive stock</Button> : <Button variant="primary" onClick={() => setEdit({ name: '', phone: '', notes: '' })}>Add supplier</Button>} />
       <TaskLinks group="inventory" current="purchases" />
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'purchases', label: 'Purchases received' }, { id: 'suppliers', label: 'Suppliers' }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'purchases', label: 'Purchases received' }, { id: 'reorder', label: 'Needs reordering' }, { id: 'suppliers', label: 'Suppliers' }]} />
+      {tab === 'reorder' && <ReorderList />}
       {tab === 'purchases' && (
         <QueryView query={purchases} label="purchases"><Card pad={false}>
           <Table rows={purchases.data} rowKey={(r) => r.id} onRowClick={(r) => setView(r.id)} empty="No purchases recorded yet"
@@ -162,17 +163,21 @@ export function PurchasesPage() {
       )}
       {tab === 'suppliers' && (
         <QueryView query={suppliers} label="suppliers"><Card pad={false}>
-          <Table rows={suppliers.data} rowKey={(r) => r.id} onRowClick={setEdit} empty="No suppliers yet" columns={[{ header: 'Name', cell: (r) => r.name }, { header: 'Phone', cell: (r) => r.phone ?? '' }, { header: 'Notes', cell: (r) => r.notes ?? '' }]} />
+          <Table rows={suppliers.data} rowKey={(r) => r.id} onRowClick={setEdit} empty="No suppliers yet" columns={[{ header: 'Name', cell: (r) => r.name }, { header: 'Phone', cell: (r) => r.phone ?? '' }, { header: 'Supplies', cell: (r) => r.supplies ?? '' }, { header: 'Purchases', align: 'right', cell: (r) => r.purchases }, ...(suppliers.data?.some((r) => r.total_bought != null) ? [{ header: 'Total bought', align: 'right' as const, cell: (r: any) => money(r.total_bought) }] : []), { header: 'Last purchase', cell: (r) => (r.last_purchase_at ? dateTime(r.last_purchase_at) : 'Never') }]} />
         </Card></QueryView>
       )}
       {receiving && <ReceiveModal suppliers={suppliers.data ?? []} onClose={() => setReceiving(false)} onDone={() => { setReceiving(false); purchases.reload(); }} />}
       {view && <PurchaseView id={view} onClose={() => setView(null)} />}
       {edit && (
         <Modal title={edit.id ? 'Edit supplier' : 'Add supplier'} open onClose={() => setEdit(null)}
-          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('supplier.save', { id: edit.id, name: edit.name, phone: edit.phone, notes: edit.notes }); setEdit(null); suppliers.reload(); }, 'Supplier saved')}>Save</Button></>}>
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('supplier.save', { id: edit.id, name: edit.name, phone: edit.phone, momoNumber: edit.momo_number, location: edit.location, supplies: edit.supplies, notes: edit.notes }); setEdit(null); suppliers.reload(); }, 'Supplier saved')}>Save</Button></>}>
           <div className="space-y-3">
             <Field label="Supplier name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <Field label="Phone"><Input value={edit.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
+            <Field label="Mobile Money number" hint="For paying this supplier"><Input value={edit.momo_number ?? ''} onChange={(e) => setEdit({ ...edit, momo_number: e.target.value })} /></Field>
+            <Field label="Location"><Input value={edit.location ?? ''} onChange={(e) => setEdit({ ...edit, location: e.target.value })} placeholder="e.g. Makola Market, Accra" /></Field>
+            <Field label="What they supply"><Input value={edit.supplies ?? ''} onChange={(e) => setEdit({ ...edit, supplies: e.target.value })} placeholder="e.g. Rice, oil, tinned tomatoes" /></Field>
+            {edit.id && <SupplierHistory id={edit.id} />}
             <Field label="Notes"><Textarea value={edit.notes ?? ''} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} /></Field>
           </div>
         </Modal>
@@ -190,6 +195,34 @@ function PurchaseView({ id, onClose }: { id: string; onClose: () => void }) {
       <p className="mb-2 text-sm text-slate-600">{dateTime(data.purchase.received_at)} · {data.purchase.supplier_name ?? 'No supplier'} · Total {money(data.purchase.total_cost)}</p>
       <Table rows={data.items} rowKey={(r: any) => r.id} columns={[{ header: 'Product', cell: (r: any) => r.product_name }, { header: 'Qty', align: 'right', cell: (r: any) => r.quantity }, { header: 'Unit cost', align: 'right', cell: (r: any) => money(r.unit_cost) }, { header: 'Line cost', align: 'right', cell: (r: any) => money(r.quantity * r.unit_cost) }]} />
     </Modal>
+  );
+}
+
+/** C60: products at or below their reorder level, grouped by the supplier they were last bought from. */
+function ReorderList() {
+  const query = useQuery<any[]>('stock.reorderList');
+  const rows = [...(query.data ?? [])].sort((a, b) => (a.supplier?.name ?? '~').localeCompare(b.supplier?.name ?? '~') || a.name.localeCompare(b.name));
+  return (
+    <QueryView query={query} label="products to reorder"><Card pad={false} title="Needs reordering" actions={<ExportButtons disabled={!query.data} title="Products to reorder" columns={['Supplier', 'Supplier phone', 'Product', 'SKU', 'In stock', 'Reorder level', 'Suggested order', 'Unit']}
+      rows={() => rows.map((r) => [r.supplier?.name ?? '', r.supplier?.phone ?? '', r.name, r.sku ?? '', r.quantity, r.reorder_level, r.suggested, r.unit])} />}>
+      <Table rows={rows} rowKey={(r) => r.id} empty="Nothing is at or below its reorder level" caption="Suggested quantity brings stock back to twice the reorder level"
+        columns={[{ header: 'Supplier', cell: (r) => r.supplier ? <>{r.supplier.name}{r.supplier.phone ? <span className="text-slate-500"> · {r.supplier.phone}</span> : null}</> : <span className="text-slate-500">No supplier yet</span> },
+          { header: 'Product', cell: (r) => r.name }, { header: 'In stock', align: 'right', cell: (r) => r.quantity }, { header: 'Reorder level', align: 'right', cell: (r) => r.reorder_level },
+          { header: 'Suggested order', align: 'right', cell: (r) => `${r.suggested} ${r.unit}` }]} />
+      <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-600">When the goods arrive, use Receive stock to add them. Export or print this list to send to a supplier.</p>
+    </Card></QueryView>
+  );
+}
+
+/** C60: what the shop has bought from this supplier. */
+function SupplierHistory({ id }: { id: string }) {
+  const { data } = useQuery<any>('supplier.get', { id });
+  if (!data) return null;
+  return (
+    <div className="rounded-md border border-slate-200 p-3 text-sm">
+      <p className="font-medium text-slate-800">{data.purchases.length ? `${data.purchases.length} purchase(s), last on ${dateTime(data.purchases[0].received_at)}` : 'No purchases from this supplier yet'}</p>
+      {data.products.length > 0 && <p className="mt-1 text-slate-700">Usually bought: {data.products.slice(0, 12).map((p: any) => `${p.name}${p.in_stock <= p.reorder_level && p.reorder_level > 0 ? ' (low)' : ''}`).join(', ')}</p>}
+    </div>
   );
 }
 

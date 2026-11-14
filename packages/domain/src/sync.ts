@@ -14,7 +14,8 @@ import { zCalendarDate } from './dates';
  */
 export const SYNC_PROTOCOL_VERSION = 1;
 
-type ColType = 'id' | 'id?' | 'text' | 'text?' | 'int' | 'int?' | 'ts' | 'ts?' | 'json';
+/** `text+`: optional text added after the first release. A laptop that predates the column may leave it out. */
+type ColType = 'id' | 'id?' | 'text' | 'text?' | 'text+' | 'int' | 'int?' | 'ts' | 'ts?' | 'json';
 export interface SyncTableSpec {
   mode: 'insert' | 'upsert';
   key: string;
@@ -35,7 +36,7 @@ export const SYNC_TABLES = {
     id: 'id', product_id: 'id', type: 'text', quantity_delta: 'int', unit_cost: 'int', reference_type: 'text?', reference_id: 'id?',
     actor_id: 'id', reason: 'text?', occurred_at: 'ts',
   }),
-  suppliers: t('upsert', { id: 'id', name: 'text', phone: 'text?', notes: 'text?', updated_at: 'ts' }),
+  suppliers: t('upsert', { id: 'id', name: 'text', phone: 'text?', notes: 'text?', momo_number: 'text+', location: 'text+', supplies: 'text+', updated_at: 'ts' }),
   purchases: t('insert', { id: 'id', supplier_id: 'id?', reference: 'text?', status: 'text', total_cost: 'int', received_at: 'ts', created_by: 'id' }),
   purchase_items: t('insert', { id: 'id', purchase_id: 'id', product_id: 'id', quantity: 'int', unit_cost: 'int' }),
   sales: t('insert', {
@@ -84,6 +85,7 @@ const colSchema: Record<ColType, z.ZodType> = {
   'id?': uuid.nullable(),
   text: z.string().max(2000),
   'text?': z.string().max(2000).nullable(),
+  'text+': z.string().max(2000).nullable().optional(),
   int: z.number().int().safe(),
   'int?': z.number().int().safe().nullable(),
   ts: z.string().datetime(),
