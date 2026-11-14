@@ -2,7 +2,7 @@
 
 Review date: 14 November 2026. Starting branch: `claude/relaxed-lovelace-0179ut`.
 Starting commit: `6858afdf3159b4de25705fb3a8e44d6765ae46ba` (includes merged review fixes through PR #72).
-Working branch: `codex/ux-scroll-review`. The starting checkout was clean. No AGENTS.md files were present in the checkout or workspace root.
+Working branch: `codex/ux-scroll-review`. Release integration rebased onto `767897b` (PR #73/C68), preserving the new problem-report footer/actions and administrator page. The starting checkout was clean. No AGENTS.md files were present in the checkout or workspace root.
 
 ## Result
 
@@ -31,7 +31,7 @@ The application has one platform administrator role, plus owner, manager and cas
 
 Shop inventory: Dashboard; Getting started; New sale and shift opening; Sales history/receipt/refund; Cashier shifts; Customers; Credit & repayments; Products/product editor; Categories; Stock and count/history tabs; Purchases & suppliers and receiving; Reports (summary, sales, payments, mobile money check, gross profit, stock, expenses, balances); Expenses; Staff/permissions; Settings; Import & export; Billing & payments; Sync status/queue; Backup & recovery; Mansora access; Audit history; Help & getting started. Activation and sign-in are exercised in the existing real browser workflows.
 
-Admin inventory: Overview; Clients and client details/overview/audit; Leads; Service plans; Collections; Subscriptions; Invoices and invoice details; Payments; Revenue reports; Payment settings; Audit log; Administrators; Account security; Support contact. Create/edit dialogs, onboarding, consent restrictions, billing operations and MFA are covered by the applicable browser suites.
+Admin inventory: Overview; Clients and client details/overview/audit; Leads; Service plans; Collections; Subscriptions; Invoices and invoice details; Payments; Revenue reports; Payment settings; Audit log; Administrators; Account security; Support contact; Problem reports (added to accessibility coverage during release integration). Create/edit dialogs, onboarding, consent restrictions, billing operations and MFA are covered by the applicable browser suites.
 
 State coverage is scoped: synthetic empty and populated pages; loading/retry and stale-response tests; refused payment with retained entries; successful sale/import; disabled controls; restricted cashier navigation and manager approval; no-consent support; offline/pending/synced transitions. This does not claim every combination of every record, modal and conditional error was manually exercised.
 
