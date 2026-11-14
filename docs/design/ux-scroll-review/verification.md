@@ -22,7 +22,7 @@ All 408 unique tests were verified across the full run and the isolated accessib
 
 ## Release integration
 
-The owner subsequently authorized updates, push and merge. Rebased onto `767897b` (PR #73/C68), retaining problem-report actions/dialogs and adding the Problem reports admin page to accessibility coverage. Rebased typecheck/build and 23 focused browser/integration tests pass; dependency audit reports zero vulnerabilities. The completed serial regression, final tested head, merge SHA and exact merged-commit CI results are recorded in [release PR #74](https://github.com/PeterAshiagbor/Mansora/pull/74). Earlier review measurements and limits above remain historical evidence, not a claim that the new server feature was present in the original sweep.
+The owner subsequently authorized updates, push and merge. Rebased onto `767897b` (PR #73/C68), retaining problem-report actions/dialogs and adding the Problem reports admin page to accessibility coverage. Rebased typecheck/build and 23 focused browser/integration tests pass; dependency audit reports zero vulnerabilities. The browser CI job now runs the long axe suite as a separate serial step after the other tests, retaining every assertion and the original timeout; this prevents the measured parallel contention without omitting coverage. The completed serial regression, final tested head, merge SHA and exact merged-commit CI results are recorded in [release PR #74](https://github.com/PeterAshiagbor/Mansora/pull/74). Earlier review measurements and limits above remain historical evidence, not a claim that the new server feature was present in the original sweep.
 
 ## Viewports and keyboard
 
