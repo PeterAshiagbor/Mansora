@@ -16,9 +16,21 @@ export async function startConfiguredStaging(readiness?: () => Promise<boolean>,
   try { await beforeListen?.(workspaces); gateway = await startStagingGateway({ ...config, ...policy, testWorkspaceIds, workspaces, loginAliases: loadLoginAliases(config.dataDir), readiness, onboarding, ownerRecovery, host: process.env.STAGING_BIND_HOST ?? '0.0.0.0', port: Number(process.env.PORT ?? 4500) }); try { onboarding?.attach(workspaces, gateway.registerWorkspace); ownerRecovery?.attach(workspaces); } catch (error) { await gateway.close(); throw error; } }
   catch (e) { for (const w of workspaces) w.engine.db.close(); throw e; }
   const running = new Set<string>();
-  const timer = setInterval(() => { for (const w of workspaces) { if (running.has(w.id)) continue; running.add(w.id); void syncNow(w.engine).catch(() => {}).finally(() => running.delete(w.id)); } }, 15_000); timer.unref();
-  const backups = setInterval(() => { for (const w of workspaces) { const key = 'backup:' + w.id; if (running.has(key)) continue; running.add(key); void runScheduledBackup(w.engine).catch(() => {}).finally(() => running.delete(key)); } }, 3_600_000); backups.unref();
-  return { ...gateway, close: async () => { clearInterval(timer); clearInterval(backups); await gateway.close(); await ownerRecovery?.close();
+  let backgroundPaused = false, stopping = false, snapshot: Promise<unknown> | undefined;
+  const timer = setInterval(() => { if (backgroundPaused) return; for (const w of workspaces) { if (running.has(w.id)) continue; running.add(w.id); void syncNow(w.engine).catch(() => {}).finally(() => running.delete(w.id)); } }, 15_000); timer.unref();
+  const backups = setInterval(() => { if (backgroundPaused) return; for (const w of workspaces) { const key = 'backup:' + w.id; if (running.has(key)) continue; running.add(key); void runScheduledBackup(w.engine).catch(() => {}).finally(() => running.delete(key)); } }, 3_600_000); backups.unref();
+  const withSnapshotLock = async <T>(capture: (active: StagingWorkspace[]) => Promise<T>): Promise<T> => {
+    if (snapshot || stopping) throw new Error('Recovery snapshot is unavailable during another snapshot or shutdown.');
+    backgroundPaused = true;
+    snapshot = gateway.withSnapshotLock(async () => {
+      const deadline = Date.now() + 30_000;
+      while (running.size && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
+      if (running.size) throw new Error('Background work did not finish; the recovery snapshot was cancelled.');
+      return capture(workspaces);
+    });
+    try { return await snapshot as T; } finally { snapshot = undefined; backgroundPaused = false; }
+  };
+  return { ...gateway, withSnapshotLock, close: async () => { stopping = true; clearInterval(timer); clearInterval(backups); await snapshot?.catch(() => {}); await gateway.close(); await ownerRecovery?.close();
     const deadline = Date.now() + 30_000; while (running.size && Date.now() < deadline) await new Promise(r => setTimeout(r, 50));
     if (running.size) throw new Error('Sync still running during shutdown; let the container exit without closing active stores.');
     for (const w of workspaces) w.engine.db.close(); } };
