@@ -1,0 +1,2068 @@
+{
+  "rows": [
+    {
+      "app": "shop",
+      "name": "Dashboard",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Getting started",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "New sale",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Sales history",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Cashier shifts",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Customers",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Credit & repayments",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Products",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Categories",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Stock",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Stock tab 1",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Stock tab 2",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Purchases & suppliers",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Purchases & suppliers tab 1",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Purchases & suppliers tab 2",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Report summary",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 1",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".gap-4 > section:nth-child(1) > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 2",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".grid > section > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 3",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 4",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 5",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".xl\\:col-span-2 > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 6",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 7",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Expenses",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Staff",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Settings",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(4) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Import & export",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(3) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Billing & payments",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "section:nth-child(1) > div:nth-child(2) > div > .max-w-full.overflow-x-auto[role=\"region\"] > table > thead > tr > .text-right[aria-label=\"Actions\"]"
+            ],
+            [
+              "section:nth-child(2) > div:nth-child(2) > div > .max-w-full.overflow-x-auto[role=\"region\"] > table > thead > tr > .text-right[aria-label=\"Actions\"]"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Sync status",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(3) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Backup & recovery",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Mansora access",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              ".text-right"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Audit history",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Help & getting started",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Overview",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "div:nth-child(4) > section > .m-card-header.px-4.py-2\\.5 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Clients",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Leads",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Service plans",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Collections",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Collections tab 1",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              ".text-right"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Collections tab 2",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Collections tab 3",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Subscriptions",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Invoices",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Payments",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Payments tab 1",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Revenue reports",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Payment settings",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.px-4.py-2\\.5 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Audit log",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Administrators",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              ".text-right"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.px-4.py-2\\.5 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Account security",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Support contact",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Client details",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".gap-4 > section:nth-child(1) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Edit client dialog",
+      "width": 1440,
+      "dims": {
+        "client": 1201,
+        "scroll": 1201,
+        "document": 1440,
+        "viewport": 1440
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".gap-4 > section:nth-child(1) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Dashboard",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Getting started",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "New sale",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Sales history",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Cashier shifts",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Customers",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Credit & repayments",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Products",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Categories",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Stock",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Stock tab 1",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Stock tab 2",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Purchases & suppliers",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Purchases & suppliers tab 1",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Purchases & suppliers tab 2",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Report summary",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 1",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".gap-4 > section:nth-child(1) > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 2",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".grid > section > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 3",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 4",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 5",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".xl\\:col-span-2 > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 6",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.py-2\\.5.px-4 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 7",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Expenses",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Staff",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Settings",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(4) > .m-card-header.border-b.py-2\\.5 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Import & export",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(3) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Billing & payments",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "section:nth-child(1) > div:nth-child(2) > div > .max-w-full.overflow-x-auto[role=\"region\"] > table > thead > tr > .text-right[aria-label=\"Actions\"]"
+            ],
+            [
+              "section:nth-child(2) > div:nth-child(2) > div > .max-w-full.overflow-x-auto[role=\"region\"] > table > thead > tr > .text-right[aria-label=\"Actions\"]"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Sync status",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(3) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Backup & recovery",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Mansora access",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              ".text-right"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "shop",
+      "name": "Audit history",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Help & getting started",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(1) > .m-card-header.border-b.py-2\\.5 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Overview",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "div:nth-child(4) > section > .m-card-header.px-4.py-2\\.5 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Clients",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Leads",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Service plans",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Collections",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Collections tab 1",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              ".text-right"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Collections tab 2",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Collections tab 3",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Subscriptions",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Invoices",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Payments",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              "th[aria-label=\"Actions\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Payments tab 1",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Revenue reports",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Payment settings",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.px-4.py-2\\.5 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Audit log",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Administrators",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "empty-table-header",
+          "impact": "minor",
+          "targets": [
+            [
+              ".text-right"
+            ]
+          ]
+        },
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "section:nth-child(2) > .m-card-header.px-4.py-2\\.5 > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Account security",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              "h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Support contact",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Client details",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".gap-4 > section:nth-child(1) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "app": "admin",
+      "name": "Edit client dialog",
+      "width": 390,
+      "dims": {
+        "client": 375,
+        "scroll": 375,
+        "document": 390,
+        "viewport": 390
+      },
+      "violations": [
+        {
+          "id": "heading-order",
+          "impact": "moderate",
+          "targets": [
+            [
+              ".gap-4 > section:nth-child(1) > .m-card-header.py-2\\.5.justify-between > h3"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "failed": []
+}

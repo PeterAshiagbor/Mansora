@@ -1,0 +1,546 @@
+{
+  "rows": [
+    {
+      "app": "shop",
+      "name": "Dashboard",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Getting started",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "New sale",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Sales history",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Cashier shifts",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Customers",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Credit & repayments",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Products",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Categories",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Stock",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Stock tab 1",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Stock tab 2",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Purchases & suppliers",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Purchases & suppliers tab 1",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Purchases & suppliers tab 2",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Report summary",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 1",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 2",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 3",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 4",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 5",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 6",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Reports tab 7",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Expenses",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Staff",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Settings",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Import & export",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Billing & payments",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Sync status",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Backup & recovery",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Mansora access",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Audit history",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "shop",
+      "name": "Help & getting started",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Overview",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Clients",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Leads",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Service plans",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Collections",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Collections tab 1",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Collections tab 2",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Collections tab 3",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Subscriptions",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Invoices",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Payments",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Payments tab 1",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Revenue reports",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Payment settings",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Audit log",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Administrators",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Account security",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Support contact",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Client details",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    },
+    {
+      "app": "admin",
+      "name": "Edit client dialog",
+      "width": 1366,
+      "dims": {
+        "client": 1127,
+        "scroll": 1127
+      },
+      "violations": []
+    }
+  ],
+  "errors": [],
+  "failed": []
+}

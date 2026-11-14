@@ -85,3 +85,7 @@ the shop, the page, what they pointed at (label and position only) and their des
 Once a day, at or after 19:00 Ghana time, the server emails every new report in one message with the subject **Mansora Platform Errors**
 to the address in the `BUG_REPORT_EMAIL` variable. A short email is still sent on days with no reports, so a missing email means something is wrong.
 A failed send is retried every 15 minutes; a day's email is never sent twice. "Stops work" reports are listed first.
+
+## Moving between pages and client details
+
+Opening a page or a client detail starts at the top and moves keyboard focus into its content. Client details has its own header label; use All clients to return to the directory. At narrow widths, use Menu or Find a page. Wide tables scroll within their own area, and long dialogs scroll their contents while keeping the action footer reachable.

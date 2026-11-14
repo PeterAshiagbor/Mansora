@@ -45,6 +45,7 @@
 
 | Task | Owner | Current state / dependency | Branch / evidence |
 | --- | --- | --- | --- |
+| C69 scrolling and subpage UX review | Codex | Release tracked in [PR #74](https://github.com/PeterAshiagbor/Mansora/pull/74); rebased onto C68/PR #73 preserving problem reporting. Final tested head, merge and CI evidence are maintained in that PR. Native Figma access refused for the connected View-seat account; hardware/native zoom acceptance remains separate | `codex/ux-scroll-review`; [findings and evidence](design/ux-scroll-review/README.md) |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
 | C17 printable PDF invoices/receipts | Codex platform session | **Merged and deployed** PR #69, merge `f67b515`. All eight exact merged workflows passed; Railway `840345e5-7d8f-4274-8149-469519eebf88` SUCCESS. Four focused real PDF/admin-browser tests; full local regression 373 tests; typecheck/build/audit passed | `codex/C17-printable-documents` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
@@ -115,6 +116,11 @@ intake; it never provisions testers. App invitations, Resend diagnostics, DNS an
 infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
+
+### 2026-11-14 — C69 scrolling/subpage review: owner-authorized release
+
+Owner requested relevant updates, push and merge after the UX review. Rebased onto `767897b` (PR #73/C68); kept `footerActions`, report dialogs and the Problem reports page in both shells. Added its admin accessibility scan. Laptop basket totals/Pay stay reachable; committed detail navigation resets scroll/focus; compact headers, onboarding rows, dialogs, imports and table labels are improved. The original review verified 408 unique tests across the full run and isolated axe rerun; full concurrent run had two timing failures, documented without changing assertions/timeouts. The browser CI job isolates long accessibility scans in a separate serial step, retaining every assertion/timeout and all test coverage. Rebased typecheck/build and 23 focused browser/integration tests pass; npm audit reports zero vulnerabilities. At initial publication `6dbc0da`, the preview, monitor, API container, printable-document and Railway acceptance PR workflows passed; remaining workflows were still running. [PR #74](https://github.com/PeterAshiagbor/Mansora/pull/74) is the final release record for the completed regression, tested head, merge commit and exact merged CI results. No engine/domain/billing policy or real records changed. Keep the Figma access, heading/table semantics, native zoom/assistive technology, Windows/hardware and URL/history follow-ups in [the handoff](design/ux-scroll-review/README.md). Do not mark merged until merge and merged-commit CI are observed.
+
 
 ### 2026-11-14 — Claude
 - **New tasks for Codex (owner asked):** C61 colours, C57b barcode labels and C60c reorder-to-purchase for **Codex session 2**; C66 in-app help and C67 scanning acceptance for **Codex session 1**. Brief: `docs/operations/codex-handoff-2026-11-14.md`. All are renderer, build or docs work; none needs engine changes. Ask in the PR if you need a command.

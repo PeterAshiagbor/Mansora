@@ -46,7 +46,9 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - name: Tests (embedded PostgreSQL)
-        run: npm test
+        run: npm test -- --exclude tests/e2e/accessibility.test.ts
+      - name: Accessibility (isolated Chromium scans, original assertions and timeouts)
+        run: npx vitest run tests/e2e/accessibility.test.ts --maxWorkers=1
       - name: Sync tests against a real PostgreSQL 16 server
         run: npx vitest run tests/sync/sync.test.ts
         env:

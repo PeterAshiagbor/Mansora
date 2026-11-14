@@ -160,3 +160,38 @@
 .m-receive-line { display:grid; grid-template-columns:minmax(0,1fr) 6rem 8rem 2rem; align-items:end; gap:10px; }
 .m-receive-line>.m-form-details { grid-column:1/-1; }
 @media(max-width:540px) { .m-receive-line { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }.m-receive-line>label:first-child { grid-column:1/-1; }.m-receive-line>button { justify-self:end; }.m-receive-line .grid-cols-3 { grid-template-columns:1fr; } }
+
+/* Keep scroll ownership local: the workspace, dense tables and dialogs each
+   retain their own reachable controls instead of moving the page behind them. */
+.m-topbar,.m-app-footer { flex-shrink:0; }
+.m-content-scroll,.m-nav-groups,.m-dialog-body { overscroll-behavior:contain; }
+.m-content-scroll { scrollbar-gutter:stable; scroll-padding-block:20px; }
+.m-dialog-body { scroll-padding-block:20px; }
+.m-page-header>div:first-child { min-width:0; overflow-wrap:anywhere; }
+.m-main:focus-visible { outline:2px solid var(--color-brand-600); outline-offset:-4px; }
+.m-basket-lines { min-height:0; overscroll-behavior:contain; }
+.m-basket-lines:focus-visible { outline:2px solid var(--color-brand-600); outline-offset:-3px; }
+.m-basket-summary,.m-basket>div:first-child { flex-shrink:0; }
+.m-basket-lines .font-medium { overflow-wrap:anywhere; }
+.m-basket-lines .tabular-nums { flex-shrink:0; white-space:nowrap; }
+@media(min-width:1001px) and (min-height:720px) {
+  .m-basket { position:sticky; top:16px; max-height:calc(100dvh - 258px); overflow:auto; }
+}
+@media(max-width:760px) {
+  .m-page-search { min-width:44px; width:44px; height:44px; justify-content:center; flex-shrink:0; }
+  .m-mobile-menu { flex-shrink:0; }
+}
+@media(max-width:540px) {
+  .m-basket-summary [data-testid=basket-total] { font-size:clamp(24px,7vw,36px); overflow-wrap:anywhere; }
+}
+@media print {
+  .m-basket { position:static; max-height:none; overflow:visible; }
+  .m-basket-lines { overflow:visible; }
+}
+@media(max-width:760px) {
+  .m-onboarding-step { display:grid; grid-template-columns:16px minmax(0,1fr); gap:4px 12px; align-items:start; padding-block:12px; }
+  .m-onboarding-step>input { margin-top:3px; }
+  .m-onboarding-completed { grid-column:2; overflow-wrap:anywhere; }
+  .m-onboarding-completed:empty { display:none; }
+}
+.m-main input[type=file] { max-width:100%; }
