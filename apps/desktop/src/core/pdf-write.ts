@@ -2,7 +2,13 @@
  * A very small PDF writer for tables of text (landscape A4, Helvetica). Used for the practice Mobile Money
  * statement, which MTN and Telecel send as PDF, so the import can be tried exactly as a shop will use it.
  */
-const esc = (s: string) => s.replace(/[\\()]/g, (c) => '\\' + c).replace(/[^\x20-\x7e]/g, '?');
+// The fonts use WinAnsi encoding: common typographic characters keep their own code (as an octal escape) instead of
+// becoming "?", so names such as "SAMPLE — LOCAL SUPPLIES" read back exactly and still match the supplier.
+const WIN_ANSI: Record<string, number> = { '€': 0x80, '‚': 0x82, '„': 0x84, '…': 0x85, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '•': 0x95, '–': 0x96, '—': 0x97, '™': 0x99 };
+const esc = (s: string) => s.replace(/[\\()]/g, (c) => '\\' + c).replace(/[^\x20-\x7e]/g, (c) => {
+  const code = WIN_ANSI[c] ?? (c.charCodeAt(0) >= 0xa0 && c.charCodeAt(0) <= 0xff ? c.charCodeAt(0) : null);
+  return code === null ? '?' : '\\' + code.toString(8).padStart(3, '0');
+});
 
 export function tablePdf(title: string, rows: string[][], minWidths: number[] = []): Buffer {
   const pageW = 842, pageH = 595, margin = 24, lineH = 14;

@@ -34,3 +34,12 @@ describe('reading Mobile Money statements from PDF (owner approval 2026-11-14)',
     await expect(readPdfTable(Buffer.from('not a pdf'), opts)).rejects.toMatchObject({ code: 'INVALID_FILE' });
   });
 });
+
+describe('practice PDF text', () => {
+  it('keeps dashes, quotes and accented letters, so a supplier name reads back exactly', async () => {
+    const rows = [['Date', 'Description', 'Debit'], ['14/11/2026', 'TRANSFER SAMPLE — LOCAL SUPPLIES', '400.00'], ['15/11/2026', 'Kofi’s “Café” – deposit', '20.00']];
+    const table = await readPdfTable(tablePdf('Statement', rows, [80, 220, 60]), opts);
+    expect(table[1][1]).toBe('TRANSFER SAMPLE — LOCAL SUPPLIES');
+    expect(table[2][1]).toBe('Kofi’s “Café” – deposit');
+  });
+});
