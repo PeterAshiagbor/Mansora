@@ -12,6 +12,7 @@ import { provisionStaging } from '../staging/bootstrap';
 import { stagingConfig } from '../staging/config';
 import { startConfiguredStaging } from '../staging/server';
 import { ROLE_LOGINS_OPERATION, sendRoleLogins } from '../staging/role-logins';
+import { renameTestShops } from '../staging/shop-names';
 import { inviteTesters } from '../staging/invitations';
 import { apiRuntimeOptions } from '../../apps/api/src/runtime';
 import { seedTestWorkspaces } from '../staging/sample-data';
@@ -61,6 +62,9 @@ export async function runRailwayServer() {
       if (!result.disabled) console.log(`Tester invitations: ${result.accepted} accepted, ${result.activated} activated, ${result.waiting} awaiting setup or review.`);
       if (result.failureReasons.length) console.warn('Tester invitation status: ' + result.failureReasons.join(', '));
       if (config.mode === 'team-test') {
+        // The test shops are named Mansora TSA and Mansora TSB; rename shops still carrying the old default names.
+        await renameTestShops({ dataDir: join(config.dataDir, 'staging'), workspaces, platform: db.platform.bind(db) as any })
+          .then((r) => r.renamed && console.log(`Test shops renamed: ${r.renamed}.`), () => console.warn('Test shop rename needs review.'));
         // C55: once per operation id, tell each tester about the owner, manager and cashier logins of their shop.
         const roles = await sendRoleLogins({ id: process.env.STAGING_ROLE_LOGINS_ID ?? ROLE_LOGINS_OPERATION, dataDir: join(config.dataDir, 'staging'), origin: config.origin, workspaces, email: billing.email })
           .catch(() => ({ sent: 0, skipped: 0, waiting: 0, disabled: false, failureReasons: ['ROLE_LOGINS_FAILED'] }));

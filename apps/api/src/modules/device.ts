@@ -197,8 +197,11 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
     const email = ctx.email;
     if (!email || !email.configured()) return httpError(503, 'EMAIL_UNAVAILABLE', 'Email is not set up on the Mansora server yet, so the summary could not be sent.');
     const id = randomUUID();
+    // The laptop writes the summary, so the server adds a footer it controls: who it is from and why it was sent.
+    const [tenant] = await db.platform((q) => q(`SELECT name FROM tenants WHERE id = $1`, [dev.tenant_id]));
+    const text = `${body.body}\n\n--\nSent by Mansora Sales & Stock for ${tenant?.name ?? 'a Mansora shop'}. You receive this because the shop owner chose this address for daily summaries. Ask the owner to change it in Settings if you no longer want it.`;
     try {
-      await email.send({ to: body.to, subject: body.subject, body: body.body, // The automatic summary uses one key per laptop and day, so a retry after a timeout cannot send it twice.
+      await email.send({ to: body.to, subject: body.subject, body: text, // The automatic summary uses one key per laptop and day, so a retry after a timeout cannot send it twice.
       idempotencyKey: body.test ? `mansora-daily-summary-test/${id}` : `mansora-daily-summary/${dev.id}/${body.day}` });
     } catch (e: any) {
       httpError(502, 'EMAIL_FAILED', e?.message && /allowlist/i.test(e.message) ? 'This test environment can only email approved test addresses.' : 'The summary could not be sent. It will be tried again after the next sync.');

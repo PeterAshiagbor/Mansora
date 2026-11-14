@@ -62,7 +62,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   });
   it('serves the actual platform dashboard through the same-origin API proxy', async () => {
     await admin.goto(gateway.url + '/admin/'); await admin.getByLabel('Email', { exact: true }).fill(ADMIN.email); await admin.getByLabel('Password', { exact: true }).fill(ADMIN.password); await admin.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await navigate(admin, 'Clients'); await admin.getByRole('row').filter({ hasText: 'Team Test Shop A' }).waitFor(); await admin.getByRole('row').filter({ hasText: 'Team Test Shop B' }).waitFor(); expect(errors).toEqual([]);
+    await navigate(admin, 'Clients'); await admin.getByRole('row').filter({ hasText: 'Mansora TSA' }).waitFor(); await admin.getByRole('row').filter({ hasText: 'Mansora TSB' }).waitFor(); expect(errors).toEqual([]);
   });
   it('completes a sandbox checkout through proxied forms and redirects', async () => {
     const summary = await owner.evaluate(() => (window as any).mansora.invoke('billing.summary'));

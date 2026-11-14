@@ -180,6 +180,11 @@ describe('the real Paystack adapter, against a local fake of its documented API'
     await hook({ event: 'refund.processed', data: { id: 777, reference: '31337' } });
     expect(await one(cloud, `SELECT status, amount_refunded FROM billing_payments WHERE id = $1`, [pay.id])).toMatchObject({ status: 'partially_refunded', amount_refunded: GHS(50) });
     expect((await one(cloud, `SELECT status FROM billing_refunds`)).status).toBe('completed');
+    // A confirmation that names only the original transaction still completes the matching refund.
+    await refundPayment(b2, pay.id, { amount: GHS(20), reason: 'Goodwill', viaProvider: true, actor: SYSTEM });
+    await q(cloud, `UPDATE billing_refunds SET provider_ref = 'unknown-refund-id' WHERE status = 'pending_provider'`);
+    await hook({ event: 'refund.processed', data: { transaction: { reference: pay.reference }, amount: GHS(20) } });
+    expect((await one(cloud, `SELECT amount_refunded FROM billing_payments WHERE id = $1`, [pay.id])).amount_refunded).toBe(GHS(70));
   });
 });
 

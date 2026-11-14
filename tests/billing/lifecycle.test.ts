@@ -68,6 +68,9 @@ describe('subscription lifecycle: every move is checked and audited', () => {
     expect((await sub(s2.subscriptionId)).status).toBe('active');
     expect((await a().post(`/subscriptions/${s2.subscriptionId}/cancel`, { reason: 'Closing the business', atPeriodEnd: true })).status).toBe(200);
     expect(await sub(s2.subscriptionId)).toMatchObject({ status: 'active', cancel_at_period_end: true });
+    at(cloud, '2027-04-27'); // inside the invoice lead time: the period after cancellation is not invoiced
+    await runBillingCycle(cloud.billing);
+    expect(await q(cloud, `SELECT 1 FROM invoices WHERE subscription_id = $1`, [s2.subscriptionId])).toHaveLength(1);
     at(cloud, '2027-05-01'); // the renewal date: nothing further is invoiced
     const r = await runBillingCycle(cloud.billing);
     expect(r.subscriptionsCancelled).toBe(1);
