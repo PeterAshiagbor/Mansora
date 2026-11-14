@@ -201,7 +201,7 @@ export function Checkout() {
           <h2 className="text-sm font-semibold">Basket {lines.length > 0 && <span className="font-normal text-slate-500">· {lines.reduce((a, l) => a + l.quantity, 0)} item(s)</span>}</h2>
           {lines.length > 0 && <Button size="sm" variant="ghost" onClick={() => navigate(reset)}>Clear</Button>}
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="m-basket-lines flex-1 overflow-y-auto" role="region" aria-label="Basket items" tabIndex={0}>
           {lines.length === 0 && <div className="px-4 py-12 text-center text-sm text-slate-500">Scan or choose a product to start a sale.</div>}
           {lines.map((l) => (
             <div key={l.product.id} className="border-b border-slate-100 px-4 py-2">
@@ -209,7 +209,7 @@ export function Checkout() {
                 <div className="min-w-0 text-sm font-medium text-slate-900">{l.product.name}</div>
                 <div className="text-sm font-semibold tabular-nums">{money(l.quantity * l.product.selling_price - l.discount)}</div>
               </div>
-              <div className="mt-1 flex items-center gap-2">
+              <div className="m-basket-quantity mt-1 flex flex-wrap items-center gap-2">
                 <button type="button" aria-label={`Decrease ${l.product.name}`} className="h-8 w-8 rounded border border-slate-300 text-lg leading-none hover:bg-slate-100" onClick={() => setQty(l.product.id, l.quantity - 1)}>−</button>
                 <input type="number" min={1} step={1} required aria-label={`Quantity of ${l.product.name}`} className="h-8 w-14 rounded border border-slate-300 text-center text-sm tabular-nums" value={quantityEdits[l.product.id] ?? l.quantity} inputMode="numeric"
                   onChange={(e) => { const value = e.target.value; setQuantityEdits((edits) => ({ ...edits, [l.product.id]: value })); const n = Number(value); if (value !== '' && Number.isSafeInteger(n) && n > 0) setLines((items) => items.map((item) => item.product.id === l.product.id ? { ...item, quantity: n } : item)); }} onFocus={(e) => e.target.select()} />
@@ -224,7 +224,7 @@ export function Checkout() {
             </div>
           ))}
         </div>
-        <div className="space-y-2 border-t border-slate-200 p-4">
+        <div className="m-basket-summary space-y-2 border-t border-slate-200 p-4">
           <div className="grid grid-cols-2 gap-2">
             {discountEntry ? <Field label={can('sale.discount') ? 'Basket discount (GHS)' : 'Requested discount (GHS)'}><MoneyInput value={cartDiscount} onChange={setCartDiscount} aria-label="Basket discount" /></Field> : <Button onClick={() => setRequestingDiscount(true)}>Request discount</Button>}
             <Field label="Customer (optional)">

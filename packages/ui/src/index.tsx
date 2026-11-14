@@ -174,13 +174,13 @@ export function Table<T>({ columns, rows, onRowClick, empty = 'Nothing to show y
   const activePage = Math.min(page, Math.max(0, Math.ceil(ordered.length / pageSize) - 1));
   const visible = ordered.slice(activePage * pageSize, (activePage + 1) * pageSize);
   return (
-    <div><div role="region" aria-label="Scrollable data table" tabIndex={0} className={cx("max-w-full overflow-x-auto", focus)}>
+    <div><div role="region" aria-label={`Scrollable data table: ${caption ?? contextCaption ?? 'Records'}`} tabIndex={0} className={cx("max-w-full overflow-x-auto", focus)}>
       <table className="m-table w-full text-sm">
         <caption className="sr-only">{tableCaption}</caption>
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
             {columns.map((c) => (
-              <th key={c.header} scope="col" aria-sort={sort?.header === c.header ? sort.descending ? 'descending' : 'ascending' : undefined} className={cx('px-3 py-2', c.align === 'right' && 'text-right')}>{c.sortValue ? <button type="button" className="inline-flex items-center gap-1 rounded hover:text-brand-800" onClick={() => { setSort({ header: c.header, descending: sort?.header === c.header ? !sort.descending : false }); setPage(0); }}>{c.header}<span aria-hidden="true">{sort?.header === c.header ? sort.descending ? '↓' : '↑' : '↕'}</span></button> : c.header}</th>
+              <th key={c.header} scope="col" aria-label={!c.header ? 'Actions' : undefined} aria-sort={sort?.header === c.header ? sort.descending ? 'descending' : 'ascending' : undefined} className={cx('px-3 py-2', c.align === 'right' && 'text-right')}>{c.sortValue ? <button type="button" className="inline-flex items-center gap-1 rounded hover:text-brand-800" onClick={() => { setSort({ header: c.header, descending: sort?.header === c.header ? !sort.descending : false }); setPage(0); }}>{c.header}<span aria-hidden="true">{sort?.header === c.header ? sort.descending ? '↓' : '↑' : '↕'}</span></button> : c.header}</th>
             ))}
           </tr>
         </thead>

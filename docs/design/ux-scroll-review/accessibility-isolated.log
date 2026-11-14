@@ -1,0 +1,8 @@
+
+ RUN  v5.1.0 /workspace/work/Mansora
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  13:59:38
+   Duration  40.44s (tests 97%, import 3%)

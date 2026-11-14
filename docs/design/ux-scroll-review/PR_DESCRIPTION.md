@@ -1,0 +1,9 @@
+# Keep checkout totals visible and improve scrolling and subpage orientation
+
+A growing basket pushed Pay below a 1366 × 768 shop laptop viewport, while the mobile admin header lost page context to an oversized search control. Keep laptop totals and Pay visible while basket items scroll; retain normal page flow on short/narrow screens. Improve shared scroll containment, wrapped quantity controls, compact search, mobile onboarding rows, file-input bounds and table labels.
+
+Give both applications explicit page identities for detail destinations so committed, guarded navigation resets content position and places keyboard focus in labelled page content. Preserve checkout autofocus, financial calculations, permissions, backend contracts and offline sync.
+
+Validation: typecheck/build pass. The full four-worker run passed 406 tests and timed out on two long axe scans; all four accessibility tests passed in an isolated 40.44s rerun with unchanged assertions/timeouts. All 408 unique tests are verified across those runs. See [verification.md](verification.md) for final typecheck/build, complete suite, real browser journeys and the 108-state layout/axe sweep. Added regression journeys exercise 60 products, 12 basket lines, both laptop sizes, compact client details, short dialogs, and a real cloud-down sale/reconnect with one persisted cloud sale. No accessibility rules or existing assertions are disabled.
+
+Before/after screenshots, prioritized findings and team acceptance are in [README.md](README.md). Minor table-header and moderate heading-order findings, native zoom, Windows/Electron, assistive technology, hardware and provider acceptance remain explicitly scoped. Native Figma access was refused for the connected View-seat account; UI UX Designer guidance was applied. No merge or deployment is included.

@@ -45,15 +45,27 @@ export function ActionMenu({ label, children }: { label: string; children: React
   return <details ref={ref} className="m-action-menu no-print" open={open}><summary aria-label={label} onClick={(event) => { event.preventDefault(); setOpen(!open); }}>{label}<Icon name="chevron" /></summary>{open && <div role="group" aria-label={`${label} options`} onClick={() => setOpen(false)}>{children}</div>}</details>;
 }
 
-export function WorkspaceShell({ groups, primaryIds, current, onNavigate, workspace, workspaceLabel, user, userRole, guide, onSignOut, signOutLabel = 'Sign out', footerActions, children }: {
+export function WorkspaceShell({ groups, primaryIds, current, pageKey = current.id, pageLabel, onNavigate, workspace, workspaceLabel, user, userRole, guide, onSignOut, signOutLabel = 'Sign out', footerActions, children }: {
   groups: { group: string; items: WorkspaceItem[] }[]; current: WorkspaceItem; onNavigate: (id: string) => void;
   primaryIds: string[];
+  /** Include detail IDs: the selected sidebar item alone does not identify a subpage. */
+  pageKey?: string; pageLabel?: string;
   workspace: string; workspaceLabel: string; user: string; userRole?: string; guide?: Guide;
   onSignOut: () => void; signOutLabel?: string; children: ReactNode;
   /** Extra items above Sign out, on every page (e.g. Report a problem). */
   footerActions?: ReactNode;
 }) {
   const navigation = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const main = useRef<HTMLElement>(null);
+  const previousPage = useRef(pageKey);
+  useLayoutEffect(() => {
+    if (previousPage.current === pageKey) return;
+    previousPage.current = pageKey;
+    content.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    // Keep purpose-specific autofocus (for example the barcode input at the till).
+    if (!main.current?.contains(document.activeElement)) main.current?.focus({ preventScroll: true });
+  }, [pageKey]);
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 760px)').matches);
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => { const media = window.matchMedia('(max-width: 760px)'); const update = () => { setCompact(media.matches); if (!media.matches) setMenuOpen(false); }; media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
@@ -86,8 +98,8 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
     {!compact && sidebar}
     {compact && menuOpen && <Modal title="Workspace navigation" trackChanges={false} open onClose={() => setMenuOpen(false)}><div className="m-mobile-drawer">{sidebar}</div></Modal>}
     <div className="m-workspace-body">
-      <header className="m-topbar no-print"><button type="button" className="m-mobile-menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Icon name="settings" />Menu</button><div className="m-breadcrumb"><span>{workspaceLabel}</span><span aria-hidden="true">/</span><strong>{current.label}</strong></div><button type="button" className="m-page-search" onClick={() => { setQuery(''); setFinding(true); }}><Icon name="search" /><span>Find a page</span><kbd>Ctrl K</kbd></button><div className="m-user"><span className="m-avatar" aria-hidden="true">{user.split(' ').map((x) => x[0]).slice(0, 2).join('')}</span><div><strong>{user}</strong><span>{userRole}</span></div></div></header>
-      <div className="m-content-scroll"><div className="m-page-tools no-print">{guide && <button type="button" onClick={() => setHelp(true)}><Icon name="help" />How to use this page</button>}</div><main id="workspace-main" tabIndex={-1} className="m-main" key={current.id}>{children}</main></div>
+      <header className="m-topbar no-print"><button type="button" className="m-mobile-menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Icon name="settings" />Menu</button><div className="m-breadcrumb"><span>{workspaceLabel}</span><span aria-hidden="true">/</span><strong>{pageLabel ?? current.label}</strong></div><button type="button" className="m-page-search" onClick={() => { setQuery(''); setFinding(true); }}><Icon name="search" /><span>Find a page</span><kbd>Ctrl K</kbd></button><div className="m-user"><span className="m-avatar" aria-hidden="true">{user.split(' ').map((x) => x[0]).slice(0, 2).join('')}</span><div><strong>{user}</strong><span>{userRole}</span></div></div></header>
+      <div className="m-content-scroll" ref={content}><div className="m-page-tools no-print">{guide && <button type="button" onClick={() => setHelp(true)}><Icon name="help" />How to use this page</button>}</div><main ref={main} id="workspace-main" aria-label={pageLabel ?? current.label} tabIndex={-1} className="m-main" key={pageKey}>{children}</main></div>
       {compact && <nav aria-label="Quick tasks" className="m-mobile-shortcuts no-print">{primary.slice(0, 4).map(item => <button type="button" key={item.id} aria-current={item.id === current.id ? 'page' : undefined} onClick={() => navigatePage(item.id)}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>)}</nav>}
     </div>
     {finding && <Modal title="Find a page" trackChanges={false} open onClose={() => setFinding(false)}><Input aria-label="Find a page" placeholder="Search sales, products, reports…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && results[0]) { e.preventDefault(); navigatePage(results[0].id); setFinding(false); } if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.m-search-result')?.focus(); } }} autoFocus /><div className="mt-3 max-h-80 overflow-y-auto">{results.map((item) => <button type="button" className="m-search-result" key={item.id} onClick={() => { navigatePage(item.id); setFinding(false); }}><Icon name={item.icon ?? 'file'} /><span>{item.label}<small>{item.group}</small></span><span aria-hidden="true">↗</span></button>)}{!results.length && <p className="py-6 text-center text-sm text-slate-600">No matching pages. Try a different name.</p>}</div></Modal>}
