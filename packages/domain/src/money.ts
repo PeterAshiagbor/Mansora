@@ -19,11 +19,11 @@ export function assertNonNegative(n: unknown, label = 'amount'): asserts n is Pe
 
 /** Parse a user-entered cedi string ("12", "12.5", "1,234.50") into pesewas without floats. */
 export function parseGHS(input: string): Pesewas {
-  const s = String(input).trim().replace(/,/g, '').replace(/^(GHS|GH₵|GH¢|GHC|₵|¢)\s*/i, '');
-  const m = /^(-)?(\d+)(?:\.(\d{1,2}))?$/.exec(s);
+  const s = String(input).trim().replace(/^(GHS|GH₵|GH¢|GHC|₵|¢)\s*/i, '');
+  const m = /^(-)?(\d+|\d{1,3}(?:,\d{3})+)(?:\.(\d{1,2}))?$/.exec(s);
   if (!m) fail('INVALID_AMOUNT', `"${input}" is not a valid cedi amount`);
-  const value = Number(m[2]) * 100 + Number((m[3] ?? '').padEnd(2, '0'));
-  if (!Number.isSafeInteger(value)) fail('INVALID_AMOUNT', 'Amount is too large');
+  const value = Number(BigInt(m[2].replace(/,/g, '')) * 100n + BigInt((m[3] ?? '').padEnd(2, '0')));
+  assertAmount(value);
   return m[1] ? -value : value;
 }
 
@@ -58,22 +58,26 @@ export function mulDivFloor(a: number, b: number, c: number): number {
  */
 export function allocate(total: Pesewas, weights: number[]): Pesewas[] {
   assertNonNegative(total, 'total');
-  const sum = weights.reduce((a, b) => a + b, 0);
+  weights.forEach((w) => assertNonNegative(w, 'weight'));
+  const weightTotal = sum(weights);
   if (weights.length === 0) return [];
-  if (sum <= 0) {
+  if (weightTotal <= 0) {
     const out = weights.map(() => 0);
     out[0] = total;
     return out;
   }
-  const base = weights.map((w) => mulDivFloor(total, w, sum));
+  const base = weights.map((w) => mulDivFloor(total, w, weightTotal));
   let left = total - base.reduce((a, b) => a + b, 0);
   const order = weights
-    .map((w, i) => ({ i, rem: Number((BigInt(total) * BigInt(w)) % BigInt(sum)) }))
+    .map((w, i) => ({ i, rem: Number((BigInt(total) * BigInt(w)) % BigInt(weightTotal)) }))
     .sort((x, y) => y.rem - x.rem || x.i - y.i);
   for (let k = 0; left > 0; k = (k + 1) % order.length, left--) base[order[k].i] += 1;
   return base;
 }
 
 export function sum(values: number[]): number {
-  return values.reduce((a, b) => a + b, 0);
+  const total = values.reduce((a, b) => { assertAmount(b); return a + BigInt(b); }, 0n);
+  const result = Number(total);
+  assertAmount(result);
+  return result;
 }

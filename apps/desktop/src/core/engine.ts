@@ -132,8 +132,10 @@ export class Ctx {
     if (!can(sup, permission)) fail('PERMISSION_DENIED', 'That person is not allowed to approve this action', { permission });
     return sup.id;
   }
+  /** Run writes in one transaction. Synced rows touched inside it are queued for the cloud before it commits, so an
+   *  async command can never write a synced row without its outbox event (flush is idempotent). */
   tx<T>(fn: () => T): T {
-    return this.db.transaction(fn).immediate();
+    return this.db.transaction(() => { const result = fn(); this.flush(); return result; }).immediate();
   }
   /** Write one outbox event containing every synced row this command touched. */
   flush(): void {

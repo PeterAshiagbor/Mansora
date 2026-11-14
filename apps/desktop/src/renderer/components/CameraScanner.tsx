@@ -37,12 +37,15 @@ export function CameraScanner({ onCode, onClose, continuous }: { onCode: (code: 
     let stopped = false;
     let stream: MediaStream | undefined;
     let stopDecoder: (() => void) | undefined;
-    let lastCode = '', lastAt = 0;
+    let lastCode = '', lastSeen = 0;
     const hit = (code: string) => {
       const now = Date.now();
-      // The same code seen again within two seconds is the same item still in view, not a second item.
-      if (!code || (code === lastCode && now - lastAt < 2000)) return;
-      lastCode = code; lastAt = now;
+      // The camera reads a code many times a second while it is in view. The same code counts again only after it
+      // has left the view for a moment, so two identical items scanned one after the other count as two.
+      if (!code) return;
+      const sameItemStillInView = code === lastCode && now - lastSeen < 700;
+      lastCode = code; lastSeen = now;
+      if (sameItemStillInView) return;
       navigator.vibrate?.(60);
       setLast(code);
       handler.current(code);

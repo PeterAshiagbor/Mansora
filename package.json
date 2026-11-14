@@ -24,7 +24,9 @@
     "desktop:dev": "npm run dev -w @mansora/desktop",
     "desktop:dist": "npm run dist -w @mansora/desktop",
     "admin:dev": "npm run dev -w @mansora/admin-web",
-    "test:e2e": "npm run build -w @mansora/desktop && npm run build -w @mansora/admin-web && vitest run tests/e2e",
+    "test:e2e": "npm run build -w @mansora/desktop && npm run build -w @mansora/admin-web && node scripts/verify-tests.mjs tests/e2e",
+    "test:verified": "node scripts/verify-tests.mjs",
+    "verify:release": "node --test infrastructure/*.test.mjs && npm run typecheck && npm run build && npm audit --audit-level=moderate && npm run test:verified",
     "build:staging": "node scripts/staging/build.mjs",
     "build:railway": "node scripts/railway/build.mjs"
   },

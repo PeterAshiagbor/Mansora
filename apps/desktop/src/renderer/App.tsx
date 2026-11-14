@@ -12,6 +12,7 @@ import { CategoriesPage, ProductsPage } from './pages/Products';
 import { PurchasesPage, StockPage } from './pages/Stock';
 import { CreditPage, CustomersPage } from './pages/Customers';
 import { ExpensesPage, ShiftsPage } from './pages/Shifts';
+import { StatementsPage } from './pages/Statements';
 import { ReportsPage } from './pages/Reports';
 import { BillingPage } from './pages/Billing';
 import { AuditPage, BackupPage, DataPage, SettingsPage, StaffPage, SupportPage, SyncPage } from './pages/Admin';
@@ -53,6 +54,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { id: 'reports', label: 'Reports', perm: 'report.sales', render: () => <ReportsPage /> },
       { id: 'expenses', label: 'Expenses', perm: 'expense.manage', render: () => <ExpensesPage /> },
+      { id: 'statements', label: 'Bank & MoMo statements', perm: 'expense.manage', render: () => <StatementsPage /> },
     ],
   },
   {
@@ -89,16 +91,18 @@ function ClientApplication() {
   }, []);
   useEffect(() => void refresh(), [refresh]);
   // After a lock, the same person returns to the page they were on; a different person starts at the dashboard.
-  const lastUser = useRef<string | null>(null);
+  // Remembered for the tab as well, so after a refresh a different person still starts at the dashboard.
+  const lastUser = useRef<string | null>((() => { try { return sessionStorage.getItem(`mansora:page-user:${location.pathname}`); } catch { return null; } })());
   const userId = state?.user?.id ?? null;
   useEffect(() => {
     if (!userId) return;
     if (lastUser.current && lastUser.current !== userId) setPage({ id: 'dashboard' });
     lastUser.current = userId;
+    try { sessionStorage.setItem(`mansora:page-user:${location.pathname}`, userId); } catch { /* storage unavailable */ }
   }, [userId]);
   useEffect(() => {
     // Signing out on purpose starts the next person at the dashboard; only an idle lock keeps the page.
-    const onLogout = () => { lastUser.current = null; setPage({ id: 'dashboard' }); };
+    const onLogout = () => { lastUser.current = null; try { sessionStorage.removeItem(`mansora:page-user:${location.pathname}`); } catch { /* storage unavailable */ } setPage({ id: 'dashboard' }); };
     window.addEventListener('mansora:logged-out', onLogout);
     return () => window.removeEventListener('mansora:logged-out', onLogout);
   }, []);
@@ -331,7 +335,7 @@ function Restore({ onDone }: { onDone: () => Promise<void> }) {
   );
 }
 
-const NAV_ICONS: Record<string, string> = { dashboard: 'home', 'getting-started': 'file', checkout: 'sale', sales: 'file', shifts: 'wallet', customers: 'users', credit: 'wallet', products: 'box', categories: 'box', stock: 'box', purchases: 'sale', reports: 'chart', expenses: 'wallet', staff: 'users', settings: 'settings', data: 'file', sync: 'sync', backup: 'shield', support: 'shield', audit: 'file', help: 'help' };
+const NAV_ICONS: Record<string, string> = { dashboard: 'home', 'getting-started': 'file', checkout: 'sale', sales: 'file', shifts: 'wallet', customers: 'users', credit: 'wallet', products: 'box', categories: 'box', stock: 'box', purchases: 'sale', reports: 'chart', expenses: 'wallet', statements: 'file', staff: 'users', settings: 'settings', data: 'file', sync: 'sync', backup: 'shield', support: 'shield', audit: 'file', help: 'help' };
 function Shell({ page }: { page: { id: string; param?: string } }) {
   const { state, can, go, refresh } = useApp();
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.perm || can(i.perm)).map((item) => ({ ...item, icon: NAV_ICONS[item.id] })) })).filter((g) => g.items.length);
@@ -339,7 +343,7 @@ function Shell({ page }: { page: { id: string; param?: string } }) {
   const current = all.find((i) => i.id === page.id) ?? all[0];
   const { run } = useAction();
   const navigate = useNavigationGuard();
-  return <div className="flex h-full flex-col"><div className="min-h-0 flex-1"><WorkspaceShell footerActions={<ReportProblemNavItem />} primaryIds={state.user?.role === 'cashier' ? ['dashboard', 'checkout', 'sales', 'shifts', 'products'] : ['dashboard', 'checkout', 'products', 'customers', 'reports']} groups={groups} current={current} onNavigate={go} workspace={state.business.name} workspaceLabel="Client workspace" user={state.user?.name ?? 'Staff'} userRole={state.user?.role} guide={CLIENT_GUIDES[current.id]} signOutLabel="Lock / sign out" onSignOut={() => navigate(() => { void run(async () => { await call('auth.logout'); await refresh(); }); })}><div key={current.id + (page.param ?? '')}>{current.render(page.param)}</div></WorkspaceShell></div><StatusBar /><ReportProblemButton page={current.label} onSubmit={(r) => call('bug.report', r)} /></div>;
+  return <div className="flex h-full flex-col"><div className="min-h-0 flex-1"><WorkspaceShell pageKey={JSON.stringify([current.id, page.param])} footerActions={<ReportProblemNavItem />} primaryIds={state.user?.role === 'cashier' ? ['dashboard', 'checkout', 'sales', 'shifts', 'products'] : ['dashboard', 'checkout', 'products', 'customers', 'reports']} groups={groups} current={current} onNavigate={go} workspace={state.business.name} workspaceLabel="Client workspace" user={state.user?.name ?? 'Staff'} userRole={state.user?.role} guide={CLIENT_GUIDES[current.id]} signOutLabel="Lock / sign out" onSignOut={() => navigate(() => { void run(async () => { await call('auth.logout'); await refresh(); }); })}><div key={current.id + (page.param ?? '')}>{current.render(page.param)}</div></WorkspaceShell></div><StatusBar /><ReportProblemButton page={current.label} onSubmit={(r) => call('bug.report', r)} /></div>;
 }
 
 function StatusBar() {

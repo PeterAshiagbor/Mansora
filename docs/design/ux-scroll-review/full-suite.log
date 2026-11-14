@@ -1,0 +1,48 @@
+
+> mansora-platform@0.1.0 test
+> vitest run --maxWorkers=4
+
+
+ RUN  v5.1.0 /workspace/work/Mansora
+
+ ❯ tests/e2e/accessibility.test.ts (4 tests | 2 failed) 166774ms
+   ❯ accessibility in Chromium (4)
+     × checks every desktop page and tab, login and a modal at normal size and 200% zoom equivalent viewport 60016ms
+     × checks all administrator pages, client detail and create dialogs 60050ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/accessibility.test.ts > accessibility in Chromium > checks every desktop page and tab, login and a modal at normal size and 200% zoom equivalent viewport
+Error: Test timed out in 60000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/e2e/accessibility.test.ts:68:3
+     66|   }
+     67|   const nav = navigate;
+     68|   it('checks every desktop page and tab, login and a modal at normal s…
+       |   ^
+     69|     await scan(shop, 'Desktop sign in');
+     70|     await shop.getByLabel('Username', { exact: true }).fill(owner.user…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/e2e/accessibility.test.ts > accessibility in Chromium > checks all administrator pages, client detail and create dialogs
+Error: Test timed out in 60000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/e2e/accessibility.test.ts:102:3
+    100|     expect(failures, JSON.stringify(failures, null, 2)).toEqual([]);
+    101|   });
+    102|   it('checks all administrator pages, client detail and create dialogs…
+       |   ^
+    103|     failures.length = 0;
+    104|     await scan(admin, 'Admin sign in');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 77 passed (78)
+      Tests  2 failed | 406 passed (408)
+   Start at  13:49:50
+   Duration  555.33s (tests 90%, import 10%)
+
+    Isolate  78 workers spawned · ~549ms startup each (spawn + environment, per file)
+             at least ~10.16s faster with isolate: false — reuses workers across files instead of one per file

@@ -11832,6 +11832,318 @@
         "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
       ],
       "assessment": "Not personal."
+    },
+    {
+      "key": "laptop.statement_imports.id",
+      "purpose": "Stable identifier of an imported statement. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Linkable identifier."
+    },
+    {
+      "key": "laptop.statement_imports.source",
+      "purpose": "Whether the statement is from a bank or a Mobile Money wallet. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "laptop.statement_imports.account_name",
+      "purpose": "Optional name the shop gives the account (e.g. 'MTN MoMo shop line'). Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Could name a person if they type it; should guidance say not to?"
+    },
+    {
+      "key": "laptop.statement_imports.file_name",
+      "purpose": "Name of the uploaded file, to recognise it later. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "May contain a name or account number typed into the file name."
+    },
+    {
+      "key": "laptop.statement_imports.file_hash",
+      "purpose": "SHA-256 of the file, so the same file is never imported twice. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Not personal on its own."
+    },
+    {
+      "key": "laptop.statement_imports.line_count",
+      "purpose": "How many lines were read. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "laptop.statement_imports.imported_by",
+      "purpose": "Staff member who imported it. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Staff attribution; identifies a person with the users table."
+    },
+    {
+      "key": "laptop.statement_imports.created_at",
+      "purpose": "When it was imported. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Activity chronology."
+    },
+    {
+      "key": "laptop.statement_lines.id",
+      "purpose": "Stable identifier of a statement line. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Linkable identifier."
+    },
+    {
+      "key": "laptop.statement_lines.import_id",
+      "purpose": "Statement the line belongs to. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Linkable identifier."
+    },
+    {
+      "key": "laptop.statement_lines.line_no",
+      "purpose": "Row number in the file. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "laptop.statement_lines.txn_date",
+      "purpose": "Date of the transaction. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Financial chronology of the business."
+    },
+    {
+      "key": "laptop.statement_lines.description",
+      "purpose": "Narration from the statement, often naming the payer or payee (customer, supplier, landlord). Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Third-party names and phone numbers from the bank or MoMo narration; personal data of customers and suppliers. Should it be shortened after the line is decided?"
+    },
+    {
+      "key": "laptop.statement_lines.reference",
+      "purpose": "Bank or Mobile Money transaction reference, used to match sales and repayments. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Transaction identifier linkable to a person's payment."
+    },
+    {
+      "key": "laptop.statement_lines.amount_in",
+      "purpose": "Money received on the line, in pesewas. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Financial data; personal when linked to a named payer."
+    },
+    {
+      "key": "laptop.statement_lines.amount_out",
+      "purpose": "Money paid out on the line, in pesewas. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Financial data; personal when linked to a named payee."
+    },
+    {
+      "key": "laptop.statement_lines.fingerprint",
+      "purpose": "Hash of the line's key fields, to spot the same transaction in a later statement. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Derived from personal data; hashing is not anonymisation."
+    },
+    {
+      "key": "laptop.statement_lines.status",
+      "purpose": "Pending, accepted, ignored or duplicate. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "laptop.statement_lines.suggestion",
+      "purpose": "What Mansora suggested (the matched sale, repayment or expense, or a category). Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "May include a customer name in the matched repayment label."
+    },
+    {
+      "key": "laptop.statement_lines.match_type",
+      "purpose": "Kind of record the line was linked to. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "laptop.statement_lines.match_id",
+      "purpose": "The sale payment, repayment or expense the line was linked to or created. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Linkable identifier."
+    },
+    {
+      "key": "laptop.statement_lines.category",
+      "purpose": "Expense category chosen for money out. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "laptop.statement_lines.decided_by",
+      "purpose": "Staff member who accepted or ignored the line. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Staff attribution."
+    },
+    {
+      "key": "laptop.statement_lines.decided_at",
+      "purpose": "When the line was decided. Supports: Import the shop's bank and Mobile Money statements to confirm money in and record money out as expenses.",
+      "locations": [
+        "Shop laptop or browser workspace store only (encrypted local database); not sent to the Mansora cloud",
+        "Shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Owner and staff with the Record expenses permission, through Bank & MoMo statements",
+        "Mansora: no access (not synced)"
+      ],
+      "assessment": "Activity chronology."
     }
   ]
 }

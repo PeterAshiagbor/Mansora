@@ -71,3 +71,7 @@ Something not working, confusing, or missing? Press **Report a problem** in the 
 
 Mansora reads every report each evening at 7pm. Do not write passwords or customers' details in a report. Only the name of what you pointed at is sent, never what is typed in a box.
 If the internet is off, the report is not lost: your text stays in the form, so send it again when you are back online.
+
+## Scrolling at the till
+
+On a full-size laptop, the basket items scroll while Total and Pay remain visible. Focus the Basket items area to scroll it with the keyboard; F2 still returns to product search and F9 opens payment. On short or narrow screens, scroll the page to reach the complete basket. Changing pages with unfinished work still asks whether to keep working or discard it.

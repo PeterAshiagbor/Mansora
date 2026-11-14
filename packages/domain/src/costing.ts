@@ -1,20 +1,20 @@
 import { fail } from './errors';
-import { assertNonNegative, mulDivRound, type Pesewas } from './money';
+import { assertAmount, assertNonNegative, mulDivRound, type Pesewas } from './money';
 
 /**
  * Moving weighted-average cost (proposed policy - see decision D-03 in docs/decisions/decision-log.md).
  * Receiving stock re-averages the unit cost; selling does not change it.
  */
 export function movingAverageCost(onHand: number, currentAverage: Pesewas, receivedQty: number, receivedUnitCost: Pesewas): Pesewas {
-  if (receivedQty <= 0) fail('INVALID_QUANTITY', 'Received quantity must be greater than zero');
-  if (receivedUnitCost < 0) fail('INVALID_AMOUNT', 'Cost cannot be negative');
+  if (!Number.isSafeInteger(onHand) || !Number.isSafeInteger(receivedQty) || receivedQty <= 0) fail('INVALID_QUANTITY', 'Quantities must be whole numbers and received quantity must be greater than zero');
+  assertNonNegative(currentAverage, 'Current cost');
+  assertNonNegative(receivedUnitCost, 'Received cost');
   if (onHand <= 0) return receivedUnitCost;
-  // Exact integer arithmetic: the products can exceed 2^53 for large stock values.
-  const total = BigInt(onHand) * BigInt(currentAverage) + BigInt(receivedQty) * BigInt(receivedUnitCost);
-  const units = BigInt(onHand + receivedQty);
-  const average = Number((total * 2n + units) / (units * 2n)); // round half up
-  if (!Number.isSafeInteger(average)) fail('INVALID_AMOUNT', 'Cost is too large');
-  return average;
+  const numerator = BigInt(onHand) * BigInt(currentAverage) + BigInt(receivedQty) * BigInt(receivedUnitCost);
+  const denominator = BigInt(onHand) + BigInt(receivedQty);
+  const result = Number((numerator * 2n + denominator) / (denominator * 2n));
+  assertAmount(result);
+  return result;
 }
 
 export const MOVEMENT_TYPES = [

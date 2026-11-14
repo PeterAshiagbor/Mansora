@@ -55,7 +55,7 @@ Paying suppliers on credit (what you owe each supplier) is planned (task C63). F
 **Expenses → Record expense.** For running costs that are not stock: rent, electricity, water, transport, salaries,
 airtime and data, repairs and supplies.
 1. Choose the **category**, describe it, and enter the **amount** and **date**.
-2. Choose how it was paid: cash, Mobile Money, card or bank.
+2. Choose how it was paid: cash, Mobile Money, card or bank transfer.
 3. If the cash came **out of the till**, tick **Paid with cash from my till** (cash only). You need an open shift, and the shift's expected cash goes down by that amount,
    so the till still balances at closing.
 4. Add the receipt number if there is one, and keep the paper receipt.
@@ -63,6 +63,33 @@ airtime and data, repairs and supplies.
 Expenses appear in **Reports → Expenses** and are kept apart from the cost of goods, so gross profit is not reduced by rent or bills.
 
 **Do not record stock purchases as expenses.** Use Receive stock, or your stock and profit will be wrong.
+
+## Bank and Mobile Money statements
+
+**Bank & MoMo statements** checks your money against your bank or Mobile Money wallet, and records money out as expenses without retyping.
+
+1. In your bank's internet banking or your Mobile Money app, download a statement as **Excel or CSV**.
+2. In Mansora choose **Statement from** (Mobile Money or Bank), optionally name the account, and choose the file.
+3. Check **Match your columns**. Mansora usually recognises them. It needs the date, and either one amount column
+   (with a minus or a Type column for money out) or separate money in and money out columns. Press **Import**.
+4. Each line gets a suggestion:
+   - **Matches Sale R-…** or **Matches debt repayment**: money in that matches a sale or repayment you recorded,
+     by its transaction ID, or by the same amount and date;
+   - **Record as an expense**: money out, with a category guessed from the description (ECG → Electricity, airtime → Airtime & data, charges → Bank charges…);
+   - **Already recorded**: money out you already entered as an expense;
+   - **Payment to supplier**: not an expense. Stock you bought is recorded under **Purchases & suppliers → Receive stock**.
+     If it really was an expense, choose a category for that line;
+   - **Already in an earlier statement**: skipped, so nothing is ever recorded twice.
+5. Press **Accept all suggested** to accept every line with a clear suggestion at once, or tick lines and press
+   **Accept selected**, or **Accept** on a single line. You can change the category of any money-out line first.
+   Lines you do not want to record: tick them and press **Ignore selected**.
+
+Importing the same file twice is refused. Statements stay on this laptop; the expenses they create sync as usual.
+
+## Paying Mansora
+
+When you pay a Mansora invoice, the payment appears in your **Expenses** automatically after the next sync,
+as **Mansora subscription**, with the receipt number. It is never added twice.
 
 ## Stock counts
 

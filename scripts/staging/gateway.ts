@@ -108,6 +108,8 @@ export async function startStagingGateway(opts: GatewayOptions) {
         const location = response.headers.get('location');
         if (location?.startsWith('/') && !location.startsWith('/api/')) res.setHeader('location', '/api' + location);
         else if (location && new URL(location, upstream).origin === upstream.origin) { const target = new URL(location, upstream); res.setHeader('location', origin.origin + '/api' + target.pathname + target.search); }
+        // The public brand logo and font (used in emails and payment pages) may be cached; everything else stays no-store.
+        if (/^\/api\/brand\/[\w.-]+$/.test(path) && response.ok) res.setHeader('cache-control', 'public, max-age=86400');
         const responseBytes = Buffer.from(await response.arrayBuffer());
         if (response.headers.get('content-type')?.includes('text/html')) {
           // Existing API documents/forms use root-relative links; retain the proxy prefix.

@@ -38,6 +38,8 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run typecheck
       - run: npm run build
+      - name: Install required PDF content verification tool
+        run: apt-get update && apt-get install -y --no-install-recommends poppler-utils
       - name: Install matching browser client and verify provisioned Chromium
         timeout-minutes: 5
         run: |
@@ -46,7 +48,9 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - name: Tests (embedded PostgreSQL)
-        run: npm test
+        run: node --test infrastructure/verification.test.mjs && npm run test:verified -- --exclude tests/e2e/accessibility.test.ts
+      - name: Accessibility (isolated Chromium scans, original assertions and timeouts)
+        run: npx vitest run tests/e2e/accessibility.test.ts --maxWorkers=1
       - name: Sync tests against a real PostgreSQL 16 server
         run: npx vitest run tests/sync/sync.test.ts
         env:

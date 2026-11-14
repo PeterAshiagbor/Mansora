@@ -5,6 +5,8 @@ export const PAYMENT_METHODS = ['cash', 'card', 'momo', 'credit'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 /** Methods usable for refund payouts, repayments and expenses (no "credit"). */
 export const SETTLEMENT_METHODS = ['cash', 'card', 'momo'] as const;
+/** Expenses can also be paid by bank transfer (sales and repayments are taken by cash, card or Mobile Money). */
+export const EXPENSE_METHODS = ['cash', 'card', 'momo', 'bank'] as const;
 export type SettlementMethod = (typeof SETTLEMENT_METHODS)[number];
 
 export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
@@ -101,9 +103,9 @@ export function settlePayments(total: Pesewas, tenders: TenderInput[]): Settleme
     if (!PAYMENT_METHODS.includes(t.method)) fail('INVALID_PAYMENT', `Unknown payment method "${t.method}"`);
     assertNonNegative(t.amount, 'payment amount');
     if (t.amount === 0) continue;
-    if (t.method === 'cash') cashTendered += t.amount;
+    if (t.method === 'cash') cashTendered = sum([cashTendered, t.amount]);
     else {
-      nonCash += t.amount;
+      nonCash = sum([nonCash, t.amount]);
       payments.push({ method: t.method, amount: t.amount, reference: t.reference?.trim() || null });
     }
   }

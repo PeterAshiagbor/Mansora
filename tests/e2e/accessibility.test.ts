@@ -108,7 +108,7 @@ describe.skipIf(!pw || !built)('accessibility in Chromium', () => {
     await admin.getByRole('button', { name: 'Sign out', exact: true }).waitFor();
     for (const zoom of [1, 2]) {
       await admin.setViewportSize({ width: 1366 / zoom, height: 768 / zoom });
-      for (const name of ['Overview', 'Clients', 'Service plans', 'Collections', 'Subscriptions', 'Invoices', 'Payments', 'Revenue reports', 'Payment settings', 'Audit log', 'Account security']) {
+      for (const name of ['Overview', 'Clients', 'Leads', 'Service plans', 'Collections', 'Subscriptions', 'Invoices', 'Payments', 'Revenue reports', 'Payment settings', 'Audit log', 'Administrators', 'Account security', 'Support contact', 'Problem reports']) {
         await nav(admin, name); await scan(admin, `Admin ${name} zoom ${zoom}`);
       }
       await nav(admin, 'Clients');

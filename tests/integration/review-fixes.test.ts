@@ -56,3 +56,13 @@ describe('engine review fixes', () => {
     await expectCode(s.run(other, 'sale.list', { from: '2026-01-01', to: '2026-01-01' }), 'NOT_SIGNED_IN');
   });
 });
+
+describe('R70-06 stock count of a product that does not exist', () => {
+  it('refuses the whole count, changing nothing, instead of reporting success', async () => {
+    const shop = await makeShop();
+    const before = (shop.engine.db.prepare('SELECT COUNT(*) AS n FROM inventory_movements').get() as any).n;
+    await expect(shop.run(shop.owner, 'stock.count', { lines: [{ productId: shop.products.milk, counted: 1 }, { productId: randomUUID(), counted: 0 }] })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect((shop.engine.db.prepare('SELECT COUNT(*) AS n FROM inventory_movements').get() as any).n).toBe(before);
+  });
+});
+

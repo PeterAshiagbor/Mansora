@@ -59,7 +59,8 @@ function AdminApplication() {
     { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'admins', label: 'Administrators', icon: 'users' }, { id: 'security', label: 'Account security', icon: 'shield' }, { id: 'contact', label: 'Support contact', icon: 'help' }, { id: 'problems', label: 'Problem reports', icon: 'help' }] },
   ];
   const current = groups.flatMap((g) => g.items).find((item) => item.id === (page.id === 'client' ? 'clients' : page.id))!;
-  return <WorkspaceShell footerActions={<ReportProblemNavItem />} primaryIds={['overview', 'clients', 'collections', 'invoices', 'payments']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>
+  // The report form sits outside the page, so its draft survives moving between pages.
+  return <><WorkspaceShell pageKey={JSON.stringify([page.id, page.param])} pageLabel={page.id === 'client' ? 'Client details' : undefined} footerActions={<ReportProblemNavItem />} primaryIds={['overview', 'clients', 'collections', 'invoices', 'payments']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setPage({ id: 'overview' }); setSignedIn(false); }}>
       <div key={page.id + (page.param ?? '')}>
         {page.id === 'overview' && <Overview go={go} />}
         {page.id === 'clients' && <Clients go={go} />}
@@ -78,8 +79,8 @@ function AdminApplication() {
         {page.id === 'contact' && <ContactSettings />}
         {page.id === 'problems' && <ProblemReports />}
       </div>
-      <ReportProblemButton page={current?.label ?? page.id} onSubmit={(r) => api('POST', '/v1/admin/bug-reports', r)} />
-    </WorkspaceShell>;
+    </WorkspaceShell>
+    <ReportProblemButton page={current?.label ?? page.id} onSubmit={(r) => api('POST', '/v1/admin/bug-reports', r)} /></>;
 }
 
 /** Problem reports from shops and administrators. They are also emailed to Mansora every evening at 7pm. */
@@ -400,7 +401,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
           <p className="border-b border-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">Tick a step only after checking it with the client. Confirm go-live marks an onboarding client as active; this checklist does not automatically verify hardware, training, contracts or privacy arrangements.</p>
           <ul>
             {data.onboarding.map((s: any, i: number) => (
-              <li key={s.step} className="flex items-center gap-3 border-b border-slate-100 px-4 py-2 last:border-0">
+              <li key={s.step} className="m-onboarding-step flex items-center gap-3 border-b border-slate-100 px-4 py-2 last:border-0">
                 <input type="checkbox" id={s.step} checked={stepOverrides[s.step] ?? !!s.completed_at} disabled={act.busy} className="h-4 w-4"
                   onChange={(e) => {
                     const completed = e.target.checked;
@@ -411,7 +412,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
                     });
                   }} />
                 <label htmlFor={s.step} className="flex-1 text-sm"><span className="mr-1 text-slate-600">{i + 1}.</span>{s.label}{s.notes && <span className="text-xs text-slate-500"> — {s.notes}</span>}</label>
-                <span className="text-xs text-slate-500">{s.completed_at ? `${when(s.completed_at)}${s.completed_by_name ? ` · ${s.completed_by_name}` : ''}` : ''}</span>
+                <span className="m-onboarding-completed text-xs text-slate-500">{s.completed_at ? `${when(s.completed_at)}${s.completed_by_name ? ` · ${s.completed_by_name}` : ''}` : ''}</span>
               </li>
             ))}
           </ul>

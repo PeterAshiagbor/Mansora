@@ -40,7 +40,7 @@ export const feedbackCommands = defineCommands({
       }
       const body: any = await res.json().catch(() => ({}));
       if (!res.ok) fail(body.code ?? 'REPORT_FAILED', body.message ?? 'The report could not be sent');
-      ctx.audit('bug_report', body.id ?? null, { severity: input.severity, page: input.page ?? null, pointed: !!input.area });
+      ctx.tx(() => ctx.audit('bug_report', body.id ?? null, { severity: input.severity, page: input.page ?? null, pointed: !!input.area }));
       return { id: body.id, sendsAt: body.sendsAt ?? '19:00' };
     },
   },

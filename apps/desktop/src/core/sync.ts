@@ -1,4 +1,5 @@
 import { SYNC_PROTOCOL_VERSION, type SyncPullResult, type SyncPushResult } from '@mansora/domain';
+import { recordMansoraPayments } from './mansora-expenses';
 import type { Engine } from './engine';
 import { maybeSendDailySummary } from './summary';
 
@@ -109,6 +110,8 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
       engine.setMeta('last_sync_at', engine.now().toISOString());
     })();
     state.online = true;
+    // Payments to Mansora appear in the shop's own expenses; a failure is retried on the next sync.
+    await recordMansoraPayments(engine, pull.mansoraPayments).catch((e) => console.warn('Recording Mansora payments as expenses failed:', (e as Error).message));
     // The owner's opt-in closing summary rides on a successful sync; a failure only waits for the next one.
     await maybeSendDailySummary(engine).catch(() => {});
     state.lastError = null;

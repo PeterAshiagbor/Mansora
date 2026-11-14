@@ -107,4 +107,16 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
       expect(problems).toEqual([]);
     });
   }
+
+  it('keeps a half-written problem report while the administrator moves between pages', async () => {
+    const report = admin.getByRole('button', { name: 'Report a problem to Mansora' }).first();
+    await report.click();
+    const dialog = admin.getByRole('dialog', { name: 'Tell Mansora about a problem', exact: true });
+    await dialog.getByLabel('What happened?').fill('Draft that must survive');
+    await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
+    await navigate(admin, 'Clients'); await navigate(admin, 'Overview');
+    await report.click();
+    expect(await dialog.getByLabel('What happened?').inputValue()).toBe('Draft that must survive');
+    await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
+  });
 });

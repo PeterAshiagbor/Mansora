@@ -136,12 +136,17 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       sub: (await q(`SELECT s.status, s.renewal_date, p.name FROM client_subscriptions s JOIN service_plans p ON p.id = s.plan_id WHERE s.tenant_id = $1`, [dev.tenant_id]))[0],
     }));
     const log = await db.tenant(dev.tenant_id, (q) => q(`SELECT id, admin_name, action, grant_id, occurred_at FROM support_access_log ORDER BY occurred_at DESC LIMIT 200`));
+    // The shop's payments to Mansora over the last 90 days, so the laptop can record them as its own expenses.
+    const paid = await db.platform((q) => q(`SELECT p.id, p.receipt_number, p.method, p.amount - p.amount_refunded AS amount, p.received_at,
+        (SELECT string_agg(i.number, ', ' ORDER BY i.number) FROM payment_allocations a JOIN invoices i ON i.id = a.invoice_id WHERE a.payment_id = p.id) AS invoices
+      FROM billing_payments p WHERE p.tenant_id = $1 AND p.received_at > now() - interval '90 days' AND p.amount > p.amount_refunded ORDER BY p.received_at`, [dev.tenant_id]));
     return {
       tenant,
       subscription: sub ? { status: sub.status, renewalDate: sub.renewal_date, planName: sub.name } : null,
       supportAccessLog: log.map((l) => ({ id: l.id, adminName: l.admin_name, action: l.action, grantId: l.grant_id, occurredAt: l.occurred_at })),
       serverTime: new Date().toISOString(),
       standing: ctx.standing ? await ctx.standing(dev.tenant_id) : null,
+      mansoraPayments: paid.map((p: any) => ({ id: p.id, receiptNumber: p.receipt_number, method: p.method, amount: Number(p.amount), receivedAt: new Date(p.received_at).toISOString(), invoices: p.invoices ?? null })),
     };
   });
 

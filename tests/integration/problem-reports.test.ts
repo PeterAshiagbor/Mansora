@@ -24,6 +24,7 @@ describe('Tell Mansora about a problem', () => {
     const [row] = await cloud.db.platform((q) => q(`SELECT * FROM bug_reports WHERE id = $1`, [r.id]));
     expect(row).toMatchObject({ source: 'shop', reporter_role: 'cashier', page: 'New sale', severity: 'blocking', description: 'Pressing Take payment does nothing', digest_day: null });
     expect(row.area).toMatchObject({ label: 'Take payment' });
+    expect(shop.engine.db.prepare(`SELECT COUNT(*) AS n FROM outbox WHERE type = 'bug.report'`).get()).toEqual({ n: 1 });
     await expectCode(shop.run(shop.cashier, 'bug.report', { description: 'x' }), 'INVALID_INPUT');
     await expectCode(shop.run(null, 'bug.report', { description: 'not signed in' }), 'NOT_SIGNED_IN');
   });
