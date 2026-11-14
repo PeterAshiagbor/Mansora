@@ -8,7 +8,7 @@ export const getToken = () => sessionStorage.getItem(KEY);
 export const setToken = (t: string | null) => (t ? sessionStorage.setItem(KEY, t) : sessionStorage.removeItem(KEY));
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  constructor(public status: number, public code: string, message: string, public details?: any) {
     super(message);
   }
 }
@@ -31,7 +31,7 @@ export async function api<T = any>(method: string, path: string, body?: unknown)
       setToken(null);
       window.dispatchEvent(new Event('mansora:signed-out'));
     }
-    throw new ApiError(res.status, data.code ?? 'ERROR', data.message ?? 'Request failed');
+    throw new ApiError(res.status, data.code ?? 'ERROR', data.message ?? 'Request failed', data.details);
   }
   return data as T;
 }

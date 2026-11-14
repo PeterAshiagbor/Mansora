@@ -32,6 +32,18 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/admin-w
     await page.getByRole('cell', { name, exact: true }).click();
     await page.getByRole('dialog', { name: 'Demo request', exact: true }).getByLabel('Lead status', { exact: true }).selectOption('qualified');
     await expect.poll(async () => (await cloud.api('GET', '/v1/admin/leads?status=qualified')).body.rows.length).toBe(1);
+    // PR-03: record a call; it appears on the timeline.
+    const dialog = page.getByRole('dialog', { name: 'Demo request', exact: true });
+    await dialog.getByLabel('Details', { exact: true }).fill('Called; demo booked for Friday');
+    await dialog.getByRole('button', { name: 'Record', exact: true }).click();
+    await dialog.getByRole('cell', { name: 'Called; demo booked for Friday', exact: true }).waitFor();
+    await dialog.getByRole('cell', { name: 'Acknowledgement to prospect', exact: true }).waitFor();
     expect((await cloud.api('GET', '/v1/admin/clients')).body).toHaveLength(0);
+    // PR-04: explicit conversion of the qualified lead.
+    await dialog.getByRole('button', { name: 'Convert to client', exact: true }).click();
+    await dialog.getByLabel(/I have confirmed these details/).check();
+    await dialog.getByRole('button', { name: 'Approve and convert', exact: true }).click();
+    await dialog.getByText(/Converted to a client on/).waitFor();
+    expect((await cloud.api('GET', '/v1/admin/clients')).body).toHaveLength(1);
   });
 });

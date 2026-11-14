@@ -125,9 +125,10 @@ export async function queueEmail(q: Query, m: { id?: string; tenantId?: string |
 const LEAD_FOLLOW_UPS = ['lead_team_reminder', 'lead_customer_followup'];
 async function leadFollowUpStale(q: Query, n: any): Promise<string | null> {
   if (!n.lead_id || !LEAD_FOLLOW_UPS.includes(n.kind)) return null;
-  const [lead] = await q(`SELECT status FROM demo_requests WHERE id = $1`, [n.lead_id]);
+  const [lead] = await q(`SELECT status, follow_up_opt_out_at FROM demo_requests WHERE id = $1`, [n.lead_id]);
   if (!lead) return 'The demo request no longer exists';
   if (lead.status !== 'new') return `Not needed: the demo request is now ${lead.status}`;
+  if (lead.follow_up_opt_out_at && n.kind === 'lead_customer_followup') return 'The prospect asked not to be followed up';
   return null;
 }
 

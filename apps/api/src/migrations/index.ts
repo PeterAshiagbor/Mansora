@@ -797,4 +797,42 @@ ALTER TABLE notifications ADD COLUMN lead_id uuid REFERENCES demo_requests(id);
 CREATE INDEX notifications_lead ON notifications(lead_id) WHERE lead_id IS NOT NULL;
 `,
   },
+  {
+    id: 14,
+    name: 'lead_management',
+    sql: `
+-- Lead management (acquisition spec PR-03): who looks after a lead, when it was last contacted, when to follow up,
+-- what was learned, and an append-only timeline of calls, meetings, emails and notes.
+ALTER TABLE demo_requests
+  ADD COLUMN assigned_admin_id uuid REFERENCES admins(id),
+  ADD COLUMN last_contacted_at timestamptz,
+  ADD COLUMN next_follow_up_at timestamptz,
+  ADD COLUMN qualification jsonb NOT NULL DEFAULT '{}',
+  ADD COLUMN follow_up_opt_out_at timestamptz;
+CREATE INDEX demo_requests_follow_up ON demo_requests(next_follow_up_at) WHERE next_follow_up_at IS NOT NULL;
+CREATE TABLE lead_events (
+  id uuid PRIMARY KEY, lead_id uuid NOT NULL REFERENCES demo_requests(id),
+  kind text NOT NULL CHECK (kind IN ('note','call','meeting','email_out','email_in_logged','status','assignment','follow_up','opt_out','conversion','system')),
+  body text NOT NULL DEFAULT '', actor_admin_id uuid REFERENCES admins(id), notification_id uuid REFERENCES notifications(id),
+  occurred_at timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX lead_events_lead ON lead_events(lead_id, occurred_at DESC);
+-- The timeline is a record: it can be added to, never edited or deleted.
+GRANT SELECT, INSERT ON lead_events TO mansora_platform;
+`,
+  },
+  {
+    id: 15,
+    name: 'lead_conversion',
+    sql: `
+-- Converting a qualified lead into a client (acquisition spec PR-04). Each lead becomes at most one client and each
+-- client comes from at most one lead: the unique columns make a second conversion impossible, even when two
+-- administrators press Convert at the same moment.
+ALTER TABLE demo_requests
+  ADD COLUMN tenant_id uuid UNIQUE REFERENCES tenants(id),
+  ADD COLUMN converted_at timestamptz,
+  ADD COLUMN converted_by uuid REFERENCES admins(id);
+ALTER TABLE tenants ADD COLUMN lead_id uuid UNIQUE REFERENCES demo_requests(id);
+`,
+  },
 ];

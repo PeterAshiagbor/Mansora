@@ -21,6 +21,25 @@ const SESSION_HOURS = 12;
 const audit = (q: Query, admin: Admin | null, action: string, tenantId: string | null, detail: Record<string, unknown> = {}) =>
   q(`INSERT INTO admin_audit_logs (id, admin_id, action, tenant_id, detail) VALUES ($1, $2, $3, $4, $5)`, [randomUUID(), admin?.id ?? null, action, tenantId, JSON.stringify(detail)]);
 
+/**
+ * Create a client: the tenant, its twelve onboarding steps (the first done) and, if a plan was agreed, a draft
+ * subscription at the plan's price. Used by "Add client" and by converting a qualified lead. Never charges anything.
+ */
+export async function insertClient(q: Query, actor: { id: string; name: string }, b: { name: string; ownerName: string; phone: string | null; email: string | null; address: string | null; businessType: string; supportContact?: string | null; planId?: string | null; leadId?: string | null }, id = randomUUID()): Promise<string> {
+  await q(`INSERT INTO tenants (id, name, owner_name, phone, email, address, business_type, support_contact, lead_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, [id, b.name, b.ownerName, b.phone, b.email, b.address, b.businessType, b.supportContact ?? actor.name, b.leadId ?? null]);
+  for (const [step] of ONBOARDING_STEPS) {
+    const done = step === 'create_account';
+    await q(`INSERT INTO onboarding_steps (tenant_id, step, completed_at, completed_by) VALUES ($1, $2, $3, $4)`, [id, step, done ? new Date().toISOString() : null, done ? actor.id : null]);
+  }
+  // A new client starts with a draft subscription at the plan's price. It is activated through Subscriptions, which invoices it.
+  if (b.planId) {
+    const rows = await q(`INSERT INTO client_subscriptions (id, tenant_id, plan_id, status, agreed_amount, billing_frequency) SELECT $1, $2, p.id, 'draft', p.price, p.billing_period FROM service_plans p WHERE p.id = $3 AND p.active RETURNING id`, [randomUUID(), id, b.planId]);
+    if (!rows.length) httpError(400, 'UNKNOWN_PLAN', 'Choose an offered service plan');
+  }
+  await audit(q, actor as Admin, 'client.created', id, { name: b.name, ...(b.leadId ? { fromLead: b.leadId } : {}) });
+  return id;
+}
+
 export async function createAdmin(q: Query, input: { email: string; name: string; password: string }): Promise<string> {
   if (input.password.length < 12) throw new Error('Administrator passwords must be at least 12 characters');
   const id = randomUUID();
@@ -344,17 +363,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   app.post('/v1/admin/clients', async (req) => {
     const a = await admin(req);
     const b = clientBody.extend({ planId: z.string().uuid().nullish() }).parse(req.body);
-    const id = randomUUID();
-    await db.platform(async (q) => {
-      await q(`INSERT INTO tenants (id, name, owner_name, phone, email, address, business_type, support_contact) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [id, b.name, b.ownerName, b.phone, b.email, b.address, b.businessType, b.supportContact ?? a.name]);
-      for (const [step] of ONBOARDING_STEPS) {
-        const done = step === 'create_account';
-        await q(`INSERT INTO onboarding_steps (tenant_id, step, completed_at, completed_by) VALUES ($1, $2, $3, $4)`, [id, step, done ? new Date().toISOString() : null, done ? a.id : null]);
-      }
-      // A new client starts with a draft subscription at the plan's price. It is activated through Subscriptions, which invoices it.
-      if (b.planId) await q(`INSERT INTO client_subscriptions (id, tenant_id, plan_id, status, agreed_amount, billing_frequency) SELECT $1, $2, p.id, 'draft', p.price, p.billing_period FROM service_plans p WHERE p.id = $3`, [randomUUID(), id, b.planId]);
-      await audit(q, a, 'client.created', id, { name: b.name });
-    });
+    const id = await db.platform((q) => insertClient(q, a, b));
     return { id };
   });
   app.get('/v1/admin/clients/:id', async (req) => {

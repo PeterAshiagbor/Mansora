@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { AppContext } from '../app';
 import { httpError, RateLimiter, sha256 } from '../security';
 import { queueLeadEmails } from './lead-emails';
+import { convertBody, convertLead, linkLead } from './lead-conversion';
 
 const statuses = ['new', 'contacted', 'qualified', 'closed'] as const;
 const input = z.object({
@@ -90,24 +91,93 @@ export function registerLeadRoutes(app: FastifyInstance, { db, demoIntakeSecret,
   async function actor(req: FastifyRequest) {
     const token = req.headers.authorization;
     if (!token?.startsWith('Bearer ')) httpError(401, 'UNAUTHENTICATED', 'Please sign in');
-    const [a] = await db.platform(q => q("SELECT a.id FROM admins a JOIN admin_sessions s ON s.admin_id = a.id WHERE s.token_hash = $1 AND s.expires_at > now() AND a.status = 'active'", [sha256(token!.slice(7))]));
+    const [a] = await db.platform(q => q("SELECT a.id, a.name FROM admins a JOIN admin_sessions s ON s.admin_id = a.id WHERE s.token_hash = $1 AND s.expires_at > now() AND a.status = 'active'", [sha256(token!.slice(7))]));
     return a ?? httpError(401, 'UNAUTHENTICATED', 'Please sign in again');
   }
   app.get('/v1/admin/leads', async req => {
     await actor(req);
     const filter = z.object({ status: z.enum(statuses).optional(), page: z.coerce.number().int().min(1).max(10_000).default(1) }).parse(req.query);
     return db.platform(async q => {
-      const rows = await q('SELECT * FROM demo_requests WHERE ($1::text IS NULL OR status = $1) ORDER BY created_at DESC, id LIMIT 51 OFFSET $2', [filter.status ?? null, (filter.page - 1) * 50]);
+      const rows = await q('SELECT d.*, a.name AS assigned_name FROM demo_requests d LEFT JOIN admins a ON a.id = d.assigned_admin_id WHERE ($1::text IS NULL OR d.status = $1) ORDER BY d.created_at DESC, d.id LIMIT 51 OFFSET $2', [filter.status ?? null, (filter.page - 1) * 50]);
       return { rows: rows.slice(0, 50), hasMore: rows.length > 50, page: filter.page };
     });
   });
+  app.get('/v1/admin/leads/:id', async req => {
+    await actor(req);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    return db.platform(async q => {
+      const [lead] = await q(`SELECT d.*, a.name AS assigned_name FROM demo_requests d LEFT JOIN admins a ON a.id = d.assigned_admin_id WHERE d.id = $1`, [id]);
+      if (!lead) httpError(404, 'NOT_FOUND', 'Demo request not found');
+      const events = await q(`SELECT e.id, e.kind, e.body, e.occurred_at, e.created_at, a.name AS actor_name FROM lead_events e LEFT JOIN admins a ON a.id = e.actor_admin_id WHERE e.lead_id = $1 ORDER BY e.occurred_at DESC, e.created_at DESC LIMIT 200`, [id]);
+      // Email history: what was sent, held back or failed (accepted by the provider is not proof of delivery).
+      const emails = await q(`SELECT id, kind, to_address, subject, status, error, next_attempt_at, sent_at, created_at FROM notifications WHERE lead_id = $1 ORDER BY created_at, kind`, [id]);
+      const admins = await q(`SELECT id, name FROM admins WHERE status = 'active' ORDER BY name`);
+      return { lead, events, emails, admins };
+    });
+  });
+  const contactKinds = ['call', 'meeting', 'email_out', 'email_in_logged'] as const;
+  app.post('/v1/admin/leads/:id/events', async req => {
+    const a = await actor(req), { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const body = z.object({ kind: z.enum(['note', ...contactKinds]), body: z.string().trim().min(1).max(4000), occurredAt: z.string().datetime({ offset: true }).optional() }).strict().parse(req.body);
+    const occurred = body.occurredAt ?? new Date().toISOString();
+    if (Date.parse(occurred) > Date.now() + 5 * 60_000) httpError(400, 'FUTURE_DATE', 'A contact cannot be recorded in the future');
+    return db.platform(async q => {
+      const [lead] = await q('SELECT id, status, last_contacted_at FROM demo_requests WHERE id = $1 FOR UPDATE', [id]);
+      if (!lead) httpError(404, 'NOT_FOUND', 'Demo request not found');
+      await q('INSERT INTO lead_events (id, lead_id, kind, body, actor_admin_id, occurred_at) VALUES ($1,$2,$3,$4,$5,$6)', [randomUUID(), id, body.kind, body.body, a.id, occurred]);
+      if ((contactKinds as readonly string[]).includes(body.kind)) {
+        // Recording a contact stops the automatic follow-ups: a new lead becomes contacted.
+        await q('UPDATE demo_requests SET last_contacted_at = GREATEST(COALESCE(last_contacted_at, $2::timestamptz), $2::timestamptz), status = CASE WHEN status = $3 THEN $4 ELSE status END, updated_at = now() WHERE id = $1', [id, occurred, 'new', 'contacted']);
+        if (lead.status === 'new') await q('INSERT INTO lead_events (id, lead_id, kind, body, actor_admin_id, occurred_at) VALUES ($1,$2,$3,$4,$5,now())', [randomUUID(), id, 'status', 'new → contacted (contact recorded)', a.id]);
+      }
+      await q('INSERT INTO admin_audit_logs (id, admin_id, action, detail) VALUES ($1,$2,$3,$4)', [randomUUID(), a.id, 'lead.event_recorded', JSON.stringify({ leadId: id, kind: body.kind })]);
+      return { ok: true };
+    });
+  });
   app.put('/v1/admin/leads/:id', async req => {
-    const a = await actor(req), { id } = z.object({ id: z.string().uuid() }).parse(req.params), { status } = z.object({ status: z.enum(statuses) }).strict().parse(req.body);
+    const a = await actor(req), { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const body = z.object({
+      status: z.enum(statuses).optional(),
+      assignedAdminId: z.string().uuid().nullable().optional(),
+      nextFollowUpAt: z.string().datetime({ offset: true }).nullable().optional(),
+      qualification: z.object({ shops: z.number().int().min(0).max(1000).optional(), tills: z.number().int().min(0).max(1000).optional(), currentSystem: z.string().trim().max(200).optional(), needs: z.string().trim().max(2000).optional(), budget: z.string().trim().max(200).optional(), planInterest: z.enum(['starter', 'business', 'plus', 'undecided']).optional() }).strict().optional(),
+      optOut: z.boolean().optional(),
+    }).strict().refine(v => Object.keys(v).length > 0, 'Nothing to change').parse(req.body);
     await db.platform(async q => {
-      const rows = await q('UPDATE demo_requests SET status = $2, updated_at = now() WHERE id = $1 RETURNING id', [id, status]);
-      if (!rows.length) httpError(404, 'NOT_FOUND', 'Demo request not found');
-      await q('INSERT INTO admin_audit_logs (id, admin_id, action, detail) VALUES ($1,$2,$3,$4)', [randomUUID(), a.id, 'lead.status_updated', JSON.stringify({ leadId: id, status })]);
+      const [lead] = await q('SELECT * FROM demo_requests WHERE id = $1 FOR UPDATE', [id]);
+      if (!lead) httpError(404, 'NOT_FOUND', 'Demo request not found');
+      const event = (kind: string, text: string) => q('INSERT INTO lead_events (id, lead_id, kind, body, actor_admin_id, occurred_at) VALUES ($1,$2,$3,$4,$5,now())', [randomUUID(), id, kind, text, a.id]);
+      if (body.status && body.status !== lead.status) {
+        await q('UPDATE demo_requests SET status = $2, updated_at = now() WHERE id = $1', [id, body.status]);
+        await event('status', `${lead.status} → ${body.status}`);
+      }
+      if (body.assignedAdminId !== undefined && body.assignedAdminId !== lead.assigned_admin_id) {
+        let name = 'nobody';
+        if (body.assignedAdminId) { const [who] = await q(`SELECT name FROM admins WHERE id = $1 AND status = 'active'`, [body.assignedAdminId]); if (!who) httpError(400, 'UNKNOWN_ADMIN', 'Choose an active administrator'); name = who.name; }
+        await q('UPDATE demo_requests SET assigned_admin_id = $2, updated_at = now() WHERE id = $1', [id, body.assignedAdminId]);
+        await event('assignment', `Assigned to ${name}`);
+      }
+      if (body.nextFollowUpAt !== undefined) {
+        await q('UPDATE demo_requests SET next_follow_up_at = $2, updated_at = now() WHERE id = $1', [id, body.nextFollowUpAt]);
+        await event('follow_up', body.nextFollowUpAt ? `Next follow-up ${body.nextFollowUpAt}` : 'Follow-up date cleared');
+      }
+      if (body.qualification) await q('UPDATE demo_requests SET qualification = $2, updated_at = now() WHERE id = $1', [id, JSON.stringify(body.qualification)]);
+      if (body.optOut !== undefined && body.optOut !== !!lead.follow_up_opt_out_at) {
+        await q('UPDATE demo_requests SET follow_up_opt_out_at = $2, updated_at = now() WHERE id = $1', [id, body.optOut ? new Date().toISOString() : null]);
+        await event('opt_out', body.optOut ? 'Prospect asked not to be followed up' : 'Follow-up opt-out removed');
+      }
+      await q('INSERT INTO admin_audit_logs (id, admin_id, action, detail) VALUES ($1,$2,$3,$4)', [randomUUID(), a.id, body.status ? 'lead.status_updated' : 'lead.updated', JSON.stringify({ leadId: id, ...body, qualification: body.qualification ? 'updated' : undefined })]);
     });
     return { ok: true };
+  });
+  app.post('/v1/admin/leads/:id/convert', async req => {
+    const a = await actor(req), { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const body = convertBody.parse(req.body);
+    return db.platform(q => convertLead(q, a, id, body));
+  });
+  app.post('/v1/admin/leads/:id/link', async req => {
+    const a = await actor(req), { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const { tenantId } = z.object({ tenantId: z.string().uuid() }).strict().parse(req.body);
+    return db.platform(q => linkLead(q, a, id, tenantId));
   });
 }
