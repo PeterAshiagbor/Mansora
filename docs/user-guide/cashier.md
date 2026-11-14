@@ -11,12 +11,16 @@
 
 1. Scan each item, or type part of its name and click it. Press **F2** to jump back to the search box. No scanner? Press **Camera** and scan with the phone or tablet camera. See [scanners-and-printers.md](scanners-and-printers.md).
 2. Change quantities with **+ / −** or type the number.
-3. Press **F9** (or **Pay**).
-4. Type the cash you were given. The change is shown in large figures.
+3. A walk-in sale needs no customer. For a credit sale, or to keep the sale on someone's record, type the
+   customer's name or phone number in **Customer**: matching customers drop down with what they still owe. Not
+   there yet? Choose **+ Add … as a new customer**, fill in the same details as the Customers page, and press
+   **Save and use for this sale**. A phone number already on file is refused, with the option to use that customer.
+4. Press **F9** (or **Pay**).
+5. Type the cash you were given. The change is shown in large figures.
    - Mobile money or card: enter the amount on that line. Check the customer's payment has really arrived first — the system only records it.
    - Part cash, part mobile money: fill in both lines.
-5. Press **Enter** to complete. Give the change. **Print receipt** if the customer wants one.
-6. Press **Enter** for the next customer.
+6. Press **Enter** to complete. Give the change. **Print receipt** if the customer wants one.
+7. Press **Enter** for the next customer.
 
 If the receipt does not print, the sale is still saved. Reprint it from **Sales history**.
 

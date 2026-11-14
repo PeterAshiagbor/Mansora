@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select, Table, QueryView } from '@mansora/ui';
-import { call, dateTime, fileToBase64, money, useAction, useQuery, useToast } from '../lib';
+import { call, dateTime, fileToBase64, money, saveFile, useAction, useQuery, useToast } from '../lib';
 
 /**
  * Bank & Mobile Money statements: import a statement, check what Mansora suggests for each line, then accept lines
@@ -9,6 +9,7 @@ import { call, dateTime, fileToBase64, money, useAction, useQuery, useToast } fr
 const FIELD_LABEL: Record<string, string> = {
   date: 'Date', description: 'Description', reference: 'Reference / transaction ID', amount_in: 'Money in (credit)', amount_out: 'Money out (debit)',
   amount: 'Amount (one column, minus for money out)', direction: 'Type (credit / debit)',
+  balance_before: 'Balance before', balance_after: 'Balance after', fees: 'Fees', levy: 'E-Levy', from_name: 'From (name)', to_name: 'To (name)',
 };
 const CATEGORIES = ['Rent', 'Electricity', 'Water', 'Transport', 'Salaries', 'Airtime & data', 'Repairs', 'Supplies', 'Mansora subscription', 'Bank charges', 'Other'];
 
@@ -46,8 +47,18 @@ function ImportStatement({ onDone }: { onDone: (id: string) => void }) {
   const bad = preview?.rows?.filter((r: any) => r.errors.length) ?? [];
   const dups = good.filter((r: any) => r.duplicate).length;
   return (
-    <Card title="Import a statement" className="mb-4">
-      <p className="mb-3 text-sm text-slate-600">Download your statement from your bank or Mobile Money app as Excel or CSV, then choose it here. Nothing is saved until you press Import, and nothing is recorded until you accept lines.</p>
+    <Card title="Import a statement" className="mb-4"
+      actions={<Button size="sm" disabled={busy} onClick={() => run(async () => saveFile(await call('statement.sample', { format: 'xlsx' })))}>Download a practice statement</Button>}>
+      <p className="mb-2 text-sm text-slate-600">Choose a statement saved as Excel (.xlsx) or CSV. Nothing is saved until you press Import, and nothing is recorded until you accept lines.</p>
+      <details className="m-form-details mb-3"><summary>Where do I get my statement?</summary>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+          <li><strong>Bank:</strong> in internet banking, open the account, choose the dates, and download the statement as Excel or CSV.</li>
+          <li><strong>MTN MoMo:</strong> request a statement in the MoMo app or by dialling *170#. MTN sends it by email.</li>
+          <li><strong>Telecel Cash:</strong> request a statement in the Telecel app or by dialling *110#. It is sent by email.</li>
+          <li>Mobile Money statements usually arrive as PDF. Until Mansora reads PDF files, open the PDF in Excel or Google Sheets and save it as .xlsx or .csv.</li>
+          <li>To try this screen first, download the practice statement. It is made from this shop's own Mobile Money sales.</li>
+        </ul>
+      </details>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Statement from"><Select value={source} onChange={(e) => { const next = e.target.value as 'momo' | 'bank'; setSource(next); if (file) load(file, undefined, next); }}><option value="momo">Mobile Money</option><option value="bank">Bank</option></Select></Field>
         <Field label="Account name (optional)"><Input value={account} maxLength={80} onChange={(e) => setAccount(e.target.value)} placeholder="e.g. MTN shop line" /></Field>
@@ -56,6 +67,7 @@ function ImportStatement({ onDone }: { onDone: (id: string) => void }) {
       </div>
       {preview && file && (
         <div className="mt-4 space-y-3">
+          {preview.practice && <Alert tone="warn">This is a practice statement made by Mansora. Lines you accept from it are recorded as real expenses: use it in a test shop only.</Alert>}
           {preview.alreadyImportedAt && <Alert tone="warn">This file was already imported on {dateTime(preview.alreadyImportedAt)}.</Alert>}
           <details className="m-form-details" open={preview.needsMapping || undefined}><summary>Match your columns</summary>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -124,13 +136,13 @@ function StatementLines({ id, onBack }: { id: string; onBack: () => void }) {
         <Table rows={lines} rowKey={(l: any) => l.id} caption="Each statement line with what Mansora suggests"
           columns={[
             { header: '', cell: (l: any) => (l.status === 'pending' ? <input type="checkbox" aria-label={`Select line ${l.line_no}`} checked={selected.has(l.id)} onChange={() => toggle(l.id)} /> : null) },
-            { header: 'Date', cell: (l: any) => l.txn_date },
+            { header: 'Date', cell: (l: any) => <span className="whitespace-nowrap">{l.txn_date}</span> },
             { header: 'Description', cell: (l: any) => <><div>{l.description ?? ''}</div>{l.reference && <div className="text-xs text-slate-500">{l.reference}</div>}</> },
-            { header: 'In', align: 'right', cell: (l: any) => (l.amount_in ? money(l.amount_in) : '') },
-            { header: 'Out', align: 'right', cell: (l: any) => (l.amount_out ? money(l.amount_out) : '') },
+            { header: 'In', align: 'right', cell: (l: any) => (l.amount_in ? <span className="whitespace-nowrap">{money(l.amount_in)}</span> : '') },
+            { header: 'Out', align: 'right', cell: (l: any) => (l.amount_out ? <span className="whitespace-nowrap">{money(l.amount_out)}</span> : '') },
             { header: 'Suggestion', cell: (l: any) => <span className="text-sm">{suggestionText(l)}</span> },
             { header: 'Category', cell: (l: any) => (l.status === 'pending' && l.amount_out > 0 && l.suggestion?.kind !== 'linked'
-              ? <Select aria-label={`Category for line ${l.line_no}`} value={categories[l.id] ?? l.category ?? ''} onChange={(e) => setCategories((c) => ({ ...c, [l.id]: e.target.value }))}>
+              ? <Select className="min-w-[11rem]" aria-label={`Category for line ${l.line_no}`} value={categories[l.id] ?? l.category ?? ''} onChange={(e) => setCategories((c) => ({ ...c, [l.id]: e.target.value }))}>
                   <option value="">Choose…</option>{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</Select>
               : l.category ?? '') },
             { header: 'Status', cell: (l: any) => <Badge tone={tone(l)}>{l.status === 'pending' ? 'To check' : l.status === 'accepted' ? 'Accepted' : l.status === 'ignored' ? 'Ignored' : 'Duplicate'}</Badge> },
