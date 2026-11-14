@@ -78,7 +78,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   });
   it('gives the platform team five daily pages and expandable operational detail', async () => {
     await admin.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
-    expect(await admin.getByRole('navigation').locator('button.m-nav-item:visible').allInnerTexts()).toEqual(['Overview', 'Clients', 'Collections', 'Invoices', 'Payments', 'Report a problem', 'Sign out']);
+    expect(await admin.getByRole('navigation').locator('button.m-nav-item:visible').allInnerTexts()).toEqual(['Overview', 'Clients', 'Billing', 'Subscriptions', 'Report a problem', 'Sign out']);
     expect(await admin.getByRole('heading', { name: 'Onboarding in progress', exact: true }).count()).toBe(0);
     await admin.getByText('Onboarding & plan details', { exact: true }).click(); await admin.getByRole('heading', { name: 'Onboarding in progress', exact: true }).waitFor();
     await navigate(admin, 'Account security'); await admin.getByRole('heading', { name: 'Account security', exact: true }).waitFor();

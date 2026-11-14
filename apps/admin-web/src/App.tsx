@@ -55,19 +55,23 @@ function AdminApplication() {
   };
   const groups = [
     { group: 'Workspace', items: [{ id: 'overview', label: 'Overview', icon: 'home' }, { id: 'clients', label: 'Clients', icon: 'users' }, { id: 'leads', label: 'Leads', icon: 'users' }, { id: 'plans', label: 'Service plans', icon: 'wallet' }] },
-    { group: 'Billing', items: [{ id: 'collections', label: 'Collections', icon: 'wallet' }, { id: 'subscriptions', label: 'Subscriptions', icon: 'sync' }, { id: 'invoices', label: 'Invoices', icon: 'file' }, { id: 'payments', label: 'Payments', icon: 'sale' }, { id: 'revenue', label: 'Revenue reports', icon: 'chart' }, { id: 'paysettings', label: 'Payment settings', icon: 'settings' }] },
+    { group: 'Billing', items: [{ id: 'billing', label: 'Billing', icon: 'wallet' }, { id: 'subscriptions', label: 'Subscriptions', icon: 'sync' }, { id: 'revenue', label: 'Revenue reports', icon: 'chart' }, { id: 'paysettings', label: 'Payment settings', icon: 'settings' }] },
     { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'admins', label: 'Administrators', icon: 'users' }, { id: 'security', label: 'Account security', icon: 'shield' }, { id: 'contact', label: 'Support contact', icon: 'help' }, { id: 'problems', label: 'Problem reports', icon: 'help' }] },
   ];
-  const current = groups.flatMap((g) => g.items).find((item) => item.id === (page.id === 'client' ? 'clients' : page.id))!;
+  // Who owes us, invoices and payments are three tabs of one Billing page: one place, three plain questions.
+  const BILLING_TABS = ['collections', 'invoices', 'payments'];
+  const menuId = page.id === 'client' ? 'clients' : BILLING_TABS.includes(page.id) || page.id === 'billing' ? 'billing' : page.id;
+  const current = groups.flatMap((g) => g.items).find((item) => item.id === menuId)!;
   // The report form sits outside the page, so its draft survives moving between pages.
-  return <><WorkspaceShell pageKey={JSON.stringify([page.id, page.param])} pageLabel={page.id === 'client' ? 'Client details' : undefined} footerActions={<ReportProblemNavItem />} primaryIds={['overview', 'clients', 'collections', 'invoices', 'payments']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setPage({ id: 'overview' }); setSignedIn(false); }}>
+  return <><WorkspaceShell pageKey={JSON.stringify([page.id, page.param])} pageLabel={page.id === 'client' ? 'Client details' : undefined} footerActions={<ReportProblemNavItem />} primaryIds={['overview', 'clients', 'billing', 'subscriptions']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id === 'billing' ? 'collections' : page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setPage({ id: 'overview' }); setSignedIn(false); }}>
       <div key={page.id + (page.param ?? '')}>
         {page.id === 'overview' && <Overview go={go} />}
         {page.id === 'clients' && <Clients go={go} />}
         {page.id === 'leads' && <Leads />}
         {page.id === 'client' && page.param && <Client id={page.param} go={go} />}
         {page.id === 'plans' && <Plans />}
-        {page.id === 'collections' && <Collections go={go} />}
+        {(BILLING_TABS.includes(page.id) || page.id === 'billing') && <BillingTabs current={page.id === 'billing' ? 'collections' : page.id} go={go} />}
+        {(page.id === 'collections' || page.id === 'billing') && <Collections go={go} />}
         {page.id === 'subscriptions' && <Subscriptions go={go} />}
         {page.id === 'invoices' && <Invoices />}
         {page.id === 'payments' && <Payments />}
@@ -81,6 +85,21 @@ function AdminApplication() {
       </div>
     </WorkspaceShell>
     <ReportProblemButton page={current?.label ?? page.id} onSubmit={(r) => api('POST', '/v1/admin/bug-reports', r)} /></>;
+}
+
+/** The three billing views, one menu item. Each tab answers one question. */
+function BillingTabs({ current, go }: { current: string; go: (id: string) => void }) {
+  const hint: Record<string, string> = {
+    collections: 'Who owes Mansora, how late they are, reminders sent and what happens next.',
+    invoices: 'Every bill sent to a client shop, with its status and pay link.',
+    payments: 'Money received, by Paystack, Mobile Money, bank or cash, and what it paid.',
+  };
+  return (
+    <div className="mb-4">
+      <Tabs value={current} onChange={(id: string) => go(id)} tabs={[{ id: 'collections', label: 'Who owes us' }, { id: 'invoices', label: 'Invoices' }, { id: 'payments', label: 'Payments received' }]} />
+      <p className="mt-2 text-sm text-slate-600">{hint[current]}</p>
+    </div>
+  );
 }
 
 /** Problem reports from shops and administrators. They are also emailed to Mansora every evening at 7pm. */
