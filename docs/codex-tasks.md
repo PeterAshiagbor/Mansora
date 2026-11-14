@@ -46,7 +46,7 @@
 | Task | Owner | Current state / dependency | Branch / evidence |
 | --- | --- | --- | --- |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
-| C17 printable PDF invoices/receipts | unclaimed | Open | – |
+| C17 printable PDF invoices/receipts | Codex platform session | Implemented on branch: A4 pagination, repeated headings, wrapped long content, issuer/TIN consistency and missing-document 404s. Real Chromium/Poppler tests pass locally; full regression/CI pending. Existing print/PDF facilities retained | `codex/C17-printable-documents` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
 | C53 staff sign-in details by email: optional local staff email, one-time 48-hour codes, `I have a sign-in code` on the sign-in screen (owner request 2026-11-13; D-37). Touches engine/auth, device API, Staff page and a narrow sign-in addition | Claude | **Merged** PR #62 | `claude/elegant-bohr-mjeotl` |
 | C54 invite Mansora administrators by email: one-time 48-hour link, invitee chooses a 12+ character password; Administrators page; migration 7 `admin_invitations` (owner request 2026-11-13) | Claude | **Merged** PR #63. Adds `adminUrl` to the Railway `buildApp` call in `scripts/railway/server.ts` (one line, Codex area) | `claude/elegant-bohr-mjeotl` |
@@ -120,6 +120,13 @@ infrastructure stay with their existing owners. Coordination: issue #39.
 - **Built by Claude on `claude/elegant-bohr-mjeotl` (PR #67):** C57 camera scanning (New sale, Products, Stock count), C58 sample shop and template guide sheet, QuickBooks/Xero column recognition, C59 shifts and logins, C60 supplier details/history and Needs reordering, C62 test shops renamed Mansora TSA and TSB, the Ghana legal pack, review fixes. New guides: `docs/user-guide/scanners-and-printers.md`, `moving-to-mansora.md`, `stock-purchases-expenses.md`, `who-can-do-what.md` (generated; run `npx tsx scripts/docs/roles.ts` after changing permissions).
 - **Do not touch:** sync contract (`text+` columns on suppliers), laptop migration 3, cloud migration 9.
 
+### 2026-11-14 — Codex (respect current ownership; C17 claim)
+- Read the 13 November takeover: C38/C48/C49/C51/C55 belong to Claude. Stopped new work in those lanes after discovering the updated handoff. Preserving the in-flight C38 prototype in a draft handoff branch for Claude, without merging, enabling a backup schedule, provisioning storage or changing live records/credentials.
+- C38 prototype rebased onto current default 71ea602: eight focused tests in four files and typecheck pass. Synthetic full-schema/two-shop restoration verifies encrypted key/store capture, financial rows, owner authentication and isolated sync. The upload manager is an unintegrated prototype without its own delivery/restart tests; raw privileged recovery-query and temporary constraint-deferral boundaries require owner review before runtime integration. No off-site backup or production PostgreSQL 16 restore is claimed.
+- Claim previously unowned C17 on `codex/C17-printable-documents`. Coordinating the narrow `apps/api/src/billing/documents.ts` presentation surface here before edits; ledger/provider logic, routes, permission checks and protected engine files remain with Claude. Existing client/Electron PDF and browser printing avoid a heavy new server dependency. Verify issuer details, document numbers, amounts, escaping and multi-page output with real Chromium PDFs.
+- The actual platform UI/gateway changes and separate US East monitor from this session were deployed successfully. Monitoring delivery remains blocked by the designated inbox's provider bounce/suppression; a corrected address is still needed privately. No suppression was removed.
+
+
 ### 2026-11-13 — Claude (owner asked Claude to take over the Codex sessions' work)
 - **Taken over:** C38 (remaining: off-site backup, key custody, isolated restore; the C38 part 1 monitor is merged), C48, C49, C51 and C55. Codex sessions: please do not start new work on these rows; record anything in flight in a handoff entry so it can be picked up.
 - **Merged today:** C53 staff sign-in codes (PR #62) and C54 administrator invitations (PR #63), both with all workflows green.
@@ -140,3 +147,7 @@ Approved unfinished-session PRs #53/#56/#55 are merged; combined 334 tests passe
 ### 2026-11-12 — C38 independent monitoring
 
 C37 #58 and the owner-requested UI refinement #59 are merged. The exact combined UI head passed all six workflows and all 349 local tests. C38 now implements a separate non-root monitor: HTTPS readiness, bounded Resend outage/recovery messages and an expiring, clearly labelled delivery canary. Five focused tests plus the isolated Docker HTTPS image smoke pass. See [monitor operations](operations/uptime-monitor.md). Deployment and real delivery remain pending; independent backup/key-custody/restore are not represented as complete.
+
+### 2026-11-14 — C17 implementation evidence
+
+Reproduced Letter PDF defaults and missing-document 500s with new real-API/Chromium tests. A4 invoice/receipt output now passes the focused checks, including a five-page, 100-line invoice, final line/totals, issuer details, sandbox context, escaping and unchanged source figures. New dedicated PDF-text CI job uses Poppler. No provider/ledger/route/permission/bridge change or production PDF dependency. Full verification and merge remain pending. C38 in-flight work is handed to Claude in draft #68; it is not being merged or enabled by this session.
