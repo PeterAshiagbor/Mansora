@@ -2,13 +2,13 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { stagingOrigin } from '../staging/gateway';
-import { deploymentMode } from '../staging/gateway-policy';
+import { assertTestPaymentKeysOnly, deploymentMode } from '../staging/gateway-policy';
 import { testerEmails, testerPasswords } from '../staging/accounts';
 
 /** Railway supplies only the private PostgreSQL reference, public hostname and tester identities. */
 export function railwayConfig(env: NodeJS.ProcessEnv = process.env) {
   const mode = deploymentMode(env);
-  if (env.PAYSTACK_SECRET_KEY || env.HUBTEL_CLIENT_SECRET) throw new Error('Live payment credentials are forbidden in team testing.');
+  assertTestPaymentKeysOnly(env);
   const origin = stagingOrigin(env.STAGING_ORIGIN || (env.RAILWAY_PUBLIC_DOMAIN ? `https://${env.RAILWAY_PUBLIC_DOMAIN}` : '')).origin;
   const db = new URL(env.DATABASE_URL ?? '');
   if (!['postgres:', 'postgresql:'].includes(db.protocol) || !db.username || !db.password || !db.pathname.slice(1) || !(['localhost', '127.0.0.1', 'postgres'].includes(db.hostname) || db.hostname.endsWith('.railway.internal'))) throw new Error('A dedicated private Railway PostgreSQL DATABASE_URL reference is required.');

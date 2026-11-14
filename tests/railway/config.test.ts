@@ -12,6 +12,11 @@ describe('Railway deployment configuration', () => {
     const c = railwayConfig(env); expect(c.origin).toBe('https://example.up.railway.app'); expect(c.emails).toEqual(['first@example.test', 'second@example.test']); expect(c.port).toBe(8080);
     expect(() => railwayConfig({ ...env, DATABASE_URL: 'postgres://user:fixture@production.example/db' })).toThrow('private Railway');
     expect(() => railwayConfig({ ...env, STAGING_TESTER_EMAILS: undefined })).toThrow(); expect(() => railwayConfig({ ...env, PAYSTACK_SECRET_KEY: 'fixture' })).toThrow();
+    // A Paystack test key is allowed (test mode moves no money); live keys, Hubtel secrets and redirected Paystack addresses are not.
+    expect(() => railwayConfig({ ...env, PAYSTACK_SECRET_KEY: 'sk_test_' + 'a1'.repeat(20) })).not.toThrow();
+    expect(() => railwayConfig({ ...env, PAYSTACK_SECRET_KEY: 'sk_live_' + 'a1'.repeat(20) })).toThrow('test secret key');
+    expect(() => railwayConfig({ ...env, PAYSTACK_SECRET_KEY: 'sk_test_' + 'a1'.repeat(20), PAYSTACK_BASE_URL: 'https://example.test' })).toThrow();
+    expect(() => railwayConfig({ ...env, HUBTEL_CLIENT_SECRET: 'x' })).toThrow();
   });
   it('permits explicitly selected client mode without creating tester identities and rejects conflicting modes', () => {
     expect(railwayConfig({ ...env, MANSORA_STAGING_MODE: undefined, MANSORA_DEPLOYMENT_MODE: 'client', STAGING_TESTER_EMAILS: undefined })).toMatchObject({ mode: 'client', emails: [] });
