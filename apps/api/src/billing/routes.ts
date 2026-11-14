@@ -106,7 +106,8 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
   });
   app.post(`${A}/subscriptions`, async (req) => {
     const a = await admin(req);
-    const body = z.object({ tenantId: id, planId: id, agreedAmount: money.nullish(), startDate: date.nullish(), discountBps: z.number().int().min(0).max(10_000).optional(), activationPolicy: z.enum(['first_payment', 'mandate']).optional(), paymentMethod: z.enum(['momo', 'card', 'bank', 'manual']).nullish(), prorationEnabled: z.boolean().optional() }).parse(req.body);
+    const body = z.object({ tenantId: id, planId: id, agreedAmount: money.nullish(), startDate: date.nullish(), discountBps: z.number().int().min(0).max(10_000).optional(), activationPolicy: z.enum(['first_payment', 'mandate']).optional(), paymentMethod: z.enum(['momo', 'card', 'bank', 'manual']).nullish(), prorationEnabled: z.boolean().optional(),
+      frequency: z.enum(['monthly', 'quarterly', 'yearly']).nullish(), setupFeeWaived: z.boolean().optional(), setupWaiverNote: text(200).nullish(), discountUntil: date.nullish(), discountNote: text(200).nullish() }).parse(req.body);
     return run(async (q) => ({ id: await createSubscription(b, q, body, a) }));
   });
   const sub = (path: string, schema: z.ZodType<any>, fn: (q: any, sid: string, body: any, a: Actor) => Promise<unknown>) =>
@@ -120,9 +121,9 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
   sub('activate', z.object({}), async (q, sid, _b, a) => activateManually(b, q, sid, a));
   sub('pause', z.object({ reason: text() }), (q, sid, body, a) => pauseSubscription(b, q, sid, body.reason, a));
   sub('resume', z.object({}), (q, sid, _b, a) => resumeSubscription(b, q, sid, a));
-  sub('change-plan', z.object({ planId: id, agreedAmount: money.nullish() }), (q, sid, body, a) => changePlan(b, q, sid, body, a));
+  sub('change-plan', z.object({ planId: id, agreedAmount: money.nullish(), frequency: z.enum(['monthly', 'quarterly', 'yearly']).nullish() }), (q, sid, body, a) => changePlan(b, q, sid, body, a));
   sub('renewal-date', z.object({ date }), (q, sid, body, a) => setRenewalDate(b, q, sid, body.date, a));
-  sub('discount', z.object({ discountBps: z.number().int().min(0).max(10_000), note: text(200) }), (q, sid, body, a) => setDiscount(b, q, sid, body.discountBps, body.note, a));
+  sub('discount', z.object({ discountBps: z.number().int().min(0).max(10_000), note: text(200), until: date.nullish() }), (q, sid, body, a) => setDiscount(b, q, sid, body.discountBps, body.note, a, body.until));
   app.post(`${A}/subscriptions/:id/cancel`, async (req) => {
     const a = await admin(req);
     const { id: sid } = z.object({ id }).parse(req.params);
@@ -351,7 +352,7 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
     try { b.providers.forCheckout(); checkout = { available: true, reason: null }; } catch (e: any) { checkout = { available: false, reason: e.message }; }
     const s = data.s;
     return {
-      subscription: s ? { status: s.status, plan: s.plan, amount: s.agreed_amount == null ? null : netAmount(s), frequency: s.billing_frequency, nextBillingDate: s.renewal_date, startDate: s.start_date, paymentMethod: s.payment_method, cancelRequested: !!s.cancel_requested_at, cancelAtPeriodEnd: s.cancel_at_period_end } : null,
+      subscription: s ? { status: s.status, plan: s.plan, amount: s.agreed_amount == null ? null : netAmount(s, s.renewal_date ? String(s.renewal_date).slice(0, 10) : undefined), frequency: s.billing_frequency, nextBillingDate: s.renewal_date, startDate: s.start_date, paymentMethod: s.payment_method, cancelRequested: !!s.cancel_requested_at, cancelAtPeriodEnd: s.cancel_at_period_end } : null,
       mandate: data.m ? { status: data.m.status, method: data.m.method, masked: data.m.masked, maxAmount: data.m.max_amount, approvedAt: data.m.approved_at, sandbox: data.m.sandbox } : null,
       outstanding: owed.reduce((t: number, i: any) => t + i.outstanding, 0),
       nextPayment: next ? { invoiceId: next.id, number: next.number, date: next.dueDate, amount: next.outstanding } : null,

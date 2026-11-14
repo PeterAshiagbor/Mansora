@@ -18,9 +18,9 @@ const rate = (n: number, d: number) => (d === 0 ? null : Math.round((n * 10_000)
 export async function revenueSummary(b: Billing, q: Query, from: string, to: string) {
   const day = today(b), monthStart = `${day.slice(0, 7)}-01`, nextMonth = addMonths(monthStart, 1);
   const end = addDays(to, 1);
-  const subs = await q(`SELECT status, agreed_amount, discount_bps, billing_frequency, renewal_date FROM client_subscriptions`);
+  const subs = await q(`SELECT status, agreed_amount, discount_bps, discount_until, billing_frequency, renewal_date FROM client_subscriptions`);
   const running = subs.filter((s: any) => LIVE.includes(s.status));
-  const mrr = running.reduce((t: number, s: any) => t + monthlyEquivalent(netAmount(s), s.billing_frequency as Frequency), 0);
+  const mrr = running.reduce((t: number, s: any) => t + monthlyEquivalent(netAmount(s, day), s.billing_frequency as Frequency), 0);
   const cash = async (a: string, z: string) => {
     const [p] = await q(`SELECT COALESCE(SUM(amount), 0)::bigint AS gross, COALESCE(SUM(fee), 0)::bigint AS fees, COUNT(*)::bigint AS n FROM billing_payments WHERE sandbox = false AND received_at >= $1::date AND received_at < $2::date`, [a, z]);
     const [r] = await q(`SELECT COALESCE(SUM(r.amount), 0)::bigint AS refunds FROM billing_refunds r JOIN billing_payments p ON p.id = r.payment_id WHERE p.sandbox = false AND r.status = 'completed' AND r.created_at >= $1::date AND r.created_at < $2::date`, [a, z]);
@@ -127,7 +127,7 @@ async function cashByService(q: Query, from: string, end: string): Promise<{ byS
 export type CollectionFilter = 'all' | 'active' | 'pending_mandate' | 'upcoming' | 'paid' | 'overdue' | 'failed' | 'cancelled' | 'disputed';
 export async function collectionsTable(b: Billing, q: Query, filter: CollectionFilter) {
   const day = today(b);
-  const rows = await q(`SELECT t.id AS tenant_id, t.name AS client, s.id AS subscription_id, s.status AS subscription_status, s.agreed_amount, s.discount_bps, s.billing_frequency, s.renewal_date,
+  const rows = await q(`SELECT t.id AS tenant_id, t.name AS client, s.id AS subscription_id, s.status AS subscription_status, s.agreed_amount, s.discount_bps, s.discount_until, s.billing_frequency, s.renewal_date,
       s.payment_method, s.cancel_requested_at, p.name AS plan, m.status AS mandate_status, m.masked AS mandate_masked,
       (SELECT MAX(x.received_at) FROM billing_payments x WHERE x.tenant_id = t.id AND x.sandbox = false) AS last_payment,
       COALESCE((SELECT SUM(${OUTSTANDING_SQL}) FROM invoices i WHERE i.tenant_id = t.id AND i.status IN ${RECEIVABLE_STATUSES}), 0)::bigint AS outstanding,
@@ -151,7 +151,7 @@ export async function collectionsTable(b: Billing, q: Query, filter: CollectionF
     if (r.last_attempt === 'failed' && r.outstanding > 0) tags.push('failed');
     if (r.subscription_status === 'cancelled') tags.push('cancelled');
     if (r.disputed) tags.push('disputed');
-    const fee = r.agreed_amount == null ? null : netAmount(r);
+    const fee = r.agreed_amount == null ? null : netAmount(r, r.renewal_date ?? undefined);
     return { ...r, monthly_fee: fee == null ? null : monthlyEquivalent(fee, r.billing_frequency as Frequency), period_fee: fee, next_payment: nextPayment, days_overdue: daysOverdue, tags };
   });
   for (const r of out) (r as any).standing = await tenantStanding(b, q, r.tenant_id);

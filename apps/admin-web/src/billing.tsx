@@ -326,15 +326,19 @@ function ChangePlan({ subscriptionId, onDone }: { subscriptionId: string; onDone
   const plans = plansQuery.data ?? [];
   const [planId, setPlanId] = useState('');
   const [amount, setAmount] = useState('');
+  const [frequency, setFrequency] = useState('');
   const act = useAction();
+  const plan = plans.find((p) => p.id === planId);
+  const yearlyOffered = plan?.annual_price != null && plan?.billing_period !== 'yearly';
   return (
     <div className="space-y-3">
       <Msg a={act} />
       <QueryView query={plansQuery} label="service plans">{null}</QueryView>
       <Alert tone="info">The new price applies from the next invoice. Invoices already issued are never changed.</Alert>
-      <Field label="New plan"><Select value={planId} onChange={(e) => setPlanId(e.target.value)}><option value="">Choose…</option>{plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} · {ghs(p.price)} {p.billing_period}</option>)}</Select></Field>
+      <Field label="New plan"><Select value={planId} onChange={(e) => setPlanId(e.target.value)}><option value="">Choose…</option>{plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} · {ghs(p.price)} {p.billing_period}{p.annual_price != null && p.billing_period !== 'yearly' ? ` or ${ghs(p.annual_price)} yearly` : ''}</option>)}</Select></Field>
+      {yearlyOffered && <Field label="Billed"><Select value={frequency || plan.billing_period} onChange={(e) => setFrequency(e.target.value)}><option value={plan.billing_period}>{label(plan.billing_period)} · {ghs(plan.price)}</option><option value="yearly">Yearly · {ghs(plan.annual_price)}</option></Select></Field>}
       <MoneyField label="Agreed amount per period (leave empty for the plan price)" value={amount} onChange={setAmount} />
-      <Button variant="primary" disabled={act.busy || !planId || !plansQuery.data} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/subscriptions/${subscriptionId}/change-plan`, { planId, agreedAmount: toPesewas(amount) }); onDone(); })}>Change plan</Button>
+      <Button variant="primary" disabled={act.busy || !planId || !plansQuery.data} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/subscriptions/${subscriptionId}/change-plan`, { planId, agreedAmount: toPesewas(amount), frequency: yearlyOffered ? (frequency || plan.billing_period) : null }); onDone(); })}>Change plan</Button>
     </div>
   );
 }
@@ -479,7 +483,7 @@ function SubscriptionDetail({ id, go, onClose, onChanged }: { id: string; go: (i
   const [form, setForm] = useState<null | 'cancel' | 'pause' | 'plan' | 'date' | 'discount'>(null);
   const [text, setText] = useState('');
   const [atEnd, setAtEnd] = useState(true);
-  const [pct2, setPct] = useState('');
+  const [pct2, setPct] = useState(''), [until2, setUntil] = useState('');
   const [invoice, setInvoice] = useState<string | null>(null);
   const s = data?.subscription;
   const changed = () => { reload(); onChanged(); };
@@ -492,7 +496,7 @@ function SubscriptionDetail({ id, go, onClose, onChanged }: { id: string; go: (i
           <Msg a={act} />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Status" value={<Status s={s.status} />} />
-            <Stat label="Agreed fee" value={ghs(s.agreed_amount)} hint={`${label(s.billing_frequency)}${s.discount_bps ? ` · ${pct(s.discount_bps)} discount` : ''}`} />
+            <Stat label="Agreed fee" value={ghs(s.agreed_amount)} hint={`${label(s.billing_frequency)}${s.discount_bps ? ` · ${pct(s.discount_bps)} discount${s.discount_until ? ` until ${s.discount_until}` : ''}` : ''}${s.setup_fee_waived ? ' · setup fee waived' : ''}`} />
             <Stat label="Next billing" value={<span className="text-base">{day(s.renewal_date)}</span>} />
             <Stat label="Paying by" value={<span className="text-base">{label(s.payment_method)}</span>} />
           </div>
@@ -508,7 +512,7 @@ function SubscriptionDetail({ id, go, onClose, onChanged }: { id: string; go: (i
           {form === 'cancel' && <ResolveModal title="Cancel subscription" button="Cancel subscription" onClose={() => setForm(null)} onSave={async (r) => { await mutate('cancel', { reason: r, atPeriodEnd: atEnd }); }}><label className="mb-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={atEnd} onChange={(e) => setAtEnd(e.target.checked)} />Keep the service until the end of the paid period</label></ResolveModal>}
           {form === 'plan' && <Modal title="Change plan" open onClose={() => setForm(null)}><ChangePlan subscriptionId={id} onDone={() => { setForm(null); changed(); }} /></Modal>}
           {form === 'date' && <Modal title="Change next billing date" open onClose={() => setForm(null)} footer={<><Button dismiss onClick={() => setForm(null)}>Cancel</Button><Button variant="primary" disabled={!text || act.busy} onClick={() => post('renewal-date', { date: text }, 'Billing date changed')}>Save</Button></>}><Msg a={act} /><Field label="Next billing date"><Input required type="date" value={text} onChange={(e) => setText(e.target.value)} /></Field></Modal>}
-          {form === 'discount' && <ResolveModal title="Set discount" onClose={() => setForm(null)} onSave={async (note) => { const v = Number(pct2); if (!pct2.trim() || !/^\d+(\.\d{1,2})?$/.test(pct2) || !(v >= 0 && v <= 100)) throw new Error('Enter a percentage between 0 and 100'); await mutate('discount', { discountBps: Math.round(v * 100), note }); }}><Field label="Discount (%)"><Input type="number" required min={0} max={100} step={0.01} value={pct2} onChange={(e) => setPct(e.target.value)} /></Field></ResolveModal>}
+          {form === 'discount' && <ResolveModal title="Set discount" onClose={() => setForm(null)} onSave={async (note) => { const v = Number(pct2); if (!pct2.trim() || !/^\d+(\.\d{1,2})?$/.test(pct2) || !(v >= 0 && v <= 100)) throw new Error('Enter a percentage between 0 and 100'); await mutate('discount', { discountBps: Math.round(v * 100), note, until: until2 || null }); }}><Field label="Discount (%)"><Input type="number" required min={0} max={100} step={0.01} value={pct2} onChange={(e) => setPct(e.target.value)} /></Field><Field label="Ends on (optional)" hint="For a pilot price: periods starting on or after this date are full price. Leave empty for no end."><Input type="date" value={until2} onChange={(e) => setUntil(e.target.value)} /></Field></ResolveModal>}
           <div className="grid gap-4 lg:grid-cols-2">
             <Card title="Invoices" pad={false}><Table rows={data.invoices} empty="No invoices yet" rowKey={(r: any) => r.id} onRowClick={(r: any) => setInvoice(r.id)} columns={[{ header: 'Number', cell: (r: any) => r.number ?? 'Draft' }, { header: 'Due', cell: (r: any) => day(r.due_date) }, { header: 'Total', align: 'right', cell: (r: any) => ghs(r.total) }, { header: 'Status', cell: (r: any) => <Status s={r.status} /> }]} /></Card>
             <Card title="Payment authorisations" pad={false}><Table rows={data.mandates} empty="No authorisation on file" rowKey={(r: any) => r.id} columns={[{ header: 'Method', cell: (r: any) => <>{label(r.method)} {r.masked}</> }, { header: 'Provider', cell: (r: any) => r.provider }, { header: 'Approved', cell: (r: any) => day(r.approved_at) }, { header: 'Status', cell: (r: any) => <Status s={r.status} /> }]} /></Card>
@@ -526,20 +530,54 @@ function NewSubscription({ onClose, onCreated }: { onClose: () => void; onCreate
   const clients = clientsQuery.data ?? [];
   const plansQuery = useApi<any[]>('/v1/admin/plans');
   const plans = (plansQuery.data ?? []).filter((p) => p.active);
-  const [f, setF] = useState({ tenantId: '', planId: '', amount: '', startDate: '', paymentMethod: 'momo', activationPolicy: 'first_payment' });
+  const [f, setF] = useState({ tenantId: '', planId: '', frequency: 'monthly', amount: '', startDate: '', paymentMethod: 'momo', activationPolicy: 'first_payment',
+    waiveSetup: false, waiverNote: 'Pilot shop', pilot: false, pilotPct: '50', pilotUntil: '', pilotNote: 'Pilot price' });
   const act = useAction();
   const plan = plans.find((p) => p.id === f.planId);
+  const yearlyOffered = plan?.annual_price != null && plan?.billing_period !== 'yearly';
+  const frequency = plan && (f.frequency === plan.billing_period || (f.frequency === 'yearly' && yearlyOffered)) ? f.frequency : plan?.billing_period ?? 'monthly';
+  const listPrice = plan ? (frequency === 'yearly' && plan.billing_period !== 'yearly' ? plan.annual_price : plan.price) : null;
+  const pct = Number(f.pilotPct);
+  const pilotValid = !f.pilot || (/^\d+(\.\d{1,2})?$/.test(f.pilotPct) && pct > 0 && pct <= 100 && !!f.pilotUntil);
+  const create = () => act.run(async () => {
+    if (!pilotValid) throw new Error('Enter the pilot discount (more than 0%, up to 100%) and the date the pilot price ends');
+    const r = await api('POST', '/v1/admin/billing/subscriptions', {
+      tenantId: f.tenantId, planId: f.planId, frequency, agreedAmount: toPesewas(f.amount), startDate: f.startDate || null, paymentMethod: f.paymentMethod, activationPolicy: f.activationPolicy,
+      setupFeeWaived: f.waiveSetup, setupWaiverNote: f.waiveSetup ? f.waiverNote.trim() || null : null,
+      ...(f.pilot ? { discountBps: Math.round(pct * 100), discountUntil: f.pilotUntil, discountNote: f.pilotNote.trim() || 'Pilot price' } : {}),
+    });
+    onCreated(r.id);
+  });
   return (
-    <Modal title="New subscription" open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={act.busy || !f.tenantId || !f.planId || !clientsQuery.data || !plansQuery.data} onClick={() => act.run(async () => { const r = await api('POST', '/v1/admin/billing/subscriptions', { tenantId: f.tenantId, planId: f.planId, agreedAmount: toPesewas(f.amount), startDate: f.startDate || null, paymentMethod: f.paymentMethod, activationPolicy: f.activationPolicy }); onCreated(r.id); })}>Create draft</Button></>}>
+    <Modal title="New subscription" open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={act.busy || !f.tenantId || !f.planId || !clientsQuery.data || !plansQuery.data} onClick={create}>Create draft</Button></>}>
       <Msg a={act} /><QueryView query={clientsQuery} label="clients">{null}</QueryView><QueryView query={plansQuery} label="service plans">{null}</QueryView>
       <div className="space-y-3">
         <Field label="Client"><Select value={f.tenantId} onChange={(e) => setF({ ...f, tenantId: e.target.value })}><option value="">Choose…</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
-        <Field label="Plan"><Select value={f.planId} onChange={(e) => setF({ ...f, planId: e.target.value })}><option value="">Choose…</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {ghs(p.price)} {p.billing_period}</option>)}</Select></Field>
-        <MoneyField label="Agreed amount (GH₵)" value={f.amount} onChange={(v) => setF({ ...f, amount: v })} hint={plan ? `Leave empty to use the plan price of ${ghs(plan.price)}` : undefined} />
+        <Field label="Plan"><Select value={f.planId} onChange={(e) => setF({ ...f, planId: e.target.value })}><option value="">Choose…</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {ghs(p.price)} {p.billing_period}{p.annual_price != null && p.billing_period !== 'yearly' ? ` or ${ghs(p.annual_price)} yearly` : ''}</option>)}</Select></Field>
+        {plan && <Field label="Billed" hint={yearlyOffered ? `Yearly is ${ghs(plan.annual_price)}: ${plan.price ? Math.round((plan.price * 12 - plan.annual_price) / plan.price * 10) / 10 : 0} months free compared with paying monthly.` : undefined}>
+          <Select value={frequency} onChange={(e) => setF({ ...f, frequency: e.target.value })}>
+            <option value={plan.billing_period}>{plan.billing_period === 'monthly' ? 'Monthly' : plan.billing_period === 'quarterly' ? 'Quarterly' : 'Yearly'} · {ghs(plan.price)}</option>
+            {yearlyOffered && <option value="yearly">Yearly · {ghs(plan.annual_price)}</option>}
+          </Select></Field>}
+        <MoneyField label="Agreed amount (GH₵)" value={f.amount} onChange={(v) => setF({ ...f, amount: v })} hint={listPrice != null ? `Leave empty to use the list price of ${ghs(listPrice)}` : undefined} />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Start date"><Input type="date" value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} /></Field>
           <Field label="Payment method"><Select value={f.paymentMethod} onChange={(e) => setF({ ...f, paymentMethod: e.target.value })}><option value="momo">Mobile Money</option><option value="card">Card</option><option value="bank">Bank transfer</option><option value="manual">Manual / invoice</option></Select></Field>
         </div>
+        {plan?.setup_fee > 0 && <fieldset className="rounded-md border border-slate-200 p-3">
+          <legend className="px-1 text-sm font-medium text-slate-700">Setup fee ({ghs(plan.setup_fee)}, first invoice only)</legend>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.waiveSetup} onChange={(e) => setF({ ...f, waiveSetup: e.target.checked })} /> Waive the setup fee</label>
+          {f.waiveSetup && <Field label="Reason shown on the invoice" className="mt-2"><Input value={f.waiverNote} maxLength={200} onChange={(e) => setF({ ...f, waiverNote: e.target.value })} /></Field>}
+        </fieldset>}
+        <fieldset className="rounded-md border border-slate-200 p-3">
+          <legend className="px-1 text-sm font-medium text-slate-700">Pilot price</legend>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.pilot} onChange={(e) => setF({ ...f, pilot: e.target.checked })} /> Discount for the first months, then the full price</label>
+          {f.pilot && <div className="mt-2 grid grid-cols-3 gap-3">
+            <Field label="Discount (%)"><Input type="number" min={0} max={100} step={0.01} value={f.pilotPct} onChange={(e) => setF({ ...f, pilotPct: e.target.value })} /></Field>
+            <Field label="Full price from" hint="Periods starting on or after this date are full price"><Input type="date" value={f.pilotUntil} onChange={(e) => setF({ ...f, pilotUntil: e.target.value })} /></Field>
+            <Field label="Shown on invoices"><Input value={f.pilotNote} maxLength={200} onChange={(e) => setF({ ...f, pilotNote: e.target.value })} /></Field>
+          </div>}
+        </fieldset>
         <Field label="Start the service when" hint="Never starts billing until you submit and approve it"><Select value={f.activationPolicy} onChange={(e) => setF({ ...f, activationPolicy: e.target.value })}><option value="first_payment">First payment is received</option><option value="mandate">Automatic payments are authorised</option></Select></Field>
       </div>
     </Modal>

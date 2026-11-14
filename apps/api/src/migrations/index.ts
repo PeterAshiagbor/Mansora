@@ -759,4 +759,19 @@ CREATE TABLE bug_report_digests (day date PRIMARY KEY, report_count integer NOT 
 GRANT SELECT, INSERT, UPDATE ON bug_reports, bug_report_digests TO mansora_platform;
 `,
   },
+  {
+    id: 11,
+    name: 'pricing_tiers',
+    sql: `
+-- Pricing approved by the owner on 14 November 2026: three tiers, yearly billing at ten months' price (two months
+-- free), a one-time setup fee that can be waived (pilots), and a pilot discount that ends on a set date.
+ALTER TABLE service_plans ADD COLUMN tier text CHECK (tier IS NULL OR tier IN ('starter','business','plus'));
+ALTER TABLE client_subscriptions
+  ADD COLUMN setup_fee_waived boolean NOT NULL DEFAULT false,
+  ADD COLUMN setup_waiver_note text,
+  ADD COLUMN discount_until date;
+-- The plans themselves are added when the server starts (ensureApprovedPlans), never here: a newly migrated
+-- database must stay empty so a backup can be restored into it.
+`,
+  },
 ];

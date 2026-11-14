@@ -1,3 +1,4 @@
+import { ensureApprovedPlans } from '../../apps/api/src/billing/plans';
 import pg from 'pg';
 import { connectPostgres } from '../../apps/api/src/db';
 
@@ -37,6 +38,8 @@ export async function prepareRailwayDatabase(adminUrl: string, passwords: { migr
     try {
       const [role] = await runtime.platform(q => q('SELECT rolname, rolsuper, rolcreatedb, rolcreaterole, rolbypassrls, pg_has_role(session_user, $1, $2) AS can_migrate FROM pg_roles WHERE rolname = session_user', ['mansora_migration', 'MEMBER']));
       if (role.rolname !== 'mansora_runtime' || role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolbypassrls || role.can_migrate) throw new Error('Runtime database role is not restricted.');
+      const added = await runtime.platform(q => ensureApprovedPlans(q));
+      if (added) console.log(`Service plans added: ${added}`);
     } finally { await runtime.close(); }
     return runtimeUrl;
   } catch (error) { await connection.query('ROLLBACK').catch(() => {}); throw error; }

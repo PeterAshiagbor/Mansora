@@ -196,7 +196,8 @@ export async function startMandate(b: Billing, o: { tenantId: string; method: 'c
       if (live && live.kind !== 'mandate_charge' && ['initiated', 'awaiting_customer'].includes(live.status)) await q(`UPDATE payment_attempts SET status = 'cancelled', failure_reason = 'Replaced by automatic-payment setup', completed_at = $2, updated_at = $2 WHERE id = $1`, [live.id, nowIso(b)]);
       else if (live) fail(409, 'PAYMENT_IN_PROGRESS', 'A payment for this invoice is already being processed.');
     }
-    const max = Math.max(netAmount(sub), invoice ? outstanding(invoice) : 0);
+    // A pilot price ends on a date: the authorisation covers the full price after it, so later charges still go through.
+    const max = Math.max(sub.discount_until ? sub.agreed_amount : netAmount(sub), invoice ? outstanding(invoice) : 0);
     const consent = `I authorise ${s.issuer.name} to collect up to ${money(max)} every ${sub.billing_frequency === 'monthly' ? 'month' : sub.billing_frequency === 'quarterly' ? 'quarter' : 'year'} from my ${o.method === 'card' ? 'card' : 'Mobile Money wallet'} for my subscription, until I cancel. I can cancel at any time.`;
     const mandateId = randomUUID(), mref = `MNS-MDT-${randomBytes(5).toString('hex')}`;
     await q(`INSERT INTO payment_mandates (id, tenant_id, subscription_id, provider, method, status, provider_ref, max_amount, frequency, consent_text, consent_at, sandbox)
