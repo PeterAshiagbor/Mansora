@@ -28,6 +28,8 @@ export interface AppContext {
   email?: EmailAdapter;
   /** Public address of the administration dashboard (invitation links). */
   adminUrl?: string;
+  /** Shared secret the corporate website signs demo requests with (DEMO_INTAKE_SECRET). */
+  demoIntakeSecret?: string;
 }
 
 export interface AppOptions extends Omit<AppContext, 'backupStorage'>, ObservabilityOptions {

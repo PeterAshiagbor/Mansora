@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../app';
@@ -10,26 +10,71 @@ const input = z.object({
   business: z.string().trim().min(1).max(160), email: z.string().trim().email().max(200).transform(v => v.toLowerCase()),
   phone: z.string().trim().max(40).default(''), message: z.string().trim().max(1500).default(''),
   consent: z.preprocess(v => v === 'yes' ? true : v, z.literal(true)),
+  businessType: z.enum(['retail', 'mini_mart', 'general_merchandise', 'wholesale', 'other']).optional(),
   website: z.string().max(300).default(''), // Honeypot, never stored.
   format: z.enum(['json', 'html']).default('json'),
 }).strict();
 const received = '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Request received · Mansora</title><style>body{margin:0;padding:32px 16px;background:#f7f7f5;color:#251c32;font:16px/1.6 system-ui,sans-serif}main{max-width:560px;margin:auto;background:white;border:1px solid #dedde2;border-radius:8px;padding:28px}h1{font-size:28px;line-height:1.25}label{display:block}input:not([type=checkbox]),textarea{display:block;width:100%;box-sizing:border-box;border:1px solid #99939f;border-radius:6px;padding:10px;font:inherit}textarea{min-height:100px}button{background:#5c2d85;color:white;border:0;border-radius:6px;padding:12px 20px;font:inherit;cursor:pointer}:focus-visible{outline:3px solid #b993d3;outline-offset:3px}</style><main><h1>Request received</h1><p>Thank you. Mansora will review your request and contact you using the details you provided.</p><p>No account, subscription or payment has been created.</p></main></html>';
-export function registerLeadRoutes(app: FastifyInstance, { db }: AppContext) {
+/** A reference the prospect can quote: MSD (Mansora software demo), date, four characters. */
+export function leadReference(now = new Date()): string {
+  const ymd = now.toISOString().slice(2, 10).replace(/-/g, '');
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  return `MSD-${ymd}-${Array.from({ length: 4 }, () => alphabet[randomInt(alphabet.length)]).join('')}`;
+}
+
+/**
+ * The corporate website forwards demo requests server to server and signs each one with the shared
+ * DEMO_INTAKE_SECRET: HMAC-SHA256 over "timestamp\nclient-ip\nsha256(body)". A valid, fresh signature marks the
+ * request as coming from the website and lets the platform rate-limit by the visitor's address instead of the
+ * website's. A signature that is present but wrong or stale is refused outright.
+ */
+export function signWebsiteRequest(secret: string, timestamp: number, clientIp: string, rawBody: string): string {
+  return createHmac('sha256', secret).update(`${timestamp}\n${clientIp}\n${sha256(rawBody)}`).digest('hex');
+}
+function websiteSource(req: FastifyRequest, secret: string | undefined, rawBody: string, now = Date.now()): { ip: string } | null {
+  const sig = req.headers['x-mansora-signature'];
+  if (sig === undefined) return null;
+  const ts = Number(req.headers['x-mansora-timestamp']), clientIp = String(req.headers['x-mansora-client-ip'] ?? '');
+  if (!secret || typeof sig !== 'string' || !/^[a-f0-9]{64}$/.test(sig) || !Number.isInteger(ts) || Math.abs(now / 1000 - ts) > 300 || !/^[0-9a-fA-F:.]{2,45}$/.test(clientIp)) httpError(403, 'BAD_SOURCE_SIGNATURE', 'This request could not be verified');
+  const expected = Buffer.from(signWebsiteRequest(secret!, ts, clientIp, rawBody), 'hex');
+  if (!timingSafeEqual(expected, Buffer.from(sig as string, 'hex'))) httpError(403, 'BAD_SOURCE_SIGNATURE', 'This request could not be verified');
+  return { ip: clientIp };
+}
+
+export function registerLeadRoutes(app: FastifyInstance, { db, demoIntakeSecret }: AppContext) {
   const ip = new RateLimiter(30, 3_600_000), emails = new RateLimiter(3, 86_400_000);
+  const secret = demoIntakeSecret ?? (process.env.DEMO_INTAKE_SECRET?.trim() || undefined);
   app.register(async routes => {
-    routes.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string', bodyLimit: 8192 }, (_req, value, done) => {
+    // Keep the exact bytes received: the website's signature covers them, not a re-serialised copy.
+    routes.addContentTypeParser('application/json', { parseAs: 'string', bodyLimit: 8192 }, (req, value, done) => {
+      (req as any).rawDemoBody = String(value);
+      try { done(null, String(value) ? JSON.parse(String(value)) : {}); } catch { const e: any = new Error('Invalid JSON'); e.statusCode = 400; done(e, undefined); }
+    });
+    routes.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string', bodyLimit: 8192 }, (req, value, done) => {
+      (req as any).rawDemoBody = String(value);
       done(null, Object.fromEntries(new URLSearchParams(String(value))));
     });
     routes.post('/v1/public/demo-requests', { bodyLimit: 8192 }, async (req, reply) => {
-      ip.check(req.ip);
+      const site = websiteSource(req, secret, (req as any).rawDemoBody ?? '');
+      ip.check(site?.ip ?? req.ip);
       const body = input.parse(req.body);
+      let reference = 'received', duplicate = false;
       if (!body.website) {
-        emails.check(sha256(body.email));
-        await db.platform(q => q(`INSERT INTO demo_requests (id, name, business, email, phone, message, consent_at)
-          VALUES ($1,$2,$3,$4,$5,$6,now()) ON CONFLICT (id) DO NOTHING`, [body.id ?? randomUUID(), body.name, body.business, body.email, body.phone, body.message]));
+        const id = body.id ?? randomUUID();
+        // A retry of the same submission returns the first result; it never counts again or creates a second lead.
+        const [existing] = await db.platform(q => q('SELECT reference FROM demo_requests WHERE id = $1', [id]));
+        if (existing) { duplicate = true; reference = existing.reference ?? 'received'; }
+        else {
+          emails.check(sha256(body.email));
+          reference = leadReference();
+          const rows = await db.platform(q => q(`INSERT INTO demo_requests (id, name, business, email, phone, message, consent_at, reference, source, business_type)
+            VALUES ($1,$2,$3,$4,$5,$6,now(),$7,$8,$9) ON CONFLICT (id) DO NOTHING RETURNING reference`,
+            [id, body.name, body.business, body.email, body.phone, body.message, reference, site ? 'website' : 'app_form', body.businessType ?? null]));
+          if (!rows.length) { duplicate = true; reference = (await db.platform(q => q('SELECT reference FROM demo_requests WHERE id = $1', [id])))[0]?.reference ?? 'received'; }
+        }
       }
       if (body.format === 'html') return reply.code(303).header('location', 'demo-requests/received').send();
-      return reply.code(202).send({ ok: true, message: 'Request received. No account or subscription has been created.' });
+      return reply.code(202).send({ ok: true, reference, duplicate, message: 'Request received. No account or subscription has been created.' });
     });
     routes.get('/v1/public/demo-requests/received', async (_req, reply) => reply.type('text/html; charset=utf-8').send(received));
     routes.get('/v1/public/demo-request-form', async (_req, reply) => reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Request a Mansora demo</title><style>body{margin:0;padding:32px 16px;background:#f7f7f5;color:#251c32;font:16px/1.6 system-ui,sans-serif}main{max-width:560px;margin:auto;background:white;border:1px solid #dedde2;border-radius:8px;padding:28px}h1{font-size:28px;line-height:1.25}label{display:block}input:not([type=checkbox]),textarea{display:block;width:100%;box-sizing:border-box;border:1px solid #99939f;border-radius:6px;padding:10px;font:inherit}textarea{min-height:100px}button{background:#5c2d85;color:white;border:0;border-radius:6px;padding:12px 20px;font:inherit;cursor:pointer}:focus-visible{outline:3px solid #b993d3;outline-offset:3px}</style><main><h1>Request a Mansora demo</h1><form method="post" action="demo-requests"><input type="hidden" name="format" value="html"><input type="hidden" name="id" value="${randomUUID()}"><p><label>Your name <input name="name" required maxlength="100" autocomplete="name"></label></p><p><label>Business name <input name="business" required maxlength="160" autocomplete="organization"></label></p><p><label>Email <input name="email" type="email" required maxlength="200" autocomplete="email"></label></p><p><label>Phone (optional) <input name="phone" type="tel" maxlength="40" autocomplete="tel"></label></p><p><label>What would you like help with? <textarea name="message" maxlength="1500"></textarea></label></p><div hidden aria-hidden="true"><label>Leave this blank <input name="website" tabindex="-1" autocomplete="off"></label></div><p><label><input type="checkbox" name="consent" value="yes" required> I agree that Mansora may contact me about this request.</label></p><p>Use business contact details only. Do not enter passwords, payment information or sensitive customer data.</p><button type="submit">Request demo</button></form></main></html>`));
