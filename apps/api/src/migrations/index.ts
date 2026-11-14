@@ -787,4 +787,14 @@ ALTER TABLE demo_requests
 CREATE INDEX demo_requests_status_created ON demo_requests(status, created_at DESC);
 `,
   },
+  {
+    id: 13,
+    name: 'lead_notifications',
+    sql: `
+-- Demo-request emails (acquisition spec PR-02) are queued with the lead they belong to, so a follow-up can be
+-- checked against the lead's latest state just before it is sent.
+ALTER TABLE notifications ADD COLUMN lead_id uuid REFERENCES demo_requests(id);
+CREATE INDEX notifications_lead ON notifications(lead_id) WHERE lead_id IS NOT NULL;
+`,
+  },
 ];

@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { AppContext } from '../app';
 import { httpError, RateLimiter, sha256 } from '../security';
+import { queueLeadEmails } from './lead-emails';
 
 const statuses = ['new', 'contacted', 'qualified', 'closed'] as const;
 const input = z.object({
@@ -41,7 +42,7 @@ function websiteSource(req: FastifyRequest, secret: string | undefined, rawBody:
   return { ip: clientIp };
 }
 
-export function registerLeadRoutes(app: FastifyInstance, { db, demoIntakeSecret }: AppContext) {
+export function registerLeadRoutes(app: FastifyInstance, { db, demoIntakeSecret, adminUrl }: AppContext) {
   const ip = new RateLimiter(30, 3_600_000), emails = new RateLimiter(3, 86_400_000);
   const secret = demoIntakeSecret ?? (process.env.DEMO_INTAKE_SECRET?.trim() || undefined);
   app.register(async routes => {
@@ -67,9 +68,16 @@ export function registerLeadRoutes(app: FastifyInstance, { db, demoIntakeSecret 
         else {
           emails.check(sha256(body.email));
           reference = leadReference();
-          const rows = await db.platform(q => q(`INSERT INTO demo_requests (id, name, business, email, phone, message, consent_at, reference, source, business_type)
-            VALUES ($1,$2,$3,$4,$5,$6,now(),$7,$8,$9) ON CONFLICT (id) DO NOTHING RETURNING reference`,
-            [id, body.name, body.business, body.email, body.phone, body.message, reference, site ? 'website' : 'app_form', body.businessType ?? null]));
+          const source = site ? 'website' : 'app_form';
+          // The lead and its emails commit together: a saved lead always has its acknowledgement and team alert
+          // queued, and an email that later fails never loses the lead.
+          const rows = await db.platform(async q => {
+            const inserted = await q(`INSERT INTO demo_requests (id, name, business, email, phone, message, consent_at, reference, source, business_type)
+              VALUES ($1,$2,$3,$4,$5,$6,now(),$7,$8,$9) ON CONFLICT (id) DO NOTHING RETURNING reference`,
+              [id, body.name, body.business, body.email, body.phone, body.message, reference, source, body.businessType ?? null]);
+            if (inserted.length) await queueLeadEmails(q, { id, reference, name: body.name, business: body.business, email: body.email, phone: body.phone, message: body.message, businessType: body.businessType ?? null, source }, { now: new Date(), adminUrl });
+            return inserted;
+          });
           if (!rows.length) { duplicate = true; reference = (await db.platform(q => q('SELECT reference FROM demo_requests WHERE id = $1', [id])))[0]?.reference ?? 'received'; }
         }
       }

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startCloud, type Cloud } from '../cloud';
+import { deliverQueued } from '../../apps/api/src/billing/core';
 let cloud: Cloud;
 const request = (email = 'prospect@example.test') => ({ id: randomUUID(), name: 'Prospect', business: 'Sample business', email, phone: '', message: 'Show me stock reports', consent: true });
 beforeAll(async () => { cloud = await startCloud(); });
@@ -18,7 +19,10 @@ it('accepts an explicit public request once and exposes it only to active admini
   expect((await cloud.api('GET', '/v1/admin/leads?status=qualified')).body.rows).toHaveLength(1);
   await expect(cloud.db.tenant(randomUUID(), q => q('SELECT * FROM demo_requests'))).rejects.toThrow(/permission denied/);
   expect((await cloud.api('GET', '/v1/admin/clients')).body).toHaveLength(0);
-  const notifications = await cloud.db.platform(q => q('SELECT * FROM notifications')); expect(notifications).toHaveLength(0);
+  // Owner decision D02: one acknowledgement now and one follow-up later for the prospect (no team inbox is
+  // configured in this test, so no team alert). The repeated submission queued nothing more.
+  const notifications = await cloud.db.platform(q => q('SELECT kind, to_address FROM notifications ORDER BY kind'));
+  expect(notifications).toEqual([{ kind: 'lead_ack', to_address: value.email }, { kind: 'lead_customer_followup', to_address: value.email }]);
 });
 it('requires consent and bounds payloads, statuses, pagination and hidden bot submissions', async () => {
   expect((await cloud.api('POST', '/v1/public/demo-requests', { ...request(), consent: false }, null)).status).toBe(400);
@@ -28,7 +32,7 @@ it('requires consent and bounds payloads, statuses, pagination and hidden bot su
   expect((await cloud.api('GET', '/v1/admin/leads?page=-1')).status).toBe(400);
   expect((await cloud.api('GET', '/v1/admin/leads?status=active')).status).toBe(400);
 });
-it('accepts a normal cross-origin HTML form without CORS relaxation or automatic messages', async () => {
+it('accepts a normal cross-origin HTML form without CORS relaxation', async () => {
   const form = new URLSearchParams({ id: randomUUID(), name: 'Form prospect', business: 'Form shop', email: 'form@example.test', consent: 'yes', format: 'html' });
   const response = await cloud.app.inject({ method: 'POST', url: '/v1/public/demo-requests', headers: { origin: 'https://mansora-consulting.com', 'content-type': 'application/x-www-form-urlencoded' }, payload: form.toString() });
   expect(response.statusCode).toBe(303); expect(response.headers.location).toBe('demo-requests/received');
@@ -88,5 +92,51 @@ describe('software demo requests from the corporate website (acquisition spec PR
     for (let n = 0; n < 31; n++) { const r = await signed(request(`v${n}@example.test`), '198.51.100.1'); if (r.statusCode === 429) { denied = true; break; } }
     expect(denied).toBe(true);
     expect((await signed(request('other-visitor@example.test'), '198.51.100.2')).statusCode).toBe(202);
+  });
+});
+
+describe('demo request emails (acquisition spec PR-02, owner decision D02)', () => {
+  let c: Cloud; const sent: any[] = [];
+  beforeAll(async () => {
+    process.env.LEAD_ALERT_EMAIL = 'team@mansora.test';
+    try { c = await startCloud(); } finally { delete process.env.LEAD_ALERT_EMAIL; }
+    c.billing.email = { configured: () => true, send: async (m: any) => { sent.push(m); return { id: `msg-${sent.length}` }; } } as any;
+  });
+  afterAll(async () => { await c?.close(); });
+  const later = (h: number) => { c.clock.now = new Date(Date.now() + h * 3_600_000); };
+  const submit = async (email: string) => { const v = { ...request(email), name: 'Ama Mensah', business: 'Ama Mini Mart', message: 'Stock <b>counts</b>' }; const r = await c.api('POST', '/v1/public/demo-requests', v, null); return { v, ref: r.body.reference as string }; };
+
+  it('sends the acknowledgement and team alert at once, and holds the follow-ups until they are due', async () => {
+    process.env.LEAD_ALERT_EMAIL = 'team@mansora.test';
+    const { v, ref } = await submit('ama@example.test');
+    delete process.env.LEAD_ALERT_EMAIL;
+    const kinds = (await c.db.platform(q => q('SELECT kind, to_address FROM notifications WHERE lead_id = $1 ORDER BY kind', [v.id])));
+    expect(kinds).toEqual([
+      { kind: 'lead_ack', to_address: 'ama@example.test' }, { kind: 'lead_alert', to_address: 'team@mansora.test' },
+      { kind: 'lead_customer_followup', to_address: 'ama@example.test' }, { kind: 'lead_team_reminder', to_address: 'team@mansora.test' },
+    ]);
+    later(0); await deliverQueued(c.billing);
+    expect(sent.map((m) => m.to).sort()).toEqual(['ama@example.test', 'team@mansora.test']);
+    const ack = sent.find((m) => m.to === 'ama@example.test');
+    expect(ack.subject).toContain(ref); expect(ack.body).toContain('no account or subscription is created');
+    expect(ack.body).not.toMatch(/\b(today|tomorrow|within \d)/i); // no promised appointment time
+    expect(sent.find((m) => m.to === 'team@mansora.test').body).toContain('> Stock <b>counts</b>'); // quoted as text; the HTML part escapes it
+    later(23); await deliverQueued(c.billing); expect(sent).toHaveLength(2);
+    later(25); await deliverQueued(c.billing); expect(sent.map((m) => m.subject).filter((s) => s.startsWith('Reminder'))).toHaveLength(1);
+    later(49); await deliverQueued(c.billing); expect(sent.filter((m) => m.subject.startsWith('Your Mansora demo request'))).toHaveLength(1);
+  });
+
+  it('does not send follow-ups once the lead has been contacted, closed or qualified', async () => {
+    process.env.LEAD_ALERT_EMAIL = 'team@mansora.test';
+    const { v } = await submit('kojo@example.test');
+    delete process.env.LEAD_ALERT_EMAIL;
+    later(0); await deliverQueued(c.billing);
+    const before = sent.length;
+    expect((await c.api('PUT', `/v1/admin/leads/${v.id}`, { status: 'contacted' })).status).toBe(200);
+    later(50); await deliverQueued(c.billing); await deliverQueued(c.billing);
+    expect(sent.length).toBe(before);
+    const rows = await c.db.platform(q => q(`SELECT kind, status, error FROM notifications WHERE lead_id = $1 AND kind IN ('lead_team_reminder','lead_customer_followup') ORDER BY kind`, [v.id]));
+    expect(rows.map((r: any) => [r.kind, r.status])).toEqual([['lead_customer_followup', 'skipped'], ['lead_team_reminder', 'skipped']]);
+    expect(rows[0].error).toMatch(/contacted/);
   });
 });

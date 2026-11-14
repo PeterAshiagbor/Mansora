@@ -111,11 +111,24 @@ export async function ensureBillingAccount(q: Query, tenantId: string): Promise<
 }
 
 /** Record a message. It is delivered afterwards by deliverQueued, so a slow or missing email provider never blocks billing. */
-export async function queueEmail(q: Query, m: { id?: string; tenantId?: string | null; to: string | null; subject: string; body: string; invoiceId?: string | null; kind: string }): Promise<string> {
+export async function queueEmail(q: Query, m: { id?: string; tenantId?: string | null; to: string | null; subject: string; body: string; invoiceId?: string | null; kind: string; leadId?: string | null; sendAfter?: string | null }): Promise<string> {
   const id = m.id ?? randomUUID();
-  await q(`INSERT INTO notifications (id, tenant_id, to_address, subject, body, status, error, invoice_id, kind) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [id, m.tenantId ?? null, m.to, m.subject, m.body, m.to ? 'queued' : 'skipped', m.to ? null : 'No email address on file', m.invoiceId ?? null, m.kind]);
+  await q(`INSERT INTO notifications (id, tenant_id, to_address, subject, body, status, error, invoice_id, kind, lead_id, next_attempt_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11::timestamptz, '-infinity'))`,
+    [id, m.tenantId ?? null, m.to, m.subject, m.body, m.to ? 'queued' : 'skipped', m.to ? null : 'No email address on file', m.invoiceId ?? null, m.kind, m.leadId ?? null, m.sendAfter ?? null]);
   return id;
+}
+
+/**
+ * Follow-ups about a demo request are re-checked when they are due, not only when they were scheduled: once
+ * someone has contacted the prospect, closed or converted the lead, or the prospect opted out, they are not sent.
+ */
+const LEAD_FOLLOW_UPS = ['lead_team_reminder', 'lead_customer_followup'];
+async function leadFollowUpStale(q: Query, n: any): Promise<string | null> {
+  if (!n.lead_id || !LEAD_FOLLOW_UPS.includes(n.kind)) return null;
+  const [lead] = await q(`SELECT status FROM demo_requests WHERE id = $1`, [n.lead_id]);
+  if (!lead) return 'The demo request no longer exists';
+  if (lead.status !== 'new') return `Not needed: the demo request is now ${lead.status}`;
+  return null;
 }
 
 export async function deliverQueued(b: Billing): Promise<{ sent: number; failed: number; waiting: number }> {
@@ -131,6 +144,8 @@ export async function deliverQueued(b: Billing): Promise<{ sent: number; failed:
       // Resend retains idempotency keys for 24h. Fail closed before that window
       // expires: an old ambiguous send needs operator reconciliation, not a new charge-like side effect.
       if (b.now().getTime() - Date.parse(n.delivery_started_at) >= 23 * 3_600_000) throw new EmailDeliveryError('Delivery needs provider reconciliation; idempotency window expired.', false);
+      const stale = await b.db.platform((q) => leadFollowUpStale(q, n));
+      if (stale) { await b.db.platform((q) => q(`UPDATE notifications SET status = 'skipped', error = $2 WHERE id = $1`, [n.id, stale])); continue; }
       const result = await b.email.send({ to: n.to_address, subject: n.subject, body: n.body, idempotencyKey: `mansora-notification/${n.id}` });
       await b.db.platform((q) => q(`UPDATE notifications SET status = 'sent', sent_at = $2, error = NULL, provider_message_id = $3 WHERE id = $1`, [n.id, nowIso(b), result?.id ?? null]));
       sent++;
