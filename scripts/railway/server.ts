@@ -3,6 +3,8 @@ import { createOwnerRecovery, type OwnerRecovery } from '../staging/owner-recove
 import { join } from 'node:path';
 import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { connectPostgres } from '../../apps/api/src/db';
+import { ensureApprovedPlans } from '../../apps/api/src/billing/plans';
+import { startSystemBackups } from '../recovery/runtime';
 import { buildApp } from '../../apps/api/src/app';
 import { createAdmin } from '../../apps/api/src/modules/admin';
 import { createBillingFromEnv, runDaily } from '../../apps/api/src/billing';
@@ -37,7 +39,10 @@ export async function runRailwayServer() {
   let app: Awaited<ReturnType<typeof buildApp>> | undefined, gateway: Awaited<ReturnType<typeof startConfiguredStaging>> | undefined;
   let recovery: OwnerRecovery | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let backups: ReturnType<typeof startSystemBackups>;
   try {
+    // The approved service plans (pricing of 14 November 2026), added if missing.
+    const plansAdded = await db.platform(q => ensureApprovedPlans(q)); if (plansAdded) console.log(`Service plans added: ${plansAdded}.`);
     await db.platform(async q => { if (!(await q('SELECT id FROM admins WHERE email = $1', [config.adminEmail])).length) await createAdmin(q, { email: config.adminEmail, name: 'Staging operator', password: adminPassword }); });
     const operatorFile = join(directory, 'operator-account.json');
     if (!existsSync(operatorFile)) writeFileSync(operatorFile, JSON.stringify({ email: config.adminEmail, password: adminPassword }) + '\n', { flag: 'wx', mode: 0o600 });
@@ -98,15 +103,18 @@ export async function runRailwayServer() {
         console.log(`Sample test data: ${prepared} workspaces prepared, ${preserved} preserved, ${pending} awaiting review.`);
       }
     }, onboarding, recovery);
+    // Off-site system backups (Google Cloud Storage for now), when switched on with MANSORA_SYSTEM_BACKUPS=1.
+    try { backups = startSystemBackups({ env: process.env, dataDir: config.dataDir, adminDatabaseUrl: config.databaseUrl, withSnapshotLock: gateway.withSnapshotLock }); }
+    catch (e: any) { console.error(`System backups are NOT running: ${e?.message ?? 'invalid settings'}`); }
     let billingRun: Promise<unknown> | undefined;
     timer = setInterval(() => { if (billingRun) return; billingRun = runDaily(billing).catch(() => console.error('Sandbox billing job failed; inspect application health.'))
       // Problem reports go to BUG_REPORT_EMAIL once a day after 19:00 Ghana time.
       .then(() => runBugDigest({ db, email: billing.email, to: process.env.BUG_REPORT_EMAIL })).then((r) => { if (r?.sent) console.log(`Problem reports email sent: ${r.reports} report(s).`); }, () => console.error('Problem reports email failed; it will be retried.'))
       .finally(() => { billingRun = undefined; }); }, 15 * 60_000); timer.unref();
     let stopping = false;
-    const close = async () => { if (stopping) return; stopping = true; clearInterval(timer); await gateway!.close(); await billingRun; await app!.close(); await db.close(); };
+    const close = async () => { if (stopping) return; stopping = true; clearInterval(timer); await backups?.close(); await gateway!.close(); await billingRun; await app!.close(); await db.close(); };
     for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => { void close().then(() => process.exit(0), () => process.exit(1)); });
     console.log('Railway team testing is ready. Retrieve assigned accounts privately from the persistent volume.');
     return { app, gateway, db, close };
-  } catch (error) { clearInterval(timer); await gateway?.close(); await recovery?.close(); await app?.close(); await db.close(); throw error; }
+  } catch (error) { clearInterval(timer); await backups?.close(); await gateway?.close(); await recovery?.close(); await app?.close(); await db.close(); throw error; }
 }

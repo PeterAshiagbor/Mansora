@@ -8932,6 +8932,48 @@
       "assessment": "Free text or structured content may repeat contact, payment and historical personal details. Review collection limits, minimisation, disclosure and retention across provider and backup copies."
     },
     {
+      "key": "cloud.client_subscriptions.setup_waiver_note",
+      "purpose": "Record agreed subscription fees, billing dates, mandate linkage and cancellation history. Field: setup fee waiver note.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Free text or structured content may repeat contact, payment and historical personal details. Review collection limits, minimisation, disclosure and retention across provider and backup copies."
+    },
+    {
+      "key": "cloud.client_subscriptions.setup_fee_waived",
+      "purpose": "Record agreed subscription fees, billing dates, mandate linkage and cancellation history. Field: setup fee waived.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "A technical, commercial or financial field can be linked to client, payer or administrator identities through related records. Assess necessity, access and retention in that context."
+    },
+    {
+      "key": "cloud.client_subscriptions.discount_until",
+      "purpose": "Record agreed subscription fees, billing dates, mandate linkage and cancellation history. Field: date a pilot discount ends.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "A technical, commercial or financial field can be linked to client, payer or administrator identities through related records. Assess necessity, access and retention in that context."
+    },
+    {
       "key": "cloud.client_subscriptions.proration_enabled",
       "purpose": "Record agreed subscription fees, billing dates, mandate linkage and cancellation history. Field: proration enabled.",
       "locations": [
@@ -10908,6 +10950,20 @@
     {
       "key": "cloud.service_plans.setup_fee",
       "purpose": "Describe offered subscription terms, prices, trial periods and commercial policy text. Field: setup fee.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "A technical, commercial or financial field can be linked to client, payer or administrator identities through related records. Assess necessity, access and retention in that context."
+    },
+    {
+      "key": "cloud.service_plans.tier",
+      "purpose": "Describe offered subscription terms, prices, trial periods and commercial policy text. Field: plan tier.",
       "locations": [
         "Cloud PostgreSQL platform billing plane",
         "Hosting/database backups if configured; provider, region and retention require confirmation"

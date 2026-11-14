@@ -26,7 +26,7 @@ The API can store encrypted backups in a private S3-compatible bucket or the exi
 | C. Laptop restarts | Database and sync queue persist | TEST 04 |
 | D. Cloud unavailable | Keeps working; retries with back-off | TEST 05 |
 | E. Laptop lost | Restore latest `.mbk` on a new laptop | `tests/integration/engine.test.ts` (restore into a clean directory under a new key; totals, stock, logins and permissions reconcile) |
-| F. Cloud data damaged | Restore managed PostgreSQL backup | **Not rehearsed — no production environment yet** |
+| F. Cloud data or server lost (browser version) | Restore the newest off-site system backup (Google Cloud Storage) into a new database and volume: [system-backups.md](system-backups.md) | `tests/staging/full-system-snapshot.test.ts`, `tests/staging/system-backups.test.ts`; **not yet rehearsed on Railway** |
 
 ## Restoring on a replacement laptop
 

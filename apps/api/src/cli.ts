@@ -1,5 +1,6 @@
 import { connectPostgres } from './db';
 import { createAdmin } from './modules/admin';
+import { ensureApprovedPlans } from './billing/plans';
 
 /**
  *   npm run api:migrate
@@ -13,7 +14,8 @@ const db = await connectPostgres(url);
 try {
   if (command === 'migrate') {
     await db.migrate();
-    console.log('Database is up to date.');
+    const added = await db.platform((q) => ensureApprovedPlans(q));
+    console.log(`Database is up to date.${added ? ` Service plans added: ${added}.` : ''}`);
   }
   else if (command === 'create-admin') {
     const { ADMIN_EMAIL: email, ADMIN_NAME: name, ADMIN_PASSWORD: password } = process.env;

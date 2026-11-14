@@ -40,34 +40,59 @@ async function planOf(q: Query, id: string): Promise<any> {
   return p;
 }
 
-/** Invoice lines for one billing period of a subscription: the agreed amount, less any approved discount. */
+/** A discount with an end date (a pilot price) applies to periods that start before that date. */
+const discountApplies = (sub: any, periodStart: string) => !sub.discount_until || periodStart < String(sub.discount_until).slice(0, 10);
+/** Invoice lines for one billing period of a subscription: the agreed amount, less any approved discount still running. */
 export function periodLines(plan: any, sub: any, from: string, toExclusive: string): LineInput[] {
-  const discount = mulDivRound(sub.agreed_amount, sub.discount_bps, 10_000);
-  return [{ description: `${plan.name} (${from} to ${addDays(toExclusive, -1)})`, quantity: 1, unitPrice: sub.agreed_amount, discount, serviceCode: plan.category }];
+  const discount = discountApplies(sub, from) ? mulDivRound(sub.agreed_amount, sub.discount_bps, 10_000) : 0;
+  return [{ description: `${plan.name} (${from} to ${addDays(toExclusive, -1)})${discount ? (sub.discount_note ? ` · ${sub.discount_note}` : '') : ''}`, quantity: 1, unitPrice: sub.agreed_amount, discount, serviceCode: plan.category }];
 }
-export const netAmount = (sub: any) => sub.agreed_amount - mulDivRound(sub.agreed_amount, sub.discount_bps, 10_000);
+export const netAmount = (sub: any, on?: string) => sub.agreed_amount - (on && !discountApplies(sub, on) ? 0 : mulDivRound(sub.agreed_amount, sub.discount_bps, 10_000));
 
-export interface NewSubscription { tenantId: string; planId: string; agreedAmount?: number | null; startDate?: string | null; discountBps?: number; activationPolicy?: 'first_payment' | 'mandate'; paymentMethod?: string | null; prorationEnabled?: boolean }
+/**
+ * The billing frequency for a plan: its own period, or yearly when the plan has a yearly price (two months free on
+ * the approved tiers). The default amount follows the frequency chosen.
+ */
+function frequencyFor(plan: any, wanted?: Frequency | null): { frequency: Frequency; listPrice: number } {
+  const frequency = (wanted ?? plan.billing_period) as Frequency;
+  if (frequency === plan.billing_period) return { frequency, listPrice: plan.price };
+  if (frequency === 'yearly' && plan.annual_price != null) return { frequency, listPrice: Number(plan.annual_price) };
+  return fail(400, 'FREQUENCY_NOT_OFFERED', `${plan.name} is not offered ${frequency}`) as never;
+}
+
+export interface NewSubscription {
+  tenantId: string; planId: string; agreedAmount?: number | null; startDate?: string | null; discountBps?: number; activationPolicy?: 'first_payment' | 'mandate'; paymentMethod?: string | null; prorationEnabled?: boolean;
+  frequency?: Frequency | null;
+  /** Pilot terms: waive the one-time setup fee, and/or end the discount on a date (the pilot price stops then). */
+  setupFeeWaived?: boolean; setupWaiverNote?: string | null; discountUntil?: string | null; discountNote?: string | null;
+}
 export async function createSubscription(b: Billing, q: Query, i: NewSubscription, actor: Actor): Promise<string> {
   const plan = await planOf(q, i.planId);
   if (!plan.active) fail(409, 'PLAN_RETIRED', 'This plan is no longer offered');
   const [existing] = await q(`SELECT * FROM client_subscriptions WHERE tenant_id = $1 FOR UPDATE`, [i.tenantId]);
   if (existing && !['cancelled', 'expired', 'draft'].includes(existing.status)) fail(409, 'SUBSCRIPTION_EXISTS', 'This client already has a subscription. Change its plan instead.');
   const s = await loadSettings(q);
-  const start = i.startDate ?? today(b), amount = i.agreedAmount ?? plan.price;
+  const { frequency, listPrice } = frequencyFor(plan, i.frequency);
+  const start = i.startDate ?? today(b), amount = i.agreedAmount ?? listPrice;
   if (!Number.isSafeInteger(amount) || amount < 0) fail(400, 'INVALID_AMOUNT', 'The agreed amount must be a whole number of pesewas');
+  if (i.discountUntil && !(i.discountBps ?? 0)) fail(400, 'NO_DISCOUNT', 'Set the discount percentage for the pilot price, or leave the end date empty');
+  if (i.discountUntil && i.discountUntil <= start) fail(400, 'INVALID_DATE', 'The pilot price must end after the start date');
   await ensureBillingAccount(q, i.tenantId);
-  const vals = [plan.id, amount, plan.billing_period, start, i.activationPolicy ?? s.activationPolicy, i.discountBps ?? 0, i.paymentMethod ?? null, i.prorationEnabled ?? false];
+  const vals = [plan.id, amount, frequency, start, i.activationPolicy ?? s.activationPolicy, i.discountBps ?? 0, i.paymentMethod ?? null, i.prorationEnabled ?? false,
+    i.setupFeeWaived ?? false, i.setupFeeWaived ? (i.setupWaiverNote ?? null) : null, i.discountUntil ?? null, i.discountNote ?? null];
   let id = existing?.id as string | undefined;
   if (id) {
     await q(`UPDATE client_subscriptions SET plan_id = $2, agreed_amount = $3, billing_frequency = $4, start_date = $5, billing_anchor = $5, activation_policy = $6, discount_bps = $7, payment_method = $8, proration_enabled = $9,
-      status = 'draft', renewal_date = NULL, mandate_id = NULL, cancel_requested_at = NULL, cancel_reason = NULL, cancel_at_period_end = false, paused_at = NULL, cancelled_at = NULL, updated_at = $10 WHERE id = $1`, [id, ...vals, nowIso(b)]);
+      setup_fee_waived = $10, setup_waiver_note = $11, discount_until = $12, discount_note = $13,
+      status = 'draft', renewal_date = NULL, mandate_id = NULL, cancel_requested_at = NULL, cancel_reason = NULL, cancel_at_period_end = false, paused_at = NULL, cancelled_at = NULL, updated_at = $14 WHERE id = $1`, [id, ...vals, nowIso(b)]);
   } else {
     id = randomUUID();
-    await q(`INSERT INTO client_subscriptions (id, tenant_id, plan_id, status, agreed_amount, billing_frequency, start_date, billing_anchor, activation_policy, discount_bps, payment_method, proration_enabled, updated_at)
-      VALUES ($1, $2, $3, 'draft', $4, $5, $6, $6, $7, $8, $9, $10, $11)`, [id, i.tenantId, ...vals, nowIso(b)]);
+    await q(`INSERT INTO client_subscriptions (id, tenant_id, plan_id, status, agreed_amount, billing_frequency, start_date, billing_anchor, activation_policy, discount_bps, payment_method, proration_enabled,
+      setup_fee_waived, setup_waiver_note, discount_until, discount_note, updated_at)
+      VALUES ($1, $2, $3, 'draft', $4, $5, $6, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, [id, i.tenantId, ...vals, nowIso(b)]);
   }
-  await audit(q, { actor, action: 'subscription.created', entityType: 'subscription', entityId: id, tenantId: i.tenantId, detail: { planId: plan.id, amount, frequency: plan.billing_period, start } });
+  await audit(q, { actor, action: 'subscription.created', entityType: 'subscription', entityId: id, tenantId: i.tenantId, detail: { planId: plan.id, amount, frequency, start,
+    setupFeeWaived: i.setupFeeWaived ?? false, discountBps: i.discountBps ?? 0, discountUntil: i.discountUntil ?? null } });
   return id;
 }
 
@@ -89,7 +114,10 @@ export async function submitSubscription(b: Billing, q: Query, subId: string, ac
     anchor = start; renewal = addMonths(anchor, months); periodStart = start; periodEnd = addDays(renewal, -1);
     lines.push(...periodLines(plan, sub, start, renewal));
   }
-  if (plan.setup_fee > 0) lines.push({ description: `${plan.name} one-time setup`, quantity: 1, unitPrice: plan.setup_fee, serviceCode: 'setup' });
+  // A waived setup fee still shows on the invoice, at no charge, so the client sees what they were given.
+  if (plan.setup_fee > 0) lines.push(sub.setup_fee_waived
+    ? { description: `${plan.name} one-time setup (waived${sub.setup_waiver_note ? `: ${sub.setup_waiver_note}` : ''})`, quantity: 1, unitPrice: plan.setup_fee, discount: plan.setup_fee, serviceCode: 'setup' }
+    : { description: `${plan.name} one-time setup`, quantity: 1, unitPrice: plan.setup_fee, serviceCode: 'setup' });
   let invoiceId: string | null = null;
   if (lines.length && lines.reduce((t, l) => t + l.quantity * l.unitPrice - (l.discount ?? 0), 0) > 0) {
     ({ id: invoiceId } = await createInvoice(b, q, { tenantId: sub.tenant_id, subscriptionId: subId, lines, dueDate: addDays(today(b), s.defaultDueDays), periodStart, periodEnd, isInitial: true, issue: true, actor, idempotencyKey: `sub:${subId}:initial:${start}` }));
@@ -177,14 +205,16 @@ export async function cancelSubscription(b: Billing, q: Query, subId: string, o:
 }
 
 /** Change plan or price from the next invoice. Invoices already issued are never altered. Mid-period proration only when enabled for this subscription. */
-export async function changePlan(b: Billing, q: Query, subId: string, o: { planId: string; agreedAmount?: number | null }, actor: Actor): Promise<{ prorationInvoiceId: string | null }> {
+export async function changePlan(b: Billing, q: Query, subId: string, o: { planId: string; agreedAmount?: number | null; frequency?: Frequency | null }, actor: Actor): Promise<{ prorationInvoiceId: string | null }> {
   const [sub] = await q(`SELECT * FROM client_subscriptions WHERE id = $1 FOR UPDATE`, [subId]);
   if (!sub) fail(404, 'NOT_FOUND', 'Subscription not found');
   if (['cancelled', 'expired'].includes(sub.status)) fail(409, 'INVALID_TRANSITION', 'A cancelled subscription cannot change plan');
   const plan = await planOf(q, o.planId), oldPlan = await planOf(q, sub.plan_id);
-  const amount = o.agreedAmount ?? plan.price;
+  // Keep how the client is billed (monthly or yearly) when the new plan offers it, unless a frequency is chosen.
+  const offers = (f: string) => f === plan.billing_period || (f === 'yearly' && plan.annual_price != null);
+  const { frequency: freq, listPrice } = frequencyFor(plan, o.frequency ?? (offers(sub.billing_frequency) ? sub.billing_frequency : null));
+  const amount = o.agreedAmount ?? listPrice;
   if (!Number.isSafeInteger(amount) || amount < 0) fail(400, 'INVALID_AMOUNT', 'The agreed amount must be a whole number of pesewas');
-  const freq = plan.billing_period as Frequency;
   let prorationInvoiceId: string | null = null;
   if (sub.proration_enabled && LIVE.includes(sub.status) && sub.billing_anchor && freq === sub.billing_frequency) {
     const months = FREQUENCY_MONTHS[freq], day = today(b);
@@ -211,11 +241,12 @@ export async function setRenewalDate(b: Billing, q: Query, subId: string, date: 
   await audit(q, { actor, action: 'subscription.renewal_date_changed', entityType: 'subscription', entityId: subId, tenantId: sub.tenant_id, detail: { from: sub.renewal_date, to: date } });
 }
 
-export async function setDiscount(b: Billing, q: Query, subId: string, bps: number, note: string, actor: Actor) {
+export async function setDiscount(b: Billing, q: Query, subId: string, bps: number, note: string, actor: Actor, until?: string | null) {
   const [sub] = await q(`SELECT * FROM client_subscriptions WHERE id = $1 FOR UPDATE`, [subId]);
   if (!sub) fail(404, 'NOT_FOUND', 'Subscription not found');
-  await q(`UPDATE client_subscriptions SET discount_bps = $2, discount_note = $3, updated_at = $4 WHERE id = $1`, [subId, bps, note, nowIso(b)]);
-  await audit(q, { actor, action: 'subscription.discount_changed', entityType: 'subscription', entityId: subId, tenantId: sub.tenant_id, detail: { from: sub.discount_bps, to: bps, note, appliesFrom: 'next invoice' } });
+  if (until && until <= today(b)) fail(400, 'INVALID_DATE', 'The discount must end after today');
+  await q(`UPDATE client_subscriptions SET discount_bps = $2, discount_note = $3, discount_until = $4, updated_at = $5 WHERE id = $1`, [subId, bps, note, bps ? until ?? null : null, nowIso(b)]);
+  await audit(q, { actor, action: 'subscription.discount_changed', entityType: 'subscription', entityId: subId, tenantId: sub.tenant_id, detail: { from: sub.discount_bps, to: bps, note, until: until ?? null, appliesFrom: 'next invoice' } });
 }
 
 export async function requestCancellation(b: Billing, q: Query, tenantId: string, reason: string, actor: Actor) {
