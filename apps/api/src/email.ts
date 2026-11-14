@@ -1,12 +1,14 @@
 /** Resend's HTTPS API. Secrets and provider response bodies never enter logs/errors. */
-export interface EmailMessage { to: string; subject: string; body: string; idempotencyKey?: string }
+import { brandEmailHtml } from './brand';
+/** `body` is the plain-text message. Every email also gets a Mansora-branded HTML part built from it, unless `html` is given. */
+export interface EmailMessage { to: string; subject: string; body: string; html?: string; idempotencyKey?: string }
 export class EmailDeliveryError extends Error {
   constructor(message: string, public retryable: boolean) { super(message); }
 }
 export interface EmailAdapter { configured(): boolean; send(message: EmailMessage): Promise<void | { id: string }> }
 const address = /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/;
 export class ResendEmail implements EmailAdapter {
-  constructor(private options: { apiKey?: string; from?: string; replyTo?: string; allowedRecipients?: string[]; fetch?: typeof fetch }) {}
+  constructor(private options: { apiKey?: string; from?: string; replyTo?: string; allowedRecipients?: string[]; fetch?: typeof fetch; logoUrl?: string }) {}
   configured() { return !!(this.options.apiKey && this.options.from); }
   async send(message: EmailMessage): Promise<{ id: string }> {
     if (!this.configured()) throw new EmailDeliveryError('Resend is not configured.', false);
@@ -17,7 +19,7 @@ export class ResendEmail implements EmailAdapter {
       response = await (this.options.fetch ?? fetch)('https://api.resend.com/emails', {
         method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10_000),
         headers: { authorization: `Bearer ${this.options.apiKey}`, 'content-type': 'application/json', ...(message.idempotencyKey ? { 'idempotency-key': message.idempotencyKey } : {}) },
-        body: JSON.stringify({ from: this.options.from, to: [message.to], subject: message.subject, text: message.body, ...(this.options.replyTo ? { reply_to: this.options.replyTo } : {}) }),
+        body: JSON.stringify({ from: this.options.from, to: [message.to], subject: message.subject, text: message.body, html: message.html ?? brandEmailHtml(message.subject, message.body, { logoUrl: this.options.logoUrl }), ...(this.options.replyTo ? { reply_to: this.options.replyTo } : {}) }),
       });
     } catch { throw new EmailDeliveryError('Resend could not be reached; delivery will retry.', true); }
     if (!response.ok) {
@@ -40,5 +42,8 @@ export function resendFromEnv(): ResendEmail {
   if (allowedRecipients.some(a => !address.test(a))) throw new Error('RESEND_ALLOWED_RECIPIENTS must contain email addresses.');
   // A team-test deployment must explicitly allow its recipients before it can send.
   if ((process.env.MANSORA_DEPLOYMENT_MODE === 'team-test' || process.env.MANSORA_STAGING_MODE === 'team-test') && process.env.RESEND_API_KEY && !allowedRecipients.length) throw new Error('Set RESEND_ALLOWED_RECIPIENTS before enabling team-test email.');
-  return new ResendEmail({ apiKey: process.env.RESEND_API_KEY, from, replyTo, allowedRecipients });
+  // The logo is served by this API (see brand.ts), so emails show it wherever the public address is known.
+  const base = process.env.PUBLIC_BASE_URL?.trim().replace(/\/+$/, '');
+  const logoUrl = base && /^https:\/\//.test(base) ? `${base}/brand/mansora-logo.png` : undefined;
+  return new ResendEmail({ apiKey: process.env.RESEND_API_KEY, from, replyTo, allowedRecipients, logoUrl });
 }

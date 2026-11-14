@@ -99,6 +99,7 @@ export function roleMatrixMarkdown(): string {
     '- A shift belongs to the person who opened it. Nobody else can sell on it.',
     '- At the end of the day, the person **closes their shift** by counting the cash. Mansora shows the expected cash and any difference.',
     '- A shift still open from an earlier day is flagged to the person and to the owner and managers. Close it with a count before starting the next day.',
+    '- If someone goes home without closing their shift, an owner or manager closes it for them from **Cashier shifts → Shifts left open by others**, after counting the cash in that till. The difference is recorded with their name and reason.',
     '- Cash in or out of the till that is not a sale needs a manager or owner to approve.',
     '- The app locks after the idle time set in Settings. The same person signs back in and returns to where they were.',
     '',

@@ -27,6 +27,7 @@ export function ShiftsPage() {
           </form>
         </Card>
       )}
+      {can('shift.review') && <OthersOpenShifts onDone={reload} />}
       {current.data?.overnight && <Alert tone="warn" className="mb-4">This shift was opened on {dateTime(current.data.shift.opened_at)} and was not closed. Count the cash and close it, then open a new shift for today.</Alert>}
       {current.data && t && (
         <Card title={`Your open shift · since ${dateTime(current.data.shift.opened_at)}`} className="mb-4" actions={<><Button size="sm" onClick={() => setCashMove(true)}>Cash in / out</Button><Button size="sm" variant="primary" onClick={() => setClosing(true)}>Close shift</Button></>}>
@@ -167,5 +168,36 @@ function ExpenseModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
         {f.paymentMethod === 'cash' && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={f.paidFromTill} onChange={(e) => setF({ ...f, paidFromTill: e.target.checked })} /> Paid with cash from my till (reduces my expected cash)</label>}
       </div>
     </Modal>
+  );
+}
+
+/** Shifts other people left open. An owner or manager can close one for them after counting that till's cash. */
+function OthersOpenShifts({ onDone }: { onDone: () => void }) {
+  const { state } = useApp();
+  const query = useQuery<any[]>('shift.openList');
+  const others = (query.data ?? []).filter((s) => s.username !== state.user?.username);
+  const [closing, setClosing] = useState<any | null>(null);
+  const [counted, setCounted] = useState<number | null>(null);
+  const [reason, setReason] = useState('');
+  const { run, busy } = useAction();
+  if (!others.length) return null;
+  return (
+    <Card title="Shifts left open by others" className="mb-4" pad={false}>
+      <Table rows={others} rowKey={(r: any) => r.id} caption="Close a shift for someone who has left, after counting the cash in their till"
+        columns={[{ header: 'Person', cell: (r: any) => r.cashier_name }, { header: 'Open since', cell: (r: any) => <>{dateTime(r.opened_at)}{r.overnight ? <> <Badge tone="warn">Not closed yesterday</Badge></> : null}</> },
+          { header: 'Opening float', align: 'right', cell: (r: any) => money(r.opening_float) },
+          { header: '', align: 'right', cell: (r: any) => <Button size="sm" onClick={() => { setClosing(r); setCounted(null); setReason(''); }}>Close shift</Button> }]} />
+      {closing && (
+        <Modal title={`Close ${closing.cashier_name}'s shift`} open onClose={() => setClosing(null)}
+          footer={<><Button dismiss onClick={() => setClosing(null)}>Cancel</Button><Button variant="primary" disabled={busy || counted == null || reason.trim().length < 3}
+            onClick={() => run(async () => { await call('shift.closeFor', { shiftId: closing.id, countedCash: counted, reason: reason.trim() }); setClosing(null); query.reload(); onDone(); }, 'Shift closed')}>Close shift</Button></>}>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-700">Count the cash in {closing.cashier_name}'s till. Mansora compares it with what should be there and records the difference, with your name.</p>
+            <Field label="Cash counted (GHS)"><MoneyInput value={counted} onChange={setCounted} autoFocus /></Field>
+            <Field label="Why are you closing it?" hint="For example: went home without closing"><Input value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} /></Field>
+          </div>
+        </Modal>
+      )}
+    </Card>
   );
 }

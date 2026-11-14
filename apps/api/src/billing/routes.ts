@@ -6,6 +6,7 @@ import { clearServiceHold, serviceHold, setServiceHold, tenantStanding } from '.
 import { RateLimiter, sha256 } from '../security';
 import { asHttp, audit, billingContact, deliverQueued, queueEmail, displayStatus, fail, loadSettings, nowIso, openException, outstanding, payUrl, readPayToken, saveSettings, today, REMINDER_STEPS, type Actor, type Billing } from './core';
 import { addDays } from './dates';
+import { brandPage } from '../brand';
 import { invoiceHtml, receiptHtml } from './documents';
 import { cancelInvoice, createInvoice, creditNote, getInvoice, issueInvoice, openDispute, resolveDispute, writeOffInvoice } from './invoices';
 import { runBillingCycle, runDaily, runReconciliation, runReminders, sendReminderNow } from './jobs';
@@ -392,7 +393,8 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
 
   // ================================================================ public: payment links, webhooks, sandbox pages
   const publicLimiter = new RateLimiter(60, 5 * 60_000);
-  const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>body{font:16px/1.5 'Segoe UI',Arial,sans-serif;background:#f3f7f6;color:#14211f;margin:0;padding:24px}main{max-width:460px;margin:8vh auto;background:#fff;border:1px solid #d3dfdc;border-radius:12px;padding:28px}h1{font-size:22px;margin:0 0 4px}.muted{color:#4a5f5c;font-size:14px}.amt{font-size:34px;font-weight:700;margin:16px 0}button{width:100%;padding:14px;border:0;border-radius:8px;background:#1f5f5b;color:#fff;font-size:17px;font-weight:600;cursor:pointer}button.alt{background:#fff;color:#14211f;border:1px solid #9bb3af;margin-top:10px}.sbx{background:#fff0d6;color:#8a5200;padding:8px 12px;border-radius:6px;margin-bottom:14px;font-weight:600}</style></head><body><main>${body}</main></body></html>`;
+  // Branded public pages (Mansora colours, logo and type). Assets resolve through the public base address, so this works behind the gateway too.
+  const page = (title: string, body: string, notice?: string) => brandPage(title, body, { base: b.env.publicBaseUrl, notice });
 
   app.get('/pay/done', async (_req, reply) => reply.type('text/html').send(page('Thank you', '<h1>Thank you</h1><p>If you completed the payment, it will show on your invoice as soon as the payment provider confirms it. You can close this page.</p>')));
   app.get('/pay/:token', async (req, reply) => {
@@ -408,10 +410,11 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
     });
     if (!row.i) return missing();
     const out = outstanding(row.i);
-    const base = `<h1>Invoice ${esc(row.i.number)}</h1><div class="muted">${esc(row.s.issuer.name)} for ${esc(row.i.client)}</div>`;
+    const base = `<h1>Invoice ${esc(row.i.number)}</h1><div class="muted">From ${esc(row.s.issuer.name)} to ${esc(row.i.client)}</div>`;
     if (out <= 0 || !['sent', 'partially_paid'].includes(row.i.status)) return reply.type('text/html').send(page('Invoice', `${base}<p>${row.i.status === 'paid' || out <= 0 ? 'This invoice has been paid. Thank you.' : `This invoice is ${esc(row.i.status.replace(/_/g, ' '))} and cannot be paid online.`}</p>`));
     const sandbox = !!b.providers.list().find((p) => p.caps.sandbox) && !b.providers.list().some((p) => p.configured() && !p.caps.sandbox && p.caps.oneOff);
-    return reply.type('text/html').send(page('Pay invoice', `${sandbox ? '<div class="sbx">SANDBOX: a test payment. No real money moves.</div>' : ''}${base}<div class="amt">${esc(cedi(out))}</div><div class="muted">Due ${esc(String(row.i.due_date).slice(0, 10))}</div><form method="post" action="/pay/${esc(token)}/start" style="margin-top:18px"><button type="submit">Pay securely</button></form><p class="muted" style="margin-top:14px">You will be taken to the payment provider. Card details and Mobile Money PINs are never entered on or stored by Mansora.</p>`));
+    return reply.type('text/html').send(page('Pay invoice', `${base}<div class="amt">${esc(cedi(out))}</div><span class="due">Due ${esc(String(row.i.due_date).slice(0, 10))}</span><form method="post" action="/pay/${esc(token)}/start"><button type="submit">Pay securely</button></form><div class="secure"><span aria-hidden="true">🔒</span><span>You will be taken to <b>Paystack</b>, our licensed payment provider, to pay by card or Mobile Money. Card details and Mobile Money PINs are never entered on or stored by Mansora.</span></div>`,
+      sandbox ? 'SANDBOX: a test payment. No real money moves.' : undefined));
   });
   app.post('/pay/:token/start', async (req, reply) => {
     publicLimiter.check(req.ip);

@@ -217,6 +217,27 @@ export const peopleCommands = defineCommands({
       return rows.map((s) => ({ ...s, totals: shiftTotals(ctx, s) }));
     },
   },
+  /**
+   * An owner or manager closes a shift that someone else left open (they went home, or their login was replaced),
+   * counting the cash in that till. Recorded against the person who closed it, with their reason.
+   */
+  'shift.closeFor': {
+    perm: 'shift.review',
+    mutates: true,
+    input: z.object({ shiftId: zId, countedCash: zMoney, reason: zText(300) }),
+    run: (ctx, input) => {
+      const shift = ctx.get(`SELECT s.*, u.name AS cashier_name FROM shifts s JOIN users u ON u.id = s.cashier_id WHERE s.id = ?`, input.shiftId);
+      if (!shift) fail('NOT_FOUND', 'Shift not found');
+      if (shift.status !== 'open') fail('SHIFT_NOT_OPEN', 'This shift is already closed');
+      if (shift.cashier_id === ctx.user.id) fail('INVALID_INPUT', 'Close your own shift from Your open shift');
+      const totals = shiftTotals(ctx, shift);
+      const variance = cashVariance(totals.expectedCash, input.countedCash);
+      const notes = `Closed by ${ctx.user.name} for ${shift.cashier_name}: ${input.reason}`;
+      ctx.update('shifts', shift.id, { status: 'closed', closed_at: ctx.now(), expected_cash: totals.expectedCash, counted_cash: input.countedCash, variance, notes });
+      ctx.audit('shift', shift.id, { ...totals, countedCash: input.countedCash, variance, closedFor: shift.cashier_id, reason: input.reason });
+      return { id: shift.id, expectedCash: totals.expectedCash, countedCash: input.countedCash, variance };
+    },
+  },
   'shift.review': {
     perm: 'shift.review',
     mutates: true,

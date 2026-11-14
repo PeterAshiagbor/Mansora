@@ -74,7 +74,7 @@ function OpenShifts() {
       <Badge tone={overnight.length ? 'warn' : 'good'}>{overnight.length ? `${overnight.length} left open overnight` : data.length ? `${data.length} open` : 'All closed'}</Badge>
       <strong>Shifts</strong>
       <p>{data.length ? data.map((s) => `${s.cashier_name} since ${dateTime(s.opened_at)}${s.overnight ? ' (not closed yesterday)' : ''}`).join('; ') : 'No shift is open.'}</p>
-      {overnight.length > 0 && <p>Ask each person to close their shift with a cash count before selling today.</p>}
+      {data.length > 0 && <p>A shift left open by someone who has gone home can be closed from Cashier shifts, after counting their till.</p>}
       <Button variant="ghost" onClick={() => go('shifts')}>Review shifts</Button>
     </div>
   );

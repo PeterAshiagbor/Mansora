@@ -15,6 +15,7 @@ import { ROLE_LOGINS_OPERATION, sendRoleLogins } from '../staging/role-logins';
 import { renameTestShops } from '../staging/shop-names';
 import { PASSWORD_RESET_OPERATION, resetTestLogins } from '../staging/password-reset';
 import { runBugDigest } from '../../apps/api/src/modules/bug-reports';
+import { CLOSE_SHIFTS_OPERATION, closeOpenShifts } from '../staging/close-shifts';
 import { inviteTesters } from '../staging/invitations';
 import { apiRuntimeOptions } from '../../apps/api/src/runtime';
 import { seedTestWorkspaces } from '../staging/sample-data';
@@ -81,6 +82,9 @@ export async function runRailwayServer() {
           .catch(() => ({ shopsSent: 0, shopsSkipped: 0, waiting: 0, adminSent: false, disabled: false, failureReasons: ['PASSWORD_RESET_FAILED'] }));
         if (!reset.disabled) console.log(`Password reset: ${reset.shopsSent} shop emails sent, ${reset.shopsSkipped} already sent, ${reset.waiting} waiting, administrator ${reset.adminSent ? 'sent' : 'not sent'}.`);
         if (reset.failureReasons.length) console.warn('Password reset status: ' + reset.failureReasons.join(', '));
+        // Owner request 2026-11-14: close every shift left open in the test shops, once.
+        const shifts = await closeOpenShifts({ id: process.env.STAGING_CLOSE_SHIFTS_ID ?? CLOSE_SHIFTS_OPERATION, dataDir: join(config.dataDir, 'staging'), workspaces }).catch(() => ({ closed: 0, disabled: false, failures: 1 }));
+        if (!shifts.disabled) console.log(`Open shifts closed: ${shifts.closed}${shifts.failures ? `, ${shifts.failures} could not be closed` : ''}.`);
       }
       if (config.mode === 'team-test' && process.env.STAGING_SAMPLE_DATA_VERSION) {
         let prepared = 0, preserved = 0, pending = 0;
