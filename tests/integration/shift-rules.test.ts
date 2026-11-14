@@ -27,4 +27,20 @@ describe('C59 shifts and logins', () => {
     expect((await shop.run(shop.cashier, 'shift.current')).overnight).toBe(true);
     await expect(shop.run(shop.cashier, 'shift.openList')).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
   });
+
+  it('lets an owner close a shift someone else left open, with a count and reason, and not their own', async () => {
+    const shop = await makeShop();
+    const [open] = await shop.run(shop.owner, 'shift.openList');
+    await expect(shop.run(shop.cashier, 'shift.closeFor', { shiftId: open.id, countedCash: 0, reason: 'x went' })).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
+    const r = await shop.run(shop.owner, 'shift.closeFor', { shiftId: open.id, countedCash: 9_000, reason: 'Went home without closing' });
+    expect(r).toMatchObject({ expectedCash: 10_000, countedCash: 9_000, variance: -1_000 });
+    expect(await shop.run(shop.owner, 'shift.openList')).toEqual([]);
+    expect(await shop.run(shop.cashier, 'shift.current')).toBeNull();
+    const row = shop.engine.db.prepare('SELECT status, notes FROM shifts WHERE id = ?').get(open.id) as any;
+    expect(row.status).toBe('closed'); expect(row.notes).toContain('Went home without closing');
+    await expect(shop.run(shop.owner, 'shift.closeFor', { shiftId: open.id, countedCash: 0, reason: 'again' })).rejects.toMatchObject({ code: 'SHIFT_NOT_OPEN' });
+    await shop.run(shop.owner, 'shift.open', { openingFloat: 0 });
+    const mine = (await shop.run(shop.owner, 'shift.openList'))[0];
+    await expect(shop.run(shop.owner, 'shift.closeFor', { shiftId: mine.id, countedCash: 0, reason: 'own one' })).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+  });
 });
