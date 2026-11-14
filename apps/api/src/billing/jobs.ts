@@ -37,6 +37,8 @@ export async function runBillingCycle(b: Billing): Promise<CycleResult> {
           out.subscriptionsCancelled++;
           return { info: await cancelMandateLocal(b, q, sub.mandate_id, 'Subscription ended', SYSTEM), tenantId: sub.tenant_id };
         }
+        // A client who asked to cancel at the end of the paid period is not invoiced for the period after it.
+        if (sub.cancel_at_period_end) return undefined;
         const [plan] = await q(`SELECT * FROM service_plans WHERE id = $1`, [sub.plan_id]);
         const next = nextBoundary(sub.billing_anchor ?? sub.renewal_date, sub.renewal_date, FREQUENCY_MONTHS[sub.billing_frequency as Frequency]);
         const r = await createInvoice(b, q, {
@@ -94,7 +96,8 @@ export async function runReminders(b: Billing): Promise<{ sent: number; skipped:
     const from = Math.round((Date.parse(day) - Date.parse(inv.due_date)) / 86_400_000);
     const reached = REMINDER_STEPS.filter((st) => s.reminders.offsets[st] <= from);
     if (!reached.length) continue;
-    await b.db.platform(async (q) => {
+    // One invoice that cannot be chased (missing contact, bad data) must not stop the reminders for everyone else.
+    try { await b.db.platform(async (q) => {
       const done = new Set((await q(`SELECT step FROM collection_reminders WHERE invoice_id = $1`, [inv.id])).map((r: any) => r.step));
       const todo = reached.filter((st) => !done.has(st));
       if (!todo.length) return;
@@ -114,7 +117,7 @@ export async function runReminders(b: Billing): Promise<{ sent: number; skipped:
       await q(`INSERT INTO collection_reminders (id, invoice_id, step, due_on, status, notification_id) VALUES ($1, $2, $3, $4, 'sent', $5)`, [randomUUID(), inv.id, latest, day, nid]);
       await audit(q, { actor: SYSTEM, action: 'reminder.sent', entityType: 'invoice', entityId: inv.id, tenantId: inv.tenant_id, detail: { step: latest, daysFromDue: from } });
       sent++;
-    });
+    }); } catch (e) { console.error(`billing: reminder for invoice ${inv.id} failed: ${(e as Error).message}`); }
   }
   return { sent, skipped };
 }

@@ -183,7 +183,11 @@ else {
       dialog.showErrorBox('Mansora Sales & Stock cannot start', (e as Error).message);
       return app.quit();
     }
-    session.defaultSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
+    // Only the camera is allowed, only for the app's own pages, and only video (barcode scanning, C57). Everything else is refused.
+    const ownPage = (url: string) => url.startsWith('file://');
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) =>
+      cb(permission === 'media' && ownPage(details.requestingUrl ?? '') && ((details as any).mediaTypes ?? []).every((t: string) => t === 'video')));
+    session.defaultSession.setPermissionCheckHandler((_wc, permission, origin) => permission === 'media' && ownPage(origin ?? ''));
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       { label: 'File', submenu: [{ role: 'quit' }] },
       { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },

@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { ContactMansora } from '../components/ContactMansora';
 import { TaskLinks } from '../components/TaskLinks';
-import { ROLE_DEFAULTS, type Role } from '@mansora/domain';
-import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, QueryView, WorkflowSteps, useUnsavedChanges } from '@mansora/ui';
+import { ROLE_DEFAULTS, roleMatrix, type Role } from '@mansora/domain';
+import { Alert, Badge, Button, Card, Disclosure, Field, Input, Modal, PageHeader, Select, Stat, Table, QueryView, WorkflowSteps, useUnsavedChanges } from '@mansora/ui';
 import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, marginLabel, money, saveFile, today, useAction, useApp, useQuery, useToast } from '../lib';
 
 // ---------------------------------------------------------------- Staff
@@ -37,6 +37,9 @@ export function StaffPage() {
         <Table rows={data} rowKey={(r) => r.id} onRowClick={(u) => setEdit({ ...u, password: '', email: u.email ?? '', sendCode: false })}
           columns={[{ header: 'Name', cell: (u) => <span className="font-medium">{u.name}</span> }, { header: 'Username', cell: (u) => u.username }, { header: 'Role', cell: (u) => <span className="capitalize">{u.role}</span> }, { header: 'Status', cell: (u) => (u.status === 'active' ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>) }, { header: 'Sign-in by email', cell: (u) => u.role === 'owner' ? '' : !u.email ? <span className="text-xs text-slate-500">No email recorded</span> : u.invite_expires_at ? <span className="text-xs text-slate-600">Code sent, valid until {dateTime(u.invite_expires_at)}</span> : <span className="text-xs text-slate-600">{u.email}</span> }, { header: '', align: 'right', cell: (u) => u.role !== 'owner' && u.email && u.status === 'active' ? <Button size="sm" disabled={busy} onClick={(e) => { e.stopPropagation(); invite(u.id); }}>{u.invite_expires_at ? 'Send a new code' : 'Email sign-in code'}</Button> : null }]} />
       </Card></QueryView>
+      <Disclosure title="Who can do what" description="What each role can do when added. You can change a manager's or cashier's permissions person by person.">
+        <RoleMatrix />
+      </Disclosure>
       {edit && (
         <Modal title={edit.id ? `Edit ${edit.name}` : 'Add staff member'} open onClose={() => setEdit(null)} wide
           footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim() || !edit.username.trim() || (!edit.id && !edit.password && !(edit.email?.trim() && edit.sendCode))} onClick={save}>{edit.sendCode && edit.email?.trim() && !owner ? 'Save and email code' : 'Save'}</Button></>}>
@@ -68,6 +71,23 @@ export function StaffPage() {
           {owner && <p className="mt-3 text-sm text-slate-600">The owner can do everything. The owner account cannot be disabled or changed to another role here.</p>}
         </Modal>
       )}
+    </div>
+  );
+}
+
+/** C59: generated from the same permission table the engine enforces. */
+function RoleMatrix() {
+  const mark = (yes: boolean, never: boolean) => (never ? <span className="text-slate-500">Owner only</span> : yes ? <Badge tone="good">Yes</Badge> : <span className="text-slate-500">No</span>);
+  return (
+    <div className="space-y-3">
+      <Table caption="Starting permissions for each role" rows={roleMatrix()} rowKey={(r) => r.permission}
+        columns={[{ header: 'What', cell: (r) => r.label }, { header: 'Owner', cell: () => <Badge tone="good">Yes</Badge> }, { header: 'Manager', cell: (r) => mark(r.manager, r.ownerOnly) }, { header: 'Cashier', cell: (r) => mark(r.cashier, r.ownerOnly) }]} />
+      <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+        <li>Everyone signs in with their own username. There is no shared shop password.</li>
+        <li>Open a shift, counting the opening float, before selling. A shift belongs to the person who opened it.</li>
+        <li>Close the shift at the end of the day by counting the cash. A shift left open from an earlier day is flagged.</li>
+        <li>Cash in or out of the till that is not a sale needs a manager or owner to approve.</li>
+      </ul>
     </div>
   );
 }
@@ -171,8 +191,8 @@ export function DataPage() {
       <PageHeader title="Import & export" subtitle="Choose a file, check the rows, then confirm. Nothing is saved during preview." />
       <WorkflowSteps steps={['Choose file', 'Check rows', 'Import']} current={completed ? 2 : file ? 1 : 0} />
       {completed && <Card title="Import complete"><p className="text-lg font-semibold">{completed.created} product(s) added · {completed.skipped} skipped</p><p className="mt-2 text-sm text-slate-600">{completed.fileName} · The confirmed result is recorded in import and audit history.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="primary" onClick={() => go('products')}>View products</Button><Button onClick={() => { setCompleted(null); input.current?.focus(); }}>Import another file</Button></div></Card>}
-      <Card title="Import products and opening stock" actions={<><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'xlsx' })))}>Download Excel template</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'csv' })))}>CSV template</Button></>}>
-        <p className="mb-3 text-sm text-slate-600">Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved. For carton costing, fill Carton cost and Units per carton; leave Cost price blank. Selling price and opening stock are per selling unit. Unit cost rounds to the nearest pesewa.</p>
+      <Card title="Import products and opening stock" actions={<><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'xlsx' })))}>Download Excel template</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.sample', { format: 'xlsx' })))}>Download sample shop</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'csv' })))}>CSV template</Button></>}>
+        <p className="mb-3 text-sm text-slate-600">Moving from Excel, QuickBooks or Xero? Export your product list and choose it here: Mansora recognises their column names. The sample shop shows a filled-in file. Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved. For carton costing, fill Carton cost and Units per carton; leave Cost price blank. Selling price and opening stock are per selling unit. Unit cost rounds to the nearest pesewa.</p>
         <input ref={input} type="file" accept=".xlsx,.csv" className="block text-sm" aria-label="Choose import file" disabled={busy}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void load(f); }} />
         {busy && !preview && <p className="mt-4 text-sm text-slate-600" role="status">Checking the file. No products have been saved…</p>}

@@ -7,17 +7,18 @@ export type ImportField = (typeof IMPORT_FIELDS)[number];
 export type Mapping = Partial<Record<ImportField, string>>;
 
 const ALIASES: Record<ImportField, string[]> = {
-  name: ['name', 'product', 'product name', 'item', 'item name', 'description'],
-  sku: ['sku', 'code', 'item code', 'product code'],
+  // Includes the column names QuickBooks (Products and Services export) and Xero (Inventory items export) use.
+  name: ['name', 'product', 'product name', 'item', 'item name', 'description', 'product/service name', 'product/service', 'itemname', 'item description'],
+  sku: ['sku', 'code', 'item code', 'product code', '*itemcode', 'itemcode'],
   barcode: ['barcode', 'bar code', 'ean', 'upc'],
-  category: ['category', 'group', 'department'],
+  category: ['category', 'group', 'department', 'type of item'],
   unit: ['unit', 'uom', 'unit of measure'],
-  cost_price: ['cost price', 'cost', 'cost_price', 'buying price', 'purchase price'],
+  cost_price: ['cost price', 'cost', 'cost_price', 'buying price', 'purchase price', 'purchase cost', 'purchasesunitprice', 'purchases unit price', 'unit cost'],
   carton_cost: ['carton cost', 'carton_cost', 'carton purchase cost'],
   units_per_carton: ['units per carton', 'units_per_carton', 'items per carton'],
-  selling_price: ['selling price', 'price', 'selling_price', 'retail price', 'sale price'],
-  opening_stock: ['opening stock', 'opening_stock', 'quantity', 'qty', 'stock', 'opening quantity', 'in stock'],
-  reorder_level: ['reorder level', 'reorder_level', 'reorder', 'low stock', 'reorder threshold', 'minimum stock'],
+  selling_price: ['selling price', 'price', 'selling_price', 'retail price', 'sale price', 'sales price / rate', 'sales price', 'rate', 'salesunitprice', 'sales unit price', 'unit price'],
+  opening_stock: ['opening stock', 'opening_stock', 'quantity', 'qty', 'stock', 'opening quantity', 'in stock', 'qty on hand', 'quantity on hand', 'quantityonhand'],
+  reorder_level: ['reorder level', 'reorder_level', 'reorder', 'low stock', 'reorder threshold', 'minimum stock', 'reorder point'],
 };
 
 export function parseCsv(text: string): string[][] {
@@ -32,7 +33,7 @@ export function parseCsv(text: string): string[][] {
       if (ch === '"' && src[i + 1] === '"') (cell += '"'), i++;
       else if (ch === '"') quoted = false;
       else cell += ch;
-    } else if (ch === '"') quoted = true;
+    } else if (ch === '"' && cell === '') quoted = true; // a quote opens a quoted cell only at its start (TV 32" stays literal)
     else if (ch === ',') (row.push(cell), (cell = ''));
     else if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && src[i + 1] === '\n') i++;
@@ -61,7 +62,8 @@ export async function toXlsx(sheets: { name: string; rows: unknown[][] }[]): Pro
   wb.creator = 'Mansora Sales & Stock';
   for (const s of sheets) {
     const ws = wb.addWorksheet(s.name.slice(0, 31).replace(/[\\/?*[\]:]/g, ' '));
-    s.rows.forEach((r) => ws.addRow(r.map((v) => (typeof v === 'string' && /^[=+\-@]/.test(v) ? `'${v}` : v))));
+    // ExcelJS stores strings as text, never as formulas, so values such as -5.00 are written exactly as they are.
+    s.rows.forEach((r) => ws.addRow(r));
     if (s.rows.length) ws.getRow(1).font = { bold: true };
     ws.columns.forEach((c) => (c.width = 18));
   }

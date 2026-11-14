@@ -9,7 +9,7 @@ const oversized = () => new SpreadsheetGuardError(413, 'SPREADSHEET_TOO_LARGE', 
 /** Bound ZIP expansion before ExcelJS loads an entire workbook into the shared process. */
 export function guardSpreadsheet(input: unknown, maxExpandedBytes = 32 * 1024 * 1024): void {
   const payload = input as { fileName?: unknown; contentBase64?: unknown } | null;
-  if (!payload || typeof payload.fileName !== 'string' || !/\.xlsx$/i.test(payload.fileName) || typeof payload.contentBase64 !== 'string') return;
+  if (!payload || typeof payload.fileName !== 'string' || !/\.xlsx$/i.test(payload.fileName.trim()) /* the engine trims the name before choosing the reader */ || typeof payload.contentBase64 !== 'string') return;
   // Match the engine's existing compressed-file limit before allocating a decoded buffer.
   if (payload.contentBase64.length > Math.ceil(10 * 1024 * 1024 / 3) * 4) throw oversized();
   const zip = Buffer.from(payload.contentBase64, 'base64');

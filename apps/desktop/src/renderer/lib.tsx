@@ -43,6 +43,7 @@ export async function call<T = any>(command: string, input: unknown = {}): Promi
   const res = await bridge.invoke(command, input);
   if (res.ok) {
     if (command === 'auth.logout' || (command === 'app.state' && !res.data?.user)) window.dispatchEvent(new Event('mansora:session-ended'));
+    if (command === 'auth.logout') window.dispatchEvent(new Event('mansora:logged-out')); // chose to sign out, not an idle lock
     if (!READ_ONLY.test(command)) window.dispatchEvent(new Event('mansora:changed'));
     return res.data as T;
   }

@@ -88,7 +88,14 @@ export async function refundPayment(b: Billing, paymentId: string, o: { amount: 
     });
     return { refundId: prepared.refundId, status: r.status === 'failed' ? 'failed' : r.status === 'completed' ? 'completed' : 'pending_provider' };
   } catch (e) {
-    await b.db.platform((q) => q(`UPDATE billing_refunds SET status = 'failed' WHERE id = $1`, [prepared.refundId]));
+    // Only a definite refusal means no money moved. A timeout or network error may have reached the provider,
+    // so the refund stays pending and an administrator checks it rather than refunding twice.
+    const refused = e instanceof ProviderError && !e.retryable;
+    await b.db.platform(async (q) => {
+      if (refused) await q(`UPDATE billing_refunds SET status = 'failed' WHERE id = $1`, [prepared.refundId]);
+      else await openException(q, { key: `refund-unknown:${prepared.refundId}`, kind: 'provider_error', tenantId: prepared.payment.tenant_id, paymentId: prepared.payment.id,
+        detail: `A refund of ${money(o.amount)} was sent to ${prepared.payment.provider} but no answer came back (${(e as Error).message}). Check it in the provider dashboard before trying again.` });
+    });
     return asHttp(e);
   }
 }
@@ -119,7 +126,8 @@ async function applyRefundEffect(b: Billing, q: Query, refundId: string, actor: 
       if (inv.subscription_id) await recomputeSubscription(b, q, inv.subscription_id, actor);
     }
   }
-  await q(`UPDATE billing_payments SET amount_refunded = $2, status = CASE WHEN $2 >= amount THEN 'refunded' ELSE 'partially_refunded' END WHERE id = $1 AND status <> 'disputed'`, [p.id, after]);
+  // The refunded amount is always recorded; a disputed payment keeps its disputed status.
+  await q(`UPDATE billing_payments SET amount_refunded = $2, status = CASE WHEN status = 'disputed' THEN status WHEN $2 >= amount THEN 'refunded' ELSE 'partially_refunded' END WHERE id = $1`, [p.id, after]);
   await audit(q, { actor, action: 'refund.completed', entityType: 'payment', entityId: p.id, tenantId: p.tenant_id, detail: { refundId, amount: r.amount, appliedToInvoices: toInvoices } });
 }
 
@@ -326,7 +334,8 @@ export async function failAttempt(b: Billing, q: Query, attemptId: string, reaso
 export async function settleAttempt(b: Billing, attemptId: string, actor: Actor): Promise<{ status: string; detail?: string }> {
   const [a] = await b.db.platform((q) => q(`SELECT * FROM payment_attempts WHERE id = $1`, [attemptId]));
   if (!a) fail(404, 'NOT_FOUND', 'Payment attempt not found');
-  if (['successful', 'failed', 'cancelled'].includes(a.status)) return { status: a.status };
+  // A cancelled (abandoned) attempt is still checked: the client may have completed it later.
+  if (['successful', 'failed'].includes(a.status)) return { status: a.status };
   const provider = b.providers.find(a.provider);
   if (!provider) return { status: a.status, detail: 'Unknown provider' };
   let v: VerifyResult;
@@ -341,7 +350,11 @@ export async function settleAttempt(b: Billing, attemptId: string, actor: Actor)
 
 async function applyVerification(b: Billing, q: Query, attemptId: string, v: VerifyResult, actor: Actor): Promise<{ status: string; detail?: string }> {
   const [a] = await q(`SELECT * FROM payment_attempts WHERE id = $1 FOR UPDATE`, [attemptId]);
-  if (['successful', 'failed', 'cancelled'].includes(a.status)) return { status: a.status };
+  if (['successful', 'failed'].includes(a.status)) return { status: a.status };
+  // An attempt given up as abandoned can still be completed by the client later; the money must then be recorded.
+  if (a.status === 'cancelled' && v.status !== 'successful') return { status: a.status };
+  if (a.status === 'cancelled') await openException(q, { key: `late-success:${a.id}`, kind: 'late_payment', tenantId: a.tenant_id, attemptId: a.id, invoiceId: a.invoice_id,
+    detail: `Payment ${a.reference} was marked abandoned but the provider later confirmed it. It has been recorded; check the invoice.` });
   const ageMs = Date.parse(nowIso(b)) - Date.parse(a.created_at);
   if (v.status === 'successful') {
     if (v.amount !== a.amount || (v.currency ?? 'GHS') !== a.currency) {
@@ -424,7 +437,15 @@ export async function processWebhook(b: Billing, providerId: string, raw: Buffer
       });
     } else if (ev.type === 'refund.processed') {
       await b.db.platform(async (q) => {
-        const [r] = await q(`SELECT id FROM billing_refunds WHERE provider_ref = $1 AND status = 'pending_provider'`, [ev.reference ?? '']);
+        // Providers identify a processed refund either by the refund's own id or by the original transaction's reference.
+        const d = (ev.raw as any)?.data ?? {};
+        const refs = [ev.reference, d.id, d.refund_reference].filter((v) => v != null && v !== '').map(String);
+        let [r] = await q(`SELECT id FROM billing_refunds WHERE provider_ref = ANY($1::text[]) AND status = 'pending_provider' ORDER BY created_at LIMIT 1`, [refs]);
+        if (!r && ev.reference) {
+          const amount = Number.isSafeInteger(Number(d.amount)) ? Number(d.amount) : null;
+          [r] = await q(`SELECT r.id FROM billing_refunds r JOIN billing_payments p ON p.id = r.payment_id
+            WHERE p.reference = $1 AND r.status = 'pending_provider' AND ($2::bigint IS NULL OR r.amount = $2) ORDER BY r.created_at LIMIT 1`, [ev.reference, amount]);
+        }
         if (r) await completeRefund(b, q, r.id, actor);
       });
     } else if (ev.type === 'dispute.opened') {

@@ -531,6 +531,9 @@ Maintain supplier identity and optional contact details for stock receipts.
 | `cloud.suppliers.name` | Display the record/person/business name in its operational context. Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field? |
 | `cloud.suppliers.phone` | Contact or identify the customer, supplier or business owner by phone. Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field? |
 | `cloud.suppliers.notes` | Keep operator-entered context; may contain customer/staff/supplier personal data. Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field? |
+| `cloud.suppliers.momo_number` | Pay the supplier by Mobile Money. Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field? |
+| `cloud.suppliers.location` | Find or visit the supplier (market, town or address). May identify a sole-trader supplier's place of business; potentially personal. Should collection/redaction restrictions be added for this field? |
+| `cloud.suppliers.supplies` | Record what the supplier sells to the shop, for reordering. Business information about goods supplied; free text could contain personal data. Should collection/redaction restrictions be added for this field? |
 | `cloud.suppliers.updated_at` | Order current-record changes and reconciliation. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
 
 #### `cloud.support_access_grants`
@@ -971,6 +974,9 @@ Maintain supplier identity and optional contact details for stock receipts.
 | `laptop.suppliers.name` | Display the record/person/business name in its operational context. Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field? |
 | `laptop.suppliers.phone` | Contact or identify the customer, supplier or business owner by phone. Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field? |
 | `laptop.suppliers.notes` | Keep operator-entered context; may contain customer/staff/supplier personal data. Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field? |
+| `laptop.suppliers.momo_number` | Pay the supplier by Mobile Money. Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field? |
+| `laptop.suppliers.location` | Find or visit the supplier (market, town or address). May identify a sole-trader supplier's place of business; potentially personal. Should collection/redaction restrictions be added for this field? |
+| `laptop.suppliers.supplies` | Record what the supplier sells to the shop, for reordering. Business information about goods supplied; free text could contain personal data. Should collection/redaction restrictions be added for this field? |
 | `laptop.suppliers.updated_at` | Order current-record changes and reconciliation. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
 
 #### `laptop.support_access_grants`

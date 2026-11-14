@@ -3722,6 +3722,51 @@
       "assessment": "Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field?"
     },
     {
+      "key": "cloud.suppliers.momo_number",
+      "purpose": "Pay the supplier by Mobile Money. Supports: Maintain supplier identity and optional contact details for stock receipts.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Shop laptop mirror/projection and shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field?"
+    },
+    {
+      "key": "cloud.suppliers.location",
+      "purpose": "Find or visit the supplier (market, town or address). Supports: Maintain supplier identity and optional contact details for stock receipts.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Shop laptop mirror/projection and shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a sole-trader supplier's place of business; potentially personal. Should collection/redaction restrictions be added for this field?"
+    },
+    {
+      "key": "cloud.suppliers.supplies",
+      "purpose": "Record what the supplier sells to the shop, for reordering. Supports: Maintain supplier identity and optional contact details for stock receipts.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Shop laptop mirror/projection and shop-passphrase-encrypted portable backups"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Business information about goods supplied; free text could contain personal data. Should collection/redaction restrictions be added for this field?"
+    },
+    {
       "key": "cloud.suppliers.updated_at",
       "purpose": "Order current-record changes and reconciliation. Supports: Maintain supplier identity and optional contact details for stock receipts.",
       "locations": [
@@ -7340,6 +7385,54 @@
         "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
       ],
       "assessment": "Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field?"
+    },
+    {
+      "key": "laptop.suppliers.momo_number",
+      "purpose": "Pay the supplier by Mobile Money. Supports: Maintain supplier identity and optional contact details for stock receipts.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Direct identity/contact or operator-controlled/free-text content, potentially personal. Should collection/redaction restrictions be added for this field?"
+    },
+    {
+      "key": "laptop.suppliers.location",
+      "purpose": "Find or visit the supplier (market, town or address). Supports: Maintain supplier identity and optional contact details for stock receipts.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a sole-trader supplier's place of business; potentially personal. Should collection/redaction restrictions be added for this field?"
+    },
+    {
+      "key": "laptop.suppliers.supplies",
+      "purpose": "Record what the supplier sells to the shop, for reordering. Supports: Maintain supplier identity and optional contact details for stock receipts.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Business information about goods supplied; free text could contain personal data. Should collection/redaction restrictions be added for this field?"
     },
     {
       "key": "laptop.suppliers.updated_at",

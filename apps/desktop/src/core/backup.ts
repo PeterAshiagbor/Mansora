@@ -76,21 +76,29 @@ export function createBackupFile(db: Db, dbKey: string | null, dir: string, pass
   const path = join(dir, `mansora-backup-${stamp}${auto ? `.auto-${auto.salt}` : ''}.mbk`);
   const tmp = `${path}.tmp`;
   rmSync(tmp, { force: true });
-  db.prepare('VACUUM INTO ?').run(tmp); // transactionally consistent copy, still under the device key
-  const copy = new Database(tmp);
+  let summary: BackupSummary;
   try {
-    if (dbKey) applyKey(copy, dbKey);
-    else copy.pragma(`cipher = 'sqlcipher'`);
-    // A portable backup must never carry a remembered decryption passphrase.
-    copy.pragma('secure_delete = ON');
-    copy.prepare("DELETE FROM meta WHERE key IN ('backup_passphrase', 'backup_auto')").run();
-    copy.pragma('journal_mode = DELETE');
-    copy.pragma(`rekey = '${secret.replace(/'/g, "''")}'`);
-  } finally {
-    copy.close();
+    db.prepare('VACUUM INTO ?').run(tmp); // transactionally consistent copy, still under the device key
+    const copy = new Database(tmp);
+    try {
+      if (dbKey) applyKey(copy, dbKey);
+      else copy.pragma(`cipher = 'sqlcipher'`);
+      // A portable backup must never carry a remembered decryption passphrase.
+      copy.pragma('secure_delete = ON');
+      copy.prepare("DELETE FROM meta WHERE key IN ('backup_passphrase', 'backup_auto')").run();
+      copy.pragma('journal_mode = DELETE');
+      copy.pragma(`rekey = '${secret.replace(/'/g, "''")}'`);
+    } finally {
+      copy.close();
+    }
+    renameSync(tmp, path);
+    summary = verifySecret(path, secret); // never report success for a file we could not read back
+  } catch (error) {
+    // A failed backup must not leave a half-written or unreadable file that could later be chosen for a restore.
+    rmSync(tmp, { force: true });
+    rmSync(path, { force: true });
+    throw error;
   }
-  renameSync(tmp, path);
-  const summary = verifySecret(path, secret); // never report success for a file we could not read back
   const bytes = readFileSync(path);
   return { id, path, size: statSync(path).size, sha256: createHash('sha256').update(bytes).digest('hex'), summary };
 }
@@ -136,26 +144,32 @@ function verifySecret(path: string, secret: string): BackupSummary {
 export function restoreBackupFile(backupPath: string, passphrase: string, destPath: string, newKey: string | null): BackupSummary {
   if (existsSync(destPath)) fail('RESTORE_TARGET_EXISTS', 'Refusing to overwrite an existing database');
   verifyBackupFile(backupPath, passphrase);
-  const src = openBackup(backupPath, passphrase);
   try {
-    src.prepare('VACUUM INTO ?').run(destPath);
-  } finally {
-    src.close();
-  }
-  const dest = new Database(destPath);
-  try {
-    applyKey(dest, fileSecret(backupPath, passphrase));
-    dest.pragma('journal_mode = DELETE');
-    dest.pragma(`rekey = '${(newKey ?? '').replace(/'/g, "''")}'`);
-  } finally {
-    dest.close();
-  }
-  const check = new Database(destPath);
-  try {
-    if (newKey) applyKey(check, newKey);
-    migrate(check);
-    return summarise(check);
-  } finally {
-    check.close();
+    const src = openBackup(backupPath, passphrase);
+    try {
+      src.prepare('VACUUM INTO ?').run(destPath);
+    } finally {
+      src.close();
+    }
+    const dest = new Database(destPath);
+    try {
+      applyKey(dest, fileSecret(backupPath, passphrase));
+      dest.pragma('journal_mode = DELETE');
+      dest.pragma(`rekey = '${(newKey ?? '').replace(/'/g, "''")}'`);
+    } finally {
+      dest.close();
+    }
+    const check = new Database(destPath);
+    try {
+      if (newKey) applyKey(check, newKey);
+      migrate(check);
+      return summarise(check);
+    } finally {
+      check.close();
+    }
+  } catch (error) {
+    // Remove a partly restored database so the owner can simply try again.
+    for (const suffix of ['', '-wal', '-shm', '-journal']) rmSync(destPath + suffix, { force: true });
+    throw error;
   }
 }

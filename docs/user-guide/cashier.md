@@ -9,7 +9,7 @@
 
 ## Making a sale
 
-1. Scan each item, or type part of its name and click it. Press **F2** to jump back to the search box.
+1. Scan each item, or type part of its name and click it. Press **F2** to jump back to the search box. No scanner? Press **Camera** and scan with the phone or tablet camera. See [scanners-and-printers.md](scanners-and-printers.md).
 2. Change quantities with **+ / −** or type the number.
 3. Press **F9** (or **Pay**).
 4. Type the cash you were given. The change is shown in large figures.

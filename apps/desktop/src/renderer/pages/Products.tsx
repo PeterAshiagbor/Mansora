@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CameraScanButton } from '../components/CameraScanner';
 import { TaskLinks } from '../components/TaskLinks';
 import { unitCostFromCarton } from '@mansora/domain';
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, QueryView } from '@mansora/ui';
@@ -22,7 +23,7 @@ export function ProductsPage() {
         </>} />
       <TaskLinks group="inventory" current="products" />
       <div className="mb-3 flex flex-wrap items-center gap-3 no-print">
-        <Input placeholder="Search by name, SKU or barcode" value={search} onChange={(e) => setSearch(e.target.value)} className="w-80" aria-label="Search products" />
+        <Input placeholder="Search by name, SKU or barcode" value={search} onChange={(e) => setSearch(e.target.value)} className="w-80" aria-label="Search products" /> <CameraScanButton onCode={setSearch} />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={inactive} onChange={(e) => setInactive(e.target.checked)} /> Show inactive</label>
       </div>
       <QueryView query={productsQuery} label="products"><Card pad={false}>
@@ -72,7 +73,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
       {categoryOptions.error && <QueryView query={categoryOptions} label="categories">{null}</QueryView>}
       <div className="m-product-editor"><form className="grid grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <Field label="Product name" className="col-span-2"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
-        <Field label="Barcode" className="col-span-2" hint="Click here and scan the item"><Input value={f.barcode} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field>
+        <div className="col-span-2 flex items-end gap-2"><Field label="Barcode" className="flex-1" hint="Click in the box and scan with a USB scanner, or use the camera"><Input value={f.barcode} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field><CameraScanButton label="Camera" onCode={(code) => setF((prev) => ({ ...prev, barcode: code }))} /></div>
         <Field label="Selling price (GHS)"><MoneyInput value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
         {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : 'Enter a verified unit cost. Use 0 only when the item genuinely has no cost.'}><MoneyInput required value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
         {cost && <details className="m-form-details"><summary>Calculate cost from a carton</summary><div>

@@ -27,6 +27,7 @@ export function ShiftsPage() {
           </form>
         </Card>
       )}
+      {current.data?.overnight && <Alert tone="warn" className="mb-4">This shift was opened on {dateTime(current.data.shift.opened_at)} and was not closed. Count the cash and close it, then open a new shift for today.</Alert>}
       {current.data && t && (
         <Card title={`Your open shift · since ${dateTime(current.data.shift.opened_at)}`} className="mb-4" actions={<><Button size="sm" onClick={() => setCashMove(true)}>Cash in / out</Button><Button size="sm" variant="primary" onClick={() => setClosing(true)}>Close shift</Button></>}>
           <div className="grid grid-cols-3 gap-3 xl:grid-cols-6">

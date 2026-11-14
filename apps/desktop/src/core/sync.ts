@@ -21,7 +21,7 @@ function activity(engine: Engine) {
   return {
     day,
     salesToday: one('SELECT COUNT(*) AS v FROM sales WHERE created_at >= ?') as number,
-    staffActiveToday: one(`SELECT COUNT(DISTINCT actor_id) AS v FROM audit_logs WHERE actor_id IS NOT NULL AND occurred_at >= ? AND action <> 'permission.denied'`) as number,
+    staffActiveToday: one(`SELECT COUNT(DISTINCT actor_id) AS v FROM audit_logs WHERE actor_id IS NOT NULL AND occurred_at >= ? AND action NOT IN ('permission.denied', 'service.restricted')`) as number,
     lastSaleAt: last ? new Date(last).toISOString() : null,
   };
 }
@@ -58,21 +58,31 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
   state.lastAttemptAt = engine.now().toISOString();
   let pushed = 0;
   let rejected = 0;
+  // Counts for Mansora's activity view, computed once per sync. An older server that rejects the
+  // optional field gets pushes without it, so telemetry can never stop a shop from syncing.
+  let usage: ReturnType<typeof activity> | undefined = state.activityUnsupported ? undefined : activity(engine);
   try {
     for (let first = true; ; first = false) {
       const rows = engine.db.prepare(`SELECT * FROM outbox WHERE status = 'pending' ORDER BY seq LIMIT ?`).all(BATCH) as any[];
       if (rows.length === 0 && !first) break;
       const lastBackup = engine.db.prepare(`SELECT MAX(created_at) AS t FROM backup_records WHERE status = 'ok'`).get() as { t: string | null };
       let result: SyncPushResult;
+      const push = () => call(engine, '/v1/sync/events', {
+        method: 'POST',
+        body: JSON.stringify({
+          protocol: SYNC_PROTOCOL_VERSION,
+          device: { appVersion: engine.appVersion, pendingCount: pendingCount(engine), lastBackupAt: lastBackup.t, ...(usage ? { activity: usage } : {}) },
+          events: rows.map((r) => ({ id: r.id, seq: r.seq, type: r.type, occurredAt: r.occurred_at, actorId: r.actor_id, payload: JSON.parse(r.payload) })),
+        }),
+      });
       try {
-        result = await call(engine, '/v1/sync/events', {
-          method: 'POST',
-          body: JSON.stringify({
-            protocol: SYNC_PROTOCOL_VERSION,
-            device: { appVersion: engine.appVersion, pendingCount: pendingCount(engine), lastBackupAt: lastBackup.t, activity: activity(engine) },
-            events: rows.map((r) => ({ id: r.id, seq: r.seq, type: r.type, occurredAt: r.occurred_at, actorId: r.actor_id, payload: JSON.parse(r.payload) })),
-          }),
-        });
+        try {
+          result = await push();
+        } catch (e) {
+          if (!usage || !/activity/i.test(String((e as Error).message))) throw e;
+          usage = undefined; state.activityUnsupported = true;
+          result = await push();
+        }
       } catch (e) {
         if (rows.length) engine.db.prepare(`UPDATE outbox SET attempts = attempts + 1, last_error = ? WHERE seq BETWEEN ? AND ? AND status = 'pending'`).run(String((e as Error).message), rows[0].seq, rows[rows.length - 1].seq);
         throw e;
@@ -104,7 +114,11 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
     state.lastError = null;
     return { ok: true, pushed, rejected, pending: pendingCount(engine) };
   } catch (e) {
-    const message = (e as Error).name === 'TimeoutError' || (e as Error).name === 'TypeError' ? 'No connection to the Mansora server' : (e as Error).message;
+    const err = e as Error & { cause?: { code?: string } };
+    const unreachable = err.name === 'TimeoutError' || (err.name === 'TypeError' && /fetch failed|network|ECONN|ENOTFOUND|EAI_AGAIN/i.test(`${err.message} ${err.cause?.code ?? ''}`));
+    // A programming or data error must not masquerade as being offline.
+    const message = unreachable ? 'No connection to the Mansora server' : err.message || 'Sync failed';
+    if (!unreachable) console.error('Sync failed', err);
     state.online = false;
     state.lastError = message;
     return { ok: false, pushed, rejected, pending: pendingCount(engine), error: message };

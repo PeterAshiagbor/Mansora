@@ -91,6 +91,8 @@ export const authCommands = defineCommands({
       }
       ctx.tx(() => {
         const e = ctx.engine;
+        // A double-clicked activation may reach here twice; only the first may commit.
+        if (e.activated) fail('ALREADY_ACTIVATED', 'This laptop is already activated');
         e.setMeta('api_url', apiUrl);
         e.setMeta('device_id', body.deviceId);
         e.setMeta('tenant_id', body.tenant.id);
@@ -191,6 +193,8 @@ export const authCommands = defineCommands({
     run: (ctx, input) => {
       ctx.engine.verifyCredentials(ctx.user.username, input.current);
       ctx.run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', strongPassword(input.next), ctx.now(), ctx.user.id);
+      // Anyone who saw the old password is signed out everywhere except this session.
+      ctx.engine.endSessionsFor(ctx.user.id, ctx.sessionToken);
       ctx.audit('user', ctx.user.id, {}, 'user.password_changed');
       return { ok: true };
     },

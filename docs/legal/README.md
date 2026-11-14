@@ -1,29 +1,45 @@
-# DRAFT — not legal advice — for review by a Ghanaian data-protection lawyer
+# DRAFT — not legal advice — for review by a Ghanaian lawyer
 
-## C8 review pack
+## Legal pack (Ghana)
 
-**Status:** Engineering drafts prepared for review; no legal approval, hosting choice, retention policy, registration conclusion or deletion capability is implemented by these documents. These files are the C8 task's documentation/status record; its scope is limited to `docs/legal/`.
+**Status (2026-11-14):** engineering drafts, written from the code and the decision log, for a Ghanaian lawyer and tax
+adviser to review. Nothing here is approved, and none of it is shown in the product yet.
 
-- [Data inventory](data-inventory.md), with [machine-readable purposes/locations/access](data-inventory.json), lists every migrated laptop/cloud column, including technical fields, rather than guessing which fields a future lawyer will classify as personal.
-- [Customer privacy notice template](privacy-notice.md) needs the shop's details and approved practices before display.
-- [Controller/processor agreement outline](controller-processor-outline.md) contains role, instruction, security, subprocessor, rights, incident and exit questions.
-- [Retention/deletion proposal](retention-deletion.md) asks a decision for each table and explains immutability, foreign-key, offline sync, replay and backup consequences.
-- [Ghana legal/transfer checklist](ghana-review-checklist.md) gathers Act 843 registration, rights, hosting, cross-border and operational questions.
+### Start here
+- [Compliance register](compliance-register.md): every Ghanaian law that applies (Act 843 data protection, Act 772 electronic
+  transactions, Act 1038 cybersecurity, Act 987 payments, Act 1151 VAT, Act 915 revenue administration, Act 992 companies,
+  Act 651 labour, Act 726 credit reporting, consumer and pharmacy rules), who it binds, what the product does, and what is open.
+
+### Agreements and notices
+- [Terms of service](terms-of-service.md): Mansora and the client, including the non-payment policy (D-28).
+- [Data processing agreement](data-processing-agreement.md): Mansora as processor of shop data, subprocessors, transfers.
+  Questions behind it: [controller-processor-outline.md](controller-processor-outline.md).
+- [Customer privacy notice](privacy-notice.md): short counter version and full notice, for each shop.
+- [Staff notice](staff-notice.md): logins and what is recorded about staff.
+- [Mansora privacy notice](mansora-privacy-notice.md): Mansora's own records.
+- [Automatic payment wording](direct-debit-consent.md).
+
+### Procedures
+- [DPC registration](dpc-registration.md): for Mansora and for each shop.
+- [Breach response plan](breach-response.md).
+- [Retention schedule](retention-schedule.md) (proposed periods) and [retention questions per table](retention-deletion.md).
+- [Tax and VAT notes](tax-vat.md).
+- [Ghana review checklist](ghana-review-checklist.md): the lawyer's questions.
+
+### Key facts
+- Cloud data is hosted by Railway in the **United States** (region `sfo`). Email: Resend (United States). Payments: Paystack.
+  This is processing outside Ghana and must be disclosed and protected (compliance register, section 1).
+- No server backups exist yet (C38).
 
 ### Schema coverage check
 
-From the repository root, after installing the normal development dependencies:
+From the repository root:
 
 ```sh
 npx tsx --test docs/legal/inventory.test.ts
 ```
 
-The test migrates fresh in-memory SQLite and embedded PostgreSQL databases, reads **schema metadata only** (PostgreSQL catalog access goes through `db.platform()`), and checks every actual column against the inventory and human-readable list. It also verifies every sync-contract field exists on both sides and every table has a retention proposal. No production connection, client records or credentials are read. The helper never changes application migrations or the sync protocol.
-
-This standalone documentation test lives under `docs/legal/` to respect C8's scope. The existing `npm test` glob does not automatically include it; run the command explicitly during release/schema review or add it to an approved future CI change. A new table/column missing from the inventory fails the check. Review new fields individually for purpose, access, copies and legal questions; do not blindly regenerate the inventory to silence a failure. This gate detects schema coverage, not legal completeness, dynamic JSON keys or actual deployment settings.
-
-The schema snapshot is based on default-branch `348d95c` (laptop migration 1; cloud migrations 1–3). Runtime options in separate container/storage/observability PRs require deployment review even when they add no database columns. The current pack inventories 522 columns across 65 source/table entries. Future schema changes must update these counts and entries deliberately after review.
-
-### Decisions still required
-
-Which entity is controller or processor for each purpose, what legal grounds and periods apply, which host/region/subprocessors will be used, who holds/rotates/retires keys, how privileged access is governed, and how rights/incidents/exits are handled remain open questions. No default period or country was assumed. Financial/audit immutability and historical sync/backup copies make direct SQL deletion unsafe; the pack describes the missing engineering work without claiming it is already done.
+The test migrates fresh in-memory SQLite and embedded PostgreSQL databases, reads schema metadata only, and checks every
+column against the [data inventory](data-inventory.md) ([machine-readable](data-inventory.json)), every sync field on both
+sides, and that every table has a retention entry. A new column missing from the inventory fails it. Review each new field
+for purpose, access and copies; do not regenerate the inventory just to make the test pass.

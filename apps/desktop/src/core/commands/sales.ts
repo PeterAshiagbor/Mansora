@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { fail, PAYMENT_METHODS, priceCart, refundLineAmount, SETTLEMENT_METHODS, settlePayments, splitRefund, sum } from '@mansora/domain';
-import { dayBounds, defineCommands, zApprover, zId, zMoney, zOptText, zQty, zRange, zText, type Ctx } from '../engine';
+import { fail, PAYMENT_METHODS, priceCart, refundLineAmount, SETTLEMENT_METHODS, settlePayments, splitRefund, sum, zCalendarDate } from '@mansora/domain';
+import { dayBounds, defineCommands, likeContains, zApprover, zId, zMoney, zOptText, zQty, zRange, zText, type Ctx } from '../engine';
 import { renderReceiptHtml } from '../receipt';
 import { moveStock, nextNumber, openShift, requireOpenShift } from '../stock';
 
@@ -50,7 +50,7 @@ export const salesCommands = defineCommands({
       cartDiscount: zMoney.default(0),
       tenders: z.array(z.object({ method: z.enum(PAYMENT_METHODS), amount: zMoney, reference: zOptText(80) })).max(10),
       customerId: zId.nullish(),
-      dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+      dueDate: zCalendarDate.nullish(),
       approver: zApprover,
     }),
     run: (ctx, input) => {
@@ -74,7 +74,8 @@ export const salesCommands = defineCommands({
         // Optional owner-set ceiling (percent of the basket before discount). Above it, only the owner may approve.
         const maxBps = Number(ctx.setting('max_discount_bps') ?? 0);
         if (maxBps > 0 && BigInt(cart.discountTotal) * 10_000n > BigInt(maxBps) * BigInt(cart.subtotal)) {
-          const approverId = input.approver ? ctx.engine.verifyCredentials(input.approver.username, input.approver.password).id : ctx.user.id;
+          // The signed-in owner approves their own sale; otherwise the supplied approver must be the owner.
+          const approverId = ctx.user.role === 'owner' || !input.approver ? ctx.user.id : ctx.engine.verifyCredentials(input.approver.username, input.approver.password).id;
           if (ctx.engine.loadUser(approverId)?.role !== 'owner') fail('OWNER_APPROVAL_REQUIRED', `Discounts above ${maxBps / 100}% need the owner's approval`, { maxBps });
           discountApprovedBy = approverId;
         } else discountApprovedBy = ctx.authorise('sale.discount', input.approver);
@@ -89,10 +90,13 @@ export const salesCommands = defineCommands({
       const now = ctx.now();
       const receiptNo = nextNumber(ctx, 'R');
       const costs = products.map((p) => p.average_cost as number);
+      const costTotal = sum(cart.lines.map((l, i) => l.quantity * costs[i]));
+      // The cloud only accepts safe integers; refuse here rather than create a sale that can never sync.
+      if (!Number.isSafeInteger(costTotal)) fail('INVALID_AMOUNT', 'This sale is too large to record. Split it into smaller sales.');
       ctx.insert('sales', {
         id: input.id, receipt_no: receiptNo, shift_id: shift.id, cashier_id: ctx.user.id, customer_id: input.customerId ?? null,
         subtotal: cart.subtotal, discount_total: cart.discountTotal, total: cart.total, cash_tendered: settlement.cashTendered,
-        change_given: settlement.change, cost_total: sum(cart.lines.map((l, i) => l.quantity * costs[i])), status: 'completed',
+        change_given: settlement.change, cost_total: costTotal, status: 'completed',
         discount_approved_by: discountApprovedBy, created_at: now,
       });
       cart.lines.forEach((l, i) => {
@@ -122,7 +126,7 @@ export const salesCommands = defineCommands({
       const where = ['s.created_at >= ?', 's.created_at < ?'];
       const params: unknown[] = [from, to];
       if (!ctx.can('sale.view_all')) (where.push('s.cashier_id = ?'), params.push(ctx.user.id));
-      if (input.search?.trim()) (where.push('(s.receipt_no LIKE ? OR c.name LIKE ?)'), params.push(`%${input.search.trim()}%`, `%${input.search.trim()}%`));
+      if (input.search?.trim()) (where.push("(s.receipt_no LIKE ? ESCAPE '\\' OR c.name LIKE ? ESCAPE '\\')"), params.push(likeContains(input.search.trim()), likeContains(input.search.trim())));
       return ctx.all(
         `SELECT s.id, s.receipt_no, s.created_at, s.total, s.discount_total, u.name AS cashier_name, c.name AS customer_name,
            (SELECT GROUP_CONCAT(DISTINCT method) FROM payments p WHERE p.sale_id = s.id) AS methods,

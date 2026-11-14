@@ -19,7 +19,7 @@ export function assertNonNegative(n: unknown, label = 'amount'): asserts n is Pe
 
 /** Parse a user-entered cedi string ("12", "12.5", "1,234.50") into pesewas without floats. */
 export function parseGHS(input: string): Pesewas {
-  const s = String(input).trim().replace(/,/g, '').replace(/^(GHS|GH₵|₵)\s*/i, '');
+  const s = String(input).trim().replace(/,/g, '').replace(/^(GHS|GH₵|GH¢|GHC|₵|¢)\s*/i, '');
   const m = /^(-)?(\d+)(?:\.(\d{1,2}))?$/.exec(s);
   if (!m) fail('INVALID_AMOUNT', `"${input}" is not a valid cedi amount`);
   const value = Number(m[2]) * 100 + Number((m[3] ?? '').padEnd(2, '0'));

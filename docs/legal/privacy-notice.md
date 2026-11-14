@@ -1,28 +1,46 @@
 # DRAFT — not legal advice — for review by a Ghanaian data-protection lawyer
 
-## Shop privacy notice template — complete and approve before displaying
+# Customer privacy notice (for each shop to fill in)
 
-**Shop/controller:** [legal business name and trading name]  
-**Privacy contact:** [name or role, business address, phone/email]  
-**Effective date:** [date]  
-**Registration reference, if applicable and verified:** [lawyer to confirm]
+Two versions: a short one for the counter or the receipt footer, and the full notice for customers who ask.
+The shop fills in the brackets. Mansora gives the shop these templates; the shop is responsible for its notice.
 
-We use information about purchases, returns, payments and, where offered, credit to operate our shop, provide receipts, reconcile stock and payments, resolve queries and keep records required for our business. If we create a customer profile, it contains a name and may include contact details and notes. Ordinary walk-in sales can be recorded without a customer profile. Credit sales are linked to a customer so that amounts owed and repayments can be tracked. [Confirm the shop's actual collection practices and legal basis for each purpose.]
+## Short version (counter sign or receipt footer)
 
-Please provide only the information needed for the transaction. [Identify any information the shop genuinely requires, why it is required, and the practical consequence of not supplying it.] We do not need sensitive personal details in general notes. [Approve staff training and restrictions; the software does not automatically detect all sensitive content.]
+> **[Shop name]** records your purchases to give receipts and keep our accounts. If you buy on credit or ask us to save
+> your details, we keep your name and phone number. We do not sell your details. Ask at the counter or call
+> [phone] to see or correct them. Full notice available on request.
 
-Authorised shop staff can use the records according to their permissions. We use Mansora to operate the sales and stock system and its cloud synchronization/recovery service. Our operational records are kept on our shop computer and copied to cloud services; backup files are encrypted using a shop-controlled passphrase. The ordinary Mansora administration interface has no general view of customer records. Owner-authorised support access exposes selected reports for a limited time. Privileged service/hosting access and other legally required disclosures are subject to [approved contract and access arrangements]. [Name the actual recipients/subprocessors, their purposes and countries before publishing.]
+## Full notice
 
-**Where records are held:** [approved laptop/storage arrangements, cloud provider/country, backup locations and any cross-border safeguards]. No hosting country or production provider has been selected by this draft. We will not describe data as staying in Ghana, or as anonymous/end-to-end encrypted in the cloud database, unless that is true of the approved deployment.
+**Who we are.** [Shop legal and trading name], [address], [phone]. Contact: [owner name].
+[DPC registration number, once registered.]
 
-**How long we keep records:** [approved periods or clear criteria for transaction/credit records, optional customer contacts, support/audit records and backup copies; explain relevant legal holds]. Some financial records must remain reliable for accounting and dispute purposes. A change to a customer profile does not automatically remove earlier records or backup copies. [The lawyer must decide what may or must be kept; the software currently has no general automated erasure service.]
+**What we record.**
+- Every sale: items, prices, payment method, time and the staff member who served you. A walk-in sale does not need your name.
+- If you buy on credit or ask us to save your details: your name, and phone number or email if you give them, what you owe and what you have repaid.
+- Mobile Money payments: the transaction reference, so we can match the payment.
 
-You can contact [privacy contact] to ask about information relating to you, seek access or correction, or raise an objection/deletion request where applicable. We will verify the request proportionately, consider legal obligations and explain the outcome. [Confirm the rights, identity-checking process, response deadlines and any permitted limits under Ghanaian law; do not promise unconditional deletion of financial or backup records.]
+**Why.** To sell to you, give receipts, track credit, handle returns and complaints, and keep the business and tax records the law requires.
 
-If you are concerned about our handling of your information, contact [shop contact]. [Insert the appropriate Data Protection Commission complaint route and current contact details after the lawyer verifies them.]
+**Who can see it.** Our staff, as their role allows. Our software provider, Mansora, stores the records for us on secure
+servers in the United States, and may see our reports only when we allow it for support. We do not sell your details or
+share them with other shops or with credit bureaus.
 
-We will tell you about material changes to this notice through [approved channel]. This template does not authorise marketing, selling customer lists, unrelated analytics or new uses of customer notes. [If any such use is proposed, obtain separate legal advice and revise the notice and collection process before it begins.]
+**Messages.** We may send you a receipt or a reminder of money owed by WhatsApp or SMS, if you gave us your number.
+We do not send advertising unless you agree, and you can ask us to stop at any time.
+
+**How long.** Sales and credit records: [six] years, as tax law requires. Saved contact details: while you shop with us,
+and removed [two] years after your last purchase if you owe nothing.
+
+**Your rights.** You can ask to see the information we hold about you, have it corrected, or ask us to remove your contact
+details when you owe nothing. Some sales records must be kept by law. If you are unhappy with our answer, you can complain
+to the Data Protection Commission, Accra ([contact details, to be verified]).
+
+Effective date: [date].
 
 ### Review before use
 
-Does this accurately describe this shop's optional customer/credit collection, purposes, lawful basis, recipients, staff access, host country, retention and request/complaint process? Should workers, suppliers and business-owner contacts receive separate notices? Which accessible languages/formats are needed at the shop? Remove drafting instructions and fill every bracket only after approval; this draft must not be displayed as a final notice.
+Confirm with the lawyer: the lawful basis for each use, the retention periods, the complaint contact, and whether staff,
+suppliers and the owner need separate notices (a staff notice is in [staff-notice.md](staff-notice.md)). Translate the short
+version into the languages customers use at the shop (for example Twi, Ga, Ewe, Hausa).

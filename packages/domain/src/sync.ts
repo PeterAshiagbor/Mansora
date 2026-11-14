@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zCalendarDate } from './dates';
 
 /**
  * Sync protocol v1.
@@ -13,7 +14,8 @@ import { z } from 'zod';
  */
 export const SYNC_PROTOCOL_VERSION = 1;
 
-type ColType = 'id' | 'id?' | 'text' | 'text?' | 'int' | 'int?' | 'ts' | 'ts?' | 'json';
+/** `text+`: optional text added after the first release. A laptop that predates the column may leave it out. */
+type ColType = 'id' | 'id?' | 'text' | 'text?' | 'text+' | 'int' | 'int?' | 'ts' | 'ts?' | 'json';
 export interface SyncTableSpec {
   mode: 'insert' | 'upsert';
   key: string;
@@ -34,7 +36,7 @@ export const SYNC_TABLES = {
     id: 'id', product_id: 'id', type: 'text', quantity_delta: 'int', unit_cost: 'int', reference_type: 'text?', reference_id: 'id?',
     actor_id: 'id', reason: 'text?', occurred_at: 'ts',
   }),
-  suppliers: t('upsert', { id: 'id', name: 'text', phone: 'text?', notes: 'text?', updated_at: 'ts' }),
+  suppliers: t('upsert', { id: 'id', name: 'text', phone: 'text?', notes: 'text?', momo_number: 'text+', location: 'text+', supplies: 'text+', updated_at: 'ts' }),
   purchases: t('insert', { id: 'id', supplier_id: 'id?', reference: 'text?', status: 'text', total_cost: 'int', received_at: 'ts', created_by: 'id' }),
   purchase_items: t('insert', { id: 'id', purchase_id: 'id', product_id: 'id', quantity: 'int', unit_cost: 'int' }),
   sales: t('insert', {
@@ -83,6 +85,7 @@ const colSchema: Record<ColType, z.ZodType> = {
   'id?': uuid.nullable(),
   text: z.string().max(2000),
   'text?': z.string().max(2000).nullable(),
+  'text+': z.string().max(2000).nullable().optional(),
   int: z.number().int().safe(),
   'int?': z.number().int().safe().nullable(),
   ts: z.string().datetime(),
@@ -114,6 +117,9 @@ export function validateEventRows(rows: SyncEvent['payload']['rows']): Partial<R
   return out;
 }
 
+/** Usage counts for Mansora's support view (C34). Counts only, never amounts. */
+export const deviceActivitySchema = z.strictObject({ day: zCalendarDate, salesToday: z.number().int().nonnegative().max(1_000_000), staffActiveToday: z.number().int().nonnegative().max(1000), lastSaleAt: z.string().datetime().nullable() });
+
 export const syncPushSchema = z.strictObject({
   protocol: z.literal(SYNC_PROTOCOL_VERSION),
   device: z.strictObject({
@@ -121,7 +127,8 @@ export const syncPushSchema = z.strictObject({
     pendingCount: z.number().int().nonnegative(),
     lastBackupAt: z.string().datetime().nullable(),
     /** Usage counts for Mansora's support view (C34). Counts only, never amounts. Optional for older laptops. */
-    activity: z.strictObject({ day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), salesToday: z.number().int().nonnegative().max(1_000_000), staffActiveToday: z.number().int().nonnegative().max(1000), lastSaleAt: z.string().datetime().nullable() }).optional(),
+    /** Optional usage counts (C34). Checked separately so a bad value is dropped, never a reason to refuse a push. */
+    activity: z.unknown().optional(),
   }),
   events: z.array(z.unknown()).max(200),
 });

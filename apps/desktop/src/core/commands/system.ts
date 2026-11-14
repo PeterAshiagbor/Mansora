@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
+import { SAMPLE_GUIDE, sampleShopRows, TEMPLATE_GUIDE } from '../sample-shop';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { fail, formatGHS, SYNC_TABLES } from '@mansora/domain';
 import { createBackupFile, deriveAutoKey, verifyBackupFile } from '../backup';
-import { Ctx, dayBounds, defineCommands, empty, zId, zRange, zText, type Engine } from '../engine';
+import { Ctx, dayBounds, defineCommands, likeContains, empty, zId, zRange, zText, type Engine } from '../engine';
 import { buildPreview, fileHash, IMPORT_FIELDS, readTable, suggestMapping, TEMPLATE_ROWS, toCsv, toXlsx, type ExistingKeys } from '../importer';
 import { syncNow, uploadBackup } from '../sync';
 import { createProduct } from './catalog';
@@ -193,8 +194,8 @@ export const systemCommands = defineCommands({
       const [from, to] = dayBounds(input);
       return ctx.all(
         `SELECT a.*, u.name AS actor_name FROM audit_logs a LEFT JOIN users u ON u.id = a.actor_id
-         WHERE a.occurred_at >= ? AND a.occurred_at < ? ${input.action ? 'AND a.action LIKE ?' : ''} ORDER BY a.occurred_at DESC, a.rowid DESC LIMIT ?`,
-        ...(input.action ? [from, to, `%${input.action}%`] : [from, to]), input.limit,
+         WHERE a.occurred_at >= ? AND a.occurred_at < ? ${input.action ? "AND a.action LIKE ? ESCAPE '\\'" : ''} ORDER BY a.occurred_at DESC, a.rowid DESC LIMIT ?`,
+        ...(input.action ? [from, to, likeContains(input.action)] : [from, to]), input.limit,
       );
     },
   },
@@ -227,6 +228,10 @@ export const systemCommands = defineCommands({
     mutates: true,
     input: z.object({ id: zId }),
     run: (ctx, input) => {
+      // Revoking twice keeps the original revocation time; an expired grant needs no revocation.
+      const grant = ctx.get('SELECT revoked_at, expires_at FROM support_access_grants WHERE id = ?', input.id);
+      if (!grant) fail('NOT_FOUND', 'Access grant not found');
+      if (grant.revoked_at || grant.expires_at <= ctx.now()) return { ok: true, alreadyEnded: true };
       ctx.update('support_access_grants', input.id, { revoked_at: ctx.now() });
       ctx.audit('support_access_grant', input.id, {});
       return { ok: true };
@@ -266,7 +271,9 @@ export const systemCommands = defineCommands({
     },
   },
 
-  'import.template': { perm: 'data.import', async: true, input: z.object({ format: z.enum(['csv', 'xlsx']) }), run: (_c, input) => tableFile('mansora-product-import-template', input.format, [{ name: 'Products', rows: TEMPLATE_ROWS }]) },
+  'import.template': { perm: 'data.import', async: true, input: z.object({ format: z.enum(['csv', 'xlsx']) }), run: (_c, input) => tableFile('mansora-product-import-template', input.format, input.format === 'xlsx' ? [{ name: 'Products', rows: TEMPLATE_ROWS }, { name: 'How to fill this in', rows: TEMPLATE_GUIDE }] : [{ name: 'Products', rows: TEMPLATE_ROWS }]) },
+  /** C58: a ready-made sample shop (about 140 products) in the same layout as the template. */
+  'import.sample': { perm: 'data.import', async: true, input: z.object({ format: z.enum(['csv', 'xlsx']) }), run: (_c, input) => tableFile('mansora-sample-shop', input.format, input.format === 'xlsx' ? [{ name: 'Products', rows: sampleShopRows() }, { name: 'About this sample', rows: SAMPLE_GUIDE }] : [{ name: 'Products', rows: sampleShopRows() }]) },
   'import.preview': { perm: 'data.import', async: true, input: zFile.extend({ mapping: zMapping.optional() }), run: (ctx, input) => preview(ctx, input) },
   'import.history': { perm: 'data.import', input: empty, run: (ctx) => ctx.all('SELECT b.*, u.name AS imported_by_name FROM import_batches b JOIN users u ON u.id = b.imported_by ORDER BY b.created_at DESC LIMIT 100') },
   /**

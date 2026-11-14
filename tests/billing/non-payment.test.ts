@@ -47,7 +47,6 @@ describe('non-payment policy (D-28): selling never stops, reports pause only aft
     expect(await stage()).toBe('restricted');
 
     for (const cmd of ['report.sales', 'report.profit', 'report.stock', 'report.wallet']) await expectCode(shop.run(shop.owner, cmd, range()), 'SERVICE_RESTRICTED');
-    await expectCode(shop.run(shop.owner, 'export.table', { table: 'products' }), 'SERVICE_RESTRICTED');
     // The till, the dashboard, stock, the full data export, backups and sync all keep working.
     const sale = await shop.run(shop.cashier, 'sale.complete', { id: randomUUID(), lines: [{ productId: shop.products.milk, quantity: 1 }], tenders: [{ method: 'cash', amount: 1250 }] });
     expect(sale.receiptNo).toBeTruthy();
@@ -57,7 +56,7 @@ describe('non-payment policy (D-28): selling never stops, reports pause only aft
     expect((await sync()).ok).toBe(true);
     // Each refusal is recorded in the audit history.
     const refusals = shop.engine.db.prepare(`SELECT COUNT(*) AS n FROM audit_logs WHERE action = 'service.restricted'`).get() as { n: number };
-    expect(refusals.n).toBe(5);
+    expect(refusals.n).toBe(4);
   });
 
   it('lifts as soon as a payment is recorded and the till syncs', async () => {

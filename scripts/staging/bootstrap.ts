@@ -1,4 +1,5 @@
 /** Explicit, idempotent provisioning. Never resets an existing test business. */
+import { TEST_SHOP_NAMES } from './shop-names';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
@@ -32,7 +33,7 @@ export async function provisionStaging(config: StagingConfig, admin: { email: st
     for (const id of ['shop-a', 'shop-b']) {
       const directory = join(config.dataDir, 'workspaces', id);
       if (existsSync(directory)) throw new Error('An unfinished workspace exists. Preserve it and investigate provisioning before retrying; do not silently overwrite it.');
-      const label = `Team Test Shop ${id.endsWith('a') ? 'A' : 'B'}`;
+      const label = TEST_SHOP_NAMES[id];
       phase(id + ' API registration');
       const client = await api('POST', '/v1/admin/clients', { name: label, ownerName: 'Test business owner', email: `${id}@mansora.example`, businessType: 'retail' });
       const code = (await api('POST', `/v1/admin/clients/${client.id}/activation-codes`)).code;

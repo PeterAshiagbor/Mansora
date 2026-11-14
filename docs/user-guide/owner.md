@@ -7,11 +7,14 @@ running low and what customers owe you.
 
 ## Products and stock
 
-- **Products**: add or edit items, prices, barcodes and reorder levels.
+- **Products**: add or edit items, prices, barcodes and reorder levels. Scan a barcode into the Barcode box with a scanner or the **Camera** button.
+- **Setting up a scanner or receipt printer**: follow [scanners-and-printers.md](scanners-and-printers.md).
+- **Moving from Excel, QuickBooks or Xero**: follow [moving-to-mansora.md](moving-to-mansora.md).
+- **Purchases, restocking, suppliers and expenses**: step by step in [stock-purchases-expenses.md](stock-purchases-expenses.md). **Purchases & suppliers → Needs reordering** lists what to order, by supplier.
 - Stock is never typed over. It changes through:
   - **Purchases & suppliers → Receive stock** when goods arrive (this also updates your average cost);
   - **Stock → Adjust** for damaged or lost items, with a reason;
-  - **Stock → Stock count** after a physical count.
+  - **Stock → Stock count** after a physical count. Each scan adds one to that product's count.
 - Selling is blocked when the system shows no stock. If that stops a real sale, receive or count the stock first.
 
 ## Discounts
@@ -27,7 +30,8 @@ person may do. Disable a login the day someone leaves; it takes effect at once.
 
 ## Money
 
-- **Cashier shifts**: see every shift's expected cash, counted cash and difference. Sign off closed shifts.
+- **Cashier shifts**: see every shift's expected cash, counted cash and difference. Sign off closed shifts. The dashboard lists open shifts and flags any left open from an earlier day.
+- **Who can do what**: on the Staff page, open *Who can do what* for each role's permissions, or read [who-can-do-what.md](who-can-do-what.md).
 - **Credit & repayments**: who owes what, what is overdue, and record repayments. A repayment is never counted as a new sale.
 - **Expenses**: record running costs. They are shown separately from the cost of goods.
 

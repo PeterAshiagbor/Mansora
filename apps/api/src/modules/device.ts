@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { SYNC_TABLES, syncEventSchema, syncPushSchema, validateEventRows, type SyncPullResult, type SyncPushResult, type SyncTable } from '@mansora/domain';
+import { deviceActivitySchema, zCalendarDate, SYNC_TABLES, syncEventSchema, syncPushSchema, validateEventRows, type SyncPullResult, type SyncPushResult, type SyncTable } from '@mansora/domain';
 import type { Query } from '../db';
 import { httpError, newToken, normaliseCode, RateLimiter, sha256 } from '../security';
 import type { AppContext } from '../app';
@@ -53,6 +53,8 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
     const body = z.object({ code: z.string().min(4).max(64), deviceName: z.string().min(1).max(80), appVersion: z.string().max(40), expectTenantId: z.string().uuid().optional() }).parse(req.body);
     const token = newToken();
     const deviceId = randomUUID();
+    // The unique index devices_one_active_per_tenant is the guard: if two codes are redeemed at
+    // once, the second insert fails and is reported as the business already having a laptop.
     return db.platform(async (q) => {
       const [code] = await q(`SELECT * FROM activation_codes WHERE code_hash = $1 FOR UPDATE`, [sha256(normaliseCode(body.code))]);
       if (!code || code.used_at || Date.parse(code.expires_at) < Date.now()) httpError(400, 'INVALID_ACTIVATION_CODE', 'This activation code is not valid or has expired');
@@ -67,6 +69,9 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       await q(`UPDATE onboarding_steps SET completed_at = now(), notes = $2 WHERE tenant_id = $1 AND step = 'activate_laptop' AND completed_at IS NULL`, [tenant.id, `Activated: ${body.deviceName}`]);
       await q(`INSERT INTO admin_audit_logs (id, action, tenant_id, detail) VALUES ($1, 'device.activated', $2, $3)`, [randomUUID(), tenant.id, JSON.stringify({ deviceId, deviceName: body.deviceName })]);
       return { deviceId, deviceToken: token, tenant: { id: tenant.id, name: tenant.name, phone: tenant.phone, address: tenant.address } };
+    }).catch((e: any) => {
+      if (e?.code === '23505' && String(e?.constraint ?? e?.message).includes('devices_one_active_per_tenant')) httpError(409, 'DEVICE_ALREADY_ACTIVE', 'This business already has an active laptop. Ask Mansora to deactivate it first.');
+      throw e;
     });
   });
 
@@ -107,12 +112,17 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
         break;
       }
     }
-    const act = body.device.activity;
-    if (act) await db.platform((q) => q(`UPDATE devices SET activity_day = $2, sales_today = $3, staff_active_today = $4, last_sale_at = GREATEST(last_sale_at, $5::timestamptz) WHERE id = $1`, [dev.id, act.day, act.salesToday, act.staffActiveToday, act.lastSaleAt]));
+    // Optional telemetry (C34): a bad value is dropped. The last sale time only moves forward, and a time
+    // ahead of the server's clock (a fast laptop clock) is ignored rather than trusted.
+    const act = deviceActivitySchema.safeParse(body.device.activity);
+    const a = act.success ? act.data : null;
     await db.platform((q) =>
-      q(`UPDATE devices SET last_seen_at = now(), app_version = $2, pending_count = $3, last_backup_at = COALESCE($4::timestamptz, last_backup_at), last_sync_at = CASE WHEN $5::boolean THEN now() ELSE last_sync_at END WHERE id = $1`, [
+      q(`UPDATE devices SET last_seen_at = now(), app_version = $2, pending_count = $3, last_backup_at = COALESCE($4::timestamptz, last_backup_at), last_sync_at = CASE WHEN $5::boolean THEN now() ELSE last_sync_at END,
+          activity_day = COALESCE($6::date, activity_day), sales_today = COALESCE($7, sales_today), staff_active_today = COALESCE($8, staff_active_today),
+          last_sale_at = GREATEST(last_sale_at, CASE WHEN $9::timestamptz <= now() + interval '5 minutes' THEN $9::timestamptz END) WHERE id = $1`, [
         dev.id, body.device.appVersion, Math.max(0, body.device.pendingCount - result.accepted.length - result.rejected.length), body.device.lastBackupAt,
         result.accepted.length + result.rejected.length === body.events.length,
+        a?.day ?? null, a?.salesToday ?? null, a?.staffActiveToday ?? null, a?.lastSaleAt ?? null,
       ]),
     );
     return result;
@@ -183,12 +193,16 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
   app.post('/v1/devices/daily-summary', async (req) => {
     const dev = await device(req);
     summaryLimiter.check(dev.id);
-    const body = z.object({ to: z.string().trim().toLowerCase().email().max(160), subject: z.string().trim().min(1).max(200), body: z.string().min(1).max(8000), day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(req.body);
+    const body = z.object({ to: z.string().trim().toLowerCase().email().max(160), subject: z.string().trim().min(1).max(200), body: z.string().min(1).max(8000), day: zCalendarDate, test: z.boolean().default(false) }).parse(req.body);
     const email = ctx.email;
     if (!email || !email.configured()) return httpError(503, 'EMAIL_UNAVAILABLE', 'Email is not set up on the Mansora server yet, so the summary could not be sent.');
     const id = randomUUID();
+    // The laptop writes the summary, so the server adds a footer it controls: who it is from and why it was sent.
+    const [tenant] = await db.platform((q) => q(`SELECT name FROM tenants WHERE id = $1`, [dev.tenant_id]));
+    const text = `${body.body}\n\n--\nSent by Mansora Sales & Stock for ${tenant?.name ?? 'a Mansora shop'}. You receive this because the shop owner chose this address for daily summaries. Ask the owner to change it in Settings if you no longer want it.`;
     try {
-      await email.send({ to: body.to, subject: body.subject, body: body.body, idempotencyKey: `mansora-daily-summary/${dev.id}/${body.day}/${id}` });
+      await email.send({ to: body.to, subject: body.subject, body: text, // The automatic summary uses one key per laptop and day, so a retry after a timeout cannot send it twice.
+      idempotencyKey: body.test ? `mansora-daily-summary-test/${id}` : `mansora-daily-summary/${dev.id}/${body.day}` });
     } catch (e: any) {
       httpError(502, 'EMAIL_FAILED', e?.message && /allowlist/i.test(e.message) ? 'This test environment can only email approved test addresses.' : 'The summary could not be sent. It will be tried again after the next sync.');
     }

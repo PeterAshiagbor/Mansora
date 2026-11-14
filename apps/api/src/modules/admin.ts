@@ -168,8 +168,6 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     const expiresAt = new Date(Date.now() + INVITE_HOURS * 3_600_000).toISOString();
     await db.platform(async (q) => {
       if ((await q(`SELECT 1 FROM admins WHERE email = $1`, [body.email])).length) httpError(409, 'ALREADY_ADMIN', 'That person already has an administrator account.');
-      // A new invitation replaces any earlier unused one for the same address.
-      await q(`UPDATE admin_invitations SET used_at = now() WHERE email = $1 AND used_at IS NULL`, [body.email]);
       await q(`INSERT INTO admin_invitations (id, email, name, token_hash, expires_at, created_by) VALUES ($1, $2, $3, $4, $5, $6)`, [id, body.email, body.name, sha256(token), expiresAt, a.id]);
     });
     const link = `${ctx.adminUrl}#admin-invite=${token}`;
@@ -186,7 +184,11 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       await db.platform((q) => q(`UPDATE admin_invitations SET used_at = now() WHERE id = $1`, [id]));
       return httpError(502, 'EMAIL_FAILED', 'The invitation email could not be sent. Check the email settings and try again.');
     }
-    await db.platform((q) => audit(q, a, 'admin.invited', null, { invitationId: id, name: body.name }));
+    await db.platform(async (q) => {
+      // A new invitation replaces earlier unused ones for the same address, but only once it has actually been sent.
+      await q(`UPDATE admin_invitations SET used_at = now() WHERE email = $1 AND used_at IS NULL AND id <> $2`, [body.email, id]);
+      await audit(q, a, 'admin.invited', null, { invitationId: id, name: body.name });
+    });
     return { id, expiresAt };
   });
   app.post('/v1/admin/admins/invitations/:id/cancel', async (req) => {
@@ -414,7 +416,8 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
         `INSERT INTO client_subscriptions (id, tenant_id, plan_id, status, renewal_date, agreed_amount, billing_frequency, billing_anchor, start_date)
          SELECT $1, $2, p.id, $4, $5::date, p.price, p.billing_period, $5::date, COALESCE($5::date, CURRENT_DATE) FROM service_plans p WHERE p.id = $3
          ON CONFLICT (tenant_id) DO UPDATE SET plan_id = EXCLUDED.plan_id, status = EXCLUDED.status, renewal_date = EXCLUDED.renewal_date, updated_at = now(),
-           agreed_amount = COALESCE(client_subscriptions.agreed_amount, EXCLUDED.agreed_amount), billing_frequency = EXCLUDED.billing_frequency,
+           -- Moving to another plan takes that plan's price; keeping the same plan keeps any agreed price.
+           agreed_amount = CASE WHEN client_subscriptions.plan_id = EXCLUDED.plan_id THEN COALESCE(client_subscriptions.agreed_amount, EXCLUDED.agreed_amount) ELSE EXCLUDED.agreed_amount END, billing_frequency = EXCLUDED.billing_frequency,
            billing_anchor = COALESCE(EXCLUDED.billing_anchor, client_subscriptions.billing_anchor), start_date = COALESCE(client_subscriptions.start_date, EXCLUDED.start_date)`,
         [randomUUID(), id, b.planId, b.status, b.renewalDate ?? null],
       );
@@ -526,12 +529,12 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
   app.get('/v1/admin/activity', async (req) => {
     await admin(req);
     return db.platform((q) => q(`SELECT t.id, t.name, t.status, d.last_sync_at, d.last_sale_at,
-        CASE WHEN d.activity_day = CURRENT_DATE THEN d.sales_today ELSE 0 END AS sales_today,
-        CASE WHEN d.activity_day = CURRENT_DATE THEN d.staff_active_today ELSE 0 END AS staff_active_today,
+        CASE WHEN d.activity_day = (now() AT TIME ZONE 'UTC')::date THEN d.sales_today ELSE 0 END AS sales_today,
+        CASE WHEN d.activity_day = (now() AT TIME ZONE 'UTC')::date THEN d.staff_active_today ELSE 0 END AS staff_active_today,
         CASE WHEN d.id IS NULL THEN 'no_device' WHEN d.last_sale_at IS NULL THEN 'never_sold'
              WHEN d.last_sale_at < now() - interval '7 days' THEN 'quiet' WHEN d.last_sale_at < now() - interval '2 days' THEN 'slowing' ELSE 'active' END AS usage
       FROM tenants t LEFT JOIN devices d ON d.tenant_id = t.id AND d.status = 'active'
-      WHERE t.status IN ('onboarding', 'active') ORDER BY d.last_sale_at DESC NULLS LAST, t.name`));
+      WHERE t.status IN ('onboarding', 'active', 'suspended') ORDER BY d.last_sale_at DESC NULLS LAST, t.name`));
   });
   app.get('/v1/admin/audit', async (req) => {
     await admin(req);

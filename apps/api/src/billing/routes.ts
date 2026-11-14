@@ -11,7 +11,7 @@ import { cancelInvoice, createInvoice, creditNote, getInvoice, issueInvoice, ope
 import { runBillingCycle, runDaily, runReconciliation, runReminders, sendReminderNow } from './jobs';
 import { applyPayment, cancelMandateAtProvider, chargeInvoice, processWebhook, refundPayment, startCheckout, startMandate } from './payments';
 import { cedis, collectionsTable, revenueSummary, toCsv, type CollectionFilter } from './reports';
-import { activateManually, cancelMandateLocal, cancelSubscription, changePlan, createSubscription, pauseSubscription, requestCancellation, resumeSubscription, setDiscount, setRenewalDate, submitSubscription } from './subscriptions';
+import { activateManually, cancelMandateLocal, cancelSubscription, changePlan, createSubscription, netAmount, pauseSubscription, requestCancellation, resumeSubscription, setDiscount, setRenewalDate, submitSubscription } from './subscriptions';
 import { SandboxProvider } from './providers/sandbox';
 
 const id = z.string().uuid();
@@ -138,9 +138,10 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
     const f = z.object({ status: z.string().max(30).optional(), tenantId: id.optional(), q: z.string().max(60).optional() }).parse(req.query);
     const day = today(b);
     const rows = await run((q) => q(`SELECT i.*, t.name AS client, (i.total - i.amount_credited - i.amount_written_off - (i.amount_paid - i.amount_refunded)) AS outstanding FROM invoices i JOIN tenants t ON t.id = i.tenant_id
-      WHERE ($1::uuid IS NULL OR i.tenant_id = $1) AND ($2::text IS NULL OR i.number ILIKE '%' || $2 || '%' OR t.name ILIKE '%' || $2 || '%') ORDER BY COALESCE(i.issue_date, i.created_at::date) DESC, i.created_at DESC LIMIT 500`, [f.tenantId ?? null, f.q ?? null]));
+      WHERE ($1::uuid IS NULL OR i.tenant_id = $1) AND ($2::text IS NULL OR i.number ILIKE '%' || $2 || '%' OR t.name ILIKE '%' || $2 || '%') ORDER BY COALESCE(i.issue_date, i.created_at::date) DESC, i.created_at DESC LIMIT $3`, [f.tenantId ?? null, f.q ?? null, f.status ? 20_000 : 500]));
     const out = rows.map((r: any) => ({ ...r, display_status: displayStatus(r, day), days_overdue: r.due_date && r.outstanding > 0 && ['sent', 'partially_paid'].includes(r.status) && r.due_date < day ? Math.round((Date.parse(day) - Date.parse(r.due_date)) / 86_400_000) : 0 }));
-    return f.status ? out.filter((r: any) => r.display_status === f.status || r.status === f.status) : out;
+    // The status filter runs before the 500-row cap, so older invoices with that status are not silently left out.
+    return f.status ? out.filter((r: any) => r.display_status === f.status || r.status === f.status).slice(0, 500) : out;
   });
   app.post(`${A}/invoices`, async (req) => {
     const a = await admin(req);
@@ -349,7 +350,7 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
     try { b.providers.forCheckout(); checkout = { available: true, reason: null }; } catch (e: any) { checkout = { available: false, reason: e.message }; }
     const s = data.s;
     return {
-      subscription: s ? { status: s.status, plan: s.plan, amount: s.agreed_amount == null ? null : s.agreed_amount - Math.round((s.agreed_amount * s.discount_bps) / 10_000), frequency: s.billing_frequency, nextBillingDate: s.renewal_date, startDate: s.start_date, paymentMethod: s.payment_method, cancelRequested: !!s.cancel_requested_at, cancelAtPeriodEnd: s.cancel_at_period_end } : null,
+      subscription: s ? { status: s.status, plan: s.plan, amount: s.agreed_amount == null ? null : netAmount(s), frequency: s.billing_frequency, nextBillingDate: s.renewal_date, startDate: s.start_date, paymentMethod: s.payment_method, cancelRequested: !!s.cancel_requested_at, cancelAtPeriodEnd: s.cancel_at_period_end } : null,
       mandate: data.m ? { status: data.m.status, method: data.m.method, masked: data.m.masked, maxAmount: data.m.max_amount, approvedAt: data.m.approved_at, sandbox: data.m.sandbox } : null,
       outstanding: owed.reduce((t: number, i: any) => t + i.outstanding, 0),
       nextPayment: next ? { invoiceId: next.id, number: next.number, date: next.dueDate, amount: next.outstanding } : null,
@@ -423,7 +424,7 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
       const r = await startCheckout(b, { tenantId: i.tenant_id, invoiceId: iid, actor: { type: 'client', id: 'payment-link' } });
       return reply.redirect(r.url, 303);
     } catch (e: any) {
-      return reply.code(e.status ?? 502).type('text/html').send(page('Payment unavailable', `<h1>We could not start the payment</h1><p>${esc(e.message ?? 'Please try again shortly.')}</p><p class="muted">Nothing has been charged.</p>`));
+      return reply.code(e.status ?? 502).type('text/html').send(page('Payment unavailable', `<h1>We could not start the payment</h1><p>${esc(e.status && e.status < 500 && e.code !== 'PROVIDER_ERROR' ? (e.message ?? 'Please try again shortly.') : 'The payment service did not respond. Please try again shortly.')}</p><p class="muted">Nothing has been charged.</p>`));
     }
   });
 

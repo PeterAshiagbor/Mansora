@@ -62,7 +62,7 @@ it('requires platform authentication and recorded owner contact; creates one pri
   const audit = await cloud.db.platform(q => q('SELECT detail FROM admin_audit_logs WHERE tenant_id = $1', [third]));
   expect(JSON.stringify(audit)).not.toContain(proof);
   const existing = await cloud.api('GET', '/v1/admin/clients');
-  const existingShop = existing.body.find((r: any) => r.name === 'Team Test Shop A');
+  const existingShop = existing.body.find((r: any) => r.name === 'Mansora TSA');
   expect((await api(`/v1/admin/clients/${existingShop.id}/browser-workspace`)).status).toBe(409);
   const missing = await api('/v1/admin/clients', { name: 'No contact test', ownerName: 'Owner', businessType: 'retail' });
   expect((await api(`/v1/admin/clients/${missing.body.id}/browser-workspace`)).status).toBe(400);

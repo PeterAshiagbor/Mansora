@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { cashVariance, expectedCash, fail, SETTLEMENT_METHODS } from '@mansora/domain';
-import { dayBounds, defineCommands, empty, zId, zMoney, zOptText, zRange, zText, type Ctx } from '../engine';
+import { cashVariance, expectedCash, fail, isOvernightShift, SETTLEMENT_METHODS, zCalendarDate } from '@mansora/domain';
+import { dayBounds, defineCommands, empty, likeContains, zApprover, zId, zMoney, zOptText, zRange, zText, type Ctx } from '../engine';
 import { openShift, requireOpenShift } from '../stock';
 
 /** Live cash position of a shift, straight from the transaction records. */
@@ -29,10 +29,10 @@ export const peopleCommands = defineCommands({
     perm: 'sale.create',
     input: z.object({ search: z.string().max(80).optional() }),
     run: (ctx, input) => {
-      const q = `%${(input.search ?? '').trim()}%`;
+      const q = likeContains((input.search ?? '').trim());
       return ctx.all(
         `SELECT c.*, COALESCE((SELECT SUM(outstanding_balance) FROM credit_accounts a WHERE a.customer_id = c.id), 0) AS outstanding
-         FROM customers c WHERE c.active = 1 AND (c.name LIKE ? OR COALESCE(c.phone, '') LIKE ?) ORDER BY c.name LIMIT 500`,
+         FROM customers c WHERE c.active = 1 AND (c.name LIKE ? ESCAPE '\\' OR COALESCE(c.phone, '') LIKE ? ESCAPE '\\') ORDER BY c.name LIMIT 500`,
         q, q,
       );
     },
@@ -113,6 +113,7 @@ export const peopleCommands = defineCommands({
     perm: 'expense.manage',
     input: zRange,
     run: (ctx, input) => {
+      dayBounds(input); // refuses a reversed range rather than showing an empty month
       const rows = ctx.all(
         `SELECT e.*, u.name AS created_by_name FROM expenses e JOIN users u ON u.id = e.created_by
          WHERE e.expense_date >= ? AND e.expense_date <= ? ORDER BY e.expense_date DESC, e.created_at DESC`,
@@ -126,7 +127,7 @@ export const peopleCommands = defineCommands({
     perm: 'expense.manage',
     mutates: true,
     input: z.object({
-      id: zId, category: zText(60), description: zText(300), amount: zMoney, expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      id: zId, category: zText(60), description: zText(300), amount: zMoney, expenseDate: zCalendarDate,
       paymentMethod: z.enum(SETTLEMENT_METHODS), receiptReference: zOptText(80), paidFromTill: z.boolean().default(false),
     }),
     run: (ctx, input) => {
@@ -149,7 +150,17 @@ export const peopleCommands = defineCommands({
     input: empty,
     run: (ctx) => {
       const shift = openShift(ctx);
-      return shift ? { shift, totals: shiftTotals(ctx, shift) } : null;
+      return shift ? { shift, totals: shiftTotals(ctx, shift), overnight: isOvernightShift(shift.opened_at, ctx.now()) } : null;
+    },
+  },
+  /** Every shift still open, for the owner and managers: who, since when, and whether it was left open overnight. */
+  'shift.openList': {
+    perm: 'shift.review',
+    input: empty,
+    run: (ctx) => {
+      const now = ctx.now();
+      return ctx.all(`SELECT s.id, s.opened_at, s.opening_float, u.name AS cashier_name, u.username FROM shifts s JOIN users u ON u.id = s.cashier_id WHERE s.status = 'open' ORDER BY s.opened_at`)
+        .map((r: any) => ({ ...r, overnight: isOvernightShift(r.opened_at, now) }));
     },
   },
   'shift.open': {
@@ -168,7 +179,7 @@ export const peopleCommands = defineCommands({
   'shift.cashMovement': {
     perm: 'shift.own',
     mutates: true,
-    input: z.object({ direction: z.enum(['in', 'out']), amount: zMoney, reason: zText(200), approver: z.object({ username: z.string(), password: z.string() }).nullish() }),
+    input: z.object({ direction: z.enum(['in', 'out']), amount: zMoney, reason: zText(200), approver: zApprover }),
     run: (ctx, input) => {
       const shift = requireOpenShift(ctx, 'recording a cash movement');
       if (input.amount <= 0) fail('INVALID_AMOUNT', 'Enter an amount');

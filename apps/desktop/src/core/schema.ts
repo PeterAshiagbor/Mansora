@@ -322,4 +322,14 @@ CREATE TABLE staff_invites (
 );
 `,
   },
+  {
+    id: 3,
+    name: 'supplier_details',
+    sql: `
+-- C60: fuller supplier records. All optional; synced like the other supplier fields.
+ALTER TABLE suppliers ADD COLUMN momo_number TEXT;
+ALTER TABLE suppliers ADD COLUMN location TEXT;
+ALTER TABLE suppliers ADD COLUMN supplies TEXT;
+`,
+  },
 ];
