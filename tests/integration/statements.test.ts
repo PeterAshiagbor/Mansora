@@ -98,6 +98,49 @@ describe('importing a statement and accepting lines (owner request 2026-11-14)',
   });
 });
 
+describe('statement review fixes', () => {
+  it('reads "Payment received" as money in, rejects bare numbers as dates, and keeps two identical genuine lines', async () => {
+    expect(parseStatementDate('12')).toBeNull();
+    const d = today();
+    const csv = ['Date,Description,Amount,Type', `${d},From customer,25.00,Payment Received`, `${d},ATM withdrawal,100.00,Debit`, `${d},ATM withdrawal,100.00,Debit`, `12,Total,225.00,`].join('\n');
+    const p = await shop.run(shop.owner, 'statement.preview', { ...file(csv, 'review.csv'), source: 'bank' });
+    const good = p.rows.filter((r: any) => !r.errors.length);
+    expect(good.map((r: any) => [r.amountIn, r.amountOut])).toEqual([[2500, 0], [0, 10000], [0, 10000]]);
+    const r = await shop.run(shop.owner, 'statement.import', { ...file(csv, 'review.csv'), source: 'bank', mapping: p.mapping });
+    expect(r).toMatchObject({ lines: 3, duplicates: 0 });
+    // The same two withdrawals in a later statement are recognised as the same two transactions.
+    const again = await shop.run(shop.owner, 'statement.import', { ...file(csv + '\n', 'review-again.csv'), source: 'bank', mapping: p.mapping });
+    expect(again).toMatchObject({ duplicates: 3 });
+    const [latest] = await shop.run(shop.owner, 'statement.list');
+    expect(latest).toMatchObject({ total_in: 0, total_out: 0 }); // duplicates are not counted again
+  });
+
+  it('links a refund paid out by Mobile Money instead of suggesting a new expense', async () => {
+    const sale = await shop.run(shop.cashier, 'sale.complete', { id: randomUUID(), lines: [{ productId: shop.products.soap, quantity: 1 }], tenders: [{ method: 'momo', amount: 500, reference: 'MP-R1' }] });
+    const full = await shop.run(shop.owner, 'sale.get', { id: sale.id });
+    await shop.run(shop.manager, 'refund.create', { id: randomUUID(), saleId: sale.id, reason: 'Damaged', payoutMethod: 'momo', lines: [{ saleItemId: full.items[0].id, quantity: 1, restock: false }] });
+    const csv = ['Date,Description,Debit', `${today()},Refund to customer,5.00`].join('\n');
+    const p = await shop.run(shop.owner, 'statement.preview', { ...file(csv, 'refund.csv'), source: 'momo' });
+    const r = await shop.run(shop.owner, 'statement.import', { ...file(csv, 'refund.csv'), source: 'momo', mapping: p.mapping });
+    const { lines } = await shop.run(shop.owner, 'statement.lines', { importId: r.id });
+    expect(lines[0].suggestion).toMatchObject({ kind: 'linked', matchType: 'refund' });
+  });
+
+  it('links to an expense typed in by hand after the import instead of recording it again', async () => {
+    const before = (shop.engine.db.prepare(`SELECT COUNT(*) AS n FROM expenses`).get() as any).n;
+    const d = today();
+    const csv = ['Date,Description,Reference,Debit', `${d},Water bill,W-1,61.00`].join('\n');
+    const p = await shop.run(shop.owner, 'statement.preview', { ...file(csv, 'water.csv'), source: 'bank' });
+    const imp = await shop.run(shop.owner, 'statement.import', { ...file(csv, 'water.csv'), source: 'bank', mapping: p.mapping });
+    const line = (await shop.run(shop.owner, 'statement.lines', { importId: imp.id })).lines[0];
+    expect(line.suggestion.kind).toBe('expense');
+    await shop.run(shop.owner, 'expense.create', { id: randomUUID(), category: 'Water', description: 'GWCL', amount: 6100, expenseDate: d, paymentMethod: 'bank' });
+    const r = await shop.run(shop.owner, 'statement.accept', { lineIds: [line.id] });
+    expect(r).toMatchObject({ accepted: 1, expenses: 0 });
+    expect((shop.engine.db.prepare(`SELECT COUNT(*) AS n FROM expenses`).get() as any).n).toBe(before + 1);
+  });
+});
+
 describe('payments to Mansora appear in the shop\'s expenses', () => {
   it('records each payment once, as a Mansora subscription expense, after a sync', async () => {
     const tenantId = shop.engine.meta('tenant_id')!;

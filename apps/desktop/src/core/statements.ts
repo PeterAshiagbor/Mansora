@@ -63,7 +63,9 @@ export function parseStatementDate(raw: string): string | null {
   else if ((m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/.exec(s))) [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3].length === 2 ? `20${m[3]}` : m[3])];
   else if ((m = /^(\d{1,2})[\s-]([A-Za-z]{3,4})[A-Za-z]*[\s-,]+(\d{2,4})/.exec(s)) && MONTHS[m[2].toLowerCase()]) [d, mo, y] = [Number(m[1]), MONTHS[m[2].toLowerCase()], Number(m[3].length === 2 ? `20${m[3]}` : m[3])];
   else {
-    const t = Date.parse(s); // Excel cells read as dates arrive as full date strings
+    // Excel cells read as dates arrive as full date strings ("Sat Nov 14 2026 …"); anything shorter is not a date.
+    if (!/[A-Za-z]{3}/.test(s) || !/\d{4}/.test(s)) return null;
+    const t = Date.parse(s);
     if (!Number.isFinite(t)) return null;
     const dt = new Date(t);
     [y, mo, d] = [dt.getFullYear(), dt.getMonth() + 1, dt.getDate()];
@@ -72,6 +74,8 @@ export function parseStatementDate(raw: string): string | null {
   return isCalendarDate(iso) ? iso : null;
 }
 
+// Money-in words are checked first, so 'Payment received' or 'Transfer from' is money in, not out.
+const IN_WORDS = /\b(credit|cr|in|received|receive|deposit\w*|cash ?in|incoming|transfer from|refund(ed)? to you|reversal)\b/i;
 const OUT_WORDS = /\b(debit|dr|out|sent|send|payment|paid|withdraw\w*|transfer to|cash ?out|purchase|bill)\b/i;
 
 export interface StatementRow {
@@ -95,8 +99,7 @@ export function readStatementRows(table: string[][], mapping: StatementMapping):
     } else {
       const v = parseStatementAmount(get(cells, 'amount'));
       if (v == null) errors.push('The amount could not be read');
-      else if (v < 0 || OUT_WORDS.test(get(cells, 'direction'))) amountOut = Math.abs(v);
-      else amountIn = v;
+      else { const dir = get(cells, 'direction'); if (v < 0 || (!IN_WORDS.test(dir) && OUT_WORDS.test(dir))) amountOut = Math.abs(v); else amountIn = v; }
     }
     if (!errors.length && amountIn === 0 && amountOut === 0) errors.push('No amount on this line');
     if (amountIn > 0 && amountOut > 0) errors.push('A line cannot be both money in and money out');
@@ -106,8 +109,18 @@ export function readStatementRows(table: string[][], mapping: StatementMapping):
 
 export const normaliseRef = (r: string | null | undefined) => (r ?? '').replace(/[\s-]/g, '').toUpperCase();
 
-export function lineFingerprint(source: string, r: { date: string | null; amountIn: number; amountOut: number; reference: string | null; description: string | null }): string {
-  return createHash('sha256').update([source, r.date, r.amountIn, r.amountOut, normaliseRef(r.reference), (r.description ?? '').trim().toLowerCase()].join('|')).digest('hex');
+/**
+ * Identifies a transaction across statements. `occurrence` counts identical lines within one file, so two genuine
+ * same-day withdrawals of the same amount are two transactions, while the same pair in a later statement is not new.
+ */
+export function lineFingerprint(source: string, r: { date: string | null; amountIn: number; amountOut: number; reference: string | null; description: string | null }, occurrence = 1): string {
+  return createHash('sha256').update([source, r.date, r.amountIn, r.amountOut, normaliseRef(r.reference), (r.description ?? '').trim().toLowerCase(), occurrence].join('|')).digest('hex');
+}
+
+/** Fingerprints for a whole file, numbering identical lines 1, 2, 3… in file order. */
+export function fileFingerprints(source: string, rows: { date: string | null; amountIn: number; amountOut: number; reference: string | null; description: string | null }[]): string[] {
+  const seen = new Map<string, number>();
+  return rows.map((r) => { const base = lineFingerprint(source, r, 0); const n = (seen.get(base) ?? 0) + 1; seen.set(base, n); return lineFingerprint(source, r, n); });
 }
 
 const CATEGORY_RULES: [RegExp, string][] = [
