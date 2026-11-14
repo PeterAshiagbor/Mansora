@@ -177,6 +177,8 @@ export const catalogCommands = defineCommands({
       const countId = ctx.id();
       const adjustments: { productId: string; system: number; counted: number; delta: number }[] = [];
       for (const line of input.lines) {
+        // R70-06: a product that does not exist (or was removed) is an error, never a silent "unchanged".
+        if (!ctx.get('SELECT 1 FROM products WHERE id = ? AND active = 1', line.productId)) fail('NOT_FOUND', 'A counted product no longer exists. Reload the stock count and try again.');
         const bal = ctx.get('SELECT quantity FROM stock_balances WHERE product_id = ?', line.productId);
         const system = bal?.quantity ?? 0;
         const delta = line.counted - system;
