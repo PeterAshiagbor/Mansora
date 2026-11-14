@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { fail } from '@mansora/domain';
 import { defineCommands, empty, zId, zText, type Ctx } from '../engine';
 import { fileHash, readTable, toCsv, toXlsx } from '../importer';
-import { fileFingerprints, guessCategory, normaliseRef, readStatementRows, STATEMENT_FIELDS, suggestStatementMapping, type StatementRow } from '../statements';
+import { fileFingerprints, guessCategory, isStatementHeader, normaliseRef, parseStatementDate, readStatementRows, STATEMENT_FIELDS, suggestStatementMapping, type StatementRow } from '../statements';
+import { readPdfTable } from '../pdf-table';
+import { tablePdf } from '../pdf-write';
 
 const zFile = z.object({ fileName: zText(200), contentBase64: z.string().max(15_000_000) });
 const zMapping = z.partialRecord(z.enum(STATEMENT_FIELDS), z.string().max(200));
@@ -99,6 +101,8 @@ function practiceStatement(ctx: Ctx): string[][] {
 
 async function readFile(input: { fileName: string; contentBase64: string }) {
   const content = Buffer.from(input.contentBase64, 'base64');
+  // Mobile Money statements arrive as PDF; banks usually offer Excel or CSV.
+  if (/\.pdf$/i.test(input.fileName)) return { content, table: await readPdfTable(content, { isHeader: isStatementHeader, isDate: (c) => !!parseStatementDate(c) }) };
   return { content, table: await readTable(input.fileName, content) };
 }
 
@@ -161,10 +165,13 @@ export const statementCommands = defineCommands({
   'statement.sample': {
     perm: 'expense.manage',
     async: true,
-    input: z.object({ format: z.enum(['csv', 'xlsx']) }),
+    input: z.object({ format: z.enum(['csv', 'xlsx', 'pdf']) }),
     run: async (ctx, input) => {
       const rows = practiceStatement(ctx);
       const name = 'mansora-practice-momo-statement';
+      if (input.format === 'pdf') {
+        return { fileName: `${name}.pdf`, mime: 'application/pdf', contentBase64: tablePdf(`Mobile Money statement (practice) - ${PRACTICE_MARK}`, rows).toString('base64') };
+      }
       return input.format === 'csv'
         ? { fileName: `${name}.csv`, mime: 'text/csv', contentBase64: Buffer.from(toCsv(rows)).toString('base64') }
         : { fileName: `${name}.xlsx`, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', contentBase64: (await toXlsx([{ name: 'Statement', rows }])).toString('base64') };

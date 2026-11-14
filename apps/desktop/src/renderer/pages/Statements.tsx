@@ -48,21 +48,21 @@ function ImportStatement({ onDone }: { onDone: (id: string) => void }) {
   const dups = good.filter((r: any) => r.duplicate).length;
   return (
     <Card title="Import a statement" className="mb-4"
-      actions={<Button size="sm" disabled={busy} onClick={() => run(async () => saveFile(await call('statement.sample', { format: 'xlsx' })))}>Download a practice statement</Button>}>
-      <p className="mb-2 text-sm text-slate-600">Choose a statement saved as Excel (.xlsx) or CSV. Nothing is saved until you press Import, and nothing is recorded until you accept lines.</p>
+      actions={<><Button size="sm" disabled={busy} onClick={() => run(async () => saveFile(await call('statement.sample', { format: 'pdf' })))}>Practice statement (PDF)</Button><Button size="sm" disabled={busy} onClick={() => run(async () => saveFile(await call('statement.sample', { format: 'xlsx' })))}>Practice statement (Excel)</Button></>}>
+      <p className="mb-2 text-sm text-slate-600">Choose the statement file: PDF (as Mobile Money sends it), Excel (.xlsx) or CSV. Nothing is saved until you press Import, and nothing is recorded until you accept lines.</p>
       <details className="m-form-details mb-3"><summary>Where do I get my statement?</summary>
         <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
           <li><strong>Bank:</strong> in internet banking, open the account, choose the dates, and download the statement as Excel or CSV.</li>
           <li><strong>MTN MoMo:</strong> request a statement in the MoMo app or by dialling *170#. MTN sends it by email.</li>
           <li><strong>Telecel Cash:</strong> request a statement in the Telecel app or by dialling *110#. It is sent by email.</li>
-          <li>Mobile Money statements usually arrive as PDF. Until Mansora reads PDF files, open the PDF in Excel or Google Sheets and save it as .xlsx or .csv.</li>
-          <li>To try this screen first, download the practice statement. It is made from this shop's own Mobile Money sales.</li>
+          <li>Mobile Money statements arrive as PDF: choose the PDF here as it is. A scanned or photographed statement cannot be read; download it again instead.</li>
+          <li>To try this screen first, download a practice statement. It is made from this shop's own Mobile Money sales.</li>
         </ul>
       </details>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Statement from"><Select value={source} onChange={(e) => { const next = e.target.value as 'momo' | 'bank'; setSource(next); if (file) load(file, undefined, next); }}><option value="momo">Mobile Money</option><option value="bank">Bank</option></Select></Field>
         <Field label="Account name (optional)"><Input value={account} maxLength={80} onChange={(e) => setAccount(e.target.value)} placeholder="e.g. MTN shop line" /></Field>
-        <Field label="Statement file"><input type="file" accept=".xlsx,.csv" aria-label="Choose statement file" className="block text-sm" disabled={busy}
+        <Field label="Statement file"><input type="file" accept=".xlsx,.csv,.pdf" aria-label="Choose statement file" className="block text-sm" disabled={busy}
           onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; const next = { fileName: f.name, contentBase64: await fileToBase64(f) }; setFile(next); load(next); }} /></Field>
       </div>
       {preview && file && (
