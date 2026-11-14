@@ -36,11 +36,12 @@ describe('Mansora-branded emails and payment pages', () => {
     expect(sent.html).toContain(BRAND.purple900);
   });
 
-  it('gives payment pages the logo, brand colours and font, with a clear test-mode notice', () => {
-    const html = brandPage('Pay invoice', '<h1>Invoice INV-1</h1>', { base: 'https://app.example.test/api', notice: 'Paystack test mode: no real money moves.' });
+  it('gives payment pages the logo, brand colours and font, and shows a notice only when one is given', () => {
+    const html = brandPage('Pay invoice', '<h1>Invoice INV-1</h1>', { base: 'https://app.example.test/api', notice: 'SANDBOX: a test payment.' });
     expect(html).toContain('https://app.example.test/api/brand/mansora-logo.png');
     expect(html).toContain('https://app.example.test/api/brand/dm-sans-latin.woff2');
-    expect(html).toContain(BRAND.purple700); expect(html).toContain('Paystack test mode');
+    expect(html).toContain(BRAND.purple700); expect(html).toContain('SANDBOX: a test payment.');
+    expect(brandPage('Pay invoice', '<h1>x</h1>')).not.toContain('class="notice"');
     expect(html).toContain(BRAND.company.replace('&', '&amp;'));
   });
 });

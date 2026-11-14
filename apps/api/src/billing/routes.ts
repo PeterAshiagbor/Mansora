@@ -413,9 +413,8 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
     const base = `<h1>Invoice ${esc(row.i.number)}</h1><div class="muted">From ${esc(row.s.issuer.name)} to ${esc(row.i.client)}</div>`;
     if (out <= 0 || !['sent', 'partially_paid'].includes(row.i.status)) return reply.type('text/html').send(page('Invoice', `${base}<p>${row.i.status === 'paid' || out <= 0 ? 'This invoice has been paid. Thank you.' : `This invoice is ${esc(row.i.status.replace(/_/g, ' '))} and cannot be paid online.`}</p>`));
     const sandbox = !!b.providers.list().find((p) => p.caps.sandbox) && !b.providers.list().some((p) => p.configured() && !p.caps.sandbox && p.caps.oneOff);
-    const testMode = sandbox || b.providers.list().some((p) => p.configured() && !p.caps.sandbox && p.caps.oneOff && /^sk_test_/.test(process.env.PAYSTACK_SECRET_KEY ?? ''));
     return reply.type('text/html').send(page('Pay invoice', `${base}<div class="amt">${esc(cedi(out))}</div><span class="due">Due ${esc(String(row.i.due_date).slice(0, 10))}</span><form method="post" action="/pay/${esc(token)}/start"><button type="submit">Pay securely</button></form><div class="secure"><span aria-hidden="true">🔒</span><span>You will be taken to <b>Paystack</b>, our licensed payment provider, to pay by card or Mobile Money. Card details and Mobile Money PINs are never entered on or stored by Mansora.</span></div>`,
-      sandbox ? 'SANDBOX: a test payment. No real money moves.' : testMode ? 'Paystack test mode: no real money moves. Use a Paystack test card.' : undefined));
+      sandbox ? 'SANDBOX: a test payment. No real money moves.' : undefined));
   });
   app.post('/pay/:token/start', async (req, reply) => {
     publicLimiter.check(req.ip);
