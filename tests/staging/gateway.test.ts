@@ -65,6 +65,9 @@ describe('persistent authenticated team staging gateway', () => {
     const secure = await startStagingGateway({ ...config, origin: 'https://staging.example.com', workspaces, port: 0, maxBodyBytes: 1024 });
     try {
       const headers = await fetch(secure.url + '/client/shop-a/'); expect(headers.headers.get('strict-transport-security')).toBe('max-age=31536000'); expect(headers.headers.get('x-robots-tag')).toContain('noindex'); expect(headers.headers.get('permissions-policy')).toContain('microphone=()'); expect(headers.headers.get('cross-origin-resource-policy')).toBe('same-origin'); expect(headers.headers.get('permissions-policy')).toContain('camera=(self)');
+      // Only payment pages may send a form on to Paystack's hosted checkout.
+      expect((await fetch(secure.url + '/api/pay/not-a-real-token')).headers.get('content-security-policy')).toContain("form-action 'self' https://checkout.paystack.com");
+      expect(headers.headers.get('content-security-policy')).toMatch(/form-action 'self'$/);
       expect((await fetch(gateway.url + '/')).headers.get('strict-transport-security')).toBeNull();
       const a = account('owner'); const r = await fetch(`${secure.url}/client/shop-a/invoke`, { method: 'POST', headers: { origin: secure.publicOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ command: 'auth.login', input: { username: a.username, password: a.password } }) }); expect(r.headers.get('set-cookie')?.includes('; Secure')).toBe(true);
       expect((await fetch(`${secure.url}/client/shop-a/%E0%A4%A`)).status).toBe(400); // a broken escape is a bad request, not an outage
