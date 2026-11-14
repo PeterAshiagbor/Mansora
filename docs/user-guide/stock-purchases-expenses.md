@@ -68,13 +68,14 @@ Expenses appear in **Reports → Expenses** and are kept apart from the cost of 
 
 **Bank & MoMo statements** checks your money against your bank or Mobile Money wallet, and records money out as expenses without retyping.
 
-1. Get your statement as **Excel (.xlsx) or CSV**:
+1. Get your statement as **PDF, Excel (.xlsx) or CSV**:
    - **Bank**: in internet banking, open the account, choose the dates and download the statement as Excel or CSV.
    - **MTN MoMo**: request a statement in the MoMo app or by dialling \*170#; MTN sends it by email.
    - **Telecel Cash**: request a statement in the Telecel app or by dialling \*110#; it is sent by email.
-   - Mobile Money statements usually arrive as **PDF**. Until Mansora reads PDF files, open the PDF in Excel or
-     Google Sheets and save it as .xlsx or .csv.
-   - To try the screen first, press **Download a practice statement**: a statement in MTN's layout made from this
+   - Mobile Money statements arrive as **PDF**: choose the PDF as it is. Mansora finds the table of transactions,
+     across all pages, and joins descriptions that wrapped onto a second line. A scanned or photographed statement
+     has no readable text: download it again instead. A password-protected PDF must be saved without the password.
+   - To try the screen first, press **Practice statement (PDF)** or **(Excel)**: a statement in MTN's layout made from this
      shop's own Mobile Money sales of the last two weeks plus typical spending. Lines you accept from it become real
      expenses, so use it in a test shop only.
 2. In Mansora choose **Statement from** (Mobile Money or Bank), optionally name the account, and choose the file.

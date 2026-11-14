@@ -30,7 +30,7 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
     await sell(rice.id, 1, 12000, '61234567911');
     await sell(soap.id, 2, 3000);
     await host.engine.execute(token, 'sale.complete', { id: randomUUID(), lines: [{ productId: soap.id, quantity: 1 }], tenders: [{ method: 'cash', amount: 1500 }] });
-    const sample = await host.engine.execute(token, 'statement.sample', { format: 'xlsx' });
+    const sample = await host.engine.execute(token, 'statement.sample', { format: 'pdf' });
     writeFileSync(join(dir, sample.fileName), Buffer.from(sample.contentBase64, 'base64'));
     browser = await pw.chromium.launch(); page = await browser.newPage({ viewport: { width: 1366, height: 900 } }); page.setDefaultTimeout(10_000);
     await page.goto(host.url);
@@ -42,7 +42,7 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
 
   it('reads the MTN layout, matches the shop\'s Mobile Money sales, splits off fees, and records expenses on accept', async () => {
     await shot('1-statements-page');
-    await page.getByLabel('Choose statement file').setInputFiles(join(dir, 'mansora-practice-momo-statement.xlsx'));
+    await page.getByLabel('Choose statement file').setInputFiles(join(dir, 'mansora-practice-momo-statement.pdf'));
     await page.getByText(/This is a practice statement made by Mansora/).waitFor();
     // 3 sales + 6 typical lines + 2 fee lines (power and supplier transfer).
     await page.getByRole('button', { name: 'Import 11 line(s)', exact: true }).waitFor();

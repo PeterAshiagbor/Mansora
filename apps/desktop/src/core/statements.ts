@@ -35,6 +35,9 @@ const ALIASES: Record<StatementField, string[]> = {
   to_name: ['to name', 'recipient', 'recipient name', 'beneficiary', 'to'],
 };
 
+/** True when a cell is the name of a statement column (used to find the table in a PDF). */
+export const isStatementHeader = (cell: string) => STATEMENT_FIELDS.some((f) => ALIASES[f].includes(cell.trim().toLowerCase()));
+
 export function suggestStatementMapping(headers: string[]): StatementMapping {
   const out: StatementMapping = {};
   const used = new Set<string>();
