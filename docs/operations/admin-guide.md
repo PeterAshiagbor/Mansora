@@ -76,3 +76,12 @@ Onboarding checkboxes show the chosen state while a request is pending, remain d
 **Deactivate laptop** opens an in-app dialog describing the offline/sync consequence. Cancel leaves the device active. Confirm revokes its cloud access and records the action; it does not erase the laptop's records or prevent offline sales. This uses the same existing API operation as before. An expired administrator session, or a device token supplied in its place, returns the dashboard to sign-in and removes the stored token.
 
 C6 validation includes Chromium tests for plan/client create and edit, status and combined search filters, checking/unchecking onboarding, subscription assignment, activation code creation, cancellation and confirmation of deactivation, client-scoped audits, actual session expiry and rejection of a still-valid device token. All fixtures run on localhost; no production client data or devices are used.
+
+## Problem reports
+
+Shop staff and administrators send reports with **Report a problem** (in the menu on every page). Each report records who sent it, their role,
+the shop, the page, what they pointed at (label and position only) and their description. **Problem reports** in the dashboard lists them.
+
+Once a day, at or after 19:00 Ghana time, the server emails every new report in one message with the subject **Mansora Platform Errors**
+to the address in the `BUG_REPORT_EMAIL` variable. A short email is still sent on days with no reports, so a missing email means something is wrong.
+A failed send is retried every 15 minutes; a day's email is never sent twice. "Stops work" reports are listed first.

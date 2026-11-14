@@ -732,4 +732,31 @@ ALTER TABLE suppliers ADD COLUMN location text;
 ALTER TABLE suppliers ADD COLUMN supplies text;
 `,
   },
+  {
+    id: 10,
+    name: 'bug_reports',
+    sql: `
+-- "Tell Mansora about a problem": reports from shop staff and administrators, sent to Mansora in a daily email.
+CREATE TABLE bug_reports (
+  id uuid PRIMARY KEY,
+  source text NOT NULL CHECK (source IN ('shop','admin')),
+  tenant_id uuid REFERENCES tenants(id),
+  device_id uuid,
+  reporter_name text,
+  reporter_role text,
+  page text,
+  area jsonb,
+  description text NOT NULL,
+  severity text NOT NULL DEFAULT 'normal' CHECK (severity IN ('blocking','normal','idea')),
+  app_version text,
+  user_agent text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  digest_day date
+);
+CREATE INDEX bug_reports_pending ON bug_reports(created_at) WHERE digest_day IS NULL;
+-- One row per day the summary email was sent, so it is sent once a day at most.
+CREATE TABLE bug_report_digests (day date PRIMARY KEY, report_count integer NOT NULL, sent_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT, UPDATE ON bug_reports, bug_report_digests TO mansora_platform;
+`,
+  },
 ];

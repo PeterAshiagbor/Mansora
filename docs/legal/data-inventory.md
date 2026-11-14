@@ -93,6 +93,37 @@ Verify and consume a one-use administrator MFA recovery code.
 | `cloud.admin_totp_recovery_codes.admin_id` | Link the responsible or authenticated Mansora administrator. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
 | `cloud.admin_totp_recovery_codes.code_hash` | Verify a one-use activation/recovery credential without storing the issued code in plaintext. Security credential/authenticator material linked to an account; encryption or hashing is not anonymisation. Which protection and retention duties apply? |
 
+#### `cloud.bug_reports`
+
+Problem reports from shop staff and administrators (Report a problem). Sent to Mansora once a day at 7pm in one email.
+
+| Field | Purpose / personal-data review |
+| --- | --- |
+| `cloud.bug_reports.id` | Stable identifier of a problem report. Linkable identifier. What legal purpose and access limits apply? |
+| `cloud.bug_reports.source` | Whether the report came from a shop or the administration dashboard. Technical attribute; not personal on its own. |
+| `cloud.bug_reports.tenant_id` | Which client shop the report came from. Links the report to a client business; may identify a sole trader. |
+| `cloud.bug_reports.device_id` | Which shop laptop or browser workspace sent the report. Linkable device identifier. |
+| `cloud.bug_reports.reporter_name` | Name of the staff member or administrator who reported the problem, so Mansora can follow up. Direct identity detail. Should it be removed once the report is resolved? |
+| `cloud.bug_reports.reporter_role` | Role of the reporter (owner, manager, cashier, administrator), to understand what they could see. Staff attribute; identifies a person together with the shop. |
+| `cloud.bug_reports.page` | Screen the report was sent from. Technical context; not personal on its own. |
+| `cloud.bug_reports.area` | Label, position and short visible text of the part of the screen the reporter pointed at. Typed field values are never captured. Visible button or heading text only, but a heading could include a name. Should collection/redaction restrictions be added for this field? |
+| `cloud.bug_reports.description` | What the reporter says went wrong, in their own words. Free text that may contain personal data despite the on-screen warning. Should collection/redaction restrictions be added for this field? |
+| `cloud.bug_reports.severity` | Whether it stops work, is a problem, or is an idea. Not personal. |
+| `cloud.bug_reports.app_version` | App version, to reproduce the problem. Technical attribute; not personal on its own. |
+| `cloud.bug_reports.user_agent` | Browser and device type, to reproduce the problem. Device fingerprint material; potentially personal when linked to the reporter. |
+| `cloud.bug_reports.created_at` | When the report was sent. Activity chronology; may identify a person through related records. |
+| `cloud.bug_reports.digest_day` | Which day's email included the report. Not personal. |
+
+#### `cloud.bug_report_digests`
+
+One row per day the problem report email was sent.
+
+| Field | Purpose / personal-data review |
+| --- | --- |
+| `cloud.bug_report_digests.day` | Day the problem report email was sent, so it is sent at most once a day. Not personal. |
+| `cloud.bug_report_digests.report_count` | How many reports that email contained. Not personal. |
+| `cloud.bug_report_digests.sent_at` | When that email was sent. Not personal. |
+
 #### `cloud.admin_invitations`
 
 Invite a new Mansora administrator by email with a one-time link; they choose their own password. Only a hash of the link token is stored.

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, AuthLayout, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure } from '@mansora/ui';
+import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, AuthLayout, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure, ReportProblemButton, ReportProblemNavItem } from '@mansora/ui';
 import { Leads } from './leads';
 import { ContactSettings } from './contact';
 import { api, getToken, setToken, useApi } from './api';
@@ -55,10 +55,10 @@ function AdminApplication() {
   const groups = [
     { group: 'Workspace', items: [{ id: 'overview', label: 'Overview', icon: 'home' }, { id: 'clients', label: 'Clients', icon: 'users' }, { id: 'leads', label: 'Leads', icon: 'users' }, { id: 'plans', label: 'Service plans', icon: 'wallet' }] },
     { group: 'Billing', items: [{ id: 'collections', label: 'Collections', icon: 'wallet' }, { id: 'subscriptions', label: 'Subscriptions', icon: 'sync' }, { id: 'invoices', label: 'Invoices', icon: 'file' }, { id: 'payments', label: 'Payments', icon: 'sale' }, { id: 'revenue', label: 'Revenue reports', icon: 'chart' }, { id: 'paysettings', label: 'Payment settings', icon: 'settings' }] },
-    { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'admins', label: 'Administrators', icon: 'users' }, { id: 'security', label: 'Account security', icon: 'shield' }, { id: 'contact', label: 'Support contact', icon: 'help' }] },
+    { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'admins', label: 'Administrators', icon: 'users' }, { id: 'security', label: 'Account security', icon: 'shield' }, { id: 'contact', label: 'Support contact', icon: 'help' }, { id: 'problems', label: 'Problem reports', icon: 'help' }] },
   ];
   const current = groups.flatMap((g) => g.items).find((item) => item.id === (page.id === 'client' ? 'clients' : page.id))!;
-  return <WorkspaceShell primaryIds={['overview', 'clients', 'collections', 'invoices', 'payments']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>
+  return <WorkspaceShell footerActions={<ReportProblemNavItem />} primaryIds={['overview', 'clients', 'collections', 'invoices', 'payments']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>
       <div key={page.id + (page.param ?? '')}>
         {page.id === 'overview' && <Overview go={go} />}
         {page.id === 'clients' && <Clients go={go} />}
@@ -75,8 +75,28 @@ function AdminApplication() {
         {page.id === 'admins' && <Administrators />}
         {page.id === 'security' && <AccountSecurity />}
         {page.id === 'contact' && <ContactSettings />}
+        {page.id === 'problems' && <ProblemReports />}
       </div>
+      <ReportProblemButton page={current?.label ?? page.id} onSubmit={(r) => api('POST', '/v1/admin/bug-reports', r)} />
     </WorkspaceShell>;
+}
+
+/** Problem reports from shops and administrators. They are also emailed to Mansora every evening at 7pm. */
+function ProblemReports() {
+  const query = useApi<any[]>('/v1/admin/bug-reports');
+  const kind: Record<string, string> = { blocking: 'Stops work', normal: 'Problem', idea: 'Idea' };
+  return (
+    <div>
+      <PageHeader title="Problem reports" subtitle="What shop staff and administrators reported with Report a problem. All new reports are emailed to Mansora at 7pm each day." />
+      <QueryView query={query} label="problem reports"><Card pad={false}>
+        <Table rows={query.data ?? []} rowKey={(r: any) => r.id} empty="No problem reports yet"
+          columns={[{ header: 'When', cell: (r: any) => new Date(r.created_at).toLocaleString('en-GB') }, { header: 'Kind', cell: (r: any) => <Badge tone={r.severity === 'blocking' ? 'bad' : r.severity === 'idea' ? 'info' : 'warn'}>{kind[r.severity] ?? r.severity}</Badge> },
+            { header: 'From', cell: (r: any) => `${r.reporter_name ?? 'Unknown'}${r.reporter_role ? ` (${r.reporter_role})` : ''} · ${r.source === 'admin' ? 'Dashboard' : (r.shop ?? 'Shop')}` },
+            { header: 'Page', cell: (r: any) => r.page ?? '' }, { header: 'Pointed at', cell: (r: any) => r.area?.label ?? '' },
+            { header: 'What happened', cell: (r: any) => <span className="whitespace-pre-wrap">{r.description}</span> }, { header: 'Emailed', cell: (r: any) => r.digest_day ?? 'Tonight' }]} />
+      </Card></QueryView>
+    </div>
+  );
 }
 
 /** Opened from an emailed invitation: the invited person chooses their own administrator password. */

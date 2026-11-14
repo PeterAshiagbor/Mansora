@@ -40,7 +40,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   });
   it('starts with five owner shortcuts and a small dashboard, loading breakdown only on request', async () => {
     const nav = shop.getByRole('navigation');
-    expect(await nav.locator('button.m-nav-item:visible').allInnerTexts()).toEqual(['Dashboard', 'New sale', 'Products', 'Customers', 'Reports', 'Lock / sign out']);
+    expect(await nav.locator('button.m-nav-item:visible').allInnerTexts()).toEqual(['Dashboard', 'New sale', 'Products', 'Customers', 'Reports', 'Report a problem', 'Lock / sign out']);
     expect(await nav.getByRole('button', { name: 'Stock', exact: true }).count()).toBe(0);
     expect(await nav.getByRole('button', { name: 'Stock', exact: true, includeHidden: true }).count()).toBe(1);
     expect(await shop.getByRole('table').getByRole('row').count()).toBe(6); expect(salesReads).toBe(0);
@@ -77,7 +77,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   });
   it('gives the platform team five daily pages and expandable operational detail', async () => {
     await admin.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
-    expect(await admin.getByRole('navigation').locator('button.m-nav-item:visible').allInnerTexts()).toEqual(['Overview', 'Clients', 'Collections', 'Invoices', 'Payments', 'Sign out']);
+    expect(await admin.getByRole('navigation').locator('button.m-nav-item:visible').allInnerTexts()).toEqual(['Overview', 'Clients', 'Collections', 'Invoices', 'Payments', 'Report a problem', 'Sign out']);
     expect(await admin.getByRole('heading', { name: 'Onboarding in progress', exact: true }).count()).toBe(0);
     await admin.getByText('Onboarding & plan details', { exact: true }).click(); await admin.getByRole('heading', { name: 'Onboarding in progress', exact: true }).waitFor();
     await navigate(admin, 'Account security'); await admin.getByRole('heading', { name: 'Account security', exact: true }).waitFor();
@@ -159,7 +159,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   it('retains cashier restrictions across the complete collapsed page set', async () => {
     await shop.getByRole('button', { name: 'Lock / sign out', exact: true }).click(); await shop.getByLabel('Username', { exact: true }).fill(cashier.username); await shop.getByLabel('Password', { exact: true }).fill(cashier.password); await shop.getByRole('button', { name: 'Sign in', exact: true }).click();
     await shop.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor(); const nav = shop.getByRole('navigation');
-    expect(await nav.locator('button.m-nav-item:visible').allInnerTexts()).toEqual(['Dashboard', 'New sale', 'Sales history', 'Cashier shifts', 'Products', 'Lock / sign out']);
+    expect(await nav.locator('button.m-nav-item:visible').allInnerTexts()).toEqual(['Dashboard', 'New sale', 'Sales history', 'Cashier shifts', 'Products', 'Report a problem', 'Lock / sign out']);
     for (const name of ['Reports', 'Staff', 'Audit history', 'Import & export', 'Billing & payments']) expect(await nav.getByRole('button', { name, exact: true, includeHidden: true }).count()).toBe(0);
     await navigate(shop, 'Products'); expect(await shop.getByRole('columnheader', { name: 'Cost', exact: true }).count()).toBe(0); expect(errors).toEqual([]);
     await shop.setViewportSize({ width: 390, height: 844 }); await shop.getByRole('button', { name: 'Menu', exact: true }).click();

@@ -45,11 +45,13 @@ export function ActionMenu({ label, children }: { label: string; children: React
   return <details ref={ref} className="m-action-menu no-print" open={open}><summary aria-label={label} onClick={(event) => { event.preventDefault(); setOpen(!open); }}>{label}<Icon name="chevron" /></summary>{open && <div role="group" aria-label={`${label} options`} onClick={() => setOpen(false)}>{children}</div>}</details>;
 }
 
-export function WorkspaceShell({ groups, primaryIds, current, onNavigate, workspace, workspaceLabel, user, userRole, guide, onSignOut, signOutLabel = 'Sign out', children }: {
+export function WorkspaceShell({ groups, primaryIds, current, onNavigate, workspace, workspaceLabel, user, userRole, guide, onSignOut, signOutLabel = 'Sign out', footerActions, children }: {
   groups: { group: string; items: WorkspaceItem[] }[]; current: WorkspaceItem; onNavigate: (id: string) => void;
   primaryIds: string[];
   workspace: string; workspaceLabel: string; user: string; userRole?: string; guide?: Guide;
   onSignOut: () => void; signOutLabel?: string; children: ReactNode;
+  /** Extra items above Sign out, on every page (e.g. Report a problem). */
+  footerActions?: ReactNode;
 }) {
   const navigation = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 760px)').matches);
@@ -77,7 +79,7 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
         <div className="m-nav-group"><p>Daily work</p>{primary.map(pageButton)}</div>
         {secondary.length > 0 && <details className="m-nav-tools" open={toolsOpen}><summary aria-label="More tools" onClick={(event) => { event.preventDefault(); setToolsOpen(!toolsOpen); }}><Icon name="settings" /><span>More tools</span><Icon name="chevron" /></summary><p className="m-nav-hint">Choose a section or find a page.</p>{secondary.map((group) => <details key={group.group} data-nav-group={group.group} className="m-nav-section" open={openGroup === group.group}><summary aria-label={`${group.group} tools`} onClick={(event) => { event.preventDefault(); setOpenGroup(openGroup === group.group ? null : group.group); }}><span>{group.group}</span><Icon name="chevron" /></summary><div>{group.items.map(pageButton)}</div></details>)}</details>}
       </div>
-      <div className="m-sidebar-footer"><button className="m-nav-item" type="button" onClick={onSignOut}><Icon name="logout" /><span>{signOutLabel}</span></button><div className="m-provider-note">Provided by Mansora<span>Sales &amp; Stock platform</span></div></div>
+      <div className="m-sidebar-footer">{footerActions}<button className="m-nav-item" type="button" onClick={onSignOut}><Icon name="logout" /><span>{signOutLabel}</span></button><div className="m-provider-note">Provided by Mansora<span>Sales &amp; Stock platform</span></div></div>
     </nav>);
   return <div className="m-workspace">
     <a className="m-skip no-print" href="#workspace-main">Skip to page content</a>
