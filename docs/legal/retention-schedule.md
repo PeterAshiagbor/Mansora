@@ -35,6 +35,7 @@ Administration Act, 2016, Act 915). The financial periods below use six years fr
 | Administrator accounts and security | `admins`, `admin_sessions`, `admin_totp*`, `admin_invitations`, `admin_audit_logs`, `billing_audit_logs`, `billing_events`, `billing_exceptions` | Sessions and codes: 30 days after expiry. Audit log: 6 years. Accounts: while active plus 2 years | Delete |
 | Support access | `support_access_grants`, `support_access_log` | 6 years | Delete |
 | Shop activity counts | columns on `devices` | While the shop is a client | Delete |
+| Problem reports | `bug_reports`, `bug_report_digests` | 12 months after the email that included them; remove the reporter's name once the problem is fixed | Delete |
 
 ## After a client leaves
 

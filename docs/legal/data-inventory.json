@@ -11577,6 +11577,261 @@
         "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
       ],
       "assessment": "Activity chronology of a client business; may relate to a sole trader. Lawyer to classify."
+    },
+    {
+      "key": "cloud.bug_reports.id",
+      "purpose": "Stable identifier of a problem report. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Linkable identifier. What legal purpose and access limits apply?"
+    },
+    {
+      "key": "cloud.bug_reports.source",
+      "purpose": "Whether the report came from a shop or the administration dashboard. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Technical attribute; not personal on its own."
+    },
+    {
+      "key": "cloud.bug_reports.tenant_id",
+      "purpose": "Which client shop the report came from. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Links the report to a client business; may identify a sole trader."
+    },
+    {
+      "key": "cloud.bug_reports.device_id",
+      "purpose": "Which shop laptop or browser workspace sent the report. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Linkable device identifier."
+    },
+    {
+      "key": "cloud.bug_reports.reporter_name",
+      "purpose": "Name of the staff member or administrator who reported the problem, so Mansora can follow up. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Direct identity detail. Should it be removed once the report is resolved?"
+    },
+    {
+      "key": "cloud.bug_reports.reporter_role",
+      "purpose": "Role of the reporter (owner, manager, cashier, administrator), to understand what they could see. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Staff attribute; identifies a person together with the shop."
+    },
+    {
+      "key": "cloud.bug_reports.page",
+      "purpose": "Screen the report was sent from. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Technical context; not personal on its own."
+    },
+    {
+      "key": "cloud.bug_reports.area",
+      "purpose": "Label, position and short visible text of the part of the screen the reporter pointed at. Typed field values are never captured. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Visible button or heading text only, but a heading could include a name. Should collection/redaction restrictions be added for this field?"
+    },
+    {
+      "key": "cloud.bug_reports.description",
+      "purpose": "What the reporter says went wrong, in their own words. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Free text that may contain personal data despite the on-screen warning. Should collection/redaction restrictions be added for this field?"
+    },
+    {
+      "key": "cloud.bug_reports.severity",
+      "purpose": "Whether it stops work, is a problem, or is an idea. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "cloud.bug_reports.app_version",
+      "purpose": "App version, to reproduce the problem. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Technical attribute; not personal on its own."
+    },
+    {
+      "key": "cloud.bug_reports.user_agent",
+      "purpose": "Browser and device type, to reproduce the problem. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Device fingerprint material; potentially personal when linked to the reporter."
+    },
+    {
+      "key": "cloud.bug_reports.created_at",
+      "purpose": "When the report was sent. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Activity chronology; may identify a person through related records."
+    },
+    {
+      "key": "cloud.bug_reports.digest_day",
+      "purpose": "Which day's email included the report. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "cloud.bug_report_digests.day",
+      "purpose": "Day the problem report email was sent, so it is sent at most once a day. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "cloud.bug_report_digests.report_count",
+      "purpose": "How many reports that email contained. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Not personal."
+    },
+    {
+      "key": "cloud.bug_report_digests.sent_at",
+      "purpose": "When that email was sent. Supports: Let shop staff and administrators tell Mansora about problems; Mansora receives them in one email each evening at 7pm.",
+      "locations": [
+        "Cloud PostgreSQL platform plane",
+        "Any future hosting/database backup copies: provider, region and retention not selected",
+        "Sent once a day to the email provider (Resend) in the 'Mansora Platform Errors' email to the address in BUG_REPORT_EMAIL"
+      ],
+      "access": [
+        "Mansora administrators through the authenticated Problem reports page",
+        "The recipient of the daily problem report email",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Not personal."
     }
   ]
 }

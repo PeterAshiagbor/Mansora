@@ -14,6 +14,7 @@ import { startConfiguredStaging } from '../staging/server';
 import { ROLE_LOGINS_OPERATION, sendRoleLogins } from '../staging/role-logins';
 import { renameTestShops } from '../staging/shop-names';
 import { PASSWORD_RESET_OPERATION, resetTestLogins } from '../staging/password-reset';
+import { runBugDigest } from '../../apps/api/src/modules/bug-reports';
 import { inviteTesters } from '../staging/invitations';
 import { apiRuntimeOptions } from '../../apps/api/src/runtime';
 import { seedTestWorkspaces } from '../staging/sample-data';
@@ -41,8 +42,8 @@ export async function runRailwayServer() {
     // Tester invitations and the one-time role-logins operation may email only the configured tester addresses.
     if (process.env.STAGING_TESTER_INVITATION_ID || (config.mode === 'team-test' && (process.env.STAGING_ROLE_LOGINS_ID ?? ROLE_LOGINS_OPERATION) !== 'off')) {
       // The administrator named for the team test (STAGING_ADMIN_EMAIL) may receive their sign-in details too.
-      const adminTo = process.env.STAGING_ADMIN_EMAIL?.trim().toLowerCase();
-      process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').filter(Boolean), ...config.emails, ...(adminTo ? [adminTo] : [])])].join(',');
+      const adminTo = process.env.STAGING_ADMIN_EMAIL?.trim().toLowerCase(), bugTo = process.env.BUG_REPORT_EMAIL?.trim().toLowerCase();
+      process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').filter(Boolean), ...config.emails, ...(adminTo ? [adminTo] : []), ...(bugTo ? [bugTo] : [])])].join(',');
     }
     const { billing } = createBillingFromEnv(db);
     const [operator] = await db.platform(q => q<{ id: string }>('SELECT id FROM admins WHERE email = $1', [config.adminEmail]));
@@ -93,7 +94,10 @@ export async function runRailwayServer() {
       }
     }, onboarding, recovery);
     let billingRun: Promise<unknown> | undefined;
-    timer = setInterval(() => { if (billingRun) return; billingRun = runDaily(billing).catch(() => console.error('Sandbox billing job failed; inspect application health.')).finally(() => { billingRun = undefined; }); }, 15 * 60_000); timer.unref();
+    timer = setInterval(() => { if (billingRun) return; billingRun = runDaily(billing).catch(() => console.error('Sandbox billing job failed; inspect application health.'))
+      // Problem reports go to BUG_REPORT_EMAIL once a day after 19:00 Ghana time.
+      .then(() => runBugDigest({ db, email: billing.email, to: process.env.BUG_REPORT_EMAIL })).then((r) => { if (r?.sent) console.log(`Problem reports email sent: ${r.reports} report(s).`); }, () => console.error('Problem reports email failed; it will be retried.'))
+      .finally(() => { billingRun = undefined; }); }, 15 * 60_000); timer.unref();
     let stopping = false;
     const close = async () => { if (stopping) return; stopping = true; clearInterval(timer); await gateway!.close(); await billingRun; await app!.close(); await db.close(); };
     for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => { void close().then(() => process.exit(0), () => process.exit(1)); });

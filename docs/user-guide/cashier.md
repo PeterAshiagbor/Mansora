@@ -60,3 +60,14 @@ Leaving an unfinished basket or edited form asks whether to keep working or
 discard the entries. Completed sales are not deleted by this choice. Unsubmitted
 entries are not saved financial records; session expiry or restart does not
 recover them. Use **How to use this page** for task guidance.
+
+## Tell Mansora about a problem
+
+Something not working, confusing, or missing? Press **Report a problem** in the menu, above sign out. It is on every page.
+1. Choose what kind of report it is: it stops your work, something is wrong, or an idea.
+2. Write what you were doing, what you expected and what happened instead.
+3. Optional: press **Point to it on the screen**, then click the button, box or part of the page it is about. The screen is not changed by that click.
+4. Press **Send report**.
+
+Mansora reads every report each evening at 7pm. Do not write passwords or customers' details in a report. Only the name of what you pointed at is sent, never what is typed in a box.
+If the internet is off, the report is not lost: your text stays in the form, so send it again when you are back online.

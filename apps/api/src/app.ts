@@ -11,6 +11,7 @@ import { registerLeadRoutes } from './modules/leads';
 import { registerContactRoutes } from './modules/contact';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
+import { registerBugReportRoutes } from './modules/bug-reports';
 import { createBillingFromEnv, registerBillingRoutes, queueEmail, deliverQueued, type Billing } from './billing';
 import { HttpError } from './security';
 import { BackupStorageError, FileStorage, type BackupStorage } from './storage';
@@ -91,6 +92,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   context.standing = (tenantId) => opts.db.platform((q) => tenantStanding(billing, q, tenantId));
   registerDeviceRoutes(app, context);
   registerAdminRoutes(app, context);
+  registerBugReportRoutes(app, context);
   registerContactRoutes(app, context);
   registerLeadRoutes(app, context);
   registerBillingRoutes(app, billing);

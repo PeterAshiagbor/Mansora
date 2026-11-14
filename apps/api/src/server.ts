@@ -2,6 +2,7 @@ import { connectPostgres } from './db';
 import { buildApp } from './app';
 import { apiRuntimeOptions } from './runtime';
 import { createBillingFromEnv, runDaily } from './billing';
+import { runBugDigest } from './modules/bug-reports';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -22,6 +23,8 @@ let running = false;
 const timer = setInterval(async () => {
   if (running) return;
   running = true;
+  // Problem reports go to BUG_REPORT_EMAIL once a day after 19:00 Ghana time.
+  await runBugDigest({ db, email: billing.email, to: process.env.BUG_REPORT_EMAIL }).catch((e) => app.log.error(e, 'problem report email failed'));
   try { const r = await runDaily(billing); if (r.cycle.errors.length) app.log.warn({ errors: r.cycle.errors }, 'billing cycle reported errors'); } catch (e) { app.log.error(e, 'billing run failed'); } finally { running = false; }
 }, 15 * 60_000);
 timer.unref();

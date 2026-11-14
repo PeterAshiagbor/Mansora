@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
-import { Alert, Button, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard } from '@mansora/ui';
+import { Alert, Button, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard, ReportProblemButton, ReportProblemNavItem } from '@mansora/ui';
 import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
 import { ContactMansora } from './components/ContactMansora';
 import { Checkout } from './pages/Checkout';
@@ -338,7 +338,7 @@ function Shell({ page }: { page: { id: string; param?: string } }) {
   const current = all.find((i) => i.id === page.id) ?? all[0];
   const { run } = useAction();
   const navigate = useNavigationGuard();
-  return <div className="flex h-full flex-col"><div className="min-h-0 flex-1"><WorkspaceShell primaryIds={state.user?.role === 'cashier' ? ['dashboard', 'checkout', 'sales', 'shifts', 'products'] : ['dashboard', 'checkout', 'products', 'customers', 'reports']} groups={groups} current={current} onNavigate={go} workspace={state.business.name} workspaceLabel="Client workspace" user={state.user?.name ?? 'Staff'} userRole={state.user?.role} guide={CLIENT_GUIDES[current.id]} signOutLabel="Lock / sign out" onSignOut={() => navigate(() => { void run(async () => { await call('auth.logout'); await refresh(); }); })}><div key={current.id + (page.param ?? '')}>{current.render(page.param)}</div></WorkspaceShell></div><StatusBar /></div>;
+  return <div className="flex h-full flex-col"><div className="min-h-0 flex-1"><WorkspaceShell footerActions={<ReportProblemNavItem />} primaryIds={state.user?.role === 'cashier' ? ['dashboard', 'checkout', 'sales', 'shifts', 'products'] : ['dashboard', 'checkout', 'products', 'customers', 'reports']} groups={groups} current={current} onNavigate={go} workspace={state.business.name} workspaceLabel="Client workspace" user={state.user?.name ?? 'Staff'} userRole={state.user?.role} guide={CLIENT_GUIDES[current.id]} signOutLabel="Lock / sign out" onSignOut={() => navigate(() => { void run(async () => { await call('auth.logout'); await refresh(); }); })}><div key={current.id + (page.param ?? '')}>{current.render(page.param)}</div></WorkspaceShell></div><StatusBar /><ReportProblemButton page={current.label} onSubmit={(r) => call('bug.report', r)} /></div>;
 }
 
 function StatusBar() {

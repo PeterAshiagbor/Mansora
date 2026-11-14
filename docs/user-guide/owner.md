@@ -69,3 +69,14 @@ action is recorded with who and when. Entries cannot be edited or deleted.
 ## If a Mansora invoice is overdue
 
 Your till never stops because of an unpaid Mansora invoice. You first see a reminder on the dashboard, then, 15 days after the due date, a warning that names the date reports will pause. If the invoice is still unpaid 30 days after its due date, reports and report exports pause until it is paid. Selling, refunds, shifts, stock, customers, backups, the full business data export and Billing & payments keep working throughout, including when the laptop is offline. Pay from **Billing & payments**; reports reopen at the next sync. If you need more time, ask Mansora for a payment arrangement. If you think an invoice is wrong, tell Mansora: a disputed invoice never pauses anything.
+
+## Tell Mansora about a problem
+
+Something not working, confusing, or missing? Press **Report a problem** in the menu, above sign out. It is on every page.
+1. Choose what kind of report it is: it stops your work, something is wrong, or an idea.
+2. Write what you were doing, what you expected and what happened instead.
+3. Optional: press **Point to it on the screen**, then click the button, box or part of the page it is about. The screen is not changed by that click.
+4. Press **Send report**.
+
+Mansora reads every report each evening at 7pm. Do not write passwords or customers' details in a report. Only the name of what you pointed at is sent, never what is typed in a box.
+If the internet is off, the report is not lost: your text stays in the form, so send it again when you are back online.
