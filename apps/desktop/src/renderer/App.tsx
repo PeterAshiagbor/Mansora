@@ -365,7 +365,7 @@ function StatusBar() {
         {sync && sync.rejected > 0 && <span className="font-semibold text-red-700">· {sync.rejected} sync error(s)</span>}
       </button>
       <span>Signed in: <strong>{state.user?.name}</strong></span>
-      <span>{shift === undefined ? <span>{shiftQuery.error ? 'Shift status unavailable' : 'Checking shift…'}</span> : shift ? <>Shift open since {new Date(shift.shift.opened_at).toISOString().slice(11, 16)}</> : <span className="text-slate-600">No shift open</span>}</span>
+      <span>{shift === undefined ? <span>{shiftQuery.error ? 'Shift status unavailable' : 'Checking shift…'}</span> : shift ? shift.overnight ? <span className="font-medium text-amber-800">Shift open since {new Date(shift.shift.opened_at).toISOString().slice(0, 10)}: close it with a count</span> : <>Shift open since {new Date(shift.shift.opened_at).toISOString().slice(11, 16)}</> : <span className="text-slate-600">No shift open</span>}</span>
       <span className="ml-auto">{state.business.name}</span>
       <span className="tabular-nums">{now.toLocaleDateString('en-GB')} {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
     </footer>

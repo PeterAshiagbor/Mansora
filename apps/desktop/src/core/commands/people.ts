@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { cashVariance, expectedCash, fail, SETTLEMENT_METHODS, zCalendarDate } from '@mansora/domain';
+import { cashVariance, expectedCash, fail, isOvernightShift, SETTLEMENT_METHODS, zCalendarDate } from '@mansora/domain';
 import { dayBounds, defineCommands, empty, likeContains, zApprover, zId, zMoney, zOptText, zRange, zText, type Ctx } from '../engine';
 import { openShift, requireOpenShift } from '../stock';
 
@@ -150,7 +150,17 @@ export const peopleCommands = defineCommands({
     input: empty,
     run: (ctx) => {
       const shift = openShift(ctx);
-      return shift ? { shift, totals: shiftTotals(ctx, shift) } : null;
+      return shift ? { shift, totals: shiftTotals(ctx, shift), overnight: isOvernightShift(shift.opened_at, ctx.now()) } : null;
+    },
+  },
+  /** Every shift still open, for the owner and managers: who, since when, and whether it was left open overnight. */
+  'shift.openList': {
+    perm: 'shift.review',
+    input: empty,
+    run: (ctx) => {
+      const now = ctx.now();
+      return ctx.all(`SELECT s.id, s.opened_at, s.opening_float, u.name AS cashier_name, u.username FROM shifts s JOIN users u ON u.id = s.cashier_id WHERE s.status = 'open' ORDER BY s.opened_at`)
+        .map((r: any) => ({ ...r, overnight: isOvernightShift(r.opened_at, now) }));
     },
   },
   'shift.open': {

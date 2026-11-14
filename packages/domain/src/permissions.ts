@@ -66,3 +66,41 @@ export function sanitisePermissions(role: Role, requested: string[]): Permission
   if (role === 'owner') return ALL_PERMISSIONS;
   return ALL_PERMISSIONS.filter((p) => requested.includes(p) && !OWNER_ONLY.includes(p));
 }
+
+/** What each role can do by default, grouped for the "Who can do what" page. Generated from the table above,
+ *  so the page in the app and the guide never drift from what the software enforces. */
+export function roleMatrix(): { permission: Permission; label: string; owner: boolean; manager: boolean; cashier: boolean; ownerOnly: boolean }[] {
+  return ALL_PERMISSIONS.map((p) => ({
+    permission: p, label: PERMISSIONS[p], owner: true, manager: ROLE_DEFAULTS.manager.includes(p), cashier: ROLE_DEFAULTS.cashier.includes(p), ownerOnly: OWNER_ONLY.includes(p),
+  }));
+}
+
+export function roleMatrixMarkdown(): string {
+  const yes = (b: boolean) => (b ? 'Yes' : '–');
+  const rows = roleMatrix().map((r) => `| ${r.label} | ${yes(r.owner)} | ${r.ownerOnly ? 'Never' : yes(r.manager)} | ${r.ownerOnly ? 'Never' : yes(r.cashier)} |`);
+  return [
+    '# Who can do what',
+    '',
+    'Generated from the permission table in `packages/domain/src/permissions.ts`; a test fails if this page and the code differ.',
+    'Run `npx tsx scripts/docs/roles.ts` after changing permissions.',
+    '',
+    'These are the starting permissions for each role. The owner can give a manager or cashier more or fewer permissions,',
+    'person by person, on the Staff page, except the ones marked "Never", which only the owner can ever have.',
+    '',
+    '| What | Owner | Manager | Cashier |',
+    '|---|---|---|---|',
+    ...rows,
+    '',
+    '## Logins and shifts',
+    '',
+    '- Everyone signs in with their **own** username and password. There is no shared shop password: the records show who did each sale, refund, discount and cash movement.',
+    '- Each shop has its own web address. Staff open it and sign in with their own login.',
+    '- A person must **open a shift** (count the opening float) before selling, taking cash refunds or recording cash in or out.',
+    '- A shift belongs to the person who opened it. Nobody else can sell on it.',
+    '- At the end of the day, the person **closes their shift** by counting the cash. Mansora shows the expected cash and any difference.',
+    '- A shift still open from an earlier day is flagged to the person and to the owner and managers. Close it with a count before starting the next day.',
+    '- Cash in or out of the till that is not a sale needs a manager or owner to approve.',
+    '- The app locks after the idle time set in Settings. The same person signs back in and returns to where they were.',
+    '',
+  ].join('\n');
+}

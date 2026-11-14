@@ -27,7 +27,8 @@ person may do. Disable a login the day someone leaves; it takes effect at once.
 
 ## Money
 
-- **Cashier shifts**: see every shift's expected cash, counted cash and difference. Sign off closed shifts.
+- **Cashier shifts**: see every shift's expected cash, counted cash and difference. Sign off closed shifts. The dashboard lists open shifts and flags any left open from an earlier day.
+- **Who can do what**: on the Staff page, open *Who can do what* for each role's permissions, or read [who-can-do-what.md](who-can-do-what.md).
 - **Credit & repayments**: who owes what, what is overdue, and record repayments. A repayment is never counted as a new sale.
 - **Expenses**: record running costs. They are shown separately from the cost of goods.
 

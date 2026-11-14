@@ -26,3 +26,11 @@ export function cashVariance(expected: Pesewas, counted: Pesewas): Pesewas {
   assertAmount(counted);
   return counted - expected;
 }
+
+/**
+ * A shift opened on an earlier day than today is overnight: it should have been closed with a count.
+ * Days are compared in Ghana time, which is UTC all year.
+ */
+export function isOvernightShift(openedAt: string, now: string): boolean {
+  return openedAt.slice(0, 10) < now.slice(0, 10);
+}

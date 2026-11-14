@@ -55,7 +55,7 @@
 | C56 Mobile Money confirmed by a payment provider (request to the customer's phone), typed reference kept as offline fallback. Plan: `docs/operations/next-phase-plan.md` | Claude | Queued, Phase 2. Needs the owner's choice of provider and a merchant account | – |
 | C57 barcode scanning: phone camera scanning on New sale, Products and Stock count; scan unknown barcode to create; printable barcode labels | Claude | Queued, Phase 1 | – |
 | C58 sample shop Excel: realistic Ghanaian provisions workbook (~150 products), template full example, loaded into Mansora TSA | Claude | Queued, Phase 1 | – |
-| C59 shifts and logins made firm: generated 'Who can do what' page, one shift per person, overnight shifts flagged, open shifts on the owner dashboard | Claude | Queued, Phase 1 (first) | – |
+| C59 shifts and logins made firm: generated 'Who can do what' page, one shift per person, overnight shifts flagged, open shifts on the owner dashboard | Claude | **Built** on `claude/elegant-bohr-mjeotl`: `shift.openList`, overnight flag, dashboard card, Staff page matrix, generated `docs/user-guide/who-can-do-what.md` with a drift test | – |
 | C60 purchases, restocking, expenses and suppliers: fuller supplier records and history, reorder list by supplier into a purchase, owner guide sections | Claude | Queued, Phase 1 | – |
 | C61 consistent colours: one token set across shop app and admin, automatic WCAG AA contrast check, status shown by word or icon as well as colour | Claude | Queued, Phase 1 | – |
 | C62 rename the team-test shops to Mansora TSA and Mansora TSB (owner request 2026-11-14); live shops renamed on start, web addresses unchanged | Claude | **Done** on `claude/elegant-bohr-mjeotl` | – |

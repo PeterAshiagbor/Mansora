@@ -33,6 +33,7 @@ export function Dashboard() {
         {can('credit.repayment') && <div className="m-next-step"><strong>Customer balances</strong><p>Review who owes money and record repayments against the original credit sale.</p><Button variant="ghost" onClick={() => go('credit')}>Open customer balances →</Button></div>}
         {can('report.sales') && <div className="m-next-step"><strong>Understand your numbers</strong><p>Choose a business question, then open the report for the period you need.</p><Button variant="ghost" onClick={() => go('reports')}>Choose a report →</Button></div>}
         {!can('report.sales') && <div className="m-next-step"><strong>Your shift</strong><p>Review cash movements and your closing count before handing over the till.</p><Button variant="ghost" onClick={() => go('shifts')}>Open cashier shifts →</Button></div>}
+        {can('shift.review') && <OpenShifts />}
       </div></Card></div>
       <Disclosure title="Daily breakdown" description="Sales activity, payment methods and products running low">
       {can('report.sales') && sync?.standing?.stage !== 'restricted' && <DashboardActivity />}
@@ -60,4 +61,21 @@ function DashboardActivity() {
   const { data } = activityQuery;
   if (!data) return <QueryView query={activityQuery} label="sales activity">{null}</QueryView>;
   return <div className="mt-5"><Card title="Sales activity this month" actions={<button className="text-xs font-medium text-brand-700 hover:underline" onClick={() => go('reports')}>Open full reports →</button>}><SalesActivity rows={data.daily} /></Card></div>;
+}
+
+/** C59: open shifts for the owner and managers, with shifts left open from an earlier day called out. */
+function OpenShifts() {
+  const { go } = useApp();
+  const { data } = useQuery<any[]>('shift.openList');
+  if (!data) return null;
+  const overnight = data.filter((s) => s.overnight);
+  return (
+    <div className="m-next-step">
+      <Badge tone={overnight.length ? 'warn' : 'good'}>{overnight.length ? `${overnight.length} left open overnight` : data.length ? `${data.length} open` : 'All closed'}</Badge>
+      <strong>Shifts</strong>
+      <p>{data.length ? data.map((s) => `${s.cashier_name} since ${dateTime(s.opened_at)}${s.overnight ? ' (not closed yesterday)' : ''}`).join('; ') : 'No shift is open.'}</p>
+      {overnight.length > 0 && <p>Ask each person to close their shift with a cash count before selling today.</p>}
+      <Button variant="ghost" onClick={() => go('shifts')}>Review shifts</Button>
+    </div>
+  );
 }
