@@ -54,7 +54,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
   if (!file(opts.clientDir, 'index.html') || !file(opts.adminDir, 'index.html')) throw new Error('Build both interfaces before starting staging.');
   for (const w of opts.workspaces) if (!w.engine.activated) throw new Error(`Workspace ${w.id} is not provisioned.`);
   const workspaces = new Map(opts.workspaces.map(w => [w.id, w]));
-  let activeRequests = 0, activeImports = 0;
+  let activeRequests = 0, activeImports = 0, snapshotPaused = false;
   const workspaceRequests = new Map<string, number>(), workspaceImports = new Map<string, number>();
   const trusted = trustedProxyMatcher(opts.trustedProxies), observedPeers = new Set<string>();
   const tests = new Set(opts.testWorkspaceIds ?? []);
@@ -83,6 +83,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
     try {
       const client = clientAddress(req, trusted);
       if (req.headers['x-real-ip'] && !observedPeers.has(client.peer) && observedPeers.size < 10) { observedPeers.add(client.peer); opts.onProxyPeer?.(client.peer, client.source); }
+      if (counted && snapshotPaused) { res.setHeader('retry-after', '2'); throw new HttpError(503, 'SERVER_BUSY', 'A protected recovery snapshot is being prepared. Please retry shortly.'); }
       if (counted && activeRequests >= (opts.maxConcurrentRequests ?? 16)) { res.setHeader('retry-after', '2'); throw new HttpError(503, 'SERVER_BUSY', 'The test server is busy. Please retry shortly.'); }
       if (counted) { activeRequests++; admitted = true; }
       if (!req.url?.startsWith('/') || req.url.startsWith('//')) throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.');
@@ -230,5 +231,15 @@ export async function startStagingGateway(opts: GatewayOptions) {
     workspaces.set(workspace.id, workspace); opts.workspaces.push(workspace);
     (opts.loginAliases ??= {})[workspace.id] = { ...aliases };
   };
-  return { server, url, publicOrigin: origin.origin, registerWorkspace, close: async () => { await new Promise<void>(r => server.close(() => r())); for (const id of sessions.keys()) clear(id); } };
+  const withSnapshotLock = async <T>(capture: () => Promise<T>): Promise<T> => {
+    if (snapshotPaused) throw new Error('A recovery snapshot is already in progress.');
+    snapshotPaused = true;
+    try {
+      const deadline = Date.now() + 30_000;
+      while (activeRequests && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
+      if (activeRequests) throw new Error('Existing requests did not finish; the recovery snapshot was cancelled.');
+      return await capture();
+    } finally { snapshotPaused = false; }
+  };
+  return { server, url, publicOrigin: origin.origin, registerWorkspace, withSnapshotLock, close: async () => { await new Promise<void>(r => server.close(() => r())); for (const id of sessions.keys()) clear(id); } };
 }
