@@ -10234,6 +10234,20 @@
       "assessment": "A technical, commercial or financial field can be linked to client, payer or administrator identities through related records. Assess necessity, access and retention in that context."
     },
     {
+      "key": "cloud.notifications.lead_id",
+      "purpose": "Queue billing communications, their recipient/content and delivery or failure evidence. Field: demo request an email belongs to.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Any client-visible subset must be explicitly projected by the own-business billing API; no general client access to this platform table",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Links an email to an identifiable prospect record; kept and deleted with the lead."
+    },
+    {
       "key": "cloud.notifications.kind",
       "purpose": "Queue billing communications, their recipient/content and delivery or failure evidence. Field: kind.",
       "locations": [

@@ -52,6 +52,9 @@ export async function runRailwayServer() {
       const adminTo = process.env.STAGING_ADMIN_EMAIL?.trim().toLowerCase(), bugTo = process.env.BUG_REPORT_EMAIL?.trim().toLowerCase();
       process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').filter(Boolean), ...config.emails, ...(adminTo ? [adminTo] : []), ...(bugTo ? [bugTo] : [])])].join(',');
     }
+    // The team inbox for software demo requests (LEAD_ALERT_EMAIL) always receives its alerts, also in team-test mode.
+    const leadInboxes = (process.env.LEAD_ALERT_EMAIL ?? '').split(',').map(e => e.trim().toLowerCase()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (leadInboxes.length) process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').map(e => e.trim()).filter(Boolean), ...leadInboxes])].join(',');
     const { billing } = createBillingFromEnv(db);
     const [operator] = await db.platform(q => q<{ id: string }>('SELECT id FROM admins WHERE email = $1', [config.adminEmail]));
     recovery = createOwnerRecovery({ config: stagingConfig(), email: billing.email, issueCode: browserOwnerRecoveryIssuer(db, operator.id), onFailure: () => console.warn('Owner recovery email needs review; no private message content is logged.') });
