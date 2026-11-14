@@ -49,3 +49,9 @@ This is engineering evidence against relevant WCAG 2.2 criteria, not certificati
 No packaged Electron/Windows acceptance, NVDA or other screen-reader acceptance, physical printer/scanner, native zoom/scaling, real PostgreSQL service, real payment settlement or email delivery was performed. Existing Windows/hardware/provider acceptance gates remain. Browser development-host offline behavior is distinct from the hosted browser product.
 
 Figma tools became available during the follow-up. Session creation and metadata reads of the existing file both failed with an edit-access error; whoami confirmed a View seat on a Starter team. No native read/edit succeeded. UI UX Designer dashboard/accessibility/handoff skills were applied. The saved design source was read as repository context.
+
+## Latest-default wrap-up
+
+PR #74 was merged by Peter on 14 November 2026 at 16:56 UTC as `f8fbf1e7109f91760e2e9f1593f9eab2b33c298e`; the current default `910f07f` contains the complete UX head `1794611`. The original rebased serial run completed **415/415 tests in 80 files** with zero failures.
+
+Later product work is preserved. Current default CI run [43626107617](https://github.com/PeterAshiagbor/Mansora/actions/runs/43626107617) passed 462 tests and timed out in the offline/reconnect test. On the current source, strict `npm run test:verified -- tests/e2e/scrolling.test.ts` passes all four tests with zero skips and the original timeout. The follow-up fixture explicitly closes test HTTP connections to model an abrupt outage, awaits shutdown and asserts that the listener stopped; it retains every financial/persistence/sync assertion and adds diagnostic milestones. Typecheck/build and dependency audit pass (zero vulnerabilities). No product code or subsequent navigation, billing, statement, pricing or backup implementation is reverted. Follow-up PR checks are the release record for this fixture-only correction.

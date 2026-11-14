@@ -100,7 +100,13 @@ describe.skipIf(!pw || !built)('scrolling and subpage orientation with real reco
   });
   it('records a sale with the cloud stopped, shows pending changes, then syncs it once after reconnecting', async () => {
     await shop.setViewportSize({ width: 1366, height: 768 });
-    await app.close();
+    // This scenario needs an abrupt outage, not graceful draining of browser
+    // keep-alive connections (which can consume its timeout on Node 22).
+    const closing = app.close();
+    app.server.closeAllConnections();
+    await closing;
+    expect(app.server.listening).toBe(false);
+    console.log('Offline workflow: cloud API stopped');
     await navigate(shop, 'New sale'); await shop.getByLabel('Search or scan product').waitFor();
     await shop.getByRole('button', { name: /Product 00/ }).click();
     await shop.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
@@ -108,16 +114,20 @@ describe.skipIf(!pw || !built)('scrolling and subpage orientation with real reco
     expect(await shop.getByTestId('change').innerText()).toBe('GHS 5.00');
     await shop.getByRole('button', { name: /Complete sale/ }).click();
     await shop.getByTestId('receipt-no').waitFor();
+    console.log('Offline workflow: receipt saved locally');
     const sale = host.engine.db.prepare('SELECT id, total, change_given FROM sales').get() as any;
     expect(sale).toMatchObject({ total: 500, change_given: 500 });
     await shop.getByRole('dialog', { name: 'Sale completed', exact: true }).getByRole('button', { name: /New sale/ }).click();
     await navigate(shop, 'Sync status'); await shop.getByRole('button', { name: 'Sync now', exact: true }).click();
     await shop.getByText('Offline', { exact: true }).first().waitFor();
+    console.log('Offline workflow: offline sync result received');
     expect((host.engine.db.prepare("SELECT COUNT(*) AS n FROM outbox WHERE status = 'pending'").get() as any).n).toBeGreaterThan(0);
     app = await buildApp({ db: cloud.db, backupDir: tempDir(), adminOrigins: [web.url] });
     await app.listen({ host: '127.0.0.1', port: Number(new URL(cloud.url).port) });
+    console.log('Offline workflow: cloud API restarted');
     await shop.getByRole('button', { name: 'Sync now', exact: true }).click();
     await shop.getByText('Everything is synced', { exact: true }).waitFor();
+    console.log('Offline workflow: reconnect sync completed');
     expect((host.engine.db.prepare("SELECT COUNT(*) AS n FROM outbox WHERE status = 'pending'").get() as any).n).toBe(0);
     const cloudSales = await cloud.db.tenant(host.engine.meta('tenant_id')!, q => q('SELECT id, total FROM sales WHERE id = $1', [sale.id]));
     expect(cloudSales).toHaveLength(1); expect(cloudSales[0].total).toBe(500);

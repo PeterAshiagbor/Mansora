@@ -45,7 +45,7 @@
 
 | Task | Owner | Current state / dependency | Branch / evidence |
 | --- | --- | --- | --- |
-| C69 scrolling and subpage UX review | Codex | Release tracked in [PR #74](https://github.com/PeterAshiagbor/Mansora/pull/74); rebased onto C68/PR #73 preserving problem reporting. Final tested head, merge and CI evidence are maintained in that PR. Native Figma access refused for the connected View-seat account; hardware/native zoom acceptance remains separate | `codex/ux-scroll-review`; [findings and evidence](design/ux-scroll-review/README.md) |
+| C69 scrolling and subpage UX review | Codex | PR #74 merged by Peter on 2026-11-14 at `f8fbf1e`, included in current default. Original rebased suite passed 415/415. Latest-default follow-up preserves subsequent changes and makes the offline test outage abrupt rather than waiting for HTTP connection draining; release/CI evidence is tracked in the wrap-up PR. Native Figma access refused for the connected View-seat account; hardware/native zoom acceptance remains separate | `codex/ux-scroll-review`; [findings and evidence](design/ux-scroll-review/README.md) |
 
 | Review #70: end-to-end engineering/security/QA and deployment readiness | Codex review session | Implemented on review branch; PR #71. Completion pass on #73: stock validation fixed; 417 tests pass with zero skips. Owner authorizes merge when inactive; fresh CI/merge/deploy evidence in #70. External release gates remain | `codex/review-70-deployment-readiness` |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
@@ -118,6 +118,13 @@ intake; it never provisions testers. App invitations, Resend diagnostics, DNS an
 infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
+
+### 2026-11-14 — C69 latest-default wrap-up (preserve later work)
+
+After the owner noted additional edits, fetched default `910f07f` and confirmed every commit through UX head `1794611` is already included: Peter merged PR #74 as `f8fbf1e` at 16:56 UTC. The original rebased serial regression completed **415/415 tests in 80 files**, zero failures. Later navigation/search persistence, consolidated Billing, customer picking, statements/PDF imports, pricing and off-site backup work is retained; the old UX branch is not merged again.
+
+Latest default CI run `43626107617` passed 462 tests but timed out on the offline/reconnect scenario. The current code passes that four-test suite locally. This follow-up makes its intended abrupt server outage explicit: close test HTTP connections, await shutdown and assert that the listener is stopped; milestone messages identify the stage if a future run stalls. All receipt/change/SQLite/pending/PostgreSQL/no-duplication assertions and the original 60-second timeout remain. Strict `test:verified` confirms 4/4 browser tests, zero skips; latest typecheck/build and audit (zero vulnerabilities) pass. Only the test fixture and this handoff are changed; no product/engine/API or other-session source is replaced. Follow-up CI and merge evidence are maintained in its PR. Native Figma permissions, assistive technology/native zoom and physical hardware remain separate acceptance items.
+
 
 ### 2026-11-14 — C69 scrolling/subpage review: owner-authorized release
 
