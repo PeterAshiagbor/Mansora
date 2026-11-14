@@ -46,7 +46,7 @@
 | Task | Owner | Current state / dependency | Branch / evidence |
 | --- | --- | --- | --- |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
-| C17 printable PDF invoices/receipts | Codex platform session | Implemented on branch: A4 pagination, repeated headings, wrapped long content, issuer/TIN consistency and missing-document 404s. Real Chromium/Poppler tests pass locally; full regression/CI pending. Existing print/PDF facilities retained | `codex/C17-printable-documents` |
+| C17 printable PDF invoices/receipts | Codex platform session | **Merged and deployed** PR #69, merge `f67b515`. All eight exact merged workflows passed; Railway `840345e5-7d8f-4274-8149-469519eebf88` SUCCESS. Four focused real PDF/admin-browser tests; full local regression 373 tests; typecheck/build/audit passed | `codex/C17-printable-documents` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
 | C53 staff sign-in details by email: optional local staff email, one-time 48-hour codes, `I have a sign-in code` on the sign-in screen (owner request 2026-11-13; D-37). Touches engine/auth, device API, Staff page and a narrow sign-in addition | Claude | **Merged** PR #62 | `claude/elegant-bohr-mjeotl` |
 | C54 invite Mansora administrators by email: one-time 48-hour link, invitee chooses a 12+ character password; Administrators page; migration 7 `admin_invitations` (owner request 2026-11-13) | Claude | **Merged** PR #63. Adds `adminUrl` to the Railway `buildApp` call in `scripts/railway/server.ts` (one line, Codex area) | `claude/elegant-bohr-mjeotl` |
@@ -98,6 +98,19 @@ intake; it never provisions testers. App invitations, Resend diagnostics, DNS an
 infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
+
+### 2026-11-14 — Codex session wrap-up: released work and outstanding acceptance
+
+- C17 PR #69 is merged as `f67b5153f5120aaeb44e694a26b297ccd3a1ada2`; all eight merged-commit workflows passed. Railway deployment `840345e5-7d8f-4274-8149-469519eebf88` reached SUCCESS at 10:45:58 UTC. Real A4 PDF pagination, repeated headings, issuer/amount consistency, escaping, authorization and the admin printable popup passed focused tests. Local full regression: 373 tests; typecheck/build passed and dependency audit reported zero vulnerabilities.
+- Post-deployment public checks: readiness/root and both workspace pages available; both shops refuse unauthenticated product, customer and sales-report commands; administrator me/clients return 401; cross-origin commands return 403; missing workspace and sensitive dotfile paths return 404; CSP, nosniff and frame-denial headers present. This is not authenticated live business acceptance. No live records or credentials were changed.
+- **Platform alerts outstanding:** corrected working recipient required. The supplied inbox bounced and remains suppressed; do not remove suppression or retry it. After correction, send one controlled canary and verify delivery.
+- **C38 outstanding, Claude owns:** owner must choose Railway Pro or an S3-compatible destination, then configure off-site backups, protected key custody and retention, and rehearse a full isolated restore with authentication, tenant isolation, stock/balances and sync verification. Draft PR #68 is an unfinished prototype handed to Claude, intentionally unmerged; green CI does not establish recovery readiness.
+- **C36 outstanding:** live administrator-created third shop, authenticated save/read, persistence and isolation acceptance. Container/browser automation passes; do not substitute it for the live test.
+- **C37 outstanding:** verify trusted client-address throttling and complete owner recovery through the live Railway proxy, including expiry/replay and preserved hardening. Do not guess trusted proxy ranges.
+- **Other-session work:** PR #67 and its follow-on tasks belong to Claude. Review current-head tests and preserve both sessions' board/decision entries before merging. In particular, do not restore C17's old unclaimed row. No other-session PR was merged by this continuation.
+- **Offline acceptance outstanding:** C48/C49 require Windows signing/update installation and failure recovery, then real printer/cash-drawer/scanner testing. Linux or mocked acceptance is insufficient.
+- Ownership correction: C38/C48/C49/C51/C55 are now Claude-owned, superseding the original ownership paragraphs in `operations/platform-lane-handoff.md`. The C17 release is complete; this wrap-up adds documentation only. Check this documentation commit's CI separately; application release evidence above belongs to f67b515.
+
 
 ### 2026-11-14 — Codex (respect current ownership; C17 claim)
 - Read the 13 November takeover: C38/C48/C49/C51/C55 belong to Claude. Stopped new work in those lanes after discovering the updated handoff. Preserving the in-flight C38 prototype in a draft handoff branch for Claude, without merging, enabling a backup schedule, provisioning storage or changing live records/credentials.
