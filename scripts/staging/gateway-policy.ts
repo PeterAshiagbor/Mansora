@@ -45,3 +45,14 @@ export function gatewayPolicyFromEnv(env: NodeJS.ProcessEnv = process.env, mode 
   trustedProxyMatcher(trustedProxies);
   return { mode, maxConcurrentRequests, maxConcurrentPerWorkspace, maxConcurrentImports, trustedProxies };
 }
+
+/**
+ * Team testing never handles real money. A Paystack **test** secret key (sk_test_…) is allowed, because Paystack
+ * test mode moves no money; a live key, any Hubtel secret, or a redirected Paystack address stops startup.
+ */
+export function assertTestPaymentKeysOnly(env: NodeJS.ProcessEnv): void {
+  const key = env.PAYSTACK_SECRET_KEY;
+  if (key && !/^sk_test_[A-Za-z0-9]{20,100}$/.test(key)) throw new Error('Only a Paystack test secret key (sk_test_…) is allowed in team testing; live payment credentials are forbidden.');
+  if (env.PAYSTACK_BASE_URL) throw new Error('PAYSTACK_BASE_URL must not be set in team testing.');
+  if (env.HUBTEL_CLIENT_SECRET) throw new Error('Live payment credentials are forbidden in team testing.');
+}

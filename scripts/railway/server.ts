@@ -27,6 +27,7 @@ export async function runRailwayServer() {
   const adminPassword = persistentSecret(directory, 'operator_password'); persistentSecret(directory, 'staging_db_key');
   const totp = persistentSecret(directory, 'admin_totp_key', 'base64'), billingKey = persistentSecret(directory, 'billing_encryption_key', 'base64'), payLink = persistentSecret(directory, 'pay_link_secret');
   console.log('Railway setup: restricted database roles and reviewed migrations.');
+  console.log(`Payments: ${process.env.PAYSTACK_SECRET_KEY ? 'Paystack test mode (no real money moves)' : 'sandbox only'}.`);
   const runtimeUrl = await prepareRailwayDatabase(config.databaseUrl, { migration, runtime });
   Object.assign(process.env, { DATABASE_URL: runtimeUrl, ADMIN_TOTP_KEY: totp, BILLING_ENCRYPTION_KEY: billingKey, PAY_LINK_SECRET: payLink,
     PUBLIC_BASE_URL: config.origin + '/api', BILLING_ALLOW_SANDBOX: '1', BILLING_SANDBOX: '1', PORT: String(config.port),

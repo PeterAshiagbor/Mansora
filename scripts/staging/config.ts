@@ -1,7 +1,7 @@
 import { hkdfSync } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { deploymentMode, type DeploymentMode } from './gateway-policy';
+import { assertTestPaymentKeysOnly, deploymentMode, type DeploymentMode } from './gateway-policy';
 import { openEngine } from '../../apps/desktop/src/core';
 import { stagingOrigin, type StagingWorkspace } from './gateway';
 export interface WorkspaceRecord { id: string; label: string; tenantId?: string; ownerEmail?: string; ownerUsername?: string }
@@ -11,7 +11,7 @@ export function stagingConfig() {
   const apiUrl = process.env.STAGING_API_URL ?? 'http://127.0.0.1:4000';
   const api = new URL(apiUrl);
   if (!['localhost', '127.0.0.1'].includes(api.hostname) || api.username || api.password || api.pathname !== '/' || api.search || api.hash) throw new Error('Staging must use the loopback API in its shared private network namespace, never a production endpoint.');
-  if (process.env.PAYSTACK_SECRET_KEY || process.env.HUBTEL_CLIENT_SECRET) throw new Error('Live payment credentials are not allowed in the staging gateway.');
+  assertTestPaymentKeysOnly(process.env);
   const key = readFileSync(process.env.STAGING_DB_KEY_FILE ?? '/run/secrets/staging_db_key', 'utf8').trim();
   if (!/^[a-f0-9]{64}$/i.test(key)) throw new Error('The persistent staging database key must contain 32 random bytes encoded as hex.');
   return { mode, origin, apiUrl, dataDir: resolve(process.env.STAGING_DATA_DIR ?? '/data/staging'), key,
