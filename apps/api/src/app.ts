@@ -8,6 +8,7 @@ import type { BrowserWorkspaceProvisioner } from './browser-workspaces';
 import { tenantStanding } from './billing/standing';
 import type { EmailAdapter } from './email';
 import { registerLeadRoutes } from './modules/leads';
+import { registerEmailWebhooks } from './modules/email-webhooks';
 import { registerContactRoutes } from './modules/contact';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
@@ -99,6 +100,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   registerBrandRoutes(app);
   registerContactRoutes(app, context);
   registerLeadRoutes(app, context);
+  registerEmailWebhooks(app, context);
   registerBillingRoutes(app, billing);
   return app;
 }

@@ -1,9 +1,10 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
-import { ALL_PERMISSIONS, fail, PERMISSIONS, ROLE_DEFAULTS, ROLES, sanitisePermissions } from '@mansora/domain';
+import { ALL_PERMISSIONS, fail, isPresetId, PERMISSIONS, ROLE_DEFAULTS, ROLES, sanitisePermissions } from '@mansora/domain';
 import { defineCommands, empty, zId, zOptText, zText, type Ctx } from '../engine';
 import { checkPasswordStrength, hashPassword } from '../passwords';
 import { importSnapshot } from '../restore';
+import { applyPreset } from './catalog';
 
 const zPassword = z.string().min(1).max(200);
 const zUsername = z.string().trim().min(3).max(40).regex(/^[a-zA-Z0-9._-]+$/, 'Use letters, numbers, dots, dashes or underscores');
@@ -100,6 +101,7 @@ export const authCommands = defineCommands({
         e.setMeta('business_phone', body.tenant.phone ?? '');
         e.setMeta('business_address', body.tenant.address ?? '');
         e.setMeta('activated_at', ctx.now());
+        if (body.tenant.businessType) e.setMeta('business_type', String(body.tenant.businessType));
         const restored = snapshot ? importSnapshot(ctx, snapshot) : null;
         const owner = { username: input.owner.username, name: input.owner.name, updated_at: ctx.now() };
         if (restored?.ownerId) {
@@ -111,6 +113,8 @@ export const authCommands = defineCommands({
         }
         if (restored) e.setMeta('restored_from_cloud_at', ctx.now());
         ctx.audit('device', body.deviceId, { deviceName: input.deviceName, restoredRows: restored?.rows ?? 0 }, restored ? 'device.restored_from_cloud' : 'device.activated');
+        // A new shop starts from its business type's preset (categories only). A restored shop keeps what it had.
+        if (!snapshot && isPresetId(body.tenant.businessType)) applyPreset(ctx, body.tenant.businessType);
         ctx.flush();
         e.setMeta('device_token', body.deviceToken); // last: marks activation complete
       });

@@ -121,3 +121,8 @@ Proposal for legal/owner review: choose a short retention window for unqualified
 ### `cloud.lead_events` (acquisition spec PR-03)
 
 The lead timeline (calls, meetings, emails, notes, status changes) has the same retention as its demo request and is deleted with it. It is append-only for the application role; deleting a lead's timeline for a prospect data request is an operator action with the database owner role, recorded in the admin audit log. Proposal for review: 24 months after the lead's last activity for unconverted leads; for converted leads, keep while the client relationship lasts.
+
+### `cloud.email_webhook_events` (acquisition spec PR-07)
+
+Ids of Resend delivery events already processed, so a retried event is not applied twice. No addresses or content.
+Proposal: delete rows older than 90 days (Resend stops retrying long before then).

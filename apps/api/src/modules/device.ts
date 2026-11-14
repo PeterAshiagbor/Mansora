@@ -68,7 +68,7 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       await q(`INSERT INTO devices (id, tenant_id, name, token_hash, app_version, last_seen_at) VALUES ($1, $2, $3, $4, $5, now())`, [deviceId, tenant.id, body.deviceName, sha256(token), body.appVersion]);
       await q(`UPDATE onboarding_steps SET completed_at = now(), notes = $2 WHERE tenant_id = $1 AND step = 'activate_laptop' AND completed_at IS NULL`, [tenant.id, `Activated: ${body.deviceName}`]);
       await q(`INSERT INTO admin_audit_logs (id, action, tenant_id, detail) VALUES ($1, 'device.activated', $2, $3)`, [randomUUID(), tenant.id, JSON.stringify({ deviceId, deviceName: body.deviceName })]);
-      return { deviceId, deviceToken: token, tenant: { id: tenant.id, name: tenant.name, phone: tenant.phone, address: tenant.address } };
+      return { deviceId, deviceToken: token, tenant: { id: tenant.id, name: tenant.name, phone: tenant.phone, address: tenant.address, businessType: tenant.business_type ?? null } };
     }).catch((e: any) => {
       if (e?.code === '23505' && String(e?.constraint ?? e?.message).includes('devices_one_active_per_tenant')) httpError(409, 'DEVICE_ALREADY_ACTIVE', 'This business already has an active laptop. Ask Mansora to deactivate it first.');
       throw e;
