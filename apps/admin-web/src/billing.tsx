@@ -168,7 +168,7 @@ export function Collections({ go }: { go: (id: string, param?: string) => void }
   const reload = () => { rows.reload(); exceptions.reload(); messages.reload(); attempts.reload(); };
   return (
     <div>
-      <PageHeader title="Collections" subtitle="Who owes what, whose automatic payments are set up, and what needs attention." actions={<Button size="sm" onClick={() => go('revenue')}>Revenue reports</Button>} />
+      <PageHeader title="Who owes us" subtitle="Who owes what, whose automatic payments are set up, and what needs attention." actions={<Button size="sm" onClick={() => go('revenue')}>Revenue reports</Button>} />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'clients', label: 'Clients' }, { id: 'exceptions', label: `Needs review${exceptions.data?.length ? ` (${exceptions.data.length})` : ''}` }, { id: 'messages', label: 'Messages' }, { id: 'attempts', label: 'Payment attempts' }]} />
       {tab === 'clients' && (
         <>
@@ -555,7 +555,7 @@ export function Payments() {
   const act = useAction();
   return (
     <div>
-      <PageHeader title="Payments" subtitle="Money received from clients, with receipts, refunds and provider payouts." />
+      <PageHeader title="Payments received" subtitle="Money received from clients, with receipts, refunds and provider payouts." />
       <Msg a={act} />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'payments', label: 'Payments' }, { id: 'settlements', label: 'Provider payouts' }]} />
       {tab === 'payments' ? (

@@ -55,10 +55,12 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     const controls = await page.locator('main summary:visible, main [role="tab"]:visible').all();
     for (const c of controls.slice(0, 12)) {
       await page.evaluate(() => { const s = document.querySelector('.m-content-scroll'); if (s) s.scrollTop = Math.max(0, (s.scrollHeight - s.clientHeight) / 2); });
-      await c.scrollIntoViewIfNeeded().catch(() => {});
+      await c.scrollIntoViewIfNeeded({ timeout: 1500 }).catch(() => {});
       const before = await page.evaluate(() => document.querySelector('.m-content-scroll')?.scrollTop ?? window.scrollY);
-      const label = (await c.innerText().catch(() => '')).split('\n')[0].slice(0, 40);
-      await c.click().catch(() => {}); await page.waitForTimeout(150);
+      const label = (await c.innerText({ timeout: 1500 }).catch(() => '')).split('\n')[0].slice(0, 40);
+      // A tab may change page (the Billing tabs do); controls that vanish with it are skipped quickly.
+      if (!await c.isVisible().catch(() => false)) continue;
+      await c.click({ timeout: 1500 }).catch(() => {}); await page.waitForTimeout(150);
       const after = await page.evaluate(() => document.querySelector('.m-content-scroll')?.scrollTop ?? window.scrollY);
       if (before > 150 && after < 20) found.push(`"${label}" scrolled the page from ${Math.round(before)} to ${Math.round(after)}`);
     }

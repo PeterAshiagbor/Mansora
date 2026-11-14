@@ -6,6 +6,7 @@ import { buildApp } from '../../apps/api/src/app';
 import { ResendEmail } from '../../apps/api/src/email';
 import { serveStatic } from '../../scripts/static';
 import { tempDir } from '../helpers';
+import { navigate } from './navigation';
 import { ADMIN, startCloud, type Cloud } from '../cloud';
 
 const pw = (() => { try { return createRequire(import.meta.url)('playwright'); } catch { return null; } })();
@@ -31,7 +32,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     await page.getByLabel('Email', { exact: true }).fill(ADMIN.email);
     await page.getByLabel('Password', { exact: true }).fill(ADMIN.password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Collections', exact: true }).click();
+    await navigate(page, 'Collections');
     await page.getByRole('tab', { name: 'Messages', exact: true }).click();
     await page.getByRole('button', { name: 'Write client message', exact: true }).click();
     const modal = page.getByRole('dialog', { name: 'Write client message', exact: true });
