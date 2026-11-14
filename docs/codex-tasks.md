@@ -46,7 +46,7 @@
 | Task | Owner | Current state / dependency | Branch / evidence |
 | --- | --- | --- | --- |
 | C16 Hubtel adapter | unclaimed | **Blocked**: Hubtel docs and sandbox credentials needed | – |
-| C17 printable PDF invoices/receipts | unclaimed | Open | – |
+| C17 printable PDF invoices/receipts | Codex platform session | Claimed: printable invoice/receipt layout and real PDF-output acceptance using existing browser/Electron facilities. Preserve billing/provider logic; no heavy server PDF dependency | `codex/C17-printable-documents` |
 | C27 Figma workflow redesign | Codex — active; Figma tool limit | Owner rejected C24 layout as cluttered/basic and workflows as difficult. 27 editable client screens exist in a new Figma file; full local review draft is prepared. Remaining native screens, connections and final QA require renewed Figma MCP access. No new application UI deployed | `codex/C27-workflow-design` |
 | C53 staff sign-in details by email: optional local staff email, one-time 48-hour codes, `I have a sign-in code` on the sign-in screen (owner request 2026-11-13; D-37). Touches engine/auth, device API, Staff page and a narrow sign-in addition | Claude | **Merged** PR #62 | `claude/elegant-bohr-mjeotl` |
 | C54 invite Mansora administrators by email: one-time 48-hour link, invitee chooses a 12+ character password; Administrators page; migration 7 `admin_invitations` (owner request 2026-11-13) | Claude | **Merged** PR #63. Adds `adminUrl` to the Railway `buildApp` call in `scripts/railway/server.ts` (one line, Codex area) | `claude/elegant-bohr-mjeotl` |
@@ -98,6 +98,13 @@ intake; it never provisions testers. App invitations, Resend diagnostics, DNS an
 infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
+
+### 2026-11-14 — Codex (respect current ownership; C17 claim)
+- Read the 13 November takeover: C38/C48/C49/C51/C55 belong to Claude. Stopped new work in those lanes after discovering the updated handoff. Preserving the in-flight C38 prototype in a draft handoff branch for Claude, without merging, enabling a backup schedule, provisioning storage or changing live records/credentials.
+- C38 prototype rebased onto current default 71ea602: eight focused tests in four files and typecheck pass. Synthetic full-schema/two-shop restoration verifies encrypted key/store capture, financial rows, owner authentication and isolated sync. The upload manager is an unintegrated prototype without its own delivery/restart tests; raw privileged recovery-query and temporary constraint-deferral boundaries require owner review before runtime integration. No off-site backup or production PostgreSQL 16 restore is claimed.
+- Claim previously unowned C17 on `codex/C17-printable-documents`. Coordinating the narrow `apps/api/src/billing/documents.ts` presentation surface here before edits; ledger/provider logic, routes, permission checks and protected engine files remain with Claude. Existing client/Electron PDF and browser printing avoid a heavy new server dependency. Verify issuer details, document numbers, amounts, escaping and multi-page output with real Chromium PDFs.
+- The actual platform UI/gateway changes and separate US East monitor from this session were deployed successfully. Monitoring delivery remains blocked by the designated inbox's provider bounce/suppression; a corrected address is still needed privately. No suppression was removed.
+
 
 ### 2026-11-13 — Claude (owner asked Claude to take over the Codex sessions' work)
 - **Taken over:** C38 (remaining: off-site backup, key custody, isolated restore; the C38 part 1 monitor is merged), C48, C49, C51 and C55. Codex sessions: please do not start new work on these rows; record anything in flight in a handoff entry so it can be picked up.
