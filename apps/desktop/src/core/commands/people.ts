@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { cashVariance, expectedCash, fail, isOvernightShift, SETTLEMENT_METHODS, zCalendarDate } from '@mansora/domain';
+import { cashVariance, EXPENSE_METHODS, expectedCash, fail, isOvernightShift, SETTLEMENT_METHODS, zCalendarDate } from '@mansora/domain';
 import { dayBounds, defineCommands, empty, likeContains, zApprover, zId, zMoney, zOptText, zRange, zText, type Ctx } from '../engine';
 import { openShift, requireOpenShift } from '../stock';
 
@@ -128,7 +128,7 @@ export const peopleCommands = defineCommands({
     mutates: true,
     input: z.object({
       id: zId, category: zText(60), description: zText(300), amount: zMoney, expenseDate: zCalendarDate,
-      paymentMethod: z.enum(SETTLEMENT_METHODS), receiptReference: zOptText(80), paidFromTill: z.boolean().default(false),
+      paymentMethod: z.enum(EXPENSE_METHODS), receiptReference: zOptText(80), paidFromTill: z.boolean().default(false),
     }),
     run: (ctx, input) => {
       if (ctx.get('SELECT 1 FROM expenses WHERE id = ?', input.id)) return { id: input.id, duplicate: true };

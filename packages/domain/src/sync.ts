@@ -145,6 +145,8 @@ export interface SyncPullResult {
   serverTime: string;
   /** Non-payment standing (D-28). Older servers omit it; the laptop then keeps what it last stored. */
   standing?: import('./standing').ServiceStanding | null;
+  /** Payments the shop made to Mansora (last 90 days), recorded on the laptop as expenses. Older servers omit it. */
+  mansoraPayments?: { id: string; receiptNumber: string; method: string; amount: number; receivedAt: string; invoices: string | null }[];
 }
 
 export const ONBOARDING_STEPS = [

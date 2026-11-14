@@ -182,7 +182,7 @@ export function dateTime(iso: string | null | undefined): string {
   return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 export const percent = (bps: number | null | undefined) => (bps == null ? '—' : `${(bps / 100).toFixed(1)}%`);
-export const METHOD: Record<string, string> = { cash: 'Cash', card: 'Card', momo: 'Mobile money', credit: 'Credit' };
+export const METHOD: Record<string, string> = { cash: 'Cash', card: 'Card', momo: 'Mobile money', credit: 'Credit', bank: 'Bank transfer' };
 export const uuid = () => crypto.randomUUID();
 
 /** Cedi amount input. Holds text while typing; reports integer pesewas (or null when not a valid amount). */

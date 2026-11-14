@@ -12,6 +12,7 @@ import { CategoriesPage, ProductsPage } from './pages/Products';
 import { PurchasesPage, StockPage } from './pages/Stock';
 import { CreditPage, CustomersPage } from './pages/Customers';
 import { ExpensesPage, ShiftsPage } from './pages/Shifts';
+import { StatementsPage } from './pages/Statements';
 import { ReportsPage } from './pages/Reports';
 import { BillingPage } from './pages/Billing';
 import { AuditPage, BackupPage, DataPage, SettingsPage, StaffPage, SupportPage, SyncPage } from './pages/Admin';
@@ -53,6 +54,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { id: 'reports', label: 'Reports', perm: 'report.sales', render: () => <ReportsPage /> },
       { id: 'expenses', label: 'Expenses', perm: 'expense.manage', render: () => <ExpensesPage /> },
+      { id: 'statements', label: 'Bank & MoMo statements', perm: 'expense.manage', render: () => <StatementsPage /> },
     ],
   },
   {
@@ -331,7 +333,7 @@ function Restore({ onDone }: { onDone: () => Promise<void> }) {
   );
 }
 
-const NAV_ICONS: Record<string, string> = { dashboard: 'home', 'getting-started': 'file', checkout: 'sale', sales: 'file', shifts: 'wallet', customers: 'users', credit: 'wallet', products: 'box', categories: 'box', stock: 'box', purchases: 'sale', reports: 'chart', expenses: 'wallet', staff: 'users', settings: 'settings', data: 'file', sync: 'sync', backup: 'shield', support: 'shield', audit: 'file', help: 'help' };
+const NAV_ICONS: Record<string, string> = { dashboard: 'home', 'getting-started': 'file', checkout: 'sale', sales: 'file', shifts: 'wallet', customers: 'users', credit: 'wallet', products: 'box', categories: 'box', stock: 'box', purchases: 'sale', reports: 'chart', expenses: 'wallet', statements: 'file', staff: 'users', settings: 'settings', data: 'file', sync: 'sync', backup: 'shield', support: 'shield', audit: 'file', help: 'help' };
 function Shell({ page }: { page: { id: string; param?: string } }) {
   const { state, can, go, refresh } = useApp();
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.perm || can(i.perm)).map((item) => ({ ...item, icon: NAV_ICONS[item.id] })) })).filter((g) => g.items.length);

@@ -647,6 +647,44 @@ Attribute shop activity to named staff and enforce staff account permissions.
 | `cloud.users.created_at` | Record creation chronology for reconciliation, security or lifecycle review. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
 | `cloud.users.updated_at` | Order current-record changes and reconciliation. Linkable identifier, staff/account attribute or activity chronology; may identify a person through related records. What legal purpose and access limits apply? |
 
+#### `laptop.statement_imports`
+
+Bank and Mobile Money statements imported by the shop (local only, not synced).
+
+| Field | Purpose / personal-data review |
+| --- | --- |
+| `laptop.statement_imports.id` | Stable identifier of an imported statement. Linkable identifier. |
+| `laptop.statement_imports.source` | Whether the statement is from a bank or a Mobile Money wallet. Not personal. |
+| `laptop.statement_imports.account_name` | Optional name the shop gives the account (e.g. 'MTN MoMo shop line'). Could name a person if they type it; should guidance say not to? |
+| `laptop.statement_imports.file_name` | Name of the uploaded file, to recognise it later. May contain a name or account number typed into the file name. |
+| `laptop.statement_imports.file_hash` | SHA-256 of the file, so the same file is never imported twice. Not personal on its own. |
+| `laptop.statement_imports.line_count` | How many lines were read. Not personal. |
+| `laptop.statement_imports.imported_by` | Staff member who imported it. Staff attribution; identifies a person with the users table. |
+| `laptop.statement_imports.created_at` | When it was imported. Activity chronology. |
+
+#### `laptop.statement_lines`
+
+Lines of imported statements and what was done with each (local only, not synced).
+
+| Field | Purpose / personal-data review |
+| --- | --- |
+| `laptop.statement_lines.id` | Stable identifier of a statement line. Linkable identifier. |
+| `laptop.statement_lines.import_id` | Statement the line belongs to. Linkable identifier. |
+| `laptop.statement_lines.line_no` | Row number in the file. Not personal. |
+| `laptop.statement_lines.txn_date` | Date of the transaction. Financial chronology of the business. |
+| `laptop.statement_lines.description` | Narration from the statement, often naming the payer or payee (customer, supplier, landlord). Third-party names and phone numbers from the bank or MoMo narration; personal data of customers and suppliers. Should it be shortened after the line is decided? |
+| `laptop.statement_lines.reference` | Bank or Mobile Money transaction reference, used to match sales and repayments. Transaction identifier linkable to a person's payment. |
+| `laptop.statement_lines.amount_in` | Money received on the line, in pesewas. Financial data; personal when linked to a named payer. |
+| `laptop.statement_lines.amount_out` | Money paid out on the line, in pesewas. Financial data; personal when linked to a named payee. |
+| `laptop.statement_lines.fingerprint` | Hash of the line's key fields, to spot the same transaction in a later statement. Derived from personal data; hashing is not anonymisation. |
+| `laptop.statement_lines.status` | Pending, accepted, ignored or duplicate. Not personal. |
+| `laptop.statement_lines.suggestion` | What Mansora suggested (the matched sale, repayment or expense, or a category). May include a customer name in the matched repayment label. |
+| `laptop.statement_lines.match_type` | Kind of record the line was linked to. Not personal. |
+| `laptop.statement_lines.match_id` | The sale payment, repayment or expense the line was linked to or created. Linkable identifier. |
+| `laptop.statement_lines.category` | Expense category chosen for money out. Not personal. |
+| `laptop.statement_lines.decided_by` | Staff member who accepted or ignored the line. Staff attribution. |
+| `laptop.statement_lines.decided_at` | When the line was decided. Activity chronology. |
+
 #### `laptop.audit_logs`
 
 Attribute shop actions, approvals and operational/security changes.

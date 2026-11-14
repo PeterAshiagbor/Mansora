@@ -5,6 +5,8 @@ export const PAYMENT_METHODS = ['cash', 'card', 'momo', 'credit'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 /** Methods usable for refund payouts, repayments and expenses (no "credit"). */
 export const SETTLEMENT_METHODS = ['cash', 'card', 'momo'] as const;
+/** Expenses can also be paid by bank transfer (sales and repayments are taken by cash, card or Mobile Money). */
+export const EXPENSE_METHODS = ['cash', 'card', 'momo', 'bank'] as const;
 export type SettlementMethod = (typeof SETTLEMENT_METHODS)[number];
 
 export const PAYMENT_LABELS: Record<PaymentMethod, string> = {

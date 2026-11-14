@@ -1,0 +1,120 @@
+import { randomUUID } from 'node:crypto';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { flakyNetwork, startCloud, type Cloud } from '../cloud';
+import { makeShop, type TestShop } from '../helpers';
+import { admin, GHS, mkPlan, subscribe } from '../billing/helpers';
+import { mansoraExpenseId } from '../../apps/desktop/src/core/mansora-expenses';
+import { parseStatementAmount, parseStatementDate } from '../../apps/desktop/src/core/statements';
+
+let cloud: Cloud;
+let shop: TestShop;
+const today = () => new Date().toISOString().slice(0, 10);
+const file = (text: string, name = 'statement.csv') => ({ fileName: name, contentBase64: Buffer.from(text).toString('base64') });
+
+beforeAll(async () => {
+  cloud = await startCloud();
+  const client = await cloud.createClient('Statement Mart');
+  shop = await makeShop({ fetch: flakyNetwork().fetch, apiUrl: cloud.url, code: client.code });
+});
+afterAll(() => cloud.close());
+
+describe('reading statement files', () => {
+  it('reads Ghanaian statement dates and amounts', () => {
+    expect(parseStatementDate('14/11/2026')).toBe('2026-11-14');
+    expect(parseStatementDate('2026-11-14 09:12')).toBe('2026-11-14');
+    expect(parseStatementDate('14-Nov-2026')).toBe('2026-11-14');
+    expect(parseStatementDate('31/02/2026')).toBeNull();
+    expect(parseStatementAmount('1,250.50')).toBe(125050);
+    expect(parseStatementAmount('(45.00)')).toBe(-4500);
+    expect(parseStatementAmount('GHS 20')).toBe(2000);
+    expect(parseStatementAmount('-0.005')).toBe(-1);
+    expect(parseStatementAmount('abc')).toBeNull();
+  });
+});
+
+describe('importing a statement and accepting lines (owner request 2026-11-14)', () => {
+  let importId = '';
+  it('suggests a match for money in, an expense for money out, and leaves supplier payments to the owner', async () => {
+    await shop.run(shop.cashier, 'sale.complete', { id: randomUUID(), lines: [{ productId: shop.products.milk, quantity: 2 }], tenders: [{ method: 'momo', amount: 2500, reference: 'MP2611140001' }] });
+    await shop.run(shop.owner, 'supplier.save', { name: 'Kofi Wholesale' });
+    const d = today().split('-').reverse().join('/');
+    const csv = ['Date,Description,Reference,Credit,Debit',
+      `${d},Payment received,MP2611140001,25.00,`,
+      `${d},ECG prepaid power,TX-9,,30.00`,
+      `${d},Transfer to Kofi Wholesale,TX-10,,100.00`,
+      `${d},Unknown deposit,TX-11,99.00,`,
+      `not a date,Broken line,TX-12,,5.00`].join('\n');
+    const p = await shop.run(shop.owner, 'statement.preview', { ...file(csv), source: 'momo' });
+    expect(p.needsMapping).toBe(false);
+    expect(p.rows.filter((r: any) => r.errors.length)).toHaveLength(1);
+    await expect(shop.run(shop.cashier, 'statement.preview', { ...file(csv), source: 'momo' })).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
+
+    const r = await shop.run(shop.owner, 'statement.import', { ...file(csv), source: 'momo', mapping: p.mapping });
+    expect(r).toMatchObject({ lines: 4, duplicates: 0 });
+    importId = r.id;
+    const { lines } = await shop.run(shop.owner, 'statement.lines', { importId });
+    const kinds = lines.map((l: any) => l.suggestion.kind);
+    expect(kinds).toEqual(['confirm', 'expense', 'supplier', 'unmatched']);
+    expect(lines[0].suggestion).toMatchObject({ matchType: 'payment', strength: 'reference' });
+    expect(lines[1].suggestion).toMatchObject({ category: 'Electricity' });
+    await expect(shop.run(shop.owner, 'statement.import', { ...file(csv), source: 'momo', mapping: p.mapping })).rejects.toMatchObject({ code: 'ALREADY_IMPORTED' });
+  });
+
+  it('accepts all suggested lines at once, then one line with a chosen category, and ignores another', async () => {
+    const { lines } = await shop.run(shop.owner, 'statement.lines', { importId });
+    const all = await shop.run(shop.owner, 'statement.accept', { lineIds: lines.map((l: any) => l.id) });
+    expect(all).toMatchObject({ accepted: 2, expenses: 1 });
+    expect(all.skipped).toHaveLength(2);
+    const power = shop.engine.db.prepare(`SELECT * FROM expenses WHERE category = 'Electricity'`).get() as any;
+    expect(power).toMatchObject({ amount: 3000, payment_method: 'momo', description: 'ECG prepaid power', receipt_reference: 'TX-9' });
+
+    const supplierLine = lines.find((l: any) => l.suggestion.kind === 'supplier');
+    await shop.run(shop.owner, 'statement.accept', { lineIds: [supplierLine.id], categories: { [supplierLine.id]: 'Supplies' } });
+    const unknown = lines.find((l: any) => l.suggestion.kind === 'unmatched');
+    expect(await shop.run(shop.owner, 'statement.ignore', { lineIds: [unknown.id] })).toEqual({ ignored: 1 });
+    const [list] = await shop.run(shop.owner, 'statement.list');
+    expect(list).toMatchObject({ pending: 0, accepted: 3, ignored: 1 });
+  });
+
+  it('marks lines seen in an earlier statement as duplicates, and reads a single signed amount column', async () => {
+    const d = today();
+    const csv = ['Date,Description,Transaction ID,Amount,Type', `${d},ECG prepaid power,TX-9,-30.00,Payment`, `${d},Airtime purchase,TX-20,-5.00,Payment`, `${d},Taxi to market,TX-21,-12.00,Payment`].join('\n');
+    await shop.run(shop.owner, 'expense.create', { id: randomUUID(), category: 'Transport', description: 'Taxi', amount: 1200, expenseDate: d, paymentMethod: 'momo' });
+    const p = await shop.run(shop.owner, 'statement.preview', { ...file(csv, 'second.csv'), source: 'momo' });
+    expect(p.mapping).toMatchObject({ date: 'Date', reference: 'Transaction ID', amount: 'Amount', direction: 'Type' });
+    const r = await shop.run(shop.owner, 'statement.import', { ...file(csv, 'second.csv'), source: 'momo', mapping: p.mapping });
+    expect(r).toMatchObject({ lines: 3, duplicates: 1 });
+    const { lines } = await shop.run(shop.owner, 'statement.lines', { importId: r.id });
+    // The same ECG transaction appears again in the newer statement: a duplicate, never recorded twice.
+    expect(lines.map((l: any) => l.status)).toEqual(['duplicate', 'pending', 'pending']);
+    expect(lines[1].suggestion).toMatchObject({ kind: 'expense', category: 'Airtime & data' });
+    // A line for an expense already entered by hand that day links to it instead of creating a second one.
+    expect(lines[2].suggestion.kind).toBe('linked');
+  });
+
+  it('records bank expenses with the bank payment method', async () => {
+    await shop.run(shop.owner, 'expense.create', { id: randomUUID(), category: 'Rent', description: 'Shop rent', amount: 50000, expenseDate: today(), paymentMethod: 'bank' });
+    expect((shop.engine.db.prepare(`SELECT payment_method FROM expenses WHERE description = 'Shop rent'`).get() as any).payment_method).toBe('bank');
+  });
+});
+
+describe('payments to Mansora appear in the shop\'s expenses', () => {
+  it('records each payment once, as a Mansora subscription expense, after a sync', async () => {
+    const tenantId = shop.engine.meta('tenant_id')!;
+    const plan = await mkPlan(cloud, { price: GHS(199) });
+    const s = await subscribe(cloud, tenantId, plan);
+    let invoiceId = s.invoiceId;
+    if (!invoiceId) invoiceId = (await cloud.db.platform((q) => q(`SELECT id FROM invoices WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 1`, [tenantId])))[0].id;
+    const pay = await admin(cloud).post(`/invoices/${invoiceId}/payment`, { amount: GHS(199), method: 'momo', reference: 'MOMO-123' });
+    expect(pay.status).toBe(200);
+    await shop.run(shop.owner, 'sync.run', {});
+    const rows = shop.engine.db.prepare(`SELECT * FROM expenses WHERE category = 'Mansora subscription'`).all() as any[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ amount: GHS(199), payment_method: 'momo' });
+    expect(rows[0].description).toContain('Mansora Sales & Stock subscription');
+    const [paymentId] = (await cloud.db.platform((q) => q(`SELECT id FROM billing_payments WHERE tenant_id = $1`, [tenantId]))).map((r: any) => r.id);
+    expect(rows[0].id).toBe(mansoraExpenseId(paymentId));
+    await shop.run(shop.owner, 'sync.run', {});
+    expect(shop.engine.db.prepare(`SELECT COUNT(*) AS n FROM expenses WHERE category = 'Mansora subscription'`).get()).toEqual({ n: 1 });
+  });
+});

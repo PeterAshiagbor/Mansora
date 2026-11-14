@@ -125,7 +125,7 @@ function ReviewModal({ shift, onClose, onDone }: { shift: any; onClose: () => vo
   );
 }
 
-const CATEGORIES = ['Rent', 'Electricity', 'Water', 'Transport', 'Salaries', 'Airtime & data', 'Repairs', 'Supplies', 'Other'];
+const CATEGORIES = ['Rent', 'Electricity', 'Water', 'Transport', 'Salaries', 'Airtime & data', 'Repairs', 'Supplies', 'Mansora subscription', 'Bank charges', 'Other'];
 export function ExpensesPage() {
   const [range, setRange] = useState({ from: monthStart(), to: today() });
   const expenseQuery = useQuery<any>('expense.list', range);
@@ -163,7 +163,7 @@ function ExpenseModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
         <Field label="Date"><Input type="date" value={f.expenseDate} max={today()} onChange={(e) => setF({ ...f, expenseDate: e.target.value })} /></Field>
         <Field label="Description" className="col-span-2"><Input value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} autoFocus /></Field>
         <Field label="Amount (GHS)"><MoneyInput value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>
-        <Field label="Paid by"><Select value={f.paymentMethod} onChange={(e) => setF({ ...f, paymentMethod: e.target.value })}><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="card">Card</option></Select></Field>
+        <Field label="Paid by"><Select value={f.paymentMethod} onChange={(e) => setF({ ...f, paymentMethod: e.target.value })}><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="card">Card</option><option value="bank">Bank transfer</option></Select></Field>
         <Field label="Receipt reference (optional)" className="col-span-2"><Input value={f.receiptReference} onChange={(e) => setF({ ...f, receiptReference: e.target.value })} /></Field>
         {f.paymentMethod === 'cash' && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={f.paidFromTill} onChange={(e) => setF({ ...f, paidFromTill: e.target.checked })} /> Paid with cash from my till (reduces my expected cash)</label>}
       </div>

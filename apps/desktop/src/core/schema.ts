@@ -332,4 +332,62 @@ ALTER TABLE suppliers ADD COLUMN location TEXT;
 ALTER TABLE suppliers ADD COLUMN supplies TEXT;
 `,
   },
+  {
+    id: 4,
+    name: 'bank_expenses_and_statements',
+    sql: `
+-- Expenses can be paid by bank transfer (bank statements, payments to Mansora by transfer).
+-- SQLite cannot change a CHECK constraint, so the table is rebuilt with the same rows and its immutability triggers.
+CREATE TABLE expenses_v4 (
+  id TEXT PRIMARY KEY,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  expense_date TEXT NOT NULL,
+  payment_method TEXT NOT NULL CHECK (payment_method IN ('cash','card','momo','bank')),
+  receipt_reference TEXT,
+  shift_id TEXT REFERENCES shifts(id),
+  created_by TEXT NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL
+);
+INSERT INTO expenses_v4 SELECT id, category, description, amount, expense_date, payment_method, receipt_reference, shift_id, created_by, created_at FROM expenses;
+DROP TABLE expenses;
+ALTER TABLE expenses_v4 RENAME TO expenses;
+CREATE TRIGGER expenses_no_update BEFORE UPDATE ON expenses BEGIN SELECT RAISE(ABORT, 'expenses records are immutable'); END;
+CREATE TRIGGER expenses_no_delete BEFORE DELETE ON expenses BEGIN SELECT RAISE(ABORT, 'expenses records cannot be deleted'); END;
+
+-- Imported bank and Mobile Money statements. Kept on this device only (not synced): they are working papers for
+-- checking money in and recording money out; what they create (expenses) syncs as usual.
+CREATE TABLE statement_imports (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL CHECK (source IN ('bank','momo')),
+  account_name TEXT,
+  file_name TEXT NOT NULL,
+  file_hash TEXT NOT NULL UNIQUE,
+  line_count INTEGER NOT NULL,
+  imported_by TEXT NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL
+);
+CREATE TABLE statement_lines (
+  id TEXT PRIMARY KEY,
+  import_id TEXT NOT NULL REFERENCES statement_imports(id),
+  line_no INTEGER NOT NULL,
+  txn_date TEXT NOT NULL,
+  description TEXT,
+  reference TEXT,
+  amount_in INTEGER NOT NULL DEFAULT 0 CHECK (amount_in >= 0),
+  amount_out INTEGER NOT NULL DEFAULT 0 CHECK (amount_out >= 0),
+  fingerprint TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','ignored','duplicate')),
+  suggestion TEXT,
+  match_type TEXT,
+  match_id TEXT,
+  category TEXT,
+  decided_by TEXT REFERENCES users(id),
+  decided_at TEXT
+);
+CREATE INDEX statement_lines_import ON statement_lines(import_id, line_no);
+CREATE INDEX statement_lines_fingerprint ON statement_lines(fingerprint);
+`,
+  },
 ];
