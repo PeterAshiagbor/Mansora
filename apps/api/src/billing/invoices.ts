@@ -69,7 +69,14 @@ export async function issueInvoice(b: Billing, q: Query, id: string, actor: Acto
   const c = await billingContact(q, inv.tenant_id);
   await queueEmail(q, {
     tenantId: inv.tenant_id, to: c.email, invoiceId: id, kind: 'invoice_issued', subject: `Invoice ${number} from ${s.issuer.name}`,
-    body: `Hello ${c.name},\n\nInvoice ${number} for ${money(inv.total)} is due on ${due}.\n\nPay securely here: ${payUrl(b, id)}\n\n${s.issuer.paymentInstructions}\n\n${s.issuer.name}`,
+    body: [
+      `Hello ${c.name},`,
+      `Your Mansora invoice is ready. You can pay it online by card or Mobile Money.`,
+      [`Invoice: ${number}`, `Business: ${c.business}`, ...(inv.period_start && inv.period_end ? [`Period: ${String(inv.period_start).slice(0, 10)} to ${String(inv.period_end).slice(0, 10)}`] : []), `Amount due: ${money(inv.total)}`, `Due date: ${due}`].join('\n'),
+      `Pay securely here: ${payUrl(b, id)}`,
+      s.issuer.paymentInstructions,
+      `Thank you,\n${s.issuer.name}`,
+    ].filter(Boolean).join('\n\n'),
   });
 }
 

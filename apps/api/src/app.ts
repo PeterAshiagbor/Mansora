@@ -12,6 +12,7 @@ import { registerContactRoutes } from './modules/contact';
 import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
 import { registerBugReportRoutes } from './modules/bug-reports';
+import { registerBrandRoutes } from './brand';
 import { createBillingFromEnv, registerBillingRoutes, queueEmail, deliverQueued, type Billing } from './billing';
 import { HttpError } from './security';
 import { BackupStorageError, FileStorage, type BackupStorage } from './storage';
@@ -93,6 +94,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   registerDeviceRoutes(app, context);
   registerAdminRoutes(app, context);
   registerBugReportRoutes(app, context);
+  registerBrandRoutes(app);
   registerContactRoutes(app, context);
   registerLeadRoutes(app, context);
   registerBillingRoutes(app, billing);
