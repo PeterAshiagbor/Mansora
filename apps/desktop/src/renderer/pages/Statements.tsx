@@ -39,8 +39,9 @@ function ImportStatement({ onDone }: { onDone: (id: string) => void }) {
   const [file, setFile] = useState<{ fileName: string; contentBase64: string } | null>(null);
   const [preview, setPreview] = useState<any | null>(null);
   const { run, busy } = useAction();
-  const load = (f: { fileName: string; contentBase64: string }, mapping?: Record<string, string | undefined>) =>
-    run(async () => { setPreview(await call('statement.preview', { ...f, source, ...(mapping ? { mapping } : {}) })); });
+  // Changing the source re-reads the chosen file at once (the same file cannot be chosen again to trigger a change).
+  const load = (f: { fileName: string; contentBase64: string }, mapping?: Record<string, string | undefined>, from: 'momo' | 'bank' = source) =>
+    run(async () => { setPreview(await call('statement.preview', { ...f, source: from, ...(mapping ? { mapping } : {}) })); });
   const good = preview?.rows?.filter((r: any) => !r.errors.length) ?? [];
   const bad = preview?.rows?.filter((r: any) => r.errors.length) ?? [];
   const dups = good.filter((r: any) => r.duplicate).length;
@@ -48,10 +49,10 @@ function ImportStatement({ onDone }: { onDone: (id: string) => void }) {
     <Card title="Import a statement" className="mb-4">
       <p className="mb-3 text-sm text-slate-600">Download your statement from your bank or Mobile Money app as Excel or CSV, then choose it here. Nothing is saved until you press Import, and nothing is recorded until you accept lines.</p>
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Statement from"><Select value={source} onChange={(e) => { setSource(e.target.value as any); setPreview(null); }}><option value="momo">Mobile Money</option><option value="bank">Bank</option></Select></Field>
+        <Field label="Statement from"><Select value={source} onChange={(e) => { const next = e.target.value as 'momo' | 'bank'; setSource(next); if (file) load(file, undefined, next); }}><option value="momo">Mobile Money</option><option value="bank">Bank</option></Select></Field>
         <Field label="Account name (optional)"><Input value={account} maxLength={80} onChange={(e) => setAccount(e.target.value)} placeholder="e.g. MTN shop line" /></Field>
         <Field label="Statement file"><input type="file" accept=".xlsx,.csv" aria-label="Choose statement file" className="block text-sm" disabled={busy}
-          onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const next = { fileName: f.name, contentBase64: await fileToBase64(f) }; setFile(next); load(next); }} /></Field>
+          onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; const next = { fileName: f.name, contentBase64: await fileToBase64(f) }; setFile(next); load(next); }} /></Field>
       </div>
       {preview && file && (
         <div className="mt-4 space-y-3">

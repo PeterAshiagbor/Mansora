@@ -65,6 +65,8 @@ describe('persistent authenticated team staging gateway', () => {
     const secure = await startStagingGateway({ ...config, origin: 'https://staging.example.com', workspaces, port: 0, maxBodyBytes: 1024 });
     try {
       const headers = await fetch(secure.url + '/client/shop-a/'); expect(headers.headers.get('strict-transport-security')).toBe('max-age=31536000'); expect(headers.headers.get('x-robots-tag')).toContain('noindex'); expect(headers.headers.get('permissions-policy')).toContain('microphone=()'); expect(headers.headers.get('cross-origin-resource-policy')).toBe('same-origin'); expect(headers.headers.get('permissions-policy')).toContain('camera=(self)');
+      // The public brand logo may be cached by email clients; other responses stay uncached.
+      expect((await fetch(secure.url + '/api/brand/mansora-logo.png')).headers.get('cache-control')).toBe('public, max-age=86400');
       // Only payment pages may send a form on to Paystack's hosted checkout.
       expect((await fetch(secure.url + '/api/pay/not-a-real-token')).headers.get('content-security-policy')).toContain("form-action 'self' https://checkout.paystack.com");
       expect(headers.headers.get('content-security-policy')).toMatch(/form-action 'self'$/);

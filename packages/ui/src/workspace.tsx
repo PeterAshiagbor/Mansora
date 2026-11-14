@@ -68,6 +68,8 @@ export function WorkspaceShell({ groups, primaryIds, current, pageKey = current.
   }, [pageKey]);
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 760px)').matches);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Reporting a problem from the phone menu closes the menu, so the person can point at the page itself.
+  useEffect(() => { const close = () => setMenuOpen(false); window.addEventListener('mansora:report-problem', close); return () => window.removeEventListener('mansora:report-problem', close); }, []);
   useEffect(() => { const media = window.matchMedia('(max-width: 760px)'); const update = () => { setCompact(media.matches); if (!media.matches) setMenuOpen(false); }; media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
   const navigatePage = (id: string) => { setMenuOpen(false); onNavigate(id); };
   const [finding, setFinding] = useState(false), [query, setQuery] = useState(''), [help, setHelp] = useState(false);

@@ -91,16 +91,18 @@ function ClientApplication() {
   }, []);
   useEffect(() => void refresh(), [refresh]);
   // After a lock, the same person returns to the page they were on; a different person starts at the dashboard.
-  const lastUser = useRef<string | null>(null);
+  // Remembered for the tab as well, so after a refresh a different person still starts at the dashboard.
+  const lastUser = useRef<string | null>((() => { try { return sessionStorage.getItem(`mansora:page-user:${location.pathname}`); } catch { return null; } })());
   const userId = state?.user?.id ?? null;
   useEffect(() => {
     if (!userId) return;
     if (lastUser.current && lastUser.current !== userId) setPage({ id: 'dashboard' });
     lastUser.current = userId;
+    try { sessionStorage.setItem(`mansora:page-user:${location.pathname}`, userId); } catch { /* storage unavailable */ }
   }, [userId]);
   useEffect(() => {
     // Signing out on purpose starts the next person at the dashboard; only an idle lock keeps the page.
-    const onLogout = () => { lastUser.current = null; setPage({ id: 'dashboard' }); };
+    const onLogout = () => { lastUser.current = null; try { sessionStorage.removeItem(`mansora:page-user:${location.pathname}`); } catch { /* storage unavailable */ } setPage({ id: 'dashboard' }); };
     window.addEventListener('mansora:logged-out', onLogout);
     return () => window.removeEventListener('mansora:logged-out', onLogout);
   }, []);

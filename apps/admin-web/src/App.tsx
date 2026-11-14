@@ -59,7 +59,8 @@ function AdminApplication() {
     { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', icon: 'file' }, { id: 'admins', label: 'Administrators', icon: 'users' }, { id: 'security', label: 'Account security', icon: 'shield' }, { id: 'contact', label: 'Support contact', icon: 'help' }, { id: 'problems', label: 'Problem reports', icon: 'help' }] },
   ];
   const current = groups.flatMap((g) => g.items).find((item) => item.id === (page.id === 'client' ? 'clients' : page.id))!;
-  return <WorkspaceShell pageKey={JSON.stringify([page.id, page.param])} pageLabel={page.id === 'client' ? 'Client details' : undefined} footerActions={<ReportProblemNavItem />} primaryIds={['overview', 'clients', 'collections', 'invoices', 'payments']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setSignedIn(false); }}>
+  // The report form sits outside the page, so its draft survives moving between pages.
+  return <><WorkspaceShell pageKey={JSON.stringify([page.id, page.param])} pageLabel={page.id === 'client' ? 'Client details' : undefined} footerActions={<ReportProblemNavItem />} primaryIds={['overview', 'clients', 'collections', 'invoices', 'payments']} groups={groups} current={current} onNavigate={go} workspace="Mansora" workspaceLabel="Platform administration" user="Administrator" userRole="Platform team" guide={ADMIN_GUIDES[page.id]} onSignOut={async () => { await api('POST', '/v1/admin/logout').catch(() => {}); setToken(null); setPage({ id: 'overview' }); setSignedIn(false); }}>
       <div key={page.id + (page.param ?? '')}>
         {page.id === 'overview' && <Overview go={go} />}
         {page.id === 'clients' && <Clients go={go} />}
@@ -78,8 +79,8 @@ function AdminApplication() {
         {page.id === 'contact' && <ContactSettings />}
         {page.id === 'problems' && <ProblemReports />}
       </div>
-      <ReportProblemButton page={current?.label ?? page.id} onSubmit={(r) => api('POST', '/v1/admin/bug-reports', r)} />
-    </WorkspaceShell>;
+    </WorkspaceShell>
+    <ReportProblemButton page={current?.label ?? page.id} onSubmit={(r) => api('POST', '/v1/admin/bug-reports', r)} /></>;
 }
 
 /** Problem reports from shops and administrators. They are also emailed to Mansora every evening at 7pm. */

@@ -56,12 +56,20 @@ function Picker({ onPick, onCancel }: { onPick: (a: ProblemArea) => void; onCanc
       e.preventDefault(); e.stopPropagation();
       onPick(describeArea(e.target));
     };
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } else if (!own(e.target)) { e.preventDefault(); e.stopPropagation(); } };
+    // Pointing must not operate the page: swallow the press itself, not just the click that follows it.
+    const swallow = (e: Event) => { if (!own(e.target)) { e.preventDefault(); e.stopPropagation(); } };
+    const presses = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'touchstart', 'dblclick', 'contextmenu'];
     document.addEventListener('mousemove', move, true);
     document.addEventListener('click', click, true);
     document.addEventListener('keydown', key, true);
+    for (const t of presses) document.addEventListener(t, swallow, { capture: true, passive: false });
     document.body.style.cursor = 'crosshair';
-    return () => { document.removeEventListener('mousemove', move, true); document.removeEventListener('click', click, true); document.removeEventListener('keydown', key, true); document.body.style.cursor = ''; };
+    return () => {
+      document.removeEventListener('mousemove', move, true); document.removeEventListener('click', click, true); document.removeEventListener('keydown', key, true);
+      for (const t of presses) document.removeEventListener(t, swallow, true);
+      document.body.style.cursor = '';
+    };
   }, [onPick, onCancel]);
   return (
     <div data-report-ui>
@@ -73,7 +81,7 @@ function Picker({ onPick, onCancel }: { onPick: (a: ProblemArea) => void; onCanc
   );
 }
 
-const OPEN_EVENT = 'mansora:report-problem';
+export const OPEN_EVENT = 'mansora:report-problem';
 /** Open the report form from anywhere, for example a menu item. */
 export function openProblemReport() { window.dispatchEvent(new Event(OPEN_EVENT)); }
 /** The menu item shown in the sidebar footer of every page. */
