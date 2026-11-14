@@ -7,11 +7,13 @@ running low and what customers owe you.
 
 ## Products and stock
 
-- **Products**: add or edit items, prices, barcodes and reorder levels.
+- **Products**: add or edit items, prices, barcodes and reorder levels. Scan a barcode into the Barcode box with a scanner or the **Camera** button.
+- **Setting up a scanner or receipt printer**: follow [scanners-and-printers.md](scanners-and-printers.md).
+- **Moving from Excel, QuickBooks or Xero**: follow [moving-to-mansora.md](moving-to-mansora.md).
 - Stock is never typed over. It changes through:
   - **Purchases & suppliers → Receive stock** when goods arrive (this also updates your average cost);
   - **Stock → Adjust** for damaged or lost items, with a reason;
-  - **Stock → Stock count** after a physical count.
+  - **Stock → Stock count** after a physical count. Each scan adds one to that product's count.
 - Selling is blocked when the system shows no stock. If that stops a real sale, receive or count the stock first.
 
 ## Discounts

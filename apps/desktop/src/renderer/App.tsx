@@ -96,6 +96,12 @@ function ClientApplication() {
     lastUser.current = userId;
   }, [userId]);
   useEffect(() => {
+    // Signing out on purpose starts the next person at the dashboard; only an idle lock keeps the page.
+    const onLogout = () => { lastUser.current = null; setPage({ id: 'dashboard' }); };
+    window.addEventListener('mansora:logged-out', onLogout);
+    return () => window.removeEventListener('mansora:logged-out', onLogout);
+  }, []);
+  useEffect(() => {
     const onOut = () => void refresh();
     window.addEventListener('mansora:signed-out', onOut);
     return () => window.removeEventListener('mansora:signed-out', onOut);

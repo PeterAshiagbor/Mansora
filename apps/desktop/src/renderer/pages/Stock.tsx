@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { CameraScanButton } from '../components/CameraScanner';
 import { TaskLinks } from '../components/TaskLinks';
 import { unitCostFromCarton } from '@mansora/domain';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, QueryView, useUnsavedChanges } from '@mansora/ui';
-import { call, dateTime, ExportButtons, money, MoneyInput, plain, useAction, useApp, useQuery, uuid } from '../lib';
+import { call, dateTime, ExportButtons, money, MoneyInput, plain, useAction, useApp, useQuery, useToast, uuid } from '../lib';
 
 const TYPE_LABEL: Record<string, string> = {
   OPENING_STOCK: 'Opening stock', PURCHASE_RECEIVED: 'Purchase received', SALE: 'Sale', SALE_REFUND: 'Refund (returned)', DAMAGE: 'Damaged',
@@ -103,9 +104,24 @@ function StockCount({ onDone }: { onDone: () => void }) {
   const invalidCounts = Object.values(counted).some((value) => value !== '' && (!Number.isSafeInteger(Number(value)) || Number(value) < 0));
   const lines = rows.filter((r) => counted[r.id] !== undefined && counted[r.id] !== '').map((r) => ({ productId: r.id, counted: Number(counted[r.id]), system: r.quantity }));
   const diffs = lines.filter((l) => l.counted !== l.system);
+  const toast = useToast();
+  const [scan, setScan] = useState('');
+  // Each scan adds one to that product's count, so a shelf can be counted by scanning every item on it.
+  const scanned = (raw: string) => {
+    const code = raw.trim().toLowerCase();
+    if (!code) return;
+    const row = rows.find((r) => r.barcode?.toLowerCase() === code || r.sku?.toLowerCase() === code);
+    if (!row) return toast(`No product has the barcode or SKU "${raw.trim()}"`, 'bad');
+    setCounted((c) => ({ ...c, [row.id]: String((Number(c[row.id]) || 0) + 1) }));
+    toast(`${row.name}: ${(Number(counted[row.id]) || 0) + 1}`);
+  };
   return (
     <div>
-      <Alert className="mb-3">Count the items on the shelf and type the number you counted. Leave a row empty if you did not count it. Only differences are recorded.</Alert>
+      <Alert className="mb-3">Count the items on the shelf and type the number you counted, or scan each item: every scan adds one. Leave a row empty if you did not count it. Only differences are recorded.</Alert>
+      <div className="mb-3 flex max-w-xl gap-2">
+        <Input aria-label="Scan to count" placeholder="Scan an item to add one to its count" value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); scanned(scan); setScan(''); } }} />
+        <CameraScanButton continuous label="Camera" onCode={scanned} />
+      </div>
       <QueryView query={countQuery} label="stock to count"><Card pad={false}>
         <Table rows={rows} rowKey={(r) => r.id} columns={[
           { header: 'Product', cell: (r) => r.name },

@@ -334,7 +334,7 @@ function ChangePlan({ subscriptionId, onDone }: { subscriptionId: string; onDone
       <Alert tone="info">The new price applies from the next invoice. Invoices already issued are never changed.</Alert>
       <Field label="New plan"><Select value={planId} onChange={(e) => setPlanId(e.target.value)}><option value="">Choose…</option>{plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} · {ghs(p.price)} {p.billing_period}</option>)}</Select></Field>
       <MoneyField label="Agreed amount per period (leave empty for the plan price)" value={amount} onChange={setAmount} />
-      <Button variant="primary" disabled={act.busy || !planId || !plansQuery.data || (amount.trim() !== '' && toPesewas(amount) == null)} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/subscriptions/${subscriptionId}/change-plan`, { planId, agreedAmount: toPesewas(amount) }); onDone(); })}>Change plan</Button>
+      <Button variant="primary" disabled={act.busy || !planId || !plansQuery.data} onClick={() => act.run(async () => { await api('POST', `/v1/admin/billing/subscriptions/${subscriptionId}/change-plan`, { planId, agreedAmount: toPesewas(amount) }); onDone(); })}>Change plan</Button>
     </div>
   );
 }
@@ -530,7 +530,7 @@ function NewSubscription({ onClose, onCreated }: { onClose: () => void; onCreate
   const act = useAction();
   const plan = plans.find((p) => p.id === f.planId);
   return (
-    <Modal title="New subscription" open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={act.busy || !f.tenantId || !f.planId || !clientsQuery.data || !plansQuery.data || (f.amount.trim() !== '' && toPesewas(f.amount) == null)} onClick={() => act.run(async () => { const r = await api('POST', '/v1/admin/billing/subscriptions', { tenantId: f.tenantId, planId: f.planId, agreedAmount: toPesewas(f.amount), startDate: f.startDate || null, paymentMethod: f.paymentMethod, activationPolicy: f.activationPolicy }); onCreated(r.id); })}>Create draft</Button></>}>
+    <Modal title="New subscription" open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={act.busy || !f.tenantId || !f.planId || !clientsQuery.data || !plansQuery.data} onClick={() => act.run(async () => { const r = await api('POST', '/v1/admin/billing/subscriptions', { tenantId: f.tenantId, planId: f.planId, agreedAmount: toPesewas(f.amount), startDate: f.startDate || null, paymentMethod: f.paymentMethod, activationPolicy: f.activationPolicy }); onCreated(r.id); })}>Create draft</Button></>}>
       <Msg a={act} /><QueryView query={clientsQuery} label="clients">{null}</QueryView><QueryView query={plansQuery} label="service plans">{null}</QueryView>
       <div className="space-y-3">
         <Field label="Client"><Select value={f.tenantId} onChange={(e) => setF({ ...f, tenantId: e.target.value })}><option value="">Choose…</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>

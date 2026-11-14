@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { SAMPLE_GUIDE, sampleShopRows, TEMPLATE_GUIDE } from '../sample-shop';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { fail, formatGHS, SYNC_TABLES } from '@mansora/domain';
@@ -270,7 +271,9 @@ export const systemCommands = defineCommands({
     },
   },
 
-  'import.template': { perm: 'data.import', async: true, input: z.object({ format: z.enum(['csv', 'xlsx']) }), run: (_c, input) => tableFile('mansora-product-import-template', input.format, [{ name: 'Products', rows: TEMPLATE_ROWS }]) },
+  'import.template': { perm: 'data.import', async: true, input: z.object({ format: z.enum(['csv', 'xlsx']) }), run: (_c, input) => tableFile('mansora-product-import-template', input.format, input.format === 'xlsx' ? [{ name: 'Products', rows: TEMPLATE_ROWS }, { name: 'How to fill this in', rows: TEMPLATE_GUIDE }] : [{ name: 'Products', rows: TEMPLATE_ROWS }]) },
+  /** C58: a ready-made sample shop (about 140 products) in the same layout as the template. */
+  'import.sample': { perm: 'data.import', async: true, input: z.object({ format: z.enum(['csv', 'xlsx']) }), run: (_c, input) => tableFile('mansora-sample-shop', input.format, input.format === 'xlsx' ? [{ name: 'Products', rows: sampleShopRows() }, { name: 'About this sample', rows: SAMPLE_GUIDE }] : [{ name: 'Products', rows: sampleShopRows() }]) },
   'import.preview': { perm: 'data.import', async: true, input: zFile.extend({ mapping: zMapping.optional() }), run: (ctx, input) => preview(ctx, input) },
   'import.history': { perm: 'data.import', input: empty, run: (ctx) => ctx.all('SELECT b.*, u.name AS imported_by_name FROM import_batches b JOIN users u ON u.id = b.imported_by ORDER BY b.created_at DESC LIMIT 100') },
   /**

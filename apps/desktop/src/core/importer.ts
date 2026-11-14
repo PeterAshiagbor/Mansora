@@ -7,17 +7,18 @@ export type ImportField = (typeof IMPORT_FIELDS)[number];
 export type Mapping = Partial<Record<ImportField, string>>;
 
 const ALIASES: Record<ImportField, string[]> = {
-  name: ['name', 'product', 'product name', 'item', 'item name', 'description'],
-  sku: ['sku', 'code', 'item code', 'product code'],
+  // Includes the column names QuickBooks (Products and Services export) and Xero (Inventory items export) use.
+  name: ['name', 'product', 'product name', 'item', 'item name', 'description', 'product/service name', 'product/service', 'itemname', 'item description'],
+  sku: ['sku', 'code', 'item code', 'product code', '*itemcode', 'itemcode'],
   barcode: ['barcode', 'bar code', 'ean', 'upc'],
-  category: ['category', 'group', 'department'],
+  category: ['category', 'group', 'department', 'type of item'],
   unit: ['unit', 'uom', 'unit of measure'],
-  cost_price: ['cost price', 'cost', 'cost_price', 'buying price', 'purchase price'],
+  cost_price: ['cost price', 'cost', 'cost_price', 'buying price', 'purchase price', 'purchase cost', 'purchasesunitprice', 'purchases unit price', 'unit cost'],
   carton_cost: ['carton cost', 'carton_cost', 'carton purchase cost'],
   units_per_carton: ['units per carton', 'units_per_carton', 'items per carton'],
-  selling_price: ['selling price', 'price', 'selling_price', 'retail price', 'sale price'],
-  opening_stock: ['opening stock', 'opening_stock', 'quantity', 'qty', 'stock', 'opening quantity', 'in stock'],
-  reorder_level: ['reorder level', 'reorder_level', 'reorder', 'low stock', 'reorder threshold', 'minimum stock'],
+  selling_price: ['selling price', 'price', 'selling_price', 'retail price', 'sale price', 'sales price / rate', 'sales price', 'rate', 'salesunitprice', 'sales unit price', 'unit price'],
+  opening_stock: ['opening stock', 'opening_stock', 'quantity', 'qty', 'stock', 'opening quantity', 'in stock', 'qty on hand', 'quantity on hand', 'quantityonhand'],
+  reorder_level: ['reorder level', 'reorder_level', 'reorder', 'low stock', 'reorder threshold', 'minimum stock', 'reorder point'],
 };
 
 export function parseCsv(text: string): string[][] {

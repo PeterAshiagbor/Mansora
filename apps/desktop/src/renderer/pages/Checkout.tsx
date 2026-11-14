@@ -1,4 +1,5 @@
 import { parkBasket, parkedBaskets, takeParkedBasket } from '../parked-baskets';
+import { CameraScanButton } from '../components/CameraScanner';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { priceCart, settlePayments } from '@mansora/domain';
 import { Alert, Badge, Button, cx, Field, Input, Modal, Select, QueryView, PageHeader, WorkflowSteps, useUnsavedChanges, useNavigationGuard } from '@mansora/ui';
@@ -68,12 +69,12 @@ export function Checkout() {
 
   // Scans arrive as fast keystrokes ending in Enter. Process them strictly one after another so none is lost or mixed up.
   const scanQueue = useRef(Promise.resolve());
-  const onEnter = () => {
+  const onEnter = () => scanCode(search.trim(), true);
+  const scanCode = (code: string, typed = false) => {
     if (transition.current) return;
     const version = basketVersion.current;
-    const code = search.trim();
     if (!code) return;
-    setSearch('');
+    if (typed) setSearch('');
     pendingScans.current++; setScanning(true);
     scanQueue.current = scanQueue.current.then(async () => {
       try {
@@ -168,6 +169,7 @@ export function Checkout() {
         <div className="flex gap-2">
           <Input ref={searchRef as any} autoFocus value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onEnter())}
             placeholder="Scan a barcode, or type a product name or SKU   (F2)" aria-label="Search or scan product" className="!py-3 !text-base" />
+          <CameraScanButton continuous label="Camera" onCode={(code) => scanCode(code)} />
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           <Chip active={!categoryId} onClick={() => setCategoryId(undefined)}>All</Chip>
