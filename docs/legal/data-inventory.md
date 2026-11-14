@@ -1542,6 +1542,9 @@ The public request form stores business contact details after explicit contact c
 | `cloud.demo_requests.phone` | Optional business contact method |
 | `cloud.demo_requests.message` | Optional description of requested help |
 | `cloud.demo_requests.status` | Track manual follow-up; never creates a client/subscription |
+| `cloud.demo_requests.reference` | Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: reference number given to the prospect. A reference links to the prospect's name and contact details in the same record; treat it as personal data in that context. |
+| `cloud.demo_requests.source` | Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: where the request came from (website or app form). Operational metadata linked to an identifiable prospect record; keep with the lead and delete with it. |
+| `cloud.demo_requests.business_type` | Record and respond to an explicit request for a Mansora demonstration; status is business contact/request metadata, not a client account or financial record.Field: kind of business, given by the prospect for discovery. Business information volunteered by the prospect and linked to their contact details; used only to prepare the demo. |
 | `cloud.demo_requests.consent_at` | Record when the contact request was submitted with consent |
 | `cloud.demo_requests.created_at` | Order incoming requests |
 | `cloud.demo_requests.updated_at` | Track manual status changes |

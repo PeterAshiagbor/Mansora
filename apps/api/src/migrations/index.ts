@@ -774,4 +774,17 @@ ALTER TABLE client_subscriptions
 -- database must stay empty so a backup can be restored into it.
 `,
   },
+  {
+    id: 12,
+    name: 'lead_intake',
+    sql: `
+-- Software demo requests from the corporate website (acquisition spec PR-01): a reference the prospect can quote,
+-- where the request came from, and the kind of business (discovery only).
+ALTER TABLE demo_requests
+  ADD COLUMN reference text UNIQUE,
+  ADD COLUMN source text NOT NULL DEFAULT 'app_form' CHECK (source IN ('website','app_form','admin')),
+  ADD COLUMN business_type text CHECK (business_type IS NULL OR business_type IN ('retail','mini_mart','general_merchandise','wholesale','other'));
+CREATE INDEX demo_requests_status_created ON demo_requests(status, created_at DESC);
+`,
+  },
 ];

@@ -47,3 +47,46 @@ describe('public intake abuse limits', () => {
     expect(denied).toBe(true);
   });
 });
+
+describe('software demo requests from the corporate website (acquisition spec PR-01)', () => {
+  let site: Cloud;
+  const SECRET = 'a'.repeat(64);
+  beforeAll(async () => { process.env.DEMO_INTAKE_SECRET = SECRET; try { site = await startCloud(); } finally { delete process.env.DEMO_INTAKE_SECRET; } }); afterAll(async () => { await site?.close(); });
+  const post = (payload: object, headers: Record<string, string> = {}) => site.app.inject({ method: 'POST', url: '/v1/public/demo-requests', headers: { 'content-type': 'application/json', ...headers }, payload: JSON.stringify(payload) });
+  const signed = async (payload: object, clientIp: string, o: { secret?: string; skew?: number } = {}) => {
+    const { signWebsiteRequest } = await import('../../apps/api/src/modules/leads');
+    const raw = JSON.stringify(payload), ts = Math.floor(Date.now() / 1000) + (o.skew ?? 0);
+    return site.app.inject({ method: 'POST', url: '/v1/public/demo-requests', headers: { 'content-type': 'application/json', 'x-mansora-source': 'website', 'x-mansora-timestamp': String(ts), 'x-mansora-client-ip': clientIp, 'x-mansora-signature': signWebsiteRequest(o.secret ?? SECRET, ts, clientIp, raw) }, payload: raw });
+  };
+
+  it('records a signed website request as source website, with a reference and business type; a retry is the same lead', async () => {
+    const value = { ...request('shop@example.test'), businessType: 'mini_mart' };
+    const first = await signed(value, '203.0.113.7');
+    expect(first.statusCode).toBe(202);
+    const body = first.json();
+    expect(body).toMatchObject({ ok: true, duplicate: false }); expect(body.reference).toMatch(/^MSD-\d{6}-[A-Z2-9]{4}$/);
+    const again = await signed(value, '203.0.113.7');
+    expect(again.json()).toMatchObject({ duplicate: true, reference: body.reference });
+    const [row] = await site.db.platform(q => q('SELECT source, business_type, reference FROM demo_requests WHERE id = $1', [value.id]));
+    expect(row).toEqual({ source: 'website', business_type: 'mini_mart', reference: body.reference });
+  });
+
+  it('refuses a forged, stale or tampered website signature, and records unsigned requests as the app form', async () => {
+    expect((await signed(request('forged@example.test'), '203.0.113.8', { secret: 'b'.repeat(64) })).statusCode).toBe(403);
+    expect((await signed(request('stale@example.test'), '203.0.113.8', { skew: -600 })).statusCode).toBe(403);
+    const { signWebsiteRequest } = await import('../../apps/api/src/modules/leads');
+    const ts = Math.floor(Date.now() / 1000), value = request('tamper@example.test');
+    const tampered = await post({ ...value, business: 'Changed after signing' }, { 'x-mansora-timestamp': String(ts), 'x-mansora-client-ip': '203.0.113.9', 'x-mansora-signature': signWebsiteRequest(SECRET, ts, '203.0.113.9', JSON.stringify(value)) });
+    expect(tampered.statusCode).toBe(403);
+    const plain = request('plain@example.test');
+    expect((await post(plain)).statusCode).toBe(202);
+    expect((await site.db.platform(q => q('SELECT source FROM demo_requests WHERE id = $1', [plain.id])))[0].source).toBe('app_form');
+  });
+
+  it('limits by the visitor address the website vouches for, so one busy visitor cannot block everyone else', async () => {
+    let denied = false;
+    for (let n = 0; n < 31; n++) { const r = await signed(request(`v${n}@example.test`), '198.51.100.1'); if (r.statusCode === 429) { denied = true; break; } }
+    expect(denied).toBe(true);
+    expect((await signed(request('other-visitor@example.test'), '198.51.100.2')).statusCode).toBe(202);
+  });
+});
