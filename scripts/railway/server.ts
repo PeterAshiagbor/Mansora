@@ -13,6 +13,7 @@ import { stagingConfig } from '../staging/config';
 import { startConfiguredStaging } from '../staging/server';
 import { ROLE_LOGINS_OPERATION, sendRoleLogins } from '../staging/role-logins';
 import { renameTestShops } from '../staging/shop-names';
+import { PASSWORD_RESET_OPERATION, resetTestLogins } from '../staging/password-reset';
 import { inviteTesters } from '../staging/invitations';
 import { apiRuntimeOptions } from '../../apps/api/src/runtime';
 import { seedTestWorkspaces } from '../staging/sample-data';
@@ -39,7 +40,9 @@ export async function runRailwayServer() {
     if (!existsSync(operatorFile)) writeFileSync(operatorFile, JSON.stringify({ email: config.adminEmail, password: adminPassword }) + '\n', { flag: 'wx', mode: 0o600 });
     // Tester invitations and the one-time role-logins operation may email only the configured tester addresses.
     if (process.env.STAGING_TESTER_INVITATION_ID || (config.mode === 'team-test' && (process.env.STAGING_ROLE_LOGINS_ID ?? ROLE_LOGINS_OPERATION) !== 'off')) {
-      process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').filter(Boolean), ...config.emails])].join(',');
+      // The administrator named for the team test (STAGING_ADMIN_EMAIL) may receive their sign-in details too.
+      const adminTo = process.env.STAGING_ADMIN_EMAIL?.trim().toLowerCase();
+      process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').filter(Boolean), ...config.emails, ...(adminTo ? [adminTo] : [])])].join(',');
     }
     const { billing } = createBillingFromEnv(db);
     const [operator] = await db.platform(q => q<{ id: string }>('SELECT id FROM admins WHERE email = $1', [config.adminEmail]));
@@ -70,6 +73,12 @@ export async function runRailwayServer() {
           .catch(() => ({ sent: 0, skipped: 0, waiting: 0, disabled: false, failureReasons: ['ROLE_LOGINS_FAILED'] }));
         if (!roles.disabled) console.log(`Role logins: ${roles.sent} emails sent, ${roles.skipped} already sent, ${roles.waiting} waiting.`);
         if (roles.failureReasons.length) console.warn('Role logins status: ' + roles.failureReasons.join(', '));
+        // Owner request 2026-11-14: reset every test login once and email the new details (test accounts only).
+        const reset = await resetTestLogins({ id: process.env.STAGING_PASSWORD_RESET_ID ?? PASSWORD_RESET_OPERATION, dataDir: join(config.dataDir, 'staging'), origin: config.origin, workspaces, email: billing.email,
+          adminEmail: process.env.STAGING_ADMIN_EMAIL, platform: db.platform.bind(db) as any })
+          .catch(() => ({ shopsSent: 0, shopsSkipped: 0, waiting: 0, adminSent: false, disabled: false, failureReasons: ['PASSWORD_RESET_FAILED'] }));
+        if (!reset.disabled) console.log(`Password reset: ${reset.shopsSent} shop emails sent, ${reset.shopsSkipped} already sent, ${reset.waiting} waiting, administrator ${reset.adminSent ? 'sent' : 'not sent'}.`);
+        if (reset.failureReasons.length) console.warn('Password reset status: ' + reset.failureReasons.join(', '));
       }
       if (config.mode === 'team-test' && process.env.STAGING_SAMPLE_DATA_VERSION) {
         let prepared = 0, preserved = 0, pending = 0;
