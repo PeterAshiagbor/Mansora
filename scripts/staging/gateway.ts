@@ -91,6 +91,9 @@ export async function startStagingGateway(opts: GatewayOptions) {
       let path: string; try { path = decodeURIComponent(url.pathname); } catch { throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.'); }
       if (path.includes('\\') || path.includes('\0')) throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.');
       if (path.startsWith('/api/')) {
+        // The public pay page's form sends the payer on to Paystack's hosted checkout. Browsers apply form-action to that
+        // redirect, so payment pages, and only those, also allow Paystack's checkout address.
+        if (/^\/api\/pay\/[^/]+(\/start)?$/.test(path)) res.setHeader('content-security-policy', String(res.getHeader('content-security-policy')).replace("form-action 'self'", "form-action 'self' https://checkout.paystack.com"));
         const bytes = ['GET', 'HEAD'].includes(req.method ?? '') ? undefined : await body(req, limit);
         const headers = new Headers();
         for (const [k, v] of Object.entries(req.headers)) if (v && !['host', 'cookie', 'connection', 'content-length', 'transfer-encoding', 'proxy-authorization', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-real-ip'].includes(k)) headers.set(k, Array.isArray(v) ? v.join(', ') : v);
