@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Input, Modal, cx } from './index';
 import { MansoraBrand } from './brand';
 
@@ -63,9 +63,18 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
   const primary = primaryIds.flatMap((id) => pages.filter((item) => item.id === id));
   const secondary = groups.map((group) => ({ ...group, items: group.items.filter((item) => !primaryIds.includes(item.id)) })).filter((group) => group.items.length);
   const selectedGroup = secondary.find((group) => group.items.some((item) => item.id === current.id))?.group ?? null;
-  const [toolsOpen, setToolsOpen] = useState(!!selectedGroup), [openGroup, setOpenGroup] = useState<string | null>(selectedGroup);
-  useLayoutEffect(() => { setToolsOpen(!!selectedGroup); setOpenGroup(selectedGroup); }, [current.id, selectedGroup]);
-  useEffect(() => { navigation.current?.querySelector('[aria-current=page]')?.scrollIntoView({ block: 'nearest' }); }, [current.id, toolsOpen, openGroup]);
+  // Sections stay open until the person closes them: opening one never closes another, so nothing jumps under the pointer.
+  const [toolsOpen, setToolsOpen] = useState(!!selectedGroup), [openGroups, setOpenGroups] = useState<string[]>(selectedGroup ? [selectedGroup] : []);
+  // A daily-work page folds More tools away (it sits below, so nothing under the pointer moves); a tools page opens its section.
+  useLayoutEffect(() => { setToolsOpen(!!selectedGroup); if (selectedGroup) setOpenGroups((g) => (g.includes(selectedGroup) ? g : [...g, selectedGroup])); }, [current.id, selectedGroup]);
+  // Keep the current page visible in the menu when the page changes, without moving anything when a section is
+  // opened or closed, and without scrolling the page itself (scrollIntoView would move every scrollable ancestor).
+  useEffect(() => {
+    const nav = navigation.current, item = nav?.querySelector<HTMLElement>('[aria-current=page]');
+    if (!nav || !item) return;
+    const n = nav.getBoundingClientRect(), r = item.getBoundingClientRect();
+    if (r.top < n.top) nav.scrollTop -= n.top - r.top; else if (r.bottom > n.bottom) nav.scrollTop += r.bottom - n.bottom;
+  }, [current.id]);
   const pageButton = (item: WorkspaceItem) => <button key={item.id} type="button" aria-current={current.id === item.id ? 'page' : undefined} onClick={() => navigatePage(item.id)} className={cx('m-nav-item', current.id === item.id && 'm-nav-active')}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>;
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && !document.querySelector('[role=dialog]')) { e.preventDefault(); setQuery(''); setFinding(true); } };
@@ -77,7 +86,7 @@ export function WorkspaceShell({ groups, primaryIds, current, onNavigate, worksp
       <div className="m-company"><span>{workspaceLabel}</span><strong title={workspace}>{workspace}</strong></div>
       <div className="m-nav-groups" ref={navigation}>
         <div className="m-nav-group"><p>Daily work</p>{primary.map(pageButton)}</div>
-        {secondary.length > 0 && <details className="m-nav-tools" open={toolsOpen}><summary aria-label="More tools" onClick={(event) => { event.preventDefault(); setToolsOpen(!toolsOpen); }}><Icon name="settings" /><span>More tools</span><Icon name="chevron" /></summary><p className="m-nav-hint">Choose a section or find a page.</p>{secondary.map((group) => <details key={group.group} data-nav-group={group.group} className="m-nav-section" open={openGroup === group.group}><summary aria-label={`${group.group} tools`} onClick={(event) => { event.preventDefault(); setOpenGroup(openGroup === group.group ? null : group.group); }}><span>{group.group}</span><Icon name="chevron" /></summary><div>{group.items.map(pageButton)}</div></details>)}</details>}
+        {secondary.length > 0 && <details className="m-nav-tools" open={toolsOpen}><summary aria-label="More tools" onClick={(event) => { event.preventDefault(); setToolsOpen(!toolsOpen); }}><Icon name="settings" /><span>More tools</span><Icon name="chevron" /></summary><p className="m-nav-hint">Choose a section or find a page.</p>{secondary.map((group) => <details key={group.group} data-nav-group={group.group} className="m-nav-section" open={openGroups.includes(group.group)}><summary aria-label={`${group.group} tools`} onClick={(event) => { event.preventDefault(); setOpenGroups((g) => (g.includes(group.group) ? g.filter((x) => x !== group.group) : [...g, group.group])); }}><span>{group.group}</span><Icon name="chevron" /></summary><div>{group.items.map(pageButton)}</div></details>)}</details>}
       </div>
       <div className="m-sidebar-footer">{footerActions}<button className="m-nav-item" type="button" onClick={onSignOut}><Icon name="logout" /><span>{signOutLabel}</span></button><div className="m-provider-note">Provided by Mansora<span>Sales &amp; Stock platform</span></div></div>
     </nav>);
@@ -101,4 +110,17 @@ export function WorkflowSteps({ steps, current }: { steps: string[]; current: nu
 
 export function AuthLayout({ children, platform = false }: { children: ReactNode; platform?: boolean }) {
   return <div className="m-auth-layout"><aside className="m-auth-story" aria-label="About Mansora"><h2>{platform ? 'Your clients.\nClearly managed.' : 'Your business.\nUnder control.'}</h2><p>{platform ? 'Onboard clients, review service health and manage subscription collections from one place.' : 'A clearer way to sell, manage stock and understand your numbers.'}</p><p>{platform ? 'Client financial data stays protected by scoped consent and recorded access.' : 'From the carton you buy to the individual items you sell, keep a clear trail of your daily work.'}</p><small>Mansora Consulting &amp; Business Solutions</small></aside><div className="m-auth-panel">{children}</div></div>;
+}
+
+/**
+ * The page a person is on, kept for this browser tab, so a refresh returns to the same page instead of the
+ * dashboard. Stored per tab (sessionStorage), not in the address bar, which sign-in and invitation links use.
+ */
+export function usePersistentPage<T extends { id: string; param?: string }>(key: string, fallback: T): [T, (next: T) => void] {
+  const [page, setPage] = useState<T>(() => {
+    try { const saved = JSON.parse(sessionStorage.getItem(key) ?? 'null'); if (saved && typeof saved.id === 'string') return saved as T; } catch { /* storage unavailable */ }
+    return fallback;
+  });
+  const set = useCallback((next: T) => { setPage(next); try { sessionStorage.setItem(key, JSON.stringify(next)); } catch { /* storage unavailable */ } }, [key]);
+  return [page, set];
 }

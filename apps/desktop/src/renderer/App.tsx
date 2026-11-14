@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
-import { Alert, Button, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard, ReportProblemButton, ReportProblemNavItem } from '@mansora/ui';
+import { Alert, Button, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard, ReportProblemButton, ReportProblemNavItem, usePersistentPage } from '@mansora/ui';
 import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
 import { ContactMansora } from './components/ContactMansora';
 import { Checkout } from './pages/Checkout';
@@ -77,7 +77,8 @@ function ClientApplication() {
   const navigate = useNavigationGuard();
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState<{ id: string; param?: string }>({ id: 'dashboard' });
+  // Remembered per browser tab and shop, so a refresh stays on the same page.
+  const [page, setPage] = usePersistentPage<{ id: string; param?: string }>(`mansora:page:${location.pathname}`, { id: 'dashboard' });
   const refresh = useCallback(async () => {
     try {
       setError(null);
