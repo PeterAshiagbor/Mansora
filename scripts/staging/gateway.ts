@@ -86,12 +86,15 @@ export async function startStagingGateway(opts: GatewayOptions) {
       if (counted && activeRequests >= (opts.maxConcurrentRequests ?? 16)) { res.setHeader('retry-after', '2'); throw new HttpError(503, 'SERVER_BUSY', 'The test server is busy. Please retry shortly.'); }
       if (counted) { activeRequests++; admitted = true; }
       if (!req.url?.startsWith('/') || req.url.startsWith('//')) throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.');
-      const url = new URL(req.url, origin), path = decodeURIComponent(url.pathname);
+      const url = new URL(req.url, origin);
+      let path: string; try { path = decodeURIComponent(url.pathname); } catch { throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.'); }
       if (path.includes('\\') || path.includes('\0')) throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.');
       if (path.startsWith('/api/')) {
         const bytes = ['GET', 'HEAD'].includes(req.method ?? '') ? undefined : await body(req, limit);
         const headers = new Headers();
-        for (const [k, v] of Object.entries(req.headers)) if (v && !['host', 'cookie', 'connection', 'content-length', 'transfer-encoding', 'proxy-authorization', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto'].includes(k)) headers.set(k, Array.isArray(v) ? v.join(', ') : v);
+        for (const [k, v] of Object.entries(req.headers)) if (v && !['host', 'cookie', 'connection', 'content-length', 'transfer-encoding', 'proxy-authorization', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-real-ip'].includes(k)) headers.set(k, Array.isArray(v) ? v.join(', ') : v);
+        // The API trusts only this loopback hop, so its per-address limits see the real client, not 127.0.0.1.
+        headers.set('x-forwarded-for', client.address);
         // API sandbox forms carry no fields; avoid an unsupported empty form parser.
         if (bytes?.length === 0 && headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) headers.delete('content-type');
         const target = new URL(upstream); target.pathname = url.pathname.slice(4); target.search = url.search;
@@ -116,7 +119,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
         if (req.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST for workspace setup.');
         if (req.headers.origin !== origin.origin) throw new HttpError(403, 'ORIGIN_DENIED', 'Open the setup link directly.');
         if (!(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) throw new HttpError(415, 'JSON_REQUIRED', 'Send application/json.');
-        budget('setup-ip:' + req.socket.remoteAddress, 30, 60_000);
+        budget('setup-ip:' + client.address, 30, 60_000);
         let input: any; try { input = JSON.parse((await body(req, 4096)).toString('utf8')); } catch (error) { if (error instanceof HttpError) throw error; throw new HttpError(400, 'BAD_JSON', 'The setup request could not be read.'); }
         if (typeof input?.token !== 'string' || !/^[a-zA-Z0-9_-]{43}$/.test(input.token)) throw new HttpError(410, 'SETUP_LINK_UNAVAILABLE', 'This setup link is unavailable or expired. Ask Mansora for a new link.');
         if (path.endsWith('/complete')) budget('setup-proof:' + input.token, 5, 15 * 60_000);
@@ -144,10 +147,10 @@ export async function startStagingGateway(opts: GatewayOptions) {
           budget(`recovery-ip:${workspace.id}:${client.address}`, 12, 15 * 60_000);
           let input: any; try { input = JSON.parse((await body(req, 4096)).toString('utf8')); } catch (error) { if (error instanceof HttpError) throw error; throw new HttpError(400, 'BAD_JSON', 'The recovery request could not be read.'); }
           if (tail === 'recover/request') {
-            budget(`recovery-request:${workspace.id}`, 6, 15 * 60_000);
+            budget(`recovery-request:${workspace.id}:${client.address}`, 6, 15 * 60_000); budget(`recovery-request:${workspace.id}`, 40, 15 * 60_000);
             return json(res, 202, { ok: true, data: await opts.ownerRecovery.request(workspace.id, input?.email) });
           }
-          budget(`recovery-complete:${workspace.id}`, 6, 15 * 60_000);
+          budget(`recovery-complete:${workspace.id}:${client.address}`, 6, 15 * 60_000); budget(`recovery-complete:${workspace.id}`, 40, 15 * 60_000);
           return json(res, 200, { ok: true, data: await opts.ownerRecovery.complete(workspace.id, input?.token, input?.password) });
         }
         if (tail === 'invoke') {

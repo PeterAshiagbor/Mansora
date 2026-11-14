@@ -45,7 +45,7 @@ export async function runRailwayServer() {
     const [operator] = await db.platform(q => q<{ id: string }>('SELECT id FROM admins WHERE email = $1', [config.adminEmail]));
     recovery = createOwnerRecovery({ config: stagingConfig(), email: billing.email, issueCode: browserOwnerRecoveryIssuer(db, operator.id), onFailure: () => console.warn('Owner recovery email needs review; no private message content is logged.') });
     const onboarding = createWorkspaceOnboarding(stagingConfig());
-    app = await buildApp({ ...apiRuntimeOptions(process.env, join(config.dataDir, 'cloud-backups')), db, billing, browserWorkspaces: onboarding, adminOrigins: [config.origin], adminUrl: `${config.origin}/admin/` });
+    app = await buildApp({ ...apiRuntimeOptions(process.env, join(config.dataDir, 'cloud-backups')), trustProxy: ['127.0.0.1', '::1'], db, billing, browserWorkspaces: onboarding, adminOrigins: [config.origin], adminUrl: `${config.origin}/admin/` });
     await app.listen({ host: '127.0.0.1', port: 4000 });
     if (config.mode === 'team-test') await provisionStaging(stagingConfig(), { email: config.adminEmail, password: adminPassword }, config.emails, config.passwords);
     else {

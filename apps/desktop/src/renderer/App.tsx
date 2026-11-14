@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
 import { Alert, Button, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard } from '@mansora/ui';
 import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
@@ -87,6 +87,14 @@ function ClientApplication() {
     }
   }, []);
   useEffect(() => void refresh(), [refresh]);
+  // After a lock, the same person returns to the page they were on; a different person starts at the dashboard.
+  const lastUser = useRef<string | null>(null);
+  const userId = state?.user?.id ?? null;
+  useEffect(() => {
+    if (!userId) return;
+    if (lastUser.current && lastUser.current !== userId) setPage({ id: 'dashboard' });
+    lastUser.current = userId;
+  }, [userId]);
   useEffect(() => {
     const onOut = () => void refresh();
     window.addEventListener('mansora:signed-out', onOut);
@@ -107,7 +115,7 @@ function ClientApplication() {
   return (
     <AppCtx.Provider value={ctx}>
       <ToastProvider>
-        {!ctx.state.business.activated ? <Activation /> : !ctx.state.user ? <Login onDone={() => setPage({ id: ctx.state.user ? page.id : 'dashboard' })} /> : <Shell page={page} />}
+        {!ctx.state.business.activated ? <Activation /> : !ctx.state.user ? <Login onDone={() => {}} /> : <Shell page={page} />}
       </ToastProvider>
     </AppCtx.Provider>
   );
@@ -332,14 +340,19 @@ function StatusBar() {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const bump = () => setTick((x) => x + 1);
-    const t = setInterval(bump, 5000);
+    // Every open tab polls the shared workspace, so poll gently and not at all while the tab is hidden.
+    const t = setInterval(() => { if (!document.hidden) bump(); }, 15_000);
     window.addEventListener('mansora:changed', bump);
     return () => (clearInterval(t), window.removeEventListener('mansora:changed', bump));
   }, []);
   const syncQuery = useQuery<any>('sync.status', {}, [tick]);
   const shiftQuery = useQuery<any>('shift.current', {}, [tick]);
-  const sync = syncQuery.data;
-  const shift = shiftQuery.data;
+  // Keep showing the last answer while a refresh is in flight, so the bar does not flicker.
+  const last = useRef<{ sync?: any; shift?: any }>({});
+  if (syncQuery.data !== undefined) last.current.sync = syncQuery.data;
+  if (!shiftQuery.loading && !shiftQuery.error) last.current.shift = shiftQuery.data;
+  const sync = syncQuery.data ?? (syncQuery.error ? undefined : last.current.sync);
+  const shift = shiftQuery.loading ? last.current.shift : shiftQuery.data;
   const now = new Date();
   const tone = !sync ? 'bg-slate-400' : sync.state === 'online' && sync.pending === 0 ? 'bg-emerald-500' : sync.state === 'offline' ? 'bg-amber-500' : 'bg-sky-500';
   const label = !sync ? syncQuery.error ? 'Sync status unavailable' : 'Checking sync…' : sync.state === 'syncing' ? 'Syncing' : sync.state === 'offline' ? 'Offline' : sync.state === 'online' ? 'Online' : 'Not synced yet';

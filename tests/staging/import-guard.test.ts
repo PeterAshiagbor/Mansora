@@ -23,6 +23,9 @@ describe('shared browser spreadsheet resource boundary', () => {
     try { guardSpreadsheet(input(zipEntry(Buffer.alloc(8192, 65), 1)), 1024); throw new Error('Expected rejection'); }
     catch (error) { expect(error).toBeInstanceOf(SpreadsheetGuardError); expect((error as SpreadsheetGuardError).status).toBe(413); }
   });
+  it('checks a workbook whose name has spaces around it, because the engine trims the name', () => {
+    expect(() => guardSpreadsheet({ ...input(zipEntry(Buffer.alloc(8192, 65), 1)), fileName: 'products.xlsx  ' }, 1024)).toThrow('expands beyond');
+  });
   it('rejects claimed oversized files before opening them and detects false lengths', () => {
     expect(() => guardSpreadsheet(input(zipEntry(Buffer.from('ok'), 2048)), 1024)).toThrow('expands beyond');
     expect(() => guardSpreadsheet(input(zipEntry(Buffer.from('different length'), 1)))).toThrow('safely opened');
