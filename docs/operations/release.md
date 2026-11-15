@@ -1,5 +1,8 @@
 # Release and update procedure
 
+> Browser version (Railway): every release goes main → staging → **Promote to production**. See
+> [environments.md](environments.md).
+
 1. All work merges through pull requests; CI must be green (typecheck, build, tests, Windows package and launch).
 2. Bump `version` in `apps/desktop/package.json` and `apps/api/package.json`. The laptop reports its version on every sync, visible per client in the dashboard.
 3. Database changes: add a new migration (laptop and/or cloud). Never edit a released one. Cloud migrations run before the new API starts; laptop migrations run automatically on first start of the new version.

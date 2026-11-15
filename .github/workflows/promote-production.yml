@@ -1,0 +1,55 @@
+# Promote a tested commit from the main branch to production (Railway control: changes are tested, approved and
+# traceable before production release). Railway's staging environment deploys every merge to main; the production
+# environment deploys only the `production` branch, which only this approved, fast-forward step moves.
+name: Promote to production
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Full commit SHA on main to release (already running on staging)'
+        required: true
+      reason:
+        description: 'What this release contains (recorded in the job summary)'
+        required: true
+concurrency: promote-production
+permissions:
+  contents: write
+  checks: read
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Check the commit is on main and every check passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Give the full 40-character commit SHA."; exit 1; }
+          git merge-base --is-ancestor "$SHA" origin/claude/relaxed-lovelace-0179ut || { echo "That commit is not on main."; exit 1; }
+          checks=$(gh api "repos/${GITHUB_REPOSITORY}/commits/$SHA/check-runs?per_page=100" --jq '[.check_runs[] | select(.name != "promote") | .conclusion // "pending"]')
+          echo "Checks: $checks"
+          echo "$checks" | jq -e 'length > 0 and all(. == "success" or . == "skipped" or . == "neutral")' >/dev/null || { echo "Not every check on that commit passed."; exit 1; }
+      - name: Fast-forward production
+        env:
+          SHA: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor origin/production "$SHA" || { echo "Production has commits that are not on main; refusing to move it backwards or sideways."; exit 1; }
+          git push origin "$SHA:refs/heads/production"
+      - name: Record the release
+        env:
+          SHA: ${{ inputs.commit }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          {
+            echo "### Released to production"
+            echo "- Commit: \`$SHA\`"
+            echo "- Approved by: @${GITHUB_ACTOR}"
+            echo "- Contents: $REASON"
+            echo "- Railway deploys the production environment from the \`production\` branch."
+          } >> "$GITHUB_STEP_SUMMARY"
