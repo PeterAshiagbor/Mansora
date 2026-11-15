@@ -16,6 +16,7 @@ it('syncs VAT evidence and snapshots idempotently, isolates tenants and restores
     await shop.run(shop.owner, 'product.save', { id: shop.products.milk, name: 'Milk', sellingPrice: 1200, taxClass: 'standard' });
     await shop.run(shop.cashier, 'sale.complete', { id: uuid(), lines: [{ productId: shop.products.milk, quantity: 1 }], tenders: [{ method: 'cash', amount: 1200 }] });
     await shop.run(shop.owner, 'tax.record', { id: uuid(), kind: 'input', date: '2026-11-01', invoiceDate: '2026-11-01', reference: 'VAT-INV', supplierTin: 'SUP', base: 10000, vat: 1500, nhil: 250, getfund: 250, reason: 'Eligible stock invoice', evidenceConfirmed: true });
+    await shop.run(shop.owner,'tax.configure',{...defaultTaxConfig(),registered:true,registrationDate:'2026-01-01',tin:'LATEST-TIN',vatNumber:'LATEST-VAT',reason:'Second configuration at the same timestamp'});
     expect(await syncNow(shop.engine)).toMatchObject({ ok: true, pending: 0, rejected: 0 });
     expect(await syncNow(shop.engine)).toMatchObject({ ok: true, pushed: 0 });
     expect(await cloud.db.tenant(other.id, q => q('SELECT * FROM tax_records'))).toEqual([]);
@@ -25,6 +26,7 @@ it('syncs VAT evidence and snapshots idempotently, isolates tenants and restores
       for (const [table, spec] of Object.entries(SYNC_TABLES)) result[table] = await q(`SELECT ${Object.keys(spec.cols).join(', ')} FROM ${table}`);
       return result;
     });
+    (snapshot.tax_configs as any[]).reverse();
     importSnapshot(new Ctx(restored, 'restore', null), snapshot);
     const actor = restored.loadUser((shop.engine.db.prepare("SELECT id FROM users WHERE role = 'owner'").get() as any).id)!;
     const ctx = new Ctx(restored, 'tax.report', actor);

@@ -38,7 +38,9 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
     await dialog.getByRole('button', { name: 'Save dated settings' }).click();
     await dialog.waitFor({ state: 'hidden' });
     await navigate(page, 'New sale');
-    await page.getByRole('button').filter({ hasText: 'Standard VAT item' }).click();
+    const product = page.getByRole('button').filter({ hasText: 'Standard VAT item' });
+    expect(await product.textContent()).toContain('120.00');
+    await product.click();
     await page.getByTestId('basket-total').filter({ hasText: '120.00' }).waitFor();
     await page.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
     const pay = page.getByRole('dialog');
@@ -64,6 +66,34 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
     await page.getByRole('button', { name: 'VAT guide', exact: true }).last().click();
     await page.getByRole('heading', { name: 'Streamlined GRA submission and E-VAT certification', exact: true }).waitFor();
     await page.getByRole('heading', { name: 'Service amendment: action required', exact: true }).waitFor();
+    expect(consoleErrors).toEqual([]);
+  });
+
+  it('requires fiscal reconciliation and captures an actual submission date before recording a filing, then opens an evidenced amendment', async () => {
+    const token=(await host.engine.execute(null,'auth.login',OWNER)).token;
+    await host.engine.execute(token,'tax.configure',{effectiveDate:'2026-01-01',registered:true,registrationDate:'2026-01-01',tin:'BROWSER-TIN',reason:'Synthetic historical registration evidence'});
+    await navigate(page,'Ghana VAT');
+    await page.getByLabel('VAT month',{exact:true}).fill('2026-10');
+    await page.getByRole('button',{name:'Record GRA filing',exact:true}).click();
+    const filing=page.getByRole('dialog',{name:'Record GRA filing · 2026-10',exact:true});
+    await filing.getByLabel('GRA acknowledgement reference',{exact:true}).fill('SYNTHETIC-ACK');
+    await filing.getByLabel('Reconciliation / filing note',{exact:true}).fill('Synthetic browser test: no GRA submission');
+    await filing.getByLabel('I reconciled the export, reviewed the warnings and filed these figures with GRA.',{exact:true}).check();
+    expect(await filing.getByRole('button',{name:'Record filed return',exact:true}).isEnabled()).toBe(false);
+    await filing.getByLabel('I reconciled the figures and tax documents to the GRA-approved fiscal records or authorised filing process.',{exact:true}).check();
+    await filing.getByRole('button',{name:'Record filed return',exact:true}).click();
+    await filing.waitFor({state:'hidden'});
+    await page.getByRole('button',{name:'GRA-authorised amendment',exact:true}).click();
+    const amendment=page.getByRole('dialog',{name:'GRA-authorised amendment · 2026-10',exact:true});
+    await amendment.getByLabel('GRA approval reference',{exact:true}).fill('SYNTHETIC-APPROVAL');
+    await amendment.getByLabel('Applicable legal/GRA authority',{exact:true}).fill('Synthetic fixture only');
+    await amendment.getByLabel('Grounds for amendment',{exact:true}).fill('Browser workflow verification');
+    await amendment.getByLabel('I hold GRA approval for this amendment.',{exact:true}).check();
+    await amendment.getByRole('button',{name:'Open amendment draft',exact:true}).click();
+    await amendment.waitFor({state:'hidden'});
+    const rows=host.engine.db.prepare("SELECT kind,payload FROM tax_records WHERE kind IN ('filing','period_reopened')").all() as any[];
+    expect(rows.map(r=>r.kind)).toEqual(['filing','period_reopened']);
+    expect(JSON.parse(rows[0].payload).submittedDate).toMatch(/^2026-11-/);
     expect(consoleErrors).toEqual([]);
   });
 

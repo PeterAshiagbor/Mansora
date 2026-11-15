@@ -56,7 +56,7 @@ export const peopleCommands = defineCommands({
   'customer.add': {
     perm: 'sale.create',
     mutates: true,
-    input: z.object({ name: zText(120), phone: zOptText(40), email: z.string().trim().email().max(160).or(z.literal('')).nullish().transform((v) => v || null), notes: zOptText(500) }),
+    input: z.object({ tin: zOptText(80), address: zOptText(300), name: zText(120), phone: zOptText(40), email: z.string().trim().email().max(160).or(z.literal('')).nullish().transform((v) => v || null), notes: zOptText(500) }),
     run: (ctx, input) => {
       const key = phoneKey(input.phone);
       if (key) {
@@ -65,7 +65,7 @@ export const peopleCommands = defineCommands({
       }
       const now = ctx.now();
       const id = ctx.id();
-      ctx.insert('customers', { id, name: input.name, phone: input.phone, email: input.email, notes: input.notes, active: 1, created_at: now, updated_at: now });
+      ctx.insert('customers', { id, tin: input.tin, address: input.address, name: input.name, phone: input.phone, email: input.email, notes: input.notes, active: 1, created_at: now, updated_at: now });
       ctx.audit('customer', id, { name: input.name, active: true, addedAtSale: true });
       return { id, name: input.name, phone: input.phone };
     },
@@ -73,11 +73,12 @@ export const peopleCommands = defineCommands({
   'customer.save': {
     perm: 'customer.manage',
     mutates: true,
-    input: z.object({ id: zId.optional(), name: zText(120), phone: zOptText(40), email: z.string().trim().email().max(160).or(z.literal('')).nullish().transform((v) => v || null), notes: zOptText(500), active: z.boolean().default(true) }),
+    input: z.object({ tin: z.string().trim().max(80).nullable().optional(), address: z.string().trim().max(300).nullable().optional(), id: zId.optional(), name: zText(120), phone: zOptText(40), email: z.string().trim().email().max(160).or(z.literal('')).nullish().transform((v) => v || null), notes: zOptText(500), active: z.boolean().default(true) }),
     run: (ctx, input) => {
       const now = ctx.now();
       const id = input.id ?? ctx.id();
-      const row = { name: input.name, phone: input.phone, email: input.email, notes: input.notes, active: input.active ? 1 : 0, updated_at: now };
+      const prior = input.id ? ctx.get('SELECT tin, address FROM customers WHERE id = ?',input.id) : null;
+      const row = { tin: input.tin === undefined ? prior?.tin ?? null : input.tin || null, address: input.address === undefined ? prior?.address ?? null : input.address || null, name: input.name, phone: input.phone, email: input.email, notes: input.notes, active: input.active ? 1 : 0, updated_at: now };
       if (input.id) ctx.update('customers', id, row);
       else ctx.insert('customers', { id, ...row, created_at: now });
       ctx.audit('customer', id, { name: input.name, active: input.active });

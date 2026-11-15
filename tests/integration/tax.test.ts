@@ -26,7 +26,7 @@ describe('VAT transactions and evidence', () => {
     const original = JSON.parse(details.items[0].tax_snapshot);
     const receipt = await shop.run(shop.cashier, 'sale.receipt', { id: result.id });
     expect(receipt.html).toContain('V123'); expect(receipt.html).toContain('NHIL'); expect(receipt.html).toContain('GETFund');
-    await shop.run(shop.owner, 'tax.configure', { ...defaultTaxConfig(), registered: true, registrationDate: '2026-01-01', tin: 'NEW-TIN', vatNumber: 'NEW-VAT', vatBps: 1000, reason: 'Rate change for future transactions' });
+    await shop.run(shop.owner, 'tax.configure', { ...defaultTaxConfig(), registered: true, registrationDate: '2026-01-01', tin: 'NEW-TIN', vatNumber: 'NEW-VAT', vatBps: 1000, ruleOverrideAuthority: 'SYNTHETIC TEST RULE ONLY', reason: 'Rate change for future transactions' });
     const reprint = await shop.run(shop.cashier, 'sale.receipt', { id: result.id });
     expect(reprint.html).toContain('V123'); expect(reprint.html).not.toContain('NEW-TIN');
     await shop.run(shop.owner, 'shift.open', { openingFloat: 0 });
@@ -61,7 +61,7 @@ describe('VAT transactions and evidence', () => {
   });
   it('records acknowledgements, locks filed periods and permits later payment against the month', async () => {
     await setup();
-    await shop.run(shop.owner, 'tax.file', { id: uuid(), month: '2026-10', reference: 'GRA-ACK', reason: 'Reconciled and submitted through GRA', reviewed: true });
+    await shop.run(shop.owner, 'tax.file', { id: uuid(), month: '2026-10', reference: 'GRA-ACK', reason: 'Reconciled and submitted through GRA', reviewed: true, fiscalEvidenceConfirmed: true, submittedDate: '2026-11-15' });
     await expectCode(shop.run(shop.owner, 'tax.record', { id: uuid(), kind: 'adjustment', date: '2026-10-01', reference: 'ADJ', reason: 'Correction', vat: 10, evidenceConfirmed: true }), 'TAX_PERIOD_CLOSED');
     await expectCode(shop.run(shop.owner, 'tax.record', { id: uuid(), kind: 'adjustment', date: '2026-09-01', reference: 'EARLIER', reason: 'Would change filed carry-forward', vat: -10, evidenceConfirmed: true }), 'TAX_PERIOD_CLOSED');
     await shop.run(shop.owner, 'tax.record', { id: uuid(), kind: 'payment', date: '2026-10-01', reference: 'GRA-PAY', reason: 'October tax paid in November', amount: 100, evidenceConfirmed: true });
