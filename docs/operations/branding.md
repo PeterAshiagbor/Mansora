@@ -2,7 +2,7 @@
 
 The owner supplied https://mansora-consulting.com and confirmed this is a SaaS
 platform from Mansora to client businesses. Both interfaces use the official
-MANSORA Consulting & Business Solutions identity. The client app labels its
+MANSORA Consulting & Business Solutions Limited identity. The client app labels its
 workspace with the client business name; the provider dashboard says Platform
 administration. Receipts continue to identify the client business as merchant.
 

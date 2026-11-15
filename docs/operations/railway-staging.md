@@ -1,5 +1,9 @@
 # Railway team-test deployment
 
+> Since 15 November 2026 the Railway project has two environments, `staging` and `production`. Merges to the main
+> branch deploy to staging; production deploys only the `production` branch through *Promote to production*. See
+> [environments.md](environments.md).
+
 This adapter runs the existing API and browser retail gateway in one web service, plus a dedicated Railway PostgreSQL service. A persistent `/data` volume holds encrypted retail stores, keys, backup files and private test credentials. It targets team testing, with sample business data and sandbox-only payments; it is not a production billing/provider acceptance claim.
 
 ## Railway project

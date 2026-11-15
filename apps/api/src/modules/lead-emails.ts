@@ -12,7 +12,7 @@ import { queueEmail } from '../billing/core';
  */
 export const TEAM_REMINDER_HOURS = 24, CUSTOMER_FOLLOW_UP_HOURS = 48;
 const TYPE_LABEL: Record<string, string> = { retail: 'Retail shop', mini_mart: 'Mini mart', general_merchandise: 'General merchandise', wholesale: 'Wholesale', other: 'Other' };
-const CONTACT = 'Mansora Consulting and Business Solutions · priscilla@mansora-consulting.com · 024 420 5134';
+const CONTACT = 'Mansora Consulting and Business Solutions Limited · priscilla@mansora-consulting.com · 024 420 5134';
 
 export interface NewLead { id: string; reference: string; name: string; business: string; email: string; phone: string; message: string; businessType: string | null; source: string }
 

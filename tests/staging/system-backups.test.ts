@@ -113,3 +113,25 @@ describe('off-site system backups (owner request 2026-11-14: Google for now)', (
     expect(snap.tables.find((t) => t.name === 'tenants')!.rows.some((r) => r.includes('Backup Shop'))).toBe(true);
   });
 });
+
+describe('backup health alerts (Railway control: backup-failure alerts)', () => {
+  it('alerts after three failures in a row, at most every 12 hours, and says when backups recover', async () => {
+    const { backupHealth } = await import('../../scripts/recovery/runtime');
+    const sent: string[] = []; let t = Date.parse('2026-11-20T00:00:00Z');
+    const state = { lastVerifiedAt: '2026-11-20T00:00:00.000Z' as string | undefined, failures: 0 };
+    const h = backupHealth({ status: () => state, intervalMs: 6 * 3_600_000, now: () => t, startedAt: t, alert: async (s) => { sent.push(s); } });
+    state.failures = 2; expect(await h.check()).toBe(false); expect(sent).toEqual([]);
+    state.failures = 3; expect(await h.check()).toBe(true); expect(sent).toEqual(['Mansora backups need attention']);
+    t += 3_600_000; await h.check(); expect(sent).toHaveLength(1); // no repeat within 12 hours
+    t += 12 * 3_600_000; await h.check(); expect(sent).toHaveLength(2);
+    await h.recovered(); expect(sent.at(-1)).toBe('Mansora backups are working again');
+    await h.recovered(); expect(sent).toHaveLength(3); // only once
+  });
+  it('alerts when no copy has been verified for twice the interval, even without failures', async () => {
+    const { backupHealth } = await import('../../scripts/recovery/runtime');
+    const sent: string[] = []; let t = Date.parse('2026-11-20T00:00:00Z');
+    const h = backupHealth({ status: () => ({ lastVerifiedAt: undefined, failures: 0 }), intervalMs: 6 * 3_600_000, now: () => t, startedAt: t, alert: async (s) => { sent.push(s); } });
+    t += 11 * 3_600_000; expect(await h.check()).toBe(false);
+    t += 2 * 3_600_000; expect(await h.check()).toBe(true); expect(sent).toHaveLength(1);
+  });
+});

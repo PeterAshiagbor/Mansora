@@ -2,7 +2,7 @@
 
 Offline-first point of sale, inventory and business operations software for small
 businesses in Ghana. A SaaS platform provided to client businesses by **Mansora
-Consulting & Business Solutions**. Mansora administers the platform; each client
+Consulting & Business Solutions Limited**. Mansora administers the platform; each client
 retains its own business identity, staff and workspace.
 
 **Status: version 0.1 — foundation and core workflows built and tested in

@@ -5,7 +5,7 @@ import { ResendEmail } from '../../apps/api/src/email';
 const invoiceText = [
   'Hello Ama,', 'Your Mansora invoice is ready. You can pay it online by card or Mobile Money.',
   'Invoice: INV-2026-000003\nBusiness: Mansora TSB\nAmount due: GHS 100.00\nDue date: 2026-11-14',
-  'Pay securely here: https://app.example.test/api/pay/abc.def', 'Thank you,\nMansora Consulting and Business Solutions',
+  'Pay securely here: https://app.example.test/api/pay/abc.def', 'Thank you,\nMansora Consulting and Business Solutions Limited',
 ].join('\n\n');
 
 describe('Mansora-branded emails and payment pages', () => {

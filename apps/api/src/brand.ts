@@ -11,7 +11,7 @@ export const BRAND = {
   purple900: '#38145c', purple800: '#4a2370', purple700: '#5c2d85', purple600: '#733e9f', purple100: '#efe3f8', purple50: '#f8f3fc',
   gold: '#c48b17', goldInk: '#9a6a0b', goldSoft: '#fff4d6', cream: '#fffaf1', ink: '#221634', muted: '#5e5269', line: '#e6dcef',
   sans: "'DM Sans', 'Segoe UI', Arial, sans-serif", display: "Georgia, 'Iowan Old Style', 'Times New Roman', serif",
-  company: 'Mansora Consulting & Business Solutions', product: 'Sales & Stock platform',
+  company: 'Mansora Consulting & Business Solutions Limited', product: 'Sales & Stock platform',
 } as const;
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);

@@ -53,7 +53,7 @@ export async function runRailwayServer() {
       process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').filter(Boolean), ...config.emails, ...(adminTo ? [adminTo] : []), ...(bugTo ? [bugTo] : [])])].join(',');
     }
     // The team inbox for software demo requests (LEAD_ALERT_EMAIL) always receives its alerts, also in team-test mode.
-    const leadInboxes = (process.env.LEAD_ALERT_EMAIL ?? '').split(',').map(e => e.trim().toLowerCase()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    const leadInboxes = [process.env.LEAD_ALERT_EMAIL ?? '', process.env.PLATFORM_ALERT_EMAIL ?? ''].join(',').split(',').map(e => e.trim().toLowerCase()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
     if (leadInboxes.length) process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').map(e => e.trim()).filter(Boolean), ...leadInboxes])].join(',');
     const { billing } = createBillingFromEnv(db);
     const [operator] = await db.platform(q => q<{ id: string }>('SELECT id FROM admins WHERE email = $1', [config.adminEmail]));
@@ -107,7 +107,9 @@ export async function runRailwayServer() {
       }
     }, onboarding, recovery);
     // Off-site system backups (Google Cloud Storage for now), when switched on with MANSORA_SYSTEM_BACKUPS=1.
-    try { backups = startSystemBackups({ env: process.env, dataDir: config.dataDir, adminDatabaseUrl: config.databaseUrl, withSnapshotLock: gateway.withSnapshotLock }); }
+    const alertTo = process.env.PLATFORM_ALERT_EMAIL?.trim();
+    const alert = alertTo ? (subject: string, body: string) => billing.email.send({ to: alertTo, subject, body, idempotencyKey: `mansora-backup-health/${subject}/${new Date().toISOString().slice(0, 13)}` }) : undefined;
+    try { backups = startSystemBackups({ env: process.env, dataDir: config.dataDir, adminDatabaseUrl: config.databaseUrl, withSnapshotLock: gateway.withSnapshotLock, alert }); }
     catch (e: any) { console.error(`System backups are NOT running: ${e?.message ?? 'invalid settings'}`); }
     let billingRun: Promise<unknown> | undefined;
     timer = setInterval(() => { if (billingRun) return; billingRun = runDaily(billing).catch(() => console.error('Sandbox billing job failed; inspect application health.'))
