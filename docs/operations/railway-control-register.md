@@ -52,7 +52,7 @@ encrypted database and sync to Railway when online.
 | 10 | Monitoring and alerts? | Uptime monitor checks production health; after three failures it emails priscilla@mansora-consulting.com, then reminders and a recovery message. Delivery drill accepted by Resend 14 Nov 2026. Backup health: once backups are on, the alert inbox is emailed after three failed backups in a row or when no verified copy exists for twice the interval (at most every 12 hours), and again when backups recover. No resource or cost alerts yet. | ◐ |
 | 11 | Monthly and annual cost? | Not yet measured. Target in the Railway guide: $5–$15/month for team testing; Resend and Paystack per use (Paystack 1.95% local cards/MoMo); Google storage under $1/month at current size. | ❌ Owner action: read Railway usage and set a usage limit / alert |
 | 12 | Exit plan? | Code is in GitHub and builds a standard Docker image (`infrastructure/railway/Dockerfile`) that runs on any container host with PostgreSQL. Data leaves through the encrypted system snapshot, which `scripts/recovery/restore.ts` restores into any empty PostgreSQL and folder. Domain moves by DNS. | ◐ Prove once with the staging restore |
-| 13 | Documentation, architecture, procedures? | This register (diagram above), `environments.md`, `railway-staging.md`, `backup-and-recovery.md`, `system-backups.md`, `incident-response.md`, `uptime-monitor.md`, user guides. | ✅ |
+| 13 | Documentation, architecture, procedures? | `../architecture/system-design.md` (components, environments, data flows, trust boundaries, limits), this register, `runbook.md` (roles, severity, incident procedure, operating calendar, access review, joiners/leavers), `environments.md`, `incident-response.md`, `backup-and-recovery.md`, `system-backups.md`, `uptime-monitor.md`, user guides. | ✅ |
 | 14 | Who is accountable? | Business owner: Peter (Mansora Consulting). Technical owner, incident responder, security updates, vendor management: **to name**. | ❌ Owner action: name them in section 4 |
 
 ## 3. Section 7 minimum checklist
@@ -60,15 +60,15 @@ encrypted database and sync to Railway when online.
 | Control | Status | Evidence / next step |
 | --- | --- | --- |
 | Named business and technical owner | ◐ | Business: Peter. Technical: to name (section 4). |
-| Architecture and data flows documented | ✅ | Diagram above; `docs/legal/data-inventory.md` for every stored field. |
+| Architecture and data flows documented | ✅ | `../architecture/system-design.md`; diagram above; `docs/legal/data-inventory.md` for every stored field. |
 | Production, staging, development separated | ✅ | `environments.md` (15 Nov 2026). |
-| Access approved, role-based, reviewed | ◐ | Roles enforced in the app; provider access list and quarterly review not yet set. |
+| Access approved, role-based, reviewed | ◐ | Roles enforced in the app; quarterly access review and joiner/leaver steps defined in `runbook.md` sections 5–6; first review to run. |
 | MFA where available | ❌ | Enable on admin account and every provider account. |
 | Secrets stored securely, not in code | ◐ | All secrets in Railway/Vercel variables or the encrypted volume; none in code (checked in CI). **Some test passwords were pasted into chat on 14 Nov — rotate them.** |
 | Backups configured, monitored, restore-tested | ❌ | Built and tested in CI; switch on after the bucket; first restore drill into staging. |
 | Changes tested, approved, traceable | ◐ | 20 CI checks on every PR; staging; *Promote to production* records approver and contents. Branch protection and required reviewers still to switch on (repository admin). |
 | Logs, metrics, security events monitored | ◐ | Uptime alerts live; audit logs in the app and admin; Railway logs. No resource/cost alerts yet. |
-| Incident response, continuity, DR documented and tested | ◐ | `incident-response.md`, `backup-and-recovery.md`; DR not yet rehearsed on Railway. |
+| Incident response, continuity, DR documented and tested | ◐ | `runbook.md` (roles, severity, response times, procedure, templates, reviews), `incident-response.md`, `backup-and-recovery.md`; DR not yet rehearsed on Railway. |
 | Costs, usage, vendor terms reviewed | ❌ | Set a monthly review and a Railway usage limit. |
 | Data ownership, portability, retention, deletion documented | ◐ | Inventory and retention proposals in `docs/legal`; retention periods await legal/owner decision. |
 

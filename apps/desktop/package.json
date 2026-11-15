@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Mansora Sales & Stock - offline-first POS for Windows laptops",
-  "author": "Mansora Consulting and Business Solutions",
+  "author": "Mansora Consulting and Business Solutions Limited",
   "main": "dist/electron/main.cjs",
   "scripts": {
     "dev": "tsx dev/host.ts",

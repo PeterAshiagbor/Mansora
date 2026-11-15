@@ -177,7 +177,7 @@ export const DEFAULT_SETTINGS: BillingSettings = {
   reminders: { enabled: true, offsets: { upcoming: -3, due: 0, overdue_1: 3, overdue_2: 7, escalate: 14, review: 30 } },
   activationPolicy: 'first_payment',
   standing: DEFAULT_STANDING_POLICY,
-  issuer: { name: 'Mansora Consulting and Business Solutions', address: '', phone: '', email: '', tin: '', paymentInstructions: 'Pay using the secure link, or contact Mansora billing support.' },
+  issuer: { name: 'Mansora Consulting and Business Solutions Limited', address: '', phone: '', email: '', tin: '', paymentInstructions: 'Pay using the secure link, or contact Mansora billing support.' },
 };
 export async function loadSettings(q: Query): Promise<BillingSettings> {
   const [r] = await q(`SELECT value FROM billing_settings WHERE key = 'settings'`);

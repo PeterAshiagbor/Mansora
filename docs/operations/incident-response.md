@@ -14,4 +14,11 @@ Log every incident: time, client, who reported it, what happened, what was done.
 | Suspected breach of the cloud | Revoke admin sessions (delete `admin_sessions`), rotate database credentials | Review `admin_audit_logs`; assess notification duties under Act 843 with legal advice |
 | Wrong data seen across clients | Treat as critical. Take the API offline | Preserve logs; reproduce with the isolation tests |
 
-Escalation contacts, on-call rota and response times are **not yet defined**.
+| Website demo form fails ("not available") | Visitors are told to email or call; no lead is lost that was saved | Check Vercel `DEMO_INTAKE_SECRET` matches Railway's; Railway logs for 403 `BAD_SOURCE_SIGNATURE` |
+| Emails not arriving | Nothing is lost: emails wait in the queue | Admin lead window shows each email's status; check Resend dashboard and `RESEND_*` settings; bounces show once the Resend webhook is set |
+| "Mansora backups need attention" alert | Service keeps running; last good copy kept | Railway logs for "System backup failed"; bucket and key settings (`system-backups.md`) |
+| Client says they paid but invoice still open | Do not record the payment twice | Paystack dashboard for the reference; webhook deliveries; record manually only after confirming |
+| A change broke something | Production only changes through *Promote to production* | Roll back: Railway → production → Deployments → last good → Redeploy; fix on staging |
+
+Roles, severity levels, response times, communication templates and the post-incident review are in
+[runbook.md](runbook.md).

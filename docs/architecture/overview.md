@@ -1,5 +1,8 @@
 # Architecture
 
+> For the whole current system (browser shops, Railway environments, billing, website, backups, trust boundaries)
+> see [system-design.md](system-design.md). This page covers the laptop engine, sync and tenant isolation in depth.
+
 ```
 SHOP LAPTOP (Windows)                              MANSORA CLOUD
 ┌───────────────────────────────────────┐          ┌──────────────────────────────────────┐
