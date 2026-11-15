@@ -19,7 +19,8 @@ export async function seedVatDemo(options:{mode:string;version?:string;dataDir:s
   const run=(cmd:string,input:unknown={})=>engine.execute(token,cmd,input);
   const id=(name:string)=>{const h=createHash('sha256').update('vat-demo-tsb-v1/'+engine.meta('tenant_id')+'/'+name).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;};
   try {
-    const today=engine.now().toISOString().slice(0,10), month=today.slice(0,7)+'-01';
+    const today=engine.meta('vat_demo_tsb_date') ?? engine.now().toISOString().slice(0,10), month=today.slice(0,7)+'-01';
+    engine.setMeta('vat_demo_tsb_date',today);
     const prior=new Date(month+'T00:00:00Z');prior.setUTCDate(0);const crossing=prior.toISOString().slice(0,10);
     if (crossing<'2026-01-01') throw new Error('VAT demo requires a supported prior month');
     // Every entry is explicitly fictional and uses the public command/audit path. Preserve existing shop records.
