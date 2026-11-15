@@ -36,7 +36,10 @@ Deployments → an earlier deployment → Redeploy restores the previous build w
 Staging was created as a copy of production's service settings, then changed so it can never touch real people or
 production data:
 
-- its own database and volume (new and empty at creation), its own Railway address (`STAGING_ORIGIN` removed);
+- its own database and volume, its own Railway address (`STAGING_ORIGIN` removed). **Copying a Railway
+  environment does not copy volumes**: staging's `postgres-volume` (`/var/lib/postgresql/data`) and
+  `mansora-volume` (`/data`) were created separately; without them the app cannot start and the database is not
+  persistent;
 - emails only to the team inbox (`RESEND_ALLOWED_RECIPIENTS`, `LEAD_ALERT_EMAIL`), no bug-report digest;
 - start-up jobs that email testers or change test accounts are off (`STAGING_PASSWORD_RESET_ID`,
   `STAGING_CLOSE_SHIFTS_ID`, `STAGING_ROLE_LOGINS_ID` = `off`; no tester invitation);
