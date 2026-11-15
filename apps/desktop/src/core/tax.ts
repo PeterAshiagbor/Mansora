@@ -16,9 +16,9 @@ function triggerApplies(ctx: Ctx, trigger: any, date: string) {
 }
 export function taxConfig(ctx: Ctx, date = ctx.now().slice(0,10)) {
   const config = rawTaxConfig(ctx,date);
-  if (config.automatic && (!config.registered || !config.registrationDate || config.registrationDate > date)) {
+  if (config.automatic) {
     const trigger = ctx.all("SELECT payload FROM tax_records WHERE kind = 'registration_trigger' AND tax_date <= ? ORDER BY tax_date, created_at, id",date).map(r=>JSON.parse(r.payload)).find(t=>triggerApplies(ctx,t,date));
-    if (trigger) return { ...config, registered: true, registrationDate: trigger.effectiveDate };
+    if (trigger && (!config.registered || !config.registrationDate || trigger.effectiveDate < config.registrationDate)) return { ...config, registered: true, registrationDate: trigger.effectiveDate };
   }
   return config;
 }
@@ -147,9 +147,9 @@ export function vatReport(ctx: Ctx, month: string) {
 
 /** Section 8: liability starts in the period after the registration requirement arose.
  * Persist the first trigger; falling turnover never silently deregisters a business. */
-export function recordRegistrationTrigger(ctx: Ctx) {
+export function recordRegistrationTrigger(ctx: Ctx, reviewHistory = false) {
   const c = taxConfig(ctx);
-  if (!c.automatic || (c.registered && !!c.registrationDate && c.registrationDate <= ctx.now().slice(0,10))) return;
+  if (!c.automatic || (!reviewHistory && registeredOn(c,ctx.now().slice(0,10)))) return;
   const status = taxStatus(ctx);
   let annual = status.annual.exceeded;
   const threeMonthForecast = status.windows[1].exceeded && sum([status.windows[1].total, c.forecastNineMonths]) > c.threshold;
@@ -179,8 +179,9 @@ export function recordRegistrationTrigger(ctx: Ctx) {
   if (!annual && !threeMonthForecast && !forecast) return;
   const next = new Date(date.slice(0, 7) + '-01T00:00:00Z'); next.setUTCMonth(next.getUTCMonth() + 1);
   const effectiveDate = next.toISOString().slice(0,10);
+  if (c.registered && c.registrationDate && c.registrationDate <= effectiveDate) return;
   const triggerKind = annual ? 'annual_turnover' : threeMonthForecast ? 'three_months_plus_nine_month_forecast' : 'forecast';
-  if (ctx.all("SELECT payload FROM tax_records WHERE kind = 'registration_trigger'").some(r => { const t=JSON.parse(r.payload); return t.trigger !== 'forecast' || (t.trigger === triggerKind && t.effectiveDate === effectiveDate); })) return;
+  if (ctx.all("SELECT payload FROM tax_records WHERE kind = 'registration_trigger'").some(r => { const t=JSON.parse(r.payload); return (t.trigger !== 'forecast' && t.effectiveDate <= effectiveDate) || (t.trigger === triggerKind && t.effectiveDate === effectiveDate); })) return;
 
   const deadline = annual || threeMonthForecast ? new Date(date + 'T00:00:00Z') : new Date(next);
   deadline.setUTCDate(deadline.getUTCDate() + (annual || threeMonthForecast ? 30 : 29));

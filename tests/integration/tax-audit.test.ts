@@ -47,6 +47,14 @@ describe('Financial-adviser VAT counterexamples', () => {
     expect(status.pendingTrigger).toMatchObject({requirementDate:'2026-10-15',effectiveDate:'2026-11-01',detectedDate:'2026-11-15'});
     expect(status.registered).toBe(true);
   });
+  it('discovers an earlier obligation even when a later registration is already active', async () => {
+    const s = await shop(true,'2026-11-01');
+    await s.run(s.owner,'tax.record',{id:uuid(),kind:'turnover',date:'2026-10-15',reference:'October crossing',base:75000001,reason:'Verified late history',evidenceConfirmed:true});
+    await s.run(s.owner,'tax.record',{id:uuid(),kind:'turnover',date:'2026-09-15',reference:'Earlier September crossing',base:75000001,reason:'Earlier verified late history',evidenceConfirmed:true});
+    expect((await s.run(s.owner,'tax.current')).registrationDate).toBe('2026-10-01');
+    const october = await s.run(s.owner,'tax.report',{month:'2026-10'});
+    expect(october.blockers.join(' ')).toContain('External taxable turnover');
+  });
   it('includes registered external sales in output and reconciles threshold-only records without double counting', async () => {
     const s = await shop(false), original = uuid();
     await s.run(s.owner,'tax.record',{id:original,kind:'turnover',date:'2026-11-01',reference:'Branch totals',base:100000,reason:'Verified external supplies',evidenceConfirmed:true});

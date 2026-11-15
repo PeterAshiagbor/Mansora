@@ -56,7 +56,7 @@ export const taxCommands = defineCommands({
       const id = ctx.id();
       const revision = Number(ctx.get("SELECT COALESCE(MAX(json_extract(payload,'$.revision')),0) AS n FROM tax_configs")!.n) + 1;
       ctx.insert('tax_configs', { id, effective_date: config.effectiveDate, payload: JSON.stringify({ ...config, revision }), created_by: ctx.user.id, created_at: ctx.now() });
-      recordRegistrationTrigger(ctx);
+      recordRegistrationTrigger(ctx,true);
       ctx.audit('tax_config', id, { ...config, revision });
       return { id };
     },
@@ -131,7 +131,7 @@ export const taxCommands = defineCommands({
       if (input.kind === 'external_sale') { const t = taxAmount(input.base,input.classification,{...taxConfig(ctx,input.date),pricing:'exclusive'},input.date); Object.assign(data,{registeredAtSupply:t.registered,rates:t.rates}); }
       if (input.kind === 'input') Object.assign(data, claimTaxes(input, eligibleInputBps(input)), { appliedEligibleBps: eligibleInputBps(input), accrualDate: input.accrualDate ?? (input.invoiceDate! < taxConfig(ctx,input.date).registrationDate! ? taxConfig(ctx,input.date).registrationDate : input.invoiceDate) });
       const result = insertRecord(ctx, input, data);
-      if (['turnover','external_sale'].includes(input.kind)) recordRegistrationTrigger(ctx);
+      if (['turnover','external_sale'].includes(input.kind)) recordRegistrationTrigger(ctx,true);
       return result;
     },
   },
