@@ -50,7 +50,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
   const categoryOptions = useQuery<any[]>('category.list');
   const categories = categoryOptions.data ?? [];
   const [f, setF] = useState({
-    name: product.name ?? '', sku: product.sku ?? '', barcode: product.barcode ?? '', categoryId: product.category_id ?? '', unit: product.unit ?? 'each',
+    taxClass: product.tax_class ?? '', name: product.name ?? '', sku: product.sku ?? '', barcode: product.barcode ?? '', categoryId: product.category_id ?? '', unit: product.unit ?? 'each',
     costPrice: (product.cost_price ?? null) as number | null, sellingPrice: (product.selling_price ?? null) as number | null, reorderLevel: String(product.reorder_level ?? 0), active: product.active !== 0, openingStock: '',
   });
   const [cartonCost, setCartonCost] = useState<number | null>(null);
@@ -61,7 +61,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
   const cost = can('product.cost');
   const save = () => run(async () => {
     await call('product.save', {
-      id: product.id, name: f.name, sku: f.sku || null, barcode: f.barcode || null, categoryId: f.categoryId || null, unit: f.unit, sellingPrice: f.sellingPrice,
+      ...(f.taxClass ? { taxClass: f.taxClass } : {}), id: product.id, name: f.name, sku: f.sku || null, barcode: f.barcode || null, categoryId: f.categoryId || null, unit: f.unit, sellingPrice: f.sellingPrice,
       ...(cost ? { costPrice: f.costPrice ?? 0 } : {}), reorderLevel: Number(f.reorderLevel) || 0, active: f.active,
       ...(isNew && Number(f.openingStock) > 0 ? { openingStock: Number(f.openingStock) } : {}),
     });
@@ -74,6 +74,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
       <div className="m-product-editor"><form className="grid grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <Field label="Product name" className="col-span-2"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
         <div className="col-span-2 flex items-end gap-2"><Field label="Barcode" className="flex-1" hint="Click in the box and scan with a USB scanner, or use the camera"><Input value={f.barcode} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field><CameraScanButton label="Camera" onCode={(code) => setF((prev) => ({ ...prev, barcode: code }))} /></div>
+        <Field label="Ghana VAT classification" hint="Confirm against the VAT Act schedules. Zero-rated and exempt supplies have different reporting and input-credit treatment."><Select value={f.taxClass} onChange={e => setF({ ...f, taxClass: e.target.value })}><option value="">Needs classification</option><option value="standard">Standard-rated</option><option value="zero">Zero-rated</option><option value="exempt">Exempt</option><option value="outside">Outside scope</option></Select></Field>
         <Field label="Selling price (GHS)"><MoneyInput value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
         {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : 'Enter a verified unit cost. Use 0 only when the item genuinely has no cost.'}><MoneyInput required value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
         {cost && <details className="m-form-details"><summary>Calculate cost from a carton</summary><div>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
-import { Alert, Button, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard, ReportProblemButton, ReportProblemNavItem, usePersistentPage } from '@mansora/ui';
+import { Alert, Button, VatGuide, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard, ReportProblemButton, ReportProblemNavItem, usePersistentPage } from '@mansora/ui';
 import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
 import { ContactMansora } from './components/ContactMansora';
 import { Checkout } from './pages/Checkout';
@@ -13,6 +13,7 @@ import { PurchasesPage, StockPage } from './pages/Stock';
 import { CreditPage, CustomersPage } from './pages/Customers';
 import { ExpensesPage, ShiftsPage } from './pages/Shifts';
 import { StatementsPage } from './pages/Statements';
+import { TaxPage } from './pages/Tax';
 import { ReportsPage } from './pages/Reports';
 import { BillingPage } from './pages/Billing';
 import { AuditPage, BackupPage, DataPage, SettingsPage, StaffPage, SupportPage, SyncPage } from './pages/Admin';
@@ -53,6 +54,8 @@ const NAV: { group: string; items: NavItem[] }[] = [
   {
     group: 'Business',
     items: [
+      { id: 'vat-guide', label: 'VAT guide', keywords: ['VAT help', 'E-VAT', 'certification', 'GRA submission', 'amendment', 'tax guidance'], render: () => <VatGuide audience="shop" /> },
+      { id: 'tax', label: 'Ghana VAT', keywords: ['vat', 'tax', 'GRA', 'NHIL', 'GETFund', 'threshold', 'tax return'], perm: 'report.sales', render: () => <TaxPage /> },
       { id: 'reports', label: 'Reports', keywords: ['sales report', 'income', 'revenue', 'takings', 'turnover', 'profit', 'gross profit', 'margin', 'daily sales', 'monthly sales', 'best sellers', 'best-selling products', 'sales by cashier', 'sales by product', 'payments received', 'mobile money check', 'expenses by category', 'customer balances', 'stock on hand', 'refunds paid out', 'reconciliation', 'summary', 'performance'], perm: 'report.sales', render: () => <ReportsPage /> },
       { id: 'expenses', label: 'Expenses', keywords: ['spending', 'costs', 'bills', 'overheads', 'rent', 'electricity', 'ecg', 'transport', 'salaries', 'money out'], perm: 'expense.manage', render: () => <ExpensesPage /> },
       { id: 'statements', label: 'Bank & MoMo statements', keywords: ['bank statement', 'momo statement', 'mobile money', 'mtn', 'telecel', 'reconcile', 'reconciliation', 'import transactions', 'match payments'], perm: 'expense.manage', render: () => <StatementsPage /> },
@@ -336,7 +339,7 @@ function Restore({ onDone }: { onDone: () => Promise<void> }) {
   );
 }
 
-const NAV_ICONS: Record<string, string> = { dashboard: 'home', 'getting-started': 'file', checkout: 'sale', sales: 'file', shifts: 'wallet', customers: 'users', credit: 'wallet', products: 'box', categories: 'box', stock: 'box', purchases: 'sale', reports: 'chart', expenses: 'wallet', statements: 'file', staff: 'users', settings: 'settings', data: 'file', sync: 'sync', backup: 'shield', support: 'shield', audit: 'file', help: 'help' };
+const NAV_ICONS: Record<string, string> = { dashboard: 'home', 'getting-started': 'file', checkout: 'sale', sales: 'file', shifts: 'wallet', customers: 'users', credit: 'wallet', products: 'box', categories: 'box', stock: 'box', purchases: 'sale', 'vat-guide': 'help', tax: 'chart', reports: 'chart', expenses: 'wallet', statements: 'file', staff: 'users', settings: 'settings', data: 'file', sync: 'sync', backup: 'shield', support: 'shield', audit: 'file', help: 'help' };
 function Shell({ page }: { page: { id: string; param?: string } }) {
   const { state, can, go, refresh } = useApp();
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.perm || can(i.perm)).map((item) => ({ ...item, icon: NAV_ICONS[item.id] })) })).filter((g) => g.items.length);

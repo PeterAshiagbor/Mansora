@@ -39,6 +39,11 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     if (web) await new Promise<void>(r => web.server.close(() => r()));
     await app?.close(); await cloud?.db.close();
   });
+  it('provides a VAT guide for administrators without reading shop tax records', async () => {
+    await nav(admin, 'VAT guide');
+    await admin.getByRole('heading', { name: 'Administrator onboarding and support', exact: true }).waitFor();
+    await admin.getByRole('heading', { name: 'Streamlined GRA submission and E-VAT certification', exact: true }).waitFor();
+  });
   it('offers retry after payment-settings read failure, rather than loading forever', async () => {
     let refuse = true;
     await admin.route('**/v1/admin/billing/settings', (r: any) => refuse && r.request().method() === 'GET' ? r.fulfill({ status: 503, json: { message: 'Synthetic settings read unavailable' } }) : r.continue());

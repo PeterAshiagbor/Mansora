@@ -39,12 +39,12 @@ function paymentBreakdown(ctx: Ctx, from: string, to: string) {
 
 function byProduct(ctx: Ctx, from: string, to: string) {
   const sold = ctx.all(
-    `SELECT i.product_id, MAX(i.product_name) AS name, SUM(i.quantity) AS qty, SUM(i.line_total) AS revenue, SUM(i.quantity * i.cost_snapshot) AS cogs
+    `SELECT i.product_id, MAX(i.product_name) AS name, SUM(i.quantity) AS qty, SUM(i.line_total - COALESCE(json_extract(i.tax_snapshot, '$.vat'), 0) - COALESCE(json_extract(i.tax_snapshot, '$.nhil'), 0) - COALESCE(json_extract(i.tax_snapshot, '$.getfund'), 0)) AS revenue, SUM(i.quantity * i.cost_snapshot) AS cogs
      FROM sale_items i JOIN sales s ON s.id = i.sale_id WHERE s.created_at >= ? AND s.created_at < ? GROUP BY i.product_id`,
     from, to,
   );
   const refunded = ctx.all(
-    `SELECT ri.product_id, MAX(i.product_name) AS name, SUM(ri.quantity) AS qty, SUM(ri.amount) AS amount, SUM(CASE WHEN ri.restocked = 1 THEN ri.quantity * i.cost_snapshot ELSE 0 END) AS cogs
+    `SELECT ri.product_id, MAX(i.product_name) AS name, SUM(ri.quantity) AS qty, SUM(ri.amount - COALESCE(json_extract(ri.tax_snapshot, '$.vat'), 0) - COALESCE(json_extract(ri.tax_snapshot, '$.nhil'), 0) - COALESCE(json_extract(ri.tax_snapshot, '$.getfund'), 0)) AS amount, SUM(CASE WHEN ri.restocked = 1 THEN ri.quantity * i.cost_snapshot ELSE 0 END) AS cogs
      FROM refund_items ri JOIN refunds r ON r.id = ri.refund_id JOIN sale_items i ON i.id = ri.sale_item_id
      WHERE r.created_at >= ? AND r.created_at < ? GROUP BY ri.product_id`,
     from, to,

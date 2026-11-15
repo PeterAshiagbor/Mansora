@@ -1,0 +1,70 @@
+import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { startCloud, type Cloud } from '../cloud';
+import { OWNER, tempDir } from '../helpers';
+import { startDevHost } from '../../apps/desktop/dev/host';
+import { navigate } from './navigation';
+const pw = (() => { try { return createRequire(import.meta.url)('playwright'); } catch { return null; } })();
+
+describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop/dist/renderer/index.html')))('Ghana VAT browser flow', () => {
+  let cloud: Cloud, host: Awaited<ReturnType<typeof startDevHost>>, browser: any, page: any;
+  const consoleErrors: string[] = [];
+  beforeAll(async () => {
+    cloud = await startCloud(); const client = await cloud.createClient('VAT browser shop');
+    host = await startDevHost({ dataDir: tempDir(), port: 0 });
+    await host.engine.execute(null, 'activation.activate', { apiUrl: cloud.url, code: client.code, deviceName: 'Till', owner: OWNER });
+    const token = (await host.engine.execute(null, 'auth.login', OWNER)).token;
+    await host.engine.execute(token, 'product.save', { name: 'Standard VAT item', sellingPrice: 10000, costPrice: 5000, openingStock: 30, taxClass: 'standard' });
+    await host.engine.execute(token, 'shift.open', { openingFloat: 0 });
+    browser = await pw.chromium.launch(); page = await browser.newPage({ viewport: { width: 1366, height: 1000 } }); page.setDefaultTimeout(15000);
+    page.on('pageerror', (e: Error) => consoleErrors.push(e.message));
+    await page.goto(host.url);
+    await page.getByLabel('Username', { exact: true }).fill(OWNER.username); await page.getByLabel('Password', { exact: true }).fill(OWNER.password);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  });
+  afterAll(async () => { await browser?.close(); if (host) { await new Promise<void>(r => host.server.close(() => r())); host.engine.db.close(); } await cloud?.close(); });
+  it('edits tax settings, quotes and completes a taxed sale, reconciles it and exports the workbook', async () => {
+    await navigate(page, 'Ghana VAT');
+    await page.getByRole('button', { name: 'Tax settings', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Ghana tax settings' });
+    await dialog.getByLabel('VAT registered / legally effective obligation confirmed', { exact: true }).check();
+    await dialog.getByLabel('Legal VAT effective date', { exact: true }).fill('2026-01-01');
+    await dialog.getByLabel('Business TIN', { exact: true }).fill('BROWSER-TIN');
+    await dialog.getByLabel('VAT registration number', { exact: true }).fill('BROWSER-VAT');
+    await dialog.getByLabel('Catalogue selling prices', { exact: true }).selectOption('exclusive');
+    await dialog.getByLabel('Reason and supporting authority', { exact: true }).fill('Registration and exclusive prices verified');
+    await dialog.getByRole('button', { name: 'Save dated settings' }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    await navigate(page, 'New sale');
+    await page.getByRole('button').filter({ hasText: 'Standard VAT item' }).click();
+    await page.getByTestId('basket-total').filter({ hasText: '120.00' }).waitFor();
+    await page.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
+    const pay = page.getByRole('dialog');
+    await pay.getByLabel('Cash received', { exact: true }).fill('120');
+    await pay.getByRole('button', { name: /Complete sale/ }).click();
+    await page.getByRole('dialog', { name: 'Sale completed', exact: true }).waitFor();
+    const row = host.engine.db.prepare('SELECT total, tax_snapshot FROM sales').get() as any;
+    expect(row.total).toBe(12000); expect(JSON.parse(row.tax_snapshot)).toMatchObject({ vat: 1500, nhil: 250, getfund: 250 });
+    await page.getByRole('button', { name: /New sale.*Enter/ }).click();
+    await navigate(page, 'Ghana VAT');
+    await page.getByRole('heading', { name: 'VAT and levy reconciliation' }).waitFor();
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download VAT workbook', exact: true }).click();
+    expect((await download).suggestedFilename()).toMatch(/^Ghana-VAT-2026-\d{2}\.xlsx$/);
+    expect(consoleErrors).toEqual([]);
+  });
+  it('shows a persistent amendment warning and opens the shop VAT guide', async () => {
+    const token = (await host.engine.execute(null, 'auth.login', OWNER)).token;
+    await host.engine.execute(token, 'tax.configure', { effectiveDate: new Date().toISOString().slice(0, 10), registered: true, registrationDate: '2026-01-01', tin: 'BROWSER-TIN', supplyType: 'services', reason: 'Synthetic service profile needing review' });
+    await navigate(page, 'Dashboard');
+    await page.getByText(/Service VAT amendment needs confirmation/).waitFor();
+    await navigate(page, 'Ghana VAT');
+    await page.getByRole('button', { name: 'VAT guide', exact: true }).last().click();
+    await page.getByRole('heading', { name: 'Streamlined GRA submission and E-VAT certification', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'Service amendment: action required', exact: true }).waitFor();
+    expect(consoleErrors).toEqual([]);
+  });
+
+});

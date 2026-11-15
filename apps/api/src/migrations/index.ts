@@ -850,4 +850,31 @@ CREATE TABLE email_webhook_events (id text PRIMARY KEY, type text NOT NULL, rece
 GRANT SELECT, INSERT ON email_webhook_events TO mansora_platform;
 `,
   },
+  {
+    id: 17,
+    name: 'ghana_vat',
+    sql: `
+ALTER TABLE products ADD COLUMN tax_class text;
+ALTER TABLE sales ADD COLUMN tax_snapshot text;
+ALTER TABLE sale_items ADD COLUMN tax_snapshot text;
+ALTER TABLE refund_items ADD COLUMN tax_snapshot text;
+CREATE TABLE tax_configs (
+ tenant_id uuid NOT NULL REFERENCES tenants(id), id uuid NOT NULL, effective_date text NOT NULL,
+ payload text NOT NULL, created_by uuid NOT NULL, created_at timestamptz NOT NULL,
+ PRIMARY KEY (tenant_id, id)
+);
+CREATE TABLE tax_records (
+ tenant_id uuid NOT NULL REFERENCES tenants(id), id uuid NOT NULL, kind text NOT NULL,
+ tax_date text NOT NULL, reference text NOT NULL, payload text NOT NULL,
+ created_by uuid NOT NULL, created_at timestamptz NOT NULL, PRIMARY KEY (tenant_id, id)
+);
+ALTER TABLE tax_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tax_configs FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON tax_configs USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
+ALTER TABLE tax_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tax_records FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON tax_records USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
+GRANT SELECT, INSERT ON tax_configs, tax_records TO mansora_tenant;
+`,
+  },
 ];

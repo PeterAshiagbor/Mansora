@@ -37,7 +37,7 @@ export async function openExternal(url: string): Promise<void> {
 export const canRestore = () => !!bridge.restore;
 export const restoreBackup = (passphrase: string) => bridge.restore!(passphrase);
 
-const READ_ONLY = /\.(list|get|status|queue|current|overview|movements|lookup|receipt|dashboard|sales|profit|stock|state|preview|history|template|table|summary|document)$/;
+const READ_ONLY = /\.(list|get|status|queue|current|overview|movements|lookup|receipt|dashboard|sales|profit|stock|state|preview|history|template|table|summary|document|quote|export)$/;
 
 export async function call<T = any>(command: string, input: unknown = {}): Promise<T> {
   const res = await bridge.invoke(command, input);
@@ -186,15 +186,15 @@ export const METHOD: Record<string, string> = { cash: 'Cash', card: 'Card', momo
 export const uuid = () => crypto.randomUUID();
 
 /** Cedi amount input. Holds text while typing; reports integer pesewas (or null when not a valid amount). */
-export function MoneyInput({ value, onChange, ...rest }: { value: number | null; onChange: (pesewas: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
+export function MoneyInput({ value, onChange, allowNegative = false, ...rest }: { value: number | null; allowNegative?: boolean; onChange: (pesewas: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   const [text, setText] = useState(value == null ? '' : plain(value).replace(/,/g, ''));
   const last = useRef(value);
   const input = useRef<HTMLInputElement>(null);
   let invalid = false;
   if (text.trim()) {
-    try { invalid = parseGHS(text) < 0; } catch { invalid = true; }
+    try { invalid = parseGHS(text) < 0 && !allowNegative; } catch { invalid = true; }
   }
-  useEffect(() => { input.current?.setCustomValidity(invalid ? 'Enter a non-negative amount with at most two decimal places, for example 12.50.' : ''); }, [invalid]);
+  useEffect(() => { input.current?.setCustomValidity(invalid ? (allowNegative ? 'Enter an amount with at most two decimal places.' : 'Enter a non-negative amount with at most two decimal places, for example 12.50.') : ''); }, [invalid, allowNegative]);
   useEffect(() => {
     if (value !== last.current) {
       last.current = value;
@@ -213,7 +213,7 @@ export function MoneyInput({ value, onChange, ...rest }: { value: number | null;
         let parsed: number | null = null;
         try {
           parsed = e.target.value.trim() === '' ? null : parseGHS(e.target.value);
-          if (parsed !== null && parsed < 0) parsed = null;
+          if (parsed !== null && parsed < 0 && !allowNegative) parsed = null;
         } catch {
           parsed = null;
         }

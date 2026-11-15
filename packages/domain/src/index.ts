@@ -9,3 +9,4 @@ export * from './sync';
 export * from './dates';
 export * from './standing';
 export * from './presets';
+export * from './tax';

@@ -390,4 +390,28 @@ CREATE INDEX statement_lines_import ON statement_lines(import_id, line_no);
 CREATE INDEX statement_lines_fingerprint ON statement_lines(fingerprint);
 `,
   },
+  {
+    id: 5,
+    name: 'ghana_vat',
+    sql: `
+ALTER TABLE products ADD COLUMN tax_class TEXT;
+ALTER TABLE sales ADD COLUMN tax_snapshot TEXT;
+ALTER TABLE sale_items ADD COLUMN tax_snapshot TEXT;
+ALTER TABLE refund_items ADD COLUMN tax_snapshot TEXT;
+CREATE TABLE tax_configs (
+ id TEXT PRIMARY KEY, effective_date TEXT NOT NULL, payload TEXT NOT NULL,
+ created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL
+);
+CREATE INDEX tax_configs_date ON tax_configs(effective_date, created_at);
+CREATE TABLE tax_records (
+ id TEXT PRIMARY KEY, kind TEXT NOT NULL, tax_date TEXT NOT NULL, reference TEXT NOT NULL,
+ payload TEXT NOT NULL, created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL
+);
+CREATE INDEX tax_records_date ON tax_records(tax_date, kind);
+CREATE TRIGGER tax_configs_no_update BEFORE UPDATE ON tax_configs BEGIN SELECT RAISE(ABORT, 'Tax configurations are immutable'); END;
+CREATE TRIGGER tax_configs_no_delete BEFORE DELETE ON tax_configs BEGIN SELECT RAISE(ABORT, 'Tax configurations cannot be deleted'); END;
+CREATE TRIGGER tax_records_no_update BEFORE UPDATE ON tax_records BEGIN SELECT RAISE(ABORT, 'Tax records are immutable'); END;
+CREATE TRIGGER tax_records_no_delete BEFORE DELETE ON tax_records BEGIN SELECT RAISE(ABORT, 'Tax records cannot be deleted'); END;
+`,
+  },
 ];

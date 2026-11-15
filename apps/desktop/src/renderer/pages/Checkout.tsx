@@ -1,8 +1,8 @@
 import { parkBasket, parkedBaskets, takeParkedBasket } from '../parked-baskets';
 import { CameraScanButton } from '../components/CameraScanner';
 import { CustomerPicker, type PickedCustomer } from '../components/CustomerPicker';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { priceCart, settlePayments } from '@mansora/domain';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { settlePayments, type taxCart } from '@mansora/domain';
 import { Alert, Badge, Button, cx, Field, Input, Modal, Select, QueryView, PageHeader, WorkflowSteps, useUnsavedChanges, useNavigationGuard } from '@mansora/ui';
 import { ApprovalModal, call, METHOD, money, MoneyInput, printHtml, useAction, useApp, useQuery, useToast, uuid, type Approver } from '../lib';
 
@@ -90,14 +90,10 @@ export function Checkout() {
     });
   };
 
-  const cart = useMemo(() => {
-    if (!lines.length) return null;
-    try {
-      return priceCart(lines.map((l) => ({ productId: l.product.id, quantity: l.quantity, unitPrice: l.product.selling_price, discount: l.discount })), cartDiscount ?? 0);
-    } catch (e: any) {
-      return { error: e.message as string };
-    }
-  }, [lines, cartDiscount]);
+  const quote = useQuery<ReturnType<typeof taxCart>>('sale.quote', {
+    lines: lines.map(l => ({ productId: l.product.id, quantity: l.quantity, discount: l.discount })), cartDiscount: cartDiscount ?? 0,
+  }, [done]);
+  const cart = !lines.length ? null : quote.data ?? { error: quote.error ?? 'Calculating total…' };
   const total = cart && 'total' in cart ? cart.total : 0;
 
   const reset = () => {
@@ -239,6 +235,8 @@ export function Checkout() {
             <dl className="space-y-0.5 text-sm">
               <div className="flex justify-between text-slate-600"><dt>Subtotal</dt><dd className="tabular-nums">{money(cart.subtotal)}</dd></div>
               {cart.discountTotal > 0 && <div className="flex justify-between text-slate-600"><dt>Discount {(!can('sale.discount') || (state.business.maxDiscountBps > 0 && state.user?.role !== 'owner' && cart.discountTotal * 10_000 > state.business.maxDiscountBps * cart.subtotal)) && <span className="text-xs">(needs approval)</span>}</dt><dd className="tabular-nums">−{money(cart.discountTotal)}</dd></div>}
+              {cart.snapshots.some(t => t.registered) && <><div className="flex justify-between"><dt>VAT</dt><dd>{money(cart.tax.vat)}</dd></div><div className="flex justify-between"><dt>NHIL</dt><dd>{money(cart.tax.nhil)}</dd></div><div className="flex justify-between"><dt>GETFund</dt><dd>{money(cart.tax.getfund)}</dd></div><p className="text-xs">Taxes included in the total below.</p></>}
+
             </dl>
           )}
           <div className="flex items-end justify-between">
@@ -254,7 +252,7 @@ export function Checkout() {
           onClose={() => setPaying(false)}
           submit={async (tenders, dueDate, approver) => {
             const res = await call('sale.complete', {
-              id: saleId, cartDiscount: cartDiscount ?? 0, customerId: customerId || null, dueDate, approver, tenders,
+              id: saleId, expectedTotal: cart.total, cartDiscount: cartDiscount ?? 0, customerId: customerId || null, dueDate, approver, tenders,
               lines: lines.map((l) => ({ productId: l.product.id, quantity: l.quantity, discount: l.discount })),
             });
             setPaying(false);
