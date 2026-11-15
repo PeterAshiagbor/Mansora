@@ -55,4 +55,16 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
     expect((await download).suggestedFilename()).toMatch(/^Ghana-VAT-2026-\d{2}\.xlsx$/);
     expect(consoleErrors).toEqual([]);
   });
+  it('shows a persistent amendment warning and opens the shop VAT guide', async () => {
+    const token = (await host.engine.execute(null, 'auth.login', OWNER)).token;
+    await host.engine.execute(token, 'tax.configure', { effectiveDate: new Date().toISOString().slice(0, 10), registered: true, registrationDate: '2026-01-01', tin: 'BROWSER-TIN', supplyType: 'services', reason: 'Synthetic service profile needing review' });
+    await navigate(page, 'Dashboard');
+    await page.getByText(/Service VAT amendment needs confirmation/).waitFor();
+    await navigate(page, 'Ghana VAT');
+    await page.getByRole('button', { name: 'VAT guide', exact: true }).last().click();
+    await page.getByRole('heading', { name: 'Streamlined GRA submission and E-VAT certification', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'Service amendment: action required', exact: true }).waitFor();
+    expect(consoleErrors).toEqual([]);
+  });
+
 });

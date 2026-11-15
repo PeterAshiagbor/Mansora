@@ -35,6 +35,7 @@ export const taxCommands = defineCommands({
     perm: 'settings.manage', mutates: true, input: taxConfigSchema,
     run: (ctx, config) => {
       owner(ctx);
+      if (config.supplyType !== 'goods' && config.serviceThresholdConfirmed && (!config.serviceThresholdDate || !config.serviceThresholdAuthority)) fail('SERVICE_RULE_EVIDENCE_REQUIRED', 'Record the amendment commencement date and the GRA or enacted-law source before confirming the service threshold');
       if (config.effectiveDate < '2026-01-01') fail('TAX_PERIOD_UNSUPPORTED', 'This rule set supports periods from January 2026');
       if (config.registered && (!config.registrationDate || !config.tin)) fail('VAT_REGISTRATION_REQUIRED', 'Enter the TIN and legal effective date; add the VAT registration number when issued');
       requireTaxPeriodOpen(ctx, config.effectiveDate);

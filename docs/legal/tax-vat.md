@@ -58,3 +58,12 @@ The repository has no GRA production credentials, approved E-VAT integration con
 Retail sale-time VAT and the associated NHIL/GETFund are the implemented scope. PAYE, income-tax WHT (including the workbook's GHS2,000 payment threshold), tourism levies, excise/customs, nonresident digital-service registration, upfront import VAT and reverse-charge imported services are not applied as blanket shop sales taxes. Businesses in those categories require an additional workflow.
 
 Deploy the cloud migration/server **before** upgraded laptops. New sync fields are optional for old payloads; tax tables follow tenant isolation and insert-only rights. Local migration is append-only. Settings, triggers, evidence and line snapshots are included in outbox, backup and cloud-snapshot restore. Back up before deployment, configure TIN/effective status, classify products, reconcile opening credits/external turnover, compare a sample sale and return with the GRA-approved process, then enable production use under the relevant certification.
+
+
+## In-platform guidance and amendment confirmation
+
+Both the shop and administrator navigation now contain **VAT guide**, with official source links, owner/manager responsibilities, VAT setup, monthly filing and E-VAT onboarding/testing/sign-off steps. The shop help centre and contextual page guides link to it. The administrator version reads no tenant tax records and does not grant support access.
+
+Service/mixed profiles have persistent dashboard and VAT-page warnings, including registered shops. Notifications refresh on app changes, focus and every minute while mounted. There is no email notification in this change. Only an owner can confirm the service threshold, with both the amendment commencement date and a GRA/enacted-law authority reference recorded in dated settings and audit history. A future date keeps the warning and cannot enable service-threshold automation early. Existing VAT registration obligations continue.
+
+GRA's [E-VAT onboarding guidelines, section 10](https://gra.gov.gh/wp-content/uploads/2024/07/E-VAT-GUIDELINES_20240222.pdf) describe the onboarding form, relationship manager, integration documentation, testing, GRA sign-off and scheduled go-live. Obtain the current approved API version and taxpayer/device credentials directly through that process; old public examples are not proof of 2026 compatibility. Fiscal invoice submission and monthly return filing are separate integrations.

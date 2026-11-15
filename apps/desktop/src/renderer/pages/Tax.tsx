@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Field, Input, Modal, PageHeader, QueryView, Select, Stat, Table } from '@mansora/ui';
 import type { TaxConfig } from '@mansora/domain';
 import { call, money, MoneyInput, saveFile, today, useAction, useApp, useQuery, uuid } from '../lib';
@@ -10,12 +10,19 @@ export function TaxNotice() {
 }
 function TaxNoticeBody({ onOpen }: { onOpen: () => void }) {
   const q = useQuery<any>('tax.status');
+  useEffect(() => {
+    const refresh = () => q.reload();
+    const timer = window.setInterval(refresh, 60000);
+    window.addEventListener('mansora:changed', refresh);
+    window.addEventListener('focus', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('mansora:changed', refresh); window.removeEventListener('focus', refresh); };
+  }, [q.reload]);
   const d = q.data;
-  if (!d || d.registered || (!d.requiresReview && !d.near)) return null;
+  if (!d || (!d.amendmentReviewRequired && (d.registered || (!d.requiresReview && !d.near)))) return null;
   return <Alert tone="warn" className="mb-4">{d.message} <Button size="sm" onClick={onOpen}>Review VAT</Button></Alert>;
 }
 export function TaxPage() {
-  const { state } = useApp();
+  const { state, go } = useApp();
   const [month, setMonth] = useState(today().slice(0, 7));
   const [revision, setRevision] = useState(0);
   const [settings, setSettings] = useState(false), [record, setRecord] = useState(false), [filing, setFiling] = useState(false);
@@ -26,12 +33,12 @@ export function TaxPage() {
   const owner = state.user?.role === 'owner';
   const d = status.data, r = report.data;
   return <div className="space-y-5">
-    <PageHeader title="Ghana VAT" subtitle="Turnover monitoring, VAT and levy working papers, credits and filing records" actions={owner && <><Button onClick={() => setSettings(true)} disabled={!d}>Tax settings</Button><Button onClick={() => setRecord(true)}>Record tax evidence</Button></>} />
+    <PageHeader title="Ghana VAT" subtitle="Turnover monitoring, VAT and levy working papers, credits and filing records" actions={<><Button onClick={() => go('vat-guide')}>VAT guide</Button>{owner && <><Button onClick={() => setSettings(true)} disabled={!d}>Tax settings</Button><Button onClick={() => setRecord(true)}>Record tax evidence</Button></>}</>} />
     <QueryView query={status} label="VAT status">{d && <><Alert tone={d.requiresReview && !d.registered ? 'warn' : 'info'}>{d.message} {d.unclassified > 0 && `${d.unclassified} active product(s) need classification in Products.`}</Alert>
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{d.windows.map((w: any) => <Stat key={w.months} label={`${w.months}-month taxable turnover`} value={money(w.total)} hint={`Band ${money(w.threshold)}${w.months < 12 ? ' · forecast/registration review' : ''}`} tone={w.exceeded || w.near ? 'warn' : 'default'} />)}</div>
     {d.pendingTrigger && <Alert tone="warn">Automatic VAT charging effective {d.pendingTrigger.effectiveDate}. Registration application due {d.pendingTrigger.applicationDueDate}. Complete GRA registration and classify products before this date.</Alert>}
     <p className="text-sm text-slate-600">The annual test is GHS 750,000 under the default rules. Shorter bands and expected turnover prompt review. Registered businesses continue charging until an effective cancellation is recorded. Add turnover from other branches and channels without duplicating Mansora sales.</p>
-    {d.config.supplyType !== 'goods' && !d.config.serviceThresholdConfirmed && <Alert tone="warn">Service-provider rules changed during 2026. Confirm the applicable commencement and registration obligation before selecting the service-threshold option.</Alert>}</>}</QueryView>
+    {d.amendmentReviewRequired && <Alert tone="warn">Service-provider rules changed during 2026. The owner must obtain the enacted commencement date or written GRA confirmation, then save that date and source in Tax settings. Managers should escalate this to the owner. Existing VAT obligations continue.</Alert>}</>}</QueryView>
     <div className="flex flex-wrap items-end gap-3"><Field label="VAT month"><Input type="month" value={month} min="2026-01" max={today().slice(0, 7)} onChange={e => { if (e.target.value) setMonth(e.target.value); }} /></Field><Button disabled={busy || !r} onClick={() => void run(async () => saveFile(await call('tax.export', { month })))}>Download VAT workbook</Button>{owner && <Button disabled={!r || month >= today().slice(0, 7)} onClick={() => setFiling(true)}>Record GRA filing</Button>}</div>
     <QueryView query={report} label="VAT report">{r && <>
       <div className="grid gap-4 sm:grid-cols-3"><Stat label="Tax payable for month" value={money(r.payable)} /><Stat label="Recorded GRA payments" value={money(r.payments)} /><Stat label="Unpaid tax for month" value={money(r.outstanding)} /></div>
@@ -67,6 +74,7 @@ function TaxSettings({ config, onClose, onSaved }: { config: TaxConfig; onClose:
       <Field label="Expected taxable supplies over next 9 months (GHS)"><MoneyInput value={f.forecastNineMonths} onChange={v => setF({ ...f, forecastNineMonths: v ?? 0 })} /></Field>
       <Field label="Early alert at (%)"><Input type="number" min={1} max={100} step="0.01" value={f.alertBps / 100} onChange={e => setF({ ...f, alertBps: Math.round(Number(e.target.value) * 100) })} /></Field>
       {([['VAT rate (%)', 'vatBps'], ['NHIL rate (%)', 'nhilBps'], ['GETFund rate (%)', 'getfundBps']] as const).map(([label, key]) => <Field label={label} key={key}><Input type="number" min={0} max={100} step="0.01" value={f[key] / 100} onChange={e => setF({ ...f, [key]: Math.round(Number(e.target.value) * 100) })} /></Field>)}
+      {f.supplyType !== 'goods' && <><Field label="Service amendment commencement date"><Input type="date" value={f.serviceThresholdDate ?? ''} onChange={e => setF({ ...f, serviceThresholdDate: e.target.value || null })} /></Field><Field label="Service amendment authority / GRA reference"><Input value={f.serviceThresholdAuthority} maxLength={400} onChange={e => setF({ ...f, serviceThresholdAuthority: e.target.value })} /></Field></>}
       <label className="text-sm"><input type="checkbox" checked={f.serviceThresholdConfirmed} onChange={e => setF({ ...f, serviceThresholdConfirmed: e.target.checked })} /> Service-threshold applicability and commencement checked</label>
       <label className="text-sm"><input type="checkbox" checked={f.mandatoryRegistration} onChange={e => setF({ ...f, mandatoryRegistration: e.target.checked })} /> Special registration obligation / GRA direction applies</label>
       <Field label="Reason and supporting authority" className="sm:col-span-2"><Input value={f.reason} maxLength={400} onChange={e => setF({ ...f, reason: e.target.value })} /></Field>

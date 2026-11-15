@@ -119,4 +119,17 @@ describe('VAT transactions and evidence', () => {
     expect((shop.engine.db.prepare('SELECT quantity FROM stock_balances WHERE product_id = ?').get(shop.products.milk) as any).quantity).toBe(50);
   });
 
+  it('keeps service-amendment warnings visible to owners and managers until dated authority is recorded', async () => {
+    await setup();
+    const config = { ...defaultTaxConfig(), registered: true, registrationDate: '2026-01-01', tin: 'TIN', supplyType: 'services', reason: 'Service profile review' };
+    await shop.run(shop.owner, 'tax.configure', config);
+    expect((await shop.run(shop.manager, 'tax.status')).amendmentReviewRequired).toBe(true);
+    await expectCode(shop.run(shop.owner, 'tax.configure', { ...config, serviceThresholdConfirmed: true }), 'SERVICE_RULE_EVIDENCE_REQUIRED');
+    await shop.run(shop.owner, 'tax.configure', { ...config, serviceThresholdConfirmed: true, serviceThresholdDate: '2026-09-01', serviceThresholdAuthority: 'SYNTHETIC TEST AUTHORITY ONLY' });
+    expect((await shop.run(shop.manager, 'tax.status')).amendmentReviewRequired).toBe(false);
+    await shop.run(shop.owner, 'tax.configure', { ...config, serviceThresholdConfirmed: true, serviceThresholdDate: '2026-12-01', serviceThresholdAuthority: 'SYNTHETIC FUTURE TEST AUTHORITY' });
+    expect((await shop.run(shop.owner, 'tax.status')).amendmentReviewRequired).toBe(true);
+    expect((await shop.run(shop.owner, 'tax.current')).registered).toBe(true);
+  });
+
 });

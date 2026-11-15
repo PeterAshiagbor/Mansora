@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatGHS, parseGHS } from '@mansora/domain';
-import { Alert, Badge, Button, Card, cx, Field, Input, MansoraBrand, AuthLayout, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure, ReportProblemButton, ReportProblemNavItem, usePersistentPage } from '@mansora/ui';
+import { Alert, Badge, Button, VatGuide, Card, cx, Field, Input, MansoraBrand, AuthLayout, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, WorkspaceShell, ADMIN_GUIDES, DraftProvider, useNavigationGuard, QueryView, Disclosure, ReportProblemButton, ReportProblemNavItem, usePersistentPage } from '@mansora/ui';
 import { Leads } from './leads';
 import { ContactSettings } from './contact';
 import { api, getToken, setToken, useApi } from './api';
@@ -56,7 +56,7 @@ function AdminApplication() {
   const groups = [
     { group: 'Workspace', items: [{ id: 'overview', label: 'Overview', keywords: ['dashboard', 'home', 'summary', 'today', 'figures'], icon: 'home' }, { id: 'clients', label: 'Clients', keywords: ['shops', 'businesses', 'tenants', 'customers', 'activation code', 'devices', 'laptops', 'add client'], icon: 'users' }, { id: 'leads', label: 'Leads', keywords: ['prospects', 'enquiries', 'demo requests', 'sales pipeline', 'sign ups'], icon: 'users' }, { id: 'plans', label: 'Service plans', keywords: ['pricing', 'prices', 'packages', 'tiers', 'starter', 'business', 'plus', 'monthly fee'], icon: 'wallet' }] },
     { group: 'Billing', items: [{ id: 'billing', label: 'Billing', keywords: ['collections', 'who owes us', 'debtors', 'overdue', 'arrears', 'outstanding', 'invoices', 'payments received', 'income', 'money in'], icon: 'wallet' }, { id: 'subscriptions', label: 'Subscriptions', keywords: ['plans', 'renewals', 'discounts', 'pilot', 'activate', 'suspend', 'mandates', 'recurring'], icon: 'sync' }, { id: 'revenue', label: 'Revenue reports', keywords: ['income', 'revenue', 'sales', 'turnover', 'earnings', 'mrr', 'monthly revenue', 'collections after refunds', 'financial reports', 'money in'], icon: 'chart' }, { id: 'paysettings', label: 'Payment settings', keywords: ['paystack', 'hubtel', 'mobile money', 'card payments', 'payment provider', 'keys', 'webhook'], icon: 'settings' }] },
-    { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', keywords: ['history', 'activity log', 'who did what', 'changes'], icon: 'file' }, { id: 'admins', label: 'Administrators', keywords: ['team', 'staff', 'users', 'administrators', 'invite admin'], icon: 'users' }, { id: 'security', label: 'Account security', keywords: ['password', 'two-step', '2fa', 'sign in security', 'authenticator'], icon: 'shield' }, { id: 'contact', label: 'Support contact', keywords: ['support email', 'support phone', 'contact details', 'help line'], icon: 'help' }, { id: 'problems', label: 'Problem reports', keywords: ['bugs', 'errors', 'issues', 'feedback', 'bug reports', 'complaints'], icon: 'help' }] },
+    { group: 'Administration', items: [{ id: 'audit', label: 'Audit log', keywords: ['history', 'activity log', 'who did what', 'changes'], icon: 'file' }, { id: 'admins', label: 'Administrators', keywords: ['team', 'staff', 'users', 'administrators', 'invite admin'], icon: 'users' }, { id: 'security', label: 'Account security', keywords: ['password', 'two-step', '2fa', 'sign in security', 'authenticator'], icon: 'shield' }, { id: 'vat-guide', label: 'VAT guide', keywords: ['VAT', 'GRA', 'E-VAT', 'certification', 'amendment', 'shop tax support'], icon: 'help' }, { id: 'contact', label: 'Support contact', keywords: ['support email', 'support phone', 'contact details', 'help line'], icon: 'help' }, { id: 'problems', label: 'Problem reports', keywords: ['bugs', 'errors', 'issues', 'feedback', 'bug reports', 'complaints'], icon: 'help' }] },
   ];
   // Who owes us, invoices and payments are three tabs of one Billing page: one place, three plain questions.
   /** The Billing tabs, so Find a page opens them directly ("invoices" → the Invoices tab). */
@@ -86,6 +86,7 @@ const BILLING_TABS = ['collections', 'invoices', 'payments'];
         {page.id === 'audit' && <Audit />}
         {page.id === 'admins' && <Administrators />}
         {page.id === 'security' && <AccountSecurity />}
+        {page.id === 'vat-guide' && <VatGuide audience="administrator" />}
         {page.id === 'contact' && <ContactSettings />}
         {page.id === 'problems' && <ProblemReports />}
       </div>

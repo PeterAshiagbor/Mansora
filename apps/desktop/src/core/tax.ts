@@ -50,13 +50,14 @@ export function taxStatus(ctx: Ctx) {
   });
   const annual = windows[3];
   const threeMonthForecast = windows[1].exceeded && sum([windows[1].total, config.forecastNineMonths]) > config.threshold;
-  const requiresReview = threeMonthForecast || config.mandatoryRegistration || annual.exceeded || config.forecast > config.threshold || windows.some(w => w.exceeded) || (config.supplyType !== 'goods' && !config.serviceThresholdConfirmed);
+  const amendmentReviewRequired = config.supplyType !== 'goods' && (!config.serviceThresholdConfirmed || !config.serviceThresholdDate || !config.serviceThresholdAuthority || config.serviceThresholdDate > date);
+  const requiresReview = amendmentReviewRequired || threeMonthForecast || config.mandatoryRegistration || annual.exceeded || config.forecast > config.threshold || windows.some(w => w.exceeded) || (config.supplyType !== 'goods' && !config.serviceThresholdConfirmed);
   const registered = config.registered && !!config.registrationDate && config.registrationDate <= date;
-  return { config, registered, windows, annual, forecast: config.forecast, requiresReview, near: windows.some(w => w.near),
+  return { config, registered, amendmentReviewRequired, windows, annual, forecast: config.forecast, requiresReview, near: windows.some(w => w.near),
     legacyLines: rows.filter(r => !r.tax_snapshot || JSON.parse(r.tax_snapshot).classificationVerified === false).length,
     unclassified: ctx.get('SELECT COUNT(*) AS n FROM products WHERE active = 1 AND tax_class IS NULL')!.n,
     pendingTrigger: ctx.all("SELECT payload FROM tax_records WHERE kind = 'registration_trigger' ORDER BY tax_date LIMIT 1").map(r => JSON.parse(r.payload))[0] ?? null,
-    message: registered ? 'VAT is applied automatically from the legal effective date. Complete GRA registration if still pending.' : requiresReview ? 'VAT registration review required. Confirm the legal effective date; threshold alerts do not create a registration.' : windows.some(w => w.near) ? 'Approaching a VAT turnover band. Review forecast turnover and prepare registration.' : 'Monitoring taxable turnover. Add sales from other branches and channels.' };
+    message: amendmentReviewRequired ? 'Service VAT amendment needs confirmation. Ask the owner to obtain the enacted commencement date or written GRA clarification, then record the date and source in Tax settings. Existing VAT obligations continue.' : registered ? 'VAT is applied automatically from the legal effective date. Complete GRA registration if still pending.' : requiresReview ? 'VAT registration review required. Confirm the legal effective date; threshold alerts do not create a registration.' : windows.some(w => w.near) ? 'Approaching a VAT turnover band. Review forecast turnover and prepare registration.' : 'Monitoring taxable turnover. Add sales from other branches and channels.' };
 }
 
 type Component = 'vat' | 'nhil' | 'getfund';
@@ -120,7 +121,7 @@ export function recordRegistrationTrigger(ctx: Ctx) {
   const forecast = c.forecast > c.threshold;
   // Shorter guideline bands alone do not prove the statutory forecast condition.
   if (!annual && !threeMonthForecast && !forecast) return;
-  if (c.supplyType !== 'goods' && !c.serviceThresholdConfirmed) return;
+  if (c.supplyType !== 'goods' && (!c.serviceThresholdConfirmed || !c.serviceThresholdDate || !c.serviceThresholdAuthority || c.serviceThresholdDate > ctx.now().slice(0, 10))) return;
   if (status.legacyLines) return; // an unverified historical series must be reconciled first
   const date = ctx.now().slice(0, 10);
   const next = new Date(date.slice(0, 7) + '-01T00:00:00Z'); next.setUTCMonth(next.getUTCMonth() + 1);

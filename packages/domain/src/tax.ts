@@ -25,6 +25,8 @@ export const taxConfigSchema = z.object({
   forecastNineMonths: z.number().int().nonnegative().safe().default(0),
   // No guessed commencement date for Act 1177. An evidenced business-specific rule can be selected.
   serviceThresholdConfirmed: z.boolean().default(false),
+  serviceThresholdDate: zCalendarDate.nullable().default(null),
+  serviceThresholdAuthority: z.string().trim().max(400).default(''),
   mandatoryRegistration: z.boolean().default(false),
   reason: z.string().trim().min(1).max(400),
 });
