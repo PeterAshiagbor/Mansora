@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { fail, PAYMENT_METHODS, refundTax, refundLineAmount, SETTLEMENT_METHODS, settlePayments, splitRefund, sum, zCalendarDate } from '@mansora/domain';
 import { dayBounds, defineCommands, likeContains, zApprover, zId, zMoney, zOptText, zQty, zRange, zText, type Ctx } from '../engine';
 import { quoteSale, recordRegistrationTrigger } from '../tax';
+import { queueFiscalCreditNote, queueFiscalInvoice, receiptFiscal } from '../fiscal';
 import { requireTaxPeriodOpen } from './tax';
 import { renderReceiptHtml } from '../receipt';
 import { moveStock, nextNumber, openShift, requireOpenShift } from '../stock';
@@ -121,6 +122,8 @@ export const salesCommands = defineCommands({
         });
       }
       recordRegistrationTrigger(ctx);
+      // Same transaction as the sale: a crash cannot leave a reportable sale with no fiscal document.
+      queueFiscalInvoice(ctx, input.id);
       ctx.audit('sale', input.id, { receiptNo, total: cart.total, discount: cart.discountTotal, credit: settlement.creditAmount, discountApprovedBy });
       return { id: input.id, receiptNo, total: cart.total, change: settlement.change };
     },
@@ -155,6 +158,7 @@ export const salesCommands = defineCommands({
       const m = (k: string) => ctx.setting(k) ?? '';
       const html = renderReceiptHtml({
         business: { name: m('business_name'), phone: m('business_phone'), address: m('business_address'), ...tax?.business, footer: m('receipt_footer') },
+        fiscal: receiptFiscal(ctx, input.id),
         sale: tax?.customer ? { ...s.sale, customer_name: tax.customer.name, customer_phone: tax.customer.phone } : s.sale, items: s.items, payments: s.payments, refunds: s.refunds, reprint: input.reprint,
       });
       return { html, receiptNo: s.sale.receipt_no as string };
@@ -220,6 +224,7 @@ export const salesCommands = defineCommands({
         const outstanding = credit.outstanding_balance - creditReduction;
         ctx.update('credit_accounts', credit.id, { outstanding_balance: outstanding, status: outstanding === 0 ? 'settled' : 'open', updated_at: now });
       }
+      queueFiscalCreditNote(ctx, input.id, input.saleId);
       ctx.audit('refund', input.id, { refundNo, saleId: input.saleId, receiptNo: sale.receipt_no, amount, payout, creditReduction, reason: input.reason, authorisedBy });
       return { id: input.id, refundNo, amount, payout, creditReduction };
     },

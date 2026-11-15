@@ -1,4 +1,5 @@
 import { formatGHS, PAYMENT_LABELS, type PaymentMethod } from '@mansora/domain';
+import { qrSvg } from './fiscal';
 
 export interface ReceiptData {
   business: { name: string; phone: string; address: string; footer: string };
@@ -7,6 +8,23 @@ export interface ReceiptData {
   payments: { method: string; amount: number; reference: string | null }[];
   refunds: { refund_no: string; amount: number; created_at: string }[];
   reprint: boolean;
+  /** Fiscal (GRA) status of this sale; omitted when the sale was not subject to fiscal reporting. */
+  fiscal?: ReceiptFiscal | null;
+}
+
+export interface ReceiptFiscal { state: string; fiscalNumber: string; reference: string | null; signature: string | null; qrData: string | null; graTimestamp: string | null; sandbox: boolean }
+
+/** Wording and layout are placeholders until the approved GRA specification and the printer test fix them [GRA-TBC]. */
+function fiscalBlock(f: ReceiptFiscal | null | undefined): string {
+  if (!f) return '';
+  if (f.state === 'acknowledged') {
+    const qr = qrSvg(f.qrData);
+    return `<hr><div class="c">${f.sandbox ? '<strong>TEST MODE - NOT A GRA FISCAL RECEIPT</strong><br>' : ''}<strong>Fiscal receipt</strong></div>
+<table><tr><td>Fiscal no.</td><td class="r">${esc(f.fiscalNumber)}</td></tr><tr><td>GRA reference</td><td class="r">${esc(f.reference)}</td></tr>${f.graTimestamp ? `<tr><td>Confirmed</td><td class="r">${esc(f.graTimestamp)}</td></tr>` : ''}${f.signature ? `<tr><td>Signature</td><td class="r muted" style="word-break:break-all;white-space:normal">${esc(f.signature)}</td></tr>` : ''}</table>${qr ? `<div class="c">${qr}</div>` : ''}`;
+  }
+  if (f.state === 'rejected') return `<hr><div class="c"><strong>Fiscal confirmation failed</strong><br><span class="muted">Please keep this receipt. The business will contact you.</span></div>`;
+  if (f.state === 'resolved') return `<hr><div class="c muted">Fiscal no. ${esc(f.fiscalNumber)} - handled directly with GRA</div>`;
+  return `<hr><div class="c"><strong>FISCAL CONFIRMATION PENDING</strong><br><span class="muted">Fiscal no. ${esc(f.fiscalNumber)}. Confirmation from GRA will be added to a reprint once available.</span>${f.sandbox ? '<br><span class="muted">TEST MODE</span>' : ''}</div>`;
 }
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -75,6 +93,7 @@ ${r.sale.cash_tendered ? `<tr><td>Cash received</td><td class="r">${money(r.sale
 <tr><td>Change</td><td class="r">${money(r.sale.change_given)}</td></tr>
 ${refunds}
 </table>
+${fiscalBlock(r.fiscal)}
 <hr>
 <div class="c">${esc(r.business.footer || 'Thank you for your purchase')}</div>
 ${r.reprint ? '<div class="c muted">Reprinted copy</div>' : ''}

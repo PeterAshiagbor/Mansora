@@ -414,4 +414,30 @@ CREATE TRIGGER tax_records_no_update BEFORE UPDATE ON tax_records BEGIN SELECT R
 CREATE TRIGGER tax_records_no_delete BEFORE DELETE ON tax_records BEGIN SELECT RAISE(ABORT, 'Tax records cannot be deleted'); END;
 `,
   },
+  {
+    id: 6,
+    name: 'fiscal_gra',
+    sql: `
+-- Fiscal reporting (GRA). Documents and their history are insert-only; a document's state is its latest event.
+CREATE TABLE fiscal_documents (
+ id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('invoice','credit_note')),
+ sale_id TEXT REFERENCES sales(id), refund_id TEXT REFERENCES refunds(id),
+ fiscal_number TEXT NOT NULL UNIQUE, payload_hash TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL,
+ CHECK ((kind = 'invoice' AND sale_id IS NOT NULL AND refund_id IS NULL) OR (kind = 'credit_note' AND refund_id IS NOT NULL AND sale_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX fiscal_documents_sale ON fiscal_documents(sale_id) WHERE kind = 'invoice';
+CREATE UNIQUE INDEX fiscal_documents_refund ON fiscal_documents(refund_id) WHERE kind = 'credit_note';
+CREATE TABLE fiscal_events (
+ id TEXT PRIMARY KEY, document_id TEXT NOT NULL REFERENCES fiscal_documents(id),
+ type TEXT NOT NULL CHECK (type IN ('queued','submitted','acknowledged','rejected','retry_scheduled','manual_resolution')),
+ attempt_no INTEGER NOT NULL, occurred_at TEXT NOT NULL, next_attempt_at TEXT, provider TEXT,
+ gra_reference TEXT, gra_signature TEXT, qr_data TEXT, gra_timestamp TEXT, error_code TEXT, error_detail TEXT
+);
+CREATE INDEX fiscal_events_doc ON fiscal_events(document_id);
+CREATE TRIGGER fiscal_documents_no_update BEFORE UPDATE ON fiscal_documents BEGIN SELECT RAISE(ABORT, 'Fiscal documents are immutable'); END;
+CREATE TRIGGER fiscal_documents_no_delete BEFORE DELETE ON fiscal_documents BEGIN SELECT RAISE(ABORT, 'Fiscal documents cannot be deleted'); END;
+CREATE TRIGGER fiscal_events_no_update BEFORE UPDATE ON fiscal_events BEGIN SELECT RAISE(ABORT, 'Fiscal events are immutable'); END;
+CREATE TRIGGER fiscal_events_no_delete BEFORE DELETE ON fiscal_events BEGIN SELECT RAISE(ABORT, 'Fiscal events cannot be deleted'); END;
+`,
+  },
 ];

@@ -3,6 +3,7 @@ import { SAMPLE_GUIDE, sampleShopRows, TEMPLATE_GUIDE } from '../sample-shop';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { fail, formatGHS, SYNC_TABLES } from '@mansora/domain';
+import { fiscalMode, fiscalSummary } from '../fiscal';
 import { createBackupFile, deriveAutoKey, verifyBackupFile } from '../backup';
 import { Ctx, dayBounds, defineCommands, likeContains, empty, zId, zRange, zText, type Engine } from '../engine';
 import { buildPreview, fileHash, IMPORT_FIELDS, readTable, suggestMapping, TEMPLATE_ROWS, toCsv, toXlsx, type ExistingKeys } from '../importer';
@@ -98,6 +99,7 @@ export const systemCommands = defineCommands({
         tenantStatus: ctx.setting('tenant_status') ?? 'active',
         subscription: JSON.parse(ctx.setting('subscription') ?? 'null'),
         standing: ctx.engine.standing(),
+        fiscal: { mode: fiscalMode(ctx.engine), ...fiscalSummary(ctx) },
       };
     },
   },

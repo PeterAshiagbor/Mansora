@@ -1,5 +1,6 @@
 import { SYNC_PROTOCOL_VERSION, type SyncPullResult, type SyncPushResult } from '@mansora/domain';
 import { recordMansoraPayments } from './mansora-expenses';
+import { runFiscalWorker } from './fiscal';
 import type { Engine } from './engine';
 import { maybeSendDailySummary } from './summary';
 
@@ -52,6 +53,11 @@ export async function call(engine: Engine, path: string, init: RequestInit): Pro
  * pending and are sent again later; the server ignores ones it already has.
  */
 export async function syncNow(engine: Engine): Promise<SyncOutcome> {
+  // GRA reporting is independent of the Mansora cloud: a cloud outage must not delay it, nor the reverse.
+  try { return await syncCloud(engine); } finally { await runFiscalWorker(engine).catch((e) => console.warn('Fiscal worker failed:', (e as Error).message)); }
+}
+
+async function syncCloud(engine: Engine): Promise<SyncOutcome> {
   const state = engine.syncState;
   if (!engine.activated) return { ok: false, pushed: 0, rejected: 0, pending: 0, error: 'Not activated' };
   if (state.running) return { ok: true, pushed: 0, rejected: 0, pending: pendingCount(engine) };

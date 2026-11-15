@@ -15,7 +15,7 @@ import { zCalendarDate } from './dates';
 export const SYNC_PROTOCOL_VERSION = 1;
 
 /** `text+`: optional text added after the first release. A laptop that predates the column may leave it out. */
-type ColType = 'id' | 'id?' | 'text' | 'text?' | 'text+' | 'int' | 'int?' | 'ts' | 'ts?' | 'json';
+type ColType = 'id' | 'id?' | 'text' | 'text?' | 'text+' | 'int' | 'int?' | 'ts' | 'ts?' | 'json' | 'json+';
 export interface SyncTableSpec {
   mode: 'insert' | 'upsert';
   key: string;
@@ -27,6 +27,11 @@ const t = (mode: SyncTableSpec['mode'], cols: Record<string, ColType>, key = 'id
 export const SYNC_TABLES = {
   tax_configs: t('insert', { id: 'id', effective_date: 'text', payload: 'json', created_by: 'id', created_at: 'ts' }),
   tax_records: t('insert', { id: 'id', kind: 'text', tax_date: 'text', reference: 'text', payload: 'json', created_by: 'id', created_at: 'ts' }),
+  fiscal_documents: t('insert', { id: 'id', kind: 'text', sale_id: 'id?', refund_id: 'id?', fiscal_number: 'text', payload_hash: 'text', payload: 'json+', created_at: 'ts' }),
+  fiscal_events: t('insert', {
+    id: 'id', document_id: 'id', type: 'text', attempt_no: 'int', occurred_at: 'ts', next_attempt_at: 'ts?', provider: 'text?', gra_reference: 'text?', gra_signature: 'text?',
+    qr_data: 'text?', gra_timestamp: 'text?', error_code: 'text?', error_detail: 'text?',
+  }),
   users: t('upsert', { id: 'id', username: 'text', name: 'text', role: 'text', status: 'text', permissions: 'json', created_at: 'ts', updated_at: 'ts' }),
   categories: t('upsert', { id: 'id', name: 'text', active: 'int', updated_at: 'ts' }),
   products: t('upsert', {
@@ -93,6 +98,7 @@ const colSchema: Record<ColType, z.ZodType> = {
   ts: z.string().datetime(),
   'ts?': z.string().datetime().nullable(),
   json: z.string().max(20_000),
+  'json+': z.string().max(200_000),
 };
 
 const rowSchemas = Object.fromEntries(

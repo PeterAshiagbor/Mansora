@@ -877,4 +877,28 @@ CREATE POLICY tenant_isolation ON tax_records USING (tenant_id = NULLIF(current_
 GRANT SELECT, INSERT ON tax_configs, tax_records TO mansora_tenant;
 `,
   },
+  {
+    id: 18,
+    name: 'fiscal_gra',
+    sql: `
+CREATE TABLE fiscal_documents (
+ tenant_id uuid NOT NULL REFERENCES tenants(id), id uuid NOT NULL, kind text NOT NULL, sale_id uuid, refund_id uuid,
+ fiscal_number text NOT NULL, payload_hash text NOT NULL, payload text NOT NULL, created_at timestamptz NOT NULL,
+ PRIMARY KEY (tenant_id, id)
+);
+CREATE TABLE fiscal_events (
+ tenant_id uuid NOT NULL REFERENCES tenants(id), id uuid NOT NULL, document_id uuid NOT NULL, type text NOT NULL, attempt_no integer NOT NULL,
+ occurred_at timestamptz NOT NULL, next_attempt_at timestamptz, provider text, gra_reference text, gra_signature text, qr_data text, gra_timestamp text,
+ error_code text, error_detail text, PRIMARY KEY (tenant_id, id)
+);
+CREATE INDEX fiscal_events_doc ON fiscal_events(tenant_id, document_id);
+ALTER TABLE fiscal_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fiscal_documents FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON fiscal_documents USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
+ALTER TABLE fiscal_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fiscal_events FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON fiscal_events USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
+GRANT SELECT, INSERT ON fiscal_documents, fiscal_events TO mansora_tenant;
+`,
+  },
 ];

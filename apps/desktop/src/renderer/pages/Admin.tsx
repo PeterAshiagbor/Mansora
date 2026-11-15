@@ -292,6 +292,19 @@ export function SyncPage() {
             <Stat label="Last successful sync" value={<span className="text-lg">{dateTime(s.lastSyncAt)}</span>} />
             <Stat label="Sync errors" value={s.rejected} tone={s.rejected ? 'bad' : 'default'} />
           </div>
+          {s.fiscal && s.fiscal.mode !== 'off' && (
+            <div className="mb-4">
+              <div className="mb-1 text-sm font-semibold">GRA fiscal reporting{s.fiscal.mode === 'sandbox' ? ' (test mode)' : ''}</div>
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                <Stat label="Confirmed by GRA" value={s.fiscal.acknowledged} tone="good" />
+                <Stat label="Waiting for GRA" value={s.fiscal.pending} tone={s.fiscal.overdue ? 'bad' : s.fiscal.pending ? 'warn' : 'good'} hint={s.fiscal.oldestUnacknowledgedAt ? `Oldest from ${dateTime(s.fiscal.oldestUnacknowledgedAt)}` : 'Nothing waiting'} />
+                <Stat label="Overdue" value={s.fiscal.overdue} tone={s.fiscal.overdue ? 'bad' : 'default'} />
+                <Stat label="Needs attention" value={s.fiscal.rejected} tone={s.fiscal.rejected ? 'bad' : 'default'} />
+              </div>
+              {s.fiscal.rejected > 0 && <Alert tone="bad" className="mt-2">{s.fiscal.rejected} invoice(s) were refused by GRA. Selling is not affected. Contact Mansora support.</Alert>}
+              {s.fiscal.overdue > 0 && <Alert tone="warn" className="mt-2">{s.fiscal.overdue} invoice(s) have been waiting for GRA confirmation for over a day. Connect to the internet; they are retried automatically.</Alert>}
+            </div>
+          )}
           {s.lastError && <Alert tone="warn" className="mb-3">Last attempt: {s.lastError}. The app keeps working; it will try again automatically.</Alert>}
           {s.rejected > 0 && <Alert tone="bad" className="mb-3">{s.rejected} change(s) were refused by the server and need Mansora support. Your local records are intact.</Alert>}
           {s.unprotected > 0 && <Alert tone="warn" className="mb-3"><strong>{s.unprotected} change(s) exist only on this laptop.</strong> If the laptop is lost or damaged before they sync or are backed up, they cannot be recovered. Connect to the internet or make a backup.</Alert>}

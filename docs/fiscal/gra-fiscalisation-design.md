@@ -1,6 +1,6 @@
 # GRA fiscalisation — design (draft)
 
-**Status: draft for Mansora review. Nothing here is implemented.**
+**Status: F1–F3 built against a sandbox; no live GRA integration. See [Implementation status](#15-implementation-status-f1f3).**
 
 > **Read this first.** Mansora has not yet obtained the Ghana Revenue Authority (GRA)
 > approved integration specification. Everything GRA-specific in this document —
@@ -82,6 +82,8 @@ security like every other business table.
 | Column | Notes |
 | --- | --- |
 | `document_id` | |
+| `provider` | which adapter produced the event (`sandbox` results print as test receipts) |
+| `next_attempt_at` | when a `retry_scheduled` document is next due |
 | `type` | `queued`, `submitted`, `acknowledged`, `rejected`, `retry_scheduled`, `failed_permanent`, `manual_resolution` |
 | `attempt_no`, `at` | |
 | `gra_reference`, `gra_signature`, `qr_data`, `gra_timestamp` | filled on `acknowledged` `[GRA-TBC]` |
@@ -231,7 +233,7 @@ adapter and payload builder change.
 | # | Decision | Owner |
 | --- | --- | --- |
 | F-1 | Is deferred submission (Option A) or a local fiscal component (B) permitted? What is the maximum delay? | GRA, via Mansora |
-| F-2 | Which clients must fiscalise (VAT status, thresholds)? Who is the registered taxpayer — each client, or Mansora? | Mansora + advisor |
+| F-2 | **Decided (Mansora, 15 Nov 2026):** the registered taxpayer is **each client**. A client fiscalises once the platform's own turnover rules make it VAT-registered (`tax.ts`: automatic registration trigger); fiscal reporting is additionally switched on per client by an administrator | Mansora |
 | F-3 | Credential/device model: per business, per laptop? Can a restored/replaced laptop reuse an identity? | GRA |
 | F-4 | Refund of a not-yet-acknowledged sale: block, queue dependent, or cancel the original? | GRA + Mansora |
 | F-5 | Behaviour on persistent rejection: allow trading to continue with a warning, or block new sales after N rejections? | Mansora |
@@ -245,3 +247,32 @@ Raise it with GRA at the same time (see checklist) but design it separately.
 
 This document is engineering design, not legal or tax advice. Confirm obligations
 with GRA and a qualified Ghanaian tax adviser.
+
+## 15. Implementation status (F1–F3)
+
+Built on branch `claude/upbeat-goodall-yl5tfs`. Everything below runs against the **sandbox provider and the fake authority in `tests/fiscal/`**. Nothing talks to GRA.
+
+| Piece | Where | Notes |
+| --- | --- | --- |
+| Lifecycle rules, backoff, summary | `packages/domain/src/fiscal.ts` | Provider-independent. Backoff 30 s doubling to a 15 min cap, jittered 50–100% |
+| Tables | local migration 6, cloud migration 18, `SYNC_TABLES` | Insert-only with triggers; RLS in the cloud; restore rebuilds history and continues `FD-` numbering |
+| Queue, payload, worker, providers, QR | `apps/desktop/src/core/fiscal.ts` | Document is created inside the sale / refund transaction |
+| Commands | `commands/fiscal.ts` | `fiscal.status`, `fiscal.configure`, `fiscal.list`, `fiscal.run`, `fiscal.resolve` |
+| Sale / refund hooks | `commands/sales.ts` | Invoice per sale; credit note per refund of a reported sale |
+| Receipt | `receipt.ts` | Pending / confirmed (reference, signature, QR) / failed / handled-with-GRA blocks; test mode is printed prominently |
+| Status | `sync.status` and the Synchronisation screen | Confirmed, waiting, overdue (>24 h), needs attention |
+| Worker trigger | end of every `syncNow`, and `fiscal.run` | Independent of the Mansora cloud: one outage does not delay the other |
+
+**Who is in scope.** Off by default (`fiscal_mode = off`): no existing client's receipts, sync or numbering change. When an administrator sets `sandbox` (the only mode that can be set today), invoices are created only for sales made while the business is VAT-registered under the existing turnover rules. `live` is refused until the GRA adapter exists.
+
+**Defaults taken for the open decisions** (change when GRA answers):
+
+| # | Default now | Why |
+| --- | --- | --- |
+| F-1 | Deferred submission (Option A): sale completes, receipt says confirmation pending | Preserves the offline guarantee |
+| F-4 | Credit note is queued and **waits** for its invoice to be acknowledged, then carries the invoice's reference | Safe whichever way GRA answers |
+| F-5 | A rejection never blocks trading and never blocks later invoices; it is recorded once and shown as needs attention | A single bad invoice must not stop a shop |
+
+**Deliberately not done** (needs the specification or GRA): the real adapter, real payload and tax-code mapping, GRA's signature/QR content and minimum size, request signing, credential storage (F5), device registration, and a printed credit-note receipt. The payload format `mansora-fiscal-draft/1` is Mansora's own placeholder; the QR on a test receipt encodes a sandbox URL.
+
+**Known limits.** The retry wait is evaluated when the worker runs (after each sync, or `fiscal.run`), not by a dedicated timer; a laptop that never syncs will not retry until it does. The 24-hour alert is a placeholder for GRA's maximum delay. Stock/price rounding follows the existing VAT module and has not been checked against GRA's rounding rule.

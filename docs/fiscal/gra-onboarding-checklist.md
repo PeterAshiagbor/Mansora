@@ -12,7 +12,7 @@ GRA". Engineering design: [gra-fiscalisation-design.md](gra-fiscalisation-design
 
 | # | Blocker | Who | Effect while open |
 | --- | --- | --- | --- |
-| G1 | **Decide the legal model** (design F-2): who is the registered taxpayer — Mansora or each client — and which clients are in scope | Mansora owner + tax adviser | Cannot apply for the right credentials |
+| G1 | ~~Decide the legal model~~ **Decided:** each client is the registered taxpayer; clients are in scope once the platform's turnover rules register them for VAT. Still to confirm with GRA: whether Mansora must itself be approved as a software/solution provider, and per-client credential issue | Mansora owner + tax adviser | Credentials must be applied for per client |
 | G2 | **Registered taxpayer standing**: TIN, VAT registration status, tax clearance for the applicant entity | Applicant | GRA will not onboard a non-compliant taxpayer |
 | G3 | **Formal contact with GRA's E-VAT / integration team** and application for solution-provider or taxpayer onboarding (route to be confirmed by GRA) | Mansora owner | No access to spec or sandbox |
 | G4 | **Approved integration specification** (current version, in writing) | GRA | Adapter cannot be written; all `[GRA-TBC]` items stay open |
