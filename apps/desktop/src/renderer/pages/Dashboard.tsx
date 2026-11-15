@@ -1,3 +1,4 @@
+import { TaxNotice } from './Tax';
 import { Alert, Badge, Button, Card, Icon, PageHeader, Stat, Table, QueryView, Disclosure } from '@mansora/ui';
 import { FirstUsePrompt } from './GettingStarted';
 import { SalesActivity } from '../components/SalesActivity';
@@ -15,6 +16,7 @@ export function Dashboard() {
     <div>
       <PageHeader title="Dashboard" subtitle={own ? 'Your sales activity today.' : 'Sales, stock and customer balances in one view.'} actions={<><Button onClick={dashboard.reload}><Icon name="sync" />Refresh overview</Button>{can('sale.create') && <Button variant="primary" onClick={() => go('checkout')}><Icon name="plus" />Create a sale</Button>}</>} />
       <StandingNotice />
+      <TaxNotice />
       {state.user?.role === 'owner' && <FirstUsePrompt />}
       {sync?.tenantStatus === 'suspended' && <Alert tone="warn" className="mb-4">Your Mansora service plan needs attention. Please contact Mansora. You can keep selling as normal.</Alert>}
       {sync && sync.unprotected > 0 && sync.state === 'offline' && (

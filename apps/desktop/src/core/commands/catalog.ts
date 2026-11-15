@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fail, PRESET_IDS, PRESETS, sum, type PresetId } from '@mansora/domain';
+import { fail, TAX_CLASSES, PRESET_IDS, PRESETS, sum, type PresetId } from '@mansora/domain';
 import { defineCommands, empty, zId, zMoney, zOptText, zQty, zText, type Ctx } from '../engine';
 import { moveStock } from '../stock';
 
@@ -14,6 +14,7 @@ const productInput = z.object({
   sellingPrice: zMoney,
   reorderLevel: z.number().int().nonnegative().max(1_000_000).default(0),
   active: z.boolean().default(true),
+  taxClass: z.enum(TAX_CLASSES).optional(),
   openingStock: z.number().int().nonnegative().max(10_000_000).optional(),
 });
 
@@ -23,7 +24,7 @@ export function createProduct(ctx: Ctx, input: z.infer<typeof productInput>, ref
   const cost = input.costPrice ?? 0;
   ctx.insert('products', {
     id, sku: input.sku, barcode: input.barcode, name: input.name, category_id: input.categoryId ?? null, unit: input.unit, cost_price: cost,
-    selling_price: input.sellingPrice, reorder_level: input.reorderLevel, active: input.active ? 1 : 0, version: 1, created_at: now, updated_at: now,
+    tax_class: input.taxClass ?? null, selling_price: input.sellingPrice, reorder_level: input.reorderLevel, active: input.active ? 1 : 0, version: 1, created_at: now, updated_at: now,
   });
   ctx.insert('stock_balances', { product_id: id, quantity: 0, average_cost: cost, version: 0, updated_at: now });
   if (input.openingStock) moveStock(ctx, { productId: id, type: 'OPENING_STOCK', delta: input.openingStock, unitCost: cost, refType, refId: id });
@@ -32,7 +33,7 @@ export function createProduct(ctx: Ctx, input: z.infer<typeof productInput>, ref
 
 const PRODUCT_SELECT = `
   SELECT p.id, p.sku, p.barcode, p.name, p.category_id, c.name AS category_name, p.unit, p.cost_price, p.selling_price, p.reorder_level,
-         p.active, p.version, p.updated_at, COALESCE(b.quantity, 0) AS quantity, COALESCE(b.average_cost, p.cost_price) AS average_cost
+         p.tax_class, p.active, p.version, p.updated_at, COALESCE(b.quantity, 0) AS quantity, COALESCE(b.average_cost, p.cost_price) AS average_cost
   FROM products p LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN stock_balances b ON b.product_id = p.id`;
 
 /** Cost data is stripped at the data layer for users without the cost permission. */
@@ -114,7 +115,7 @@ export const catalogCommands = defineCommands({
       if (cost !== p.cost_price) ctx.require('product.cost');
       ctx.update('products', p.id, {
         sku: input.sku, barcode: input.barcode, name: input.name, category_id: input.categoryId ?? null, unit: input.unit, cost_price: cost,
-        selling_price: input.sellingPrice, reorder_level: input.reorderLevel, active: input.active ? 1 : 0, version: p.version + 1, updated_at: ctx.now(),
+        tax_class: input.taxClass ?? p.tax_class, selling_price: input.sellingPrice, reorder_level: input.reorderLevel, active: input.active ? 1 : 0, version: p.version + 1, updated_at: ctx.now(),
       });
       // With no stock on hand there is nothing to average against, so the reference cost becomes the stock cost.
       if (cost !== p.cost_price) {
@@ -124,6 +125,7 @@ export const catalogCommands = defineCommands({
       const changes: Record<string, unknown> = {};
       if (p.selling_price !== input.sellingPrice) changes.sellingPrice = { from: p.selling_price, to: input.sellingPrice };
       if (p.cost_price !== cost) changes.costPrice = { from: p.cost_price, to: cost };
+      if (input.taxClass && input.taxClass !== p.tax_class) changes.taxClass = { from: p.tax_class, to: input.taxClass };
       if (p.name !== input.name) changes.name = { from: p.name, to: input.name };
       if (!!p.active !== input.active) changes.active = input.active;
       ctx.audit('product', p.id, changes, 'product.updated');

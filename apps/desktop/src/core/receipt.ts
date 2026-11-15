@@ -2,8 +2,8 @@ import { formatGHS, PAYMENT_LABELS, type PaymentMethod } from '@mansora/domain';
 
 export interface ReceiptData {
   business: { name: string; phone: string; address: string; footer: string };
-  sale: { receipt_no: string; created_at: string; cashier_name: string; customer_name: string | null; customer_phone: string | null; subtotal: number; discount_total: number; total: number; cash_tendered: number; change_given: number };
-  items: { product_name: string; quantity: number; unit_price: number; discount: number; line_total: number }[];
+  sale: { receipt_no: string; created_at: string; cashier_name: string; customer_name: string | null; customer_phone: string | null; subtotal: number; discount_total: number; total: number; cash_tendered: number; change_given: number; tax_snapshot?: string | null };
+  items: { product_name: string; quantity: number; unit_price: number; discount: number; line_total: number; tax_snapshot?: string | null }[];
   payments: { method: string; amount: number; reference: string | null }[];
   refunds: { refund_no: string; amount: number; created_at: string }[];
   reprint: boolean;
@@ -24,9 +24,10 @@ export function formatDateTime(iso: string): string {
  * no external resources.
  */
 export function renderReceiptHtml(r: ReceiptData): string {
+  const tax = r.sale.tax_snapshot ? JSON.parse(r.sale.tax_snapshot) : null;
   const rows = r.items
     .map(
-      (i) => `<tr><td colspan="3" class="name">${esc(i.product_name)}</td></tr>
+      (i) => `<tr><td colspan="3" class="name">${esc(i.product_name)}${tax?.registered && i.tax_snapshot ? ` <span class="muted">(${esc(({ standard: 'standard-rated', zero: 'zero-rated', exempt: 'exempt', outside: 'outside scope' } as Record<string, string>)[JSON.parse(i.tax_snapshot).classification])})</span>` : ''}</td></tr>
 <tr><td>${i.quantity} x ${money(i.unit_price)}</td><td class="r">${i.discount ? `-${money(i.discount)}` : ''}</td><td class="r">${money(i.line_total)}</td></tr>`,
     )
     .join('');
@@ -53,6 +54,7 @@ hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
 <table>
 <tr><td>Receipt</td><td class="r"><strong>${esc(r.sale.receipt_no)}</strong></td></tr>
 <tr><td>Date</td><td class="r">${esc(formatDateTime(r.sale.created_at))}</td></tr>
+${tax?.registered ? `<tr><td>TIN</td><td class="r">${esc(tax.tin)}</td></tr><tr><td>VAT registration</td><td class="r">${esc(tax.vatNumber)}</td></tr>` : ''}
 <tr><td>Cashier</td><td class="r">${esc(r.sale.cashier_name)}</td></tr>
 ${r.sale.customer_name ? `<tr><td>Customer</td><td class="r">${esc(r.sale.customer_name)}${r.sale.customer_phone ? `<br>${esc(r.sale.customer_phone)}` : ''}</td></tr>` : ''}
 </table>
@@ -62,6 +64,8 @@ ${r.sale.customer_name ? `<tr><td>Customer</td><td class="r">${esc(r.sale.custom
 <table>
 <tr><td>Subtotal</td><td class="r">${money(r.sale.subtotal)}</td></tr>
 ${r.sale.discount_total ? `<tr><td>Discount</td><td class="r">-${money(r.sale.discount_total)}</td></tr>` : ''}
+${tax?.registered ? `<tr><td>Value excluding taxes</td><td class="r">${money(tax.base)}</td></tr><tr><td>VAT (${tax.rates[0] / 100}%)</td><td class="r">${money(tax.vat)}</td></tr><tr><td>NHIL (${tax.rates[1] / 100}%)</td><td class="r">${money(tax.nhil)}</td></tr><tr><td>GETFund (${tax.rates[2] / 100}%)</td><td class="r">${money(tax.getfund)}</td></tr>` : ''}
+
 <tr class="total"><td>TOTAL (GHS)</td><td class="r">${money(r.sale.total)}</td></tr>
 </table>
 <hr>

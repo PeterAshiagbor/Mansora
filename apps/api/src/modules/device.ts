@@ -21,7 +21,7 @@ async function applyRows(q: Query, tenantId: string, table: SyncTable, rows: Rec
     const placeholders = cols.map((_, i) => `$${i + 2}`).join(', ');
     let conflict = 'DO NOTHING';
     if (spec.mode === 'upsert') {
-      const set = cols.filter((c) => c !== spec.key).map((c) => `${c} = EXCLUDED.${c}`).join(', ');
+      const set = cols.filter((c) => c !== spec.key && c in row).map((c) => `${c} = EXCLUDED.${c}`).join(', ');
       // Never let an older copy of a row overwrite a newer one.
       const guard = 'version' in spec.cols ? ` WHERE ${table}.version <= EXCLUDED.version` : 'updated_at' in spec.cols ? ` WHERE ${table}.updated_at <= EXCLUDED.updated_at` : '';
       conflict = `DO UPDATE SET ${set}${guard}`;

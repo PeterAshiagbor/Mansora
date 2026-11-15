@@ -25,11 +25,13 @@ export interface SyncTableSpec {
 const t = (mode: SyncTableSpec['mode'], cols: Record<string, ColType>, key = 'id'): SyncTableSpec => ({ mode, key, cols });
 
 export const SYNC_TABLES = {
+  tax_configs: t('insert', { id: 'id', effective_date: 'text', payload: 'json', created_by: 'id', created_at: 'ts' }),
+  tax_records: t('insert', { id: 'id', kind: 'text', tax_date: 'text', reference: 'text', payload: 'json', created_by: 'id', created_at: 'ts' }),
   users: t('upsert', { id: 'id', username: 'text', name: 'text', role: 'text', status: 'text', permissions: 'json', created_at: 'ts', updated_at: 'ts' }),
   categories: t('upsert', { id: 'id', name: 'text', active: 'int', updated_at: 'ts' }),
   products: t('upsert', {
     id: 'id', sku: 'text?', barcode: 'text?', name: 'text', category_id: 'id?', unit: 'text', cost_price: 'int', selling_price: 'int',
-    reorder_level: 'int', active: 'int', version: 'int', created_at: 'ts', updated_at: 'ts',
+    tax_class: 'text+', reorder_level: 'int', active: 'int', version: 'int', created_at: 'ts', updated_at: 'ts',
   }),
   stock_balances: t('upsert', { product_id: 'id', quantity: 'int', average_cost: 'int', version: 'int', updated_at: 'ts' }, 'product_id'),
   inventory_movements: t('insert', {
@@ -41,18 +43,18 @@ export const SYNC_TABLES = {
   purchase_items: t('insert', { id: 'id', purchase_id: 'id', product_id: 'id', quantity: 'int', unit_cost: 'int' }),
   sales: t('insert', {
     id: 'id', receipt_no: 'text', shift_id: 'id', cashier_id: 'id', customer_id: 'id?', subtotal: 'int', discount_total: 'int', total: 'int',
-    cash_tendered: 'int', change_given: 'int', cost_total: 'int', status: 'text', discount_approved_by: 'id?', created_at: 'ts',
+    tax_snapshot: 'text+', cash_tendered: 'int', change_given: 'int', cost_total: 'int', status: 'text', discount_approved_by: 'id?', created_at: 'ts',
   }),
   sale_items: t('insert', {
     id: 'id', sale_id: 'id', product_id: 'id', product_name: 'text', sku: 'text?', quantity: 'int', unit_price: 'int', cost_snapshot: 'int',
-    discount: 'int', line_total: 'int',
+    discount: 'int', line_total: 'int', tax_snapshot: 'text+',
   }),
   payments: t('insert', { id: 'id', sale_id: 'id', method: 'text', amount: 'int', reference: 'text?' }),
   refunds: t('insert', {
     id: 'id', sale_id: 'id', refund_no: 'text', amount: 'int', cost_total: 'int', payout_method: 'text?', payout_amount: 'int', credit_reduction: 'int',
     reason: 'text', requested_by: 'id', authorised_by: 'id', shift_id: 'id?', created_at: 'ts',
   }),
-  refund_items: t('insert', { id: 'id', refund_id: 'id', sale_item_id: 'id', product_id: 'id', quantity: 'int', amount: 'int', restocked: 'int' }),
+  refund_items: t('insert', { id: 'id', refund_id: 'id', sale_item_id: 'id', product_id: 'id', quantity: 'int', amount: 'int', restocked: 'int', tax_snapshot: 'text+' }),
   customers: t('upsert', { id: 'id', name: 'text', phone: 'text?', email: 'text?', notes: 'text?', active: 'int', created_at: 'ts', updated_at: 'ts' }),
   credit_accounts: t('upsert', {
     id: 'id', customer_id: 'id', sale_id: 'id', original_balance: 'int', outstanding_balance: 'int', due_date: 'text?', status: 'text',

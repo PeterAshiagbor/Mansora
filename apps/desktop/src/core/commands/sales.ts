@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { fail, PAYMENT_METHODS, priceCart, refundLineAmount, SETTLEMENT_METHODS, settlePayments, splitRefund, sum, zCalendarDate } from '@mansora/domain';
+import { fail, PAYMENT_METHODS, refundTax, refundLineAmount, SETTLEMENT_METHODS, settlePayments, splitRefund, sum, zCalendarDate } from '@mansora/domain';
 import { dayBounds, defineCommands, likeContains, zApprover, zId, zMoney, zOptText, zQty, zRange, zText, type Ctx } from '../engine';
+import { quoteSale, recordRegistrationTrigger } from '../tax';
+import { requireTaxPeriodOpen } from './tax';
 import { renderReceiptHtml } from '../receipt';
 import { moveStock, nextNumber, openShift, requireOpenShift } from '../stock';
 
@@ -48,6 +50,7 @@ export const salesCommands = defineCommands({
       id: zId,
       lines: z.array(z.object({ productId: zId, quantity: zQty, discount: zMoney.default(0) })).min(1).max(500),
       cartDiscount: zMoney.default(0),
+      expectedTotal: zMoney.optional(),
       tenders: z.array(z.object({ method: z.enum(PAYMENT_METHODS), amount: zMoney, reference: zOptText(80) })).max(10),
       customerId: zId.nullish(),
       dueDate: zCalendarDate.nullish(),
@@ -57,6 +60,7 @@ export const salesCommands = defineCommands({
       const existing = ctx.get('SELECT id, receipt_no FROM sales WHERE id = ?', input.id);
       if (existing) return { id: existing.id, receiptNo: existing.receipt_no, duplicate: true };
 
+      requireTaxPeriodOpen(ctx, ctx.now().slice(0, 10));
       const shift = requireOpenShift(ctx, 'making a sale');
       if (new Set(input.lines.map((l) => l.productId)).size !== input.lines.length) fail('INVALID_INPUT', 'Each product may appear only once in the basket');
       const products = input.lines.map((l) => {
@@ -68,7 +72,8 @@ export const salesCommands = defineCommands({
         return p;
       });
       // Prices always come from the local catalogue, never from the screen.
-      const cart = priceCart(input.lines.map((l, i) => ({ productId: l.productId, quantity: l.quantity, unitPrice: products[i].selling_price, discount: l.discount })), input.cartDiscount);
+      const cart = quoteSale(ctx, input.lines, input.cartDiscount);
+      if (input.expectedTotal !== undefined && input.expectedTotal !== cart.total) fail('PRICE_CHANGED', 'Prices or tax settings changed. Refresh the basket and confirm the new total before taking payment.');
       let discountApprovedBy: string | null = null;
       if (cart.discountTotal > 0) {
         // Optional owner-set ceiling (percent of the basket before discount). Above it, only the owner may approve.
@@ -88,6 +93,7 @@ export const salesCommands = defineCommands({
       if (input.customerId && !ctx.get('SELECT 1 FROM customers WHERE id = ? AND active = 1', input.customerId)) fail('NOT_FOUND', 'Customer not found');
 
       const now = ctx.now();
+      const customer = input.customerId ? ctx.get('SELECT name, phone FROM customers WHERE id = ?', input.customerId) : null;
       const receiptNo = nextNumber(ctx, 'R');
       const costs = products.map((p) => p.average_cost as number);
       const costTotal = sum(cart.lines.map((l, i) => l.quantity * costs[i]));
@@ -98,11 +104,12 @@ export const salesCommands = defineCommands({
         subtotal: cart.subtotal, discount_total: cart.discountTotal, total: cart.total, cash_tendered: settlement.cashTendered,
         change_given: settlement.change, cost_total: costTotal, status: 'completed',
         discount_approved_by: discountApprovedBy, created_at: now,
+        tax_snapshot: JSON.stringify({ ...cart.tax, customer, registered: cart.snapshots.some(t => t.registered), tin: cart.config.tin, vatNumber: cart.config.vatNumber, pricing: cart.config.pricing, rates: [cart.config.vatBps, cart.config.nhilBps, cart.config.getfundBps], business: { name: ctx.setting('business_name') ?? '', address: ctx.setting('business_address') ?? '', phone: ctx.setting('business_phone') ?? '' } }),
       });
       cart.lines.forEach((l, i) => {
         ctx.insert('sale_items', {
           id: ctx.id(), sale_id: input.id, product_id: l.productId, product_name: products[i].name, sku: products[i].sku, quantity: l.quantity,
-          unit_price: l.unitPrice, cost_snapshot: costs[i], discount: l.discount, line_total: l.lineTotal,
+          unit_price: l.unitPrice, cost_snapshot: costs[i], discount: l.discount, line_total: l.lineTotal, tax_snapshot: JSON.stringify(cart.snapshots[i]),
         });
         moveStock(ctx, { productId: l.productId, type: 'SALE', delta: -l.quantity, refType: 'sale', refId: input.id });
       });
@@ -113,6 +120,7 @@ export const salesCommands = defineCommands({
           outstanding_balance: settlement.creditAmount, due_date: input.dueDate ?? null, status: 'open', created_at: now, updated_at: now,
         });
       }
+      recordRegistrationTrigger(ctx);
       ctx.audit('sale', input.id, { receiptNo, total: cart.total, discount: cart.discountTotal, credit: settlement.creditAmount, discountApprovedBy });
       return { id: input.id, receiptNo, total: cart.total, change: settlement.change };
     },
@@ -143,10 +151,11 @@ export const salesCommands = defineCommands({
     input: z.object({ id: zId, reprint: z.boolean().default(false) }),
     run: (ctx, input) => {
       const s = loadSale(ctx, input.id);
+      const tax = s.sale.tax_snapshot ? JSON.parse(s.sale.tax_snapshot) : null;
       const m = (k: string) => ctx.setting(k) ?? '';
       const html = renderReceiptHtml({
-        business: { name: m('business_name'), phone: m('business_phone'), address: m('business_address'), footer: m('receipt_footer') },
-        sale: s.sale, items: s.items, payments: s.payments, refunds: s.refunds, reprint: input.reprint,
+        business: { name: m('business_name'), phone: m('business_phone'), address: m('business_address'), ...tax?.business, footer: m('receipt_footer') },
+        sale: tax?.customer ? { ...s.sale, customer_name: tax.customer.name, customer_phone: tax.customer.phone } : s.sale, items: s.items, payments: s.payments, refunds: s.refunds, reprint: input.reprint,
       });
       return { html, receiptNo: s.sale.receipt_no as string };
     },
@@ -171,6 +180,7 @@ export const salesCommands = defineCommands({
     run: (ctx, input) => {
       const dup = ctx.get('SELECT id, refund_no FROM refunds WHERE id = ?', input.id);
       if (dup) return { id: dup.id, refundNo: dup.refund_no, duplicate: true };
+      requireTaxPeriodOpen(ctx, ctx.now().slice(0, 10));
       const authorisedBy = ctx.authorise('refund.approve', input.approver);
       const sale = ctx.get('SELECT * FROM sales WHERE id = ?', input.saleId);
       if (!sale) fail('NOT_FOUND', 'Sale not found');
@@ -202,7 +212,7 @@ export const salesCommands = defineCommands({
         requested_by: ctx.user.id, authorised_by: authorisedBy, shift_id: shift?.id ?? null, created_at: now,
       });
       for (const l of lines) {
-        ctx.insert('refund_items', { id: ctx.id(), refund_id: input.id, sale_item_id: l.saleItemId, product_id: l.item.product_id, quantity: l.quantity, amount: l.amount, restocked: l.restock ? 1 : 0 });
+        ctx.insert('refund_items', { id: ctx.id(), refund_id: input.id, sale_item_id: l.saleItemId, product_id: l.item.product_id, quantity: l.quantity, amount: l.amount, restocked: l.restock ? 1 : 0, tax_snapshot: l.item.tax_snapshot ? JSON.stringify(refundTax(JSON.parse(l.item.tax_snapshot), l.item.refunded_amount, l.amount)) : null });
         // Returned goods go back into stock at the cost they were sold at. Unsellable returns are not restocked.
         if (l.restock) moveStock(ctx, { productId: l.item.product_id, type: 'SALE_REFUND', delta: l.quantity, unitCost: l.item.cost_snapshot, refType: 'refund', refId: input.id, reason: input.reason });
       }

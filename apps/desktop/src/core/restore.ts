@@ -5,7 +5,7 @@ import type { Ctx } from './engine';
 const ORDER: SyncTable[] = [
   'users', 'categories', 'products', 'stock_balances', 'suppliers', 'purchases', 'purchase_items', 'customers', 'shifts', 'shift_cash_movements',
   'sales', 'sale_items', 'payments', 'refunds', 'refund_items', 'credit_accounts', 'credit_repayments', 'expenses', 'inventory_movements',
-  'audit_logs', 'support_access_grants',
+  'audit_logs', 'support_access_grants', 'tax_configs', 'tax_records',
 ];
 
 /** A stored value that can never match any password: restored staff must be given new passwords by the owner. */
