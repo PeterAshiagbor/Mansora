@@ -97,6 +97,7 @@ export const authCommands = defineCommands({
         e.setMeta('api_url', apiUrl);
         e.setMeta('device_id', body.deviceId);
         e.setMeta('tenant_id', body.tenant.id);
+        if (body.vatFeature !== undefined) e.setMeta('platform_vat_feature',JSON.stringify(body.vatFeature));
         e.setMeta('business_name', body.tenant.name);
         e.setMeta('business_phone', body.tenant.phone ?? '');
         e.setMeta('business_address', body.tenant.address ?? '');
@@ -182,6 +183,7 @@ export const authCommands = defineCommands({
       const body: any = await res.json().catch(() => ({}));
       if (!res.ok) fail(body.code ?? 'ACTIVATION_FAILED', body.message ?? 'Re-linking failed');
       ctx.tx(() => {
+        if (body.vatFeature !== undefined) ctx.engine.setMeta('platform_vat_feature',JSON.stringify(body.vatFeature));
         ctx.engine.setMeta('device_id', body.deviceId);
         ctx.engine.setMeta('device_token', body.deviceToken);
         ctx.audit('device', body.deviceId, { deviceName: input.deviceName }, 'device.relinked');

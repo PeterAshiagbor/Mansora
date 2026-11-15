@@ -1,3 +1,4 @@
+import { vatFeaturePolicy } from '../vat-features';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -374,6 +375,7 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       if (!client) httpError(404, 'NOT_FOUND', 'Client not found');
       return {
         client: withHealth(client),
+        vatFeature: await vatFeaturePolicy(q,id),
         onboarding: await q(`SELECT o.step, o.completed_at, o.notes, a.name AS completed_by_name FROM onboarding_steps o LEFT JOIN admins a ON a.id = o.completed_by WHERE o.tenant_id = $1`, [id]),
         devices: await q(`SELECT id, name, status, app_version, last_seen_at, last_sync_at, pending_count, last_backup_at, activated_at FROM devices WHERE tenant_id = $1 ORDER BY activated_at DESC`, [id]),
         backups: await q(`SELECT id, size_bytes, status, created_at FROM backup_records WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 10`, [id]),
@@ -384,6 +386,20 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     // Grants are business data: read inside the tenant's own context. Only the grant metadata is exposed.
     const grants = await db.tenant(id, (q) => q(`SELECT id, scope, purpose, starts_at, expires_at, revoked_at FROM support_access_grants ORDER BY created_at DESC LIMIT 20`));
     return { ...out, browserWorkspaceAvailable: !!ctx.browserWorkspaces, onboarding: out.onboarding.map((o) => ({ ...o, label: ONBOARDING_STEPS.find(([s]) => s === o.step)?.[1] ?? o.step })), grants };
+  });
+  app.put('/v1/admin/clients/:id/features/vat', async req => {
+    const a = await admin(req), { id } = zId.parse(req.params);
+    const b = z.object({enabled:z.boolean(),reason:text(400),expectedRevision:z.number().int().nonnegative()}).parse(req.body);
+    return db.platform(async q=>{
+      if (!(await q('SELECT id FROM tenants WHERE id=$1 FOR UPDATE',[id])).length) httpError(404,'NOT_FOUND','Client not found');
+      const before = await vatFeaturePolicy(q,id);
+      if (before.revision !== b.expectedRevision) httpError(409,'VAT_POLICY_CHANGED','VAT feature changed. Refresh and review the latest history.');
+      if (before.enabled === b.enabled) return before;
+      const eventId=randomUUID();
+      await q('INSERT INTO tenant_vat_feature_events (id,tenant_id,enabled,reason,admin_id) VALUES ($1,$2,$3,$4,$5)',[eventId,id,b.enabled,b.reason,a.id]);
+      await audit(q,a,'client.vat_feature.changed',id,{eventId,previousEnabled:before.enabled,enabled:b.enabled,reason:b.reason,scope:'collection feature only; legal liability and original records preserved'});
+      return vatFeaturePolicy(q,id);
+    });
   });
   app.put('/v1/admin/clients/:id', async (req) => {
     const a = await admin(req);

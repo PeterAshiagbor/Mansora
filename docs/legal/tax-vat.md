@@ -72,3 +72,15 @@ GRA's [E-VAT onboarding guidelines, section 10](https://gra.gov.gh/wp-content/up
 ## Financial-control audit follow-up
 
 See [VAT financial-control audit](../reviews/2026-11-15-vat-financial-audit.md) for the errors missed in the original implementation, statutory references, regression cases and remaining submission/certification limits. This document and the implementation must not be used as proof of GRA approval.
+
+## Mansora-admin collection feature
+
+Client Features → VAT is a platform-only audited switch, separate from statutory registration. Admin changes are append-only with optimistic revision checks. Browser commands refresh the authoritative policy before execution; native activation/relink and sync carry its full history. Offline laptops retain the last received policy until their next successful sync. Shops cannot change the platform policy through business settings or synced business events.
+
+Suppressed sales preserve captured legal rules and policy revision. Reporting derives historical liability in the original sale and refund periods, including prior carry-forward effects and corrected supply classifications. It separates recorded output tax from uncollected historical exposure. Original invoices, cash, refunds and filed snapshots are never rewritten. Exposure blocks recording a filing until the original period and fiscal documents are reconciled; it is not proof of retrospective collection or permission to amend an accepted GRA return.
+
+## TSB UI rehearsal
+
+Explicit staging-only `MANSORA_VAT_DEMO=tsb-v1` adds GHS 750,001 fictional external turnover dated the last day of the prior month, a synthetic legal-registration configuration from the next month, a standard-rated GHS 120 product and one GHS 120 sale. It runs only for assigned shop-b in team-test mode; repeat runs preserve the fixture and TSA. No real GRA filing or registration occurs. Existing unclassified/historical entries remain visible and may block filing; they are not silently reclassified.
+
+Inspect TSB → Ghana VAT for all turnover bands, the legal effective date, current-month output and export. In Mansora admin → Clients → Mansora TSB → Features · VAT, disable with a reason, make a sale in TSB, enable again and inspect the original-month Backdated VAT exposure schedule and admin history. New sales after enabling charge normally.

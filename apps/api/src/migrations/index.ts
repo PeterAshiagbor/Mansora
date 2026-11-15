@@ -881,4 +881,14 @@ GRANT SELECT, INSERT ON tax_configs, tax_records TO mansora_tenant;
 ALTER TABLE customers ADD COLUMN tin text;
 ALTER TABLE customers ADD COLUMN address text;
 ` },
+  { id: 19, name: 'platform_vat_feature_history', sql: `
+CREATE TABLE tenant_vat_feature_events (
+ revision bigserial PRIMARY KEY, id uuid NOT NULL UNIQUE, tenant_id uuid NOT NULL REFERENCES tenants(id),
+ enabled boolean NOT NULL, reason text NOT NULL, admin_id uuid NOT NULL REFERENCES admins(id),
+ occurred_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX tenant_vat_feature_history ON tenant_vat_feature_events(tenant_id, revision);
+GRANT SELECT, INSERT ON tenant_vat_feature_events TO mansora_platform;
+GRANT USAGE, SELECT ON SEQUENCE tenant_vat_feature_events_revision_seq TO mansora_platform;
+` },
 ];

@@ -406,6 +406,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
   const [sub, setSub] = useState<any | null>(null);
   const [recovery, setRecovery] = useState<{ reason: string; code?: string; expiresAt?: string } | null>(null);
   const act = useAction();
+  const [vatChange,setVatChange] = useState<{enabled:boolean;reason:string}|null>(null);
   const [revoking, setRevoking] = useState(false);
   const [tab, setTab] = useState<'overview' | 'audit'>('overview');
   const [stepOverrides, setStepOverrides] = useState<Record<string, boolean>>({});
@@ -423,6 +424,13 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
       <div hidden={tab !== 'overview'}>
       {act.error && <Alert tone="bad" className="mb-3">{act.error}</Alert>}
       <div className="grid gap-4 xl:grid-cols-2">
+        <Card title="Features · VAT" >
+          <p><Badge tone={data.vatFeature?.enabled === false ? 'warn' : 'good'}>{data.vatFeature?.enabled === false ? 'VAT collection disabled by Mansora' : 'VAT collection enabled'}</Badge></p>
+          <p className="my-3 text-sm">This feature switch does not cancel the shop’s legal VAT obligation. Sales and tax evidence remain intact. Re-enabling shows historical liability separately from tax actually collected; unresolved periods require reconciliation before filing. Offline laptops receive changes on their next successful sync.</p>
+          <Button onClick={()=>setVatChange({enabled:data.vatFeature?.enabled === false,reason:''})}>Change VAT feature</Button>
+          <ul className="mt-3 space-y-2 text-sm">{data.vatFeature?.events.map((e:any)=><li key={e.id}>{when(e.occurredAt)} · {e.adminName} · {e.enabled?'Enabled':'Disabled'} · {e.reason}</li>)}</ul>
+          {vatChange && <Modal open title="Change VAT feature" onClose={()=>setVatChange(null)}><div className="space-y-3"><Alert tone="warn">{vatChange.enabled?'Enable VAT and include historical exposure in working papers. Original invoices and payments remain unchanged.':'Stop automatic VAT collection in the platform. Legal VAT liability continues and historical exposure is retained.'}</Alert><Field label="Reason for VAT feature change"><Textarea value={vatChange.reason} onChange={e=>setVatChange({...vatChange,reason:e.target.value})} /></Field><Button disabled={act.busy || !vatChange.reason.trim()} onClick={()=>act.run(async()=>{await api('PUT',`/v1/admin/clients/${id}/features/vat`,{...vatChange,expectedRevision:data.vatFeature?.revision ?? 0});setVatChange(null);reload();})}>Save VAT feature</Button></div></Modal>}
+        </Card>
         <Card title="Onboarding checklist" pad={false} actions={<Progress done={c.steps_done} total={c.steps_total} />}>
           <p className="border-b border-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">Tick a step only after checking it with the client. Confirm go-live marks an onboarding client as active; this checklist does not automatically verify hardware, training, contracts or privacy arrangements.</p>
           <ul>
