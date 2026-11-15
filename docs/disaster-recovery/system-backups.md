@@ -17,6 +17,9 @@ needs to change for that except the bucket settings.
   retried (15 minutes, then longer), with the same copy kept safely on the server until it succeeds.
 - Railway logs say `System backup stored off-site and verified (…)` after each good copy, and
   `System backup failed; it will be retried` otherwise.
+- **Backup alerts**: `PLATFORM_ALERT_EMAIL` (the team inbox) is emailed "Mansora backups need attention" after
+  three failed backups in a row, or when no verified copy exists for twice the interval; at most every 12 hours,
+  and "Mansora backups are working again" once a copy is verified.
 
 Limits: up to 16 MB of database records and 32 MB of shop files per copy (ample for the pilot). Past that the copy
 fails loudly and the storage needs upgrading.
