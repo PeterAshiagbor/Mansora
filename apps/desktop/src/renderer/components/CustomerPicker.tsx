@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Alert, Button, Field, Input, Modal, Textarea } from '@mansora/ui';
 import { call, money, useApp, useQuery } from '../lib';
 
-export interface CustomerDraft { name: string; phone: string; email: string; notes: string }
+export interface CustomerDraft { tin?: string; address?: string; name: string; phone: string; email: string; notes: string }
 export interface PickedCustomer { id: string; name: string; phone?: string | null; outstanding?: number }
 
 /** The customer details, the same on the Customers page and when adding a customer during a sale. */
@@ -12,6 +12,8 @@ export function CustomerFields({ value, onChange, autoFocus = 'name' }: { value:
       <Field label="Name" hint="Required when saving a customer record."><Input value={value.name} maxLength={120} onChange={(e) => onChange({ ...value, name: e.target.value })} autoFocus={autoFocus === 'name'} /></Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Phone (optional)" hint="Needed to remind a credit customer by WhatsApp."><Input type="tel" value={value.phone} maxLength={40} onChange={(e) => onChange({ ...value, phone: e.target.value })} autoFocus={autoFocus === 'phone'} /></Field>
+        <Field label="Customer TIN (when required for tax documents)"><Input value={value.tin ?? ''} maxLength={80} onChange={e => onChange({ ...value, tin: e.target.value })} /></Field>
+        <Field label="Customer address (when required for tax documents)"><Input value={value.address ?? ''} maxLength={300} onChange={e => onChange({ ...value, address: e.target.value })} /></Field>
         <Field label="Email (optional)"><Input type="email" value={value.email} maxLength={160} onChange={(e) => onChange({ ...value, email: e.target.value })} /></Field>
       </div>
       <Field label="Notes"><Textarea value={value.notes} maxLength={500} onChange={(e) => onChange({ ...value, notes: e.target.value })} /></Field>

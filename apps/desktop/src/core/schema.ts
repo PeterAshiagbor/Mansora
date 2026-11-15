@@ -414,4 +414,8 @@ CREATE TRIGGER tax_records_no_update BEFORE UPDATE ON tax_records BEGIN SELECT R
 CREATE TRIGGER tax_records_no_delete BEFORE DELETE ON tax_records BEGIN SELECT RAISE(ABORT, 'Tax records cannot be deleted'); END;
 `,
   },
+  { id: 6, name: 'customer_tax_identity', sql: `
+ALTER TABLE customers ADD COLUMN tin TEXT;
+ALTER TABLE customers ADD COLUMN address TEXT;
+` },
 ];

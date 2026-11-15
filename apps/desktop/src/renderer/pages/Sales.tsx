@@ -82,6 +82,7 @@ function SaleDetail({ id, onClose }: { id: string; onClose: () => void }) {
           {refunds.map((r: any) => (
             <div key={r.id} className="mb-1">
               <div className="flex justify-between"><span className="font-medium">{r.refund_no}</span><span className="tabular-nums">−{money(r.amount)}</span></div>
+              <Button size="sm" disabled={busy} onClick={() => run(async () => { const note = await call('refund.receipt', { id: r.id }); await savePdf(note.html, `${note.receiptNo}.pdf`); })}>Credit note PDF</Button>
               <div className="text-xs text-slate-500">{dateTime(r.created_at)} · {r.reason} · approved by {r.authorised_by_name}{r.payout_amount > 0 && ` · paid out by ${METHOD[r.payout_method]}`}{r.credit_reduction > 0 && ` · ${money(r.credit_reduction)} taken off credit`}</div>
             </div>
           ))}

@@ -3,7 +3,7 @@ import { fail, PAYMENT_METHODS, refundTax, refundLineAmount, SETTLEMENT_METHODS,
 import { dayBounds, defineCommands, likeContains, zApprover, zId, zMoney, zOptText, zQty, zRange, zText, type Ctx } from '../engine';
 import { quoteSale, recordRegistrationTrigger } from '../tax';
 import { requireTaxPeriodOpen } from './tax';
-import { renderReceiptHtml } from '../receipt';
+import { renderCreditNoteHtml, renderReceiptHtml } from '../receipt';
 import { moveStock, nextNumber, openShift, requireOpenShift } from '../stock';
 
 function loadSale(ctx: Ctx, id: string) {
@@ -93,7 +93,7 @@ export const salesCommands = defineCommands({
       if (input.customerId && !ctx.get('SELECT 1 FROM customers WHERE id = ? AND active = 1', input.customerId)) fail('NOT_FOUND', 'Customer not found');
 
       const now = ctx.now();
-      const customer = input.customerId ? ctx.get('SELECT name, phone FROM customers WHERE id = ?', input.customerId) : null;
+      const customer = input.customerId ? ctx.get('SELECT name, phone, tin, address FROM customers WHERE id = ?', input.customerId) : null;
       const receiptNo = nextNumber(ctx, 'R');
       const costs = products.map((p) => p.average_cost as number);
       const costTotal = sum(cart.lines.map((l, i) => l.quantity * costs[i]));
@@ -155,7 +155,7 @@ export const salesCommands = defineCommands({
       const m = (k: string) => ctx.setting(k) ?? '';
       const html = renderReceiptHtml({
         business: { name: m('business_name'), phone: m('business_phone'), address: m('business_address'), ...tax?.business, footer: m('receipt_footer') },
-        sale: tax?.customer ? { ...s.sale, customer_name: tax.customer.name, customer_phone: tax.customer.phone } : s.sale, items: s.items, payments: s.payments, refunds: s.refunds, reprint: input.reprint,
+        sale: tax?.customer ? { ...s.sale, customer_name: tax.customer.name, customer_phone: tax.customer.phone, customer_tin: tax.customer.tin, customer_address: tax.customer.address } : s.sale, items: s.items, payments: s.payments, refunds: s.refunds, reprint: input.reprint,
       });
       return { html, receiptNo: s.sale.receipt_no as string };
     },
@@ -166,6 +166,21 @@ export const salesCommands = defineCommands({
    * record references it. Needs refund approval (own permission or a
    * supervisor's credentials).
    */
+  'refund.receipt': {
+    perm: 'sale.create', input: z.object({ id: zId }),
+    run: (ctx,input) => {
+      const refund = ctx.get('SELECT * FROM refunds WHERE id = ?',input.id);
+      if (!refund) fail('NOT_FOUND','Refund not found');
+      const loaded = loadSale(ctx,refund.sale_id);
+      const items = ctx.all('SELECT ri.*, i.product_name FROM refund_items ri JOIN sale_items i ON i.id = ri.sale_item_id WHERE ri.refund_id = ?',input.id);
+      const priorRefunds = ctx.all("SELECT ri.* FROM refund_items ri JOIN refunds r ON r.id = ri.refund_id WHERE r.sale_id = ? AND CAST(substr(r.refund_no,4) AS INTEGER) <= ?",refund.sale_id,Number(refund.refund_no.slice(3)));
+      const reconciliations = ctx.all("SELECT payload FROM tax_records WHERE kind='adjustment'").map(r=>JSON.parse(r.payload)).filter(r=>r.reconcilesSaleItemId && r.reconciledSale);
+      const originalTax = loaded.sale.tax_snapshot ? JSON.parse(loaded.sale.tax_snapshot) : null;
+      const base = sum(loaded.items.map((i:any) => reconciliations.find(r=>r.reconcilesSaleItemId===i.id)?.reconciledSale.base ?? (i.tax_snapshot ? JSON.parse(i.tax_snapshot).base : i.line_total)));
+      const sale = originalTax && base !== originalTax.base ? { ...loaded.sale, tax_snapshot: JSON.stringify({ ...originalTax, base, originalCapturedBase: originalTax.base }) } : loaded.sale;
+      return { html: renderCreditNoteHtml({ sale, refund, items, priorRefunds }), receiptNo: refund.refund_no };
+    },
+  },
   'refund.create': {
     perm: 'sale.create',
     mutates: true,
@@ -194,6 +209,8 @@ export const salesCommands = defineCommands({
           l.saleItemId, input.saleId,
         );
         if (!item) fail('NOT_FOUND', 'That item is not part of this sale');
+        const correction = ctx.all("SELECT payload FROM tax_records WHERE kind='adjustment'").map(r=>JSON.parse(r.payload)).find(r=>r.reconcilesSaleItemId===item.id && r.reconciledSale);
+        if (correction) item.tax_snapshot = JSON.stringify(correction.reconciledSale);
         const amount = refundLineAmount({ quantity: item.quantity, lineTotal: item.line_total, refundedQuantity: item.refunded_quantity, refundedAmount: item.refunded_amount }, l.quantity);
         return { ...l, item, amount };
       });

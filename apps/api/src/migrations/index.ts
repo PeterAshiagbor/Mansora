@@ -877,4 +877,8 @@ CREATE POLICY tenant_isolation ON tax_records USING (tenant_id = NULLIF(current_
 GRANT SELECT, INSERT ON tax_configs, tax_records TO mansora_tenant;
 `,
   },
+  { id: 18, name: 'customer_tax_identity', sql: `
+ALTER TABLE customers ADD COLUMN tin text;
+ALTER TABLE customers ADD COLUMN address text;
+` },
 ];

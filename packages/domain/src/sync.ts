@@ -55,7 +55,7 @@ export const SYNC_TABLES = {
     reason: 'text', requested_by: 'id', authorised_by: 'id', shift_id: 'id?', created_at: 'ts',
   }),
   refund_items: t('insert', { id: 'id', refund_id: 'id', sale_item_id: 'id', product_id: 'id', quantity: 'int', amount: 'int', restocked: 'int', tax_snapshot: 'text+' }),
-  customers: t('upsert', { id: 'id', name: 'text', phone: 'text?', email: 'text?', notes: 'text?', active: 'int', created_at: 'ts', updated_at: 'ts' }),
+  customers: t('upsert', { tin: 'text+', address: 'text+', id: 'id', name: 'text', phone: 'text?', email: 'text?', notes: 'text?', active: 'int', created_at: 'ts', updated_at: 'ts' }),
   credit_accounts: t('upsert', {
     id: 'id', customer_id: 'id', sale_id: 'id', original_balance: 'int', outstanding_balance: 'int', due_date: 'text?', status: 'text',
     created_at: 'ts', updated_at: 'ts',
