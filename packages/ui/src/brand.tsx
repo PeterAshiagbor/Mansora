@@ -6,7 +6,7 @@ export function MansoraBrand({ inverse = false, compact = false }: { inverse?: b
       <img src={logo} alt="" width={compact ? 40 : 64} height={compact ? 40 : 64} className="shrink-0 rounded-md border border-brand-200 object-contain" />
       <div className="min-w-0">
         <div className={`inline-block border-b border-mansora-gold pb-0.5 font-display font-semibold tracking-wide ${compact ? 'text-lg' : 'text-2xl'} ${inverse ? 'text-white' : 'text-brand-900'}`}>MANSORA</div>
-        <div className={`text-xs leading-snug ${inverse ? 'text-brand-100' : 'text-slate-600'}`}>Consulting &amp; Business Solutions Limited</div>
+        <div className={`text-xs leading-snug ${inverse ? 'text-brand-100' : 'text-slate-600'}`}>Consulting and Business Solutions Limited</div>
         <div className={`mt-1 text-xs font-semibold ${inverse ? 'text-[#f6dea8]' : 'text-brand-700'}`}>Sales &amp; Stock platform</div>
       </div>
     </div>

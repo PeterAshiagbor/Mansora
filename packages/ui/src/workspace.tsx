@@ -128,7 +128,7 @@ export function WorkflowSteps({ steps, current }: { steps: string[]; current: nu
 }
 
 export function AuthLayout({ children, platform = false }: { children: ReactNode; platform?: boolean }) {
-  return <div className="m-auth-layout"><aside className="m-auth-story" aria-label="About Mansora"><h2>{platform ? 'Your clients.\nClearly managed.' : 'Your business.\nUnder control.'}</h2><p>{platform ? 'Onboard clients, review service health and manage subscription collections from one place.' : 'A clearer way to sell, manage stock and understand your numbers.'}</p><p>{platform ? 'Client financial data stays protected by scoped consent and recorded access.' : 'From the carton you buy to the individual items you sell, keep a clear trail of your daily work.'}</p><small>Mansora Consulting &amp; Business Solutions Limited</small></aside><div className="m-auth-panel">{children}</div></div>;
+  return <div className="m-auth-layout"><aside className="m-auth-story" aria-label="About Mansora"><h2>{platform ? 'Your clients.\nClearly managed.' : 'Your business.\nUnder control.'}</h2><p>{platform ? 'Onboard clients, review service health and manage subscription collections from one place.' : 'A clearer way to sell, manage stock and understand your numbers.'}</p><p>{platform ? 'Client financial data stays protected by scoped consent and recorded access.' : 'From the carton you buy to the individual items you sell, keep a clear trail of your daily work.'}</p><small>Mansora Consulting and Business Solutions Limited</small></aside><div className="m-auth-panel">{children}</div></div>;
 }
 
 /**

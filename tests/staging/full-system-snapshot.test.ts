@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
@@ -46,12 +46,24 @@ afterAll(async () => {
   await source?.app.close(); await restored?.app.close(); await source?.db.close(); await restored?.db.close();
 });
 it('captures encrypted shops, private keys/registry and the whole application schema, then restores authentication, stock, balances and isolated sync', async () => {
+  const vatTenant=sourceWorkspaces[1].engine.meta('tenant_id')!;
+  await source.db.platform(async query=>{
+    const [actor]=await query('SELECT id FROM admins ORDER BY created_at LIMIT 1');
+    await query('INSERT INTO tenant_vat_feature_events (id,tenant_id,enabled,reason,admin_id) VALUES ($1,$2,false,$3,$4)',[randomUUID(),vatTenant,'Synthetic policy recovery fixture',actor.id]);
+  });
   const files = capturePrivateFiles(root, sourceWorkspaces), database = await sourceRaw.transaction(t => capturePostgres(q(t)));
   const snapshot = { version: 1 as const, createdAt: new Date().toISOString(), ...database, files }, encrypted = packSnapshot(snapshot, archiveKey), objectKey = 'system/synthetic-snapshot.msbk';
   for (const account of accounts) expect(encrypted.includes(Buffer.from(account.password))).toBe(false);
   await objectStorage.put(objectKey, encrypted, sha256(encrypted)); const recovered = unpackSnapshot(await objectStorage.get(objectKey), archiveKey);
   restoreSnapshotFiles(recovered, destination); restoredRaw = await PGlite.create(); restored = await api(restoredRaw);
   await restoredRaw.transaction(t => restorePostgres(q(t), recovered));
+  const priorPolicy=await restored.db.platform(query=>query('SELECT * FROM tenant_vat_feature_events WHERE tenant_id=$1',[vatTenant]));
+  expect(priorPolicy).toHaveLength(1);expect(priorPolicy[0].enabled).toBe(false);
+  await restored.db.platform(async query=>{
+    const [actor]=await query('SELECT id FROM admins ORDER BY created_at LIMIT 1');
+    const [next]=await query('INSERT INTO tenant_vat_feature_events (id,tenant_id,enabled,reason,admin_id) VALUES ($1,$2,true,$3,$4) RETURNING revision',[randomUUID(),vatTenant,'Synthetic resumed policy after restore',actor.id]);
+    expect(Number(next.revision)).toBeGreaterThan(Number(priorPolicy[0].revision));
+  });
   // Restored administrators sign in again; archived bearer sessions are never revived.
   await restored.db.platform(query => query('DELETE FROM admin_sessions'));
   const key = readFileSync(join(destination, 'secrets/staging_db_key'), 'utf8');

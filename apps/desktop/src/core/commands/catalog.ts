@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { fail, taxAmount, TAX_CLASSES, PRESET_IDS, PRESETS, sum, type PresetId } from '@mansora/domain';
 import { defineCommands, empty, zId, zMoney, zOptText, zQty, zText, type Ctx } from '../engine';
-import { taxConfig } from '../tax';
+import { collectionTaxConfig } from '../tax';
 import { moveStock } from '../stock';
 
 const productInput = z.object({
@@ -39,7 +39,7 @@ const PRODUCT_SELECT = `
 
 /** Cost data is stripped at the data layer for users without the cost permission. */
 function hideCost(ctx: Ctx, rows: any[]): any[] {
-  const config = taxConfig(ctx), date = ctx.now().slice(0,10);
+  const config = collectionTaxConfig(ctx), date = ctx.now().slice(0,10);
   const active = config.registered && !!config.registrationDate && config.registrationDate <= date;
   const priced = rows.map(p => ({ ...p, price_includes_tax: active, display_price: active && !p.tax_class ? null : taxAmount(p.selling_price,p.tax_class ?? 'standard',config,date).total }));
   if (ctx.can('product.cost')) return priced;

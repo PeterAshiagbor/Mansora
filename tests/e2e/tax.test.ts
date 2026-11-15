@@ -96,5 +96,24 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
     expect(JSON.parse(rows[0].payload).submittedDate).toMatch(/^2026-11-/);
     expect(consoleErrors).toEqual([]);
   });
+  it('shows backdated exposure after Mansora re-enables collection without altering the original sale', async () => {
+    const path=`/v1/admin/clients/${host.engine.meta('tenant_id')}/features/vat`;
+    const disabled=await cloud.api('PUT',path,{enabled:false,reason:'Synthetic browser VAT suspension',expectedRevision:0});
+    expect(disabled.status).toBe(200);
+    const token=(await host.engine.execute(null,'auth.login',OWNER)).token;
+    expect((await host.engine.execute(token,'sync.run')).ok).toBe(true);
+    await navigate(page,'New sale');
+    const product=page.getByRole('button').filter({hasText:'Standard VAT item'});
+    expect(await product.textContent()).toContain('100.00');
+    const productId=(await host.engine.execute(token,'product.list')).find((p:any)=>p.name==='Standard VAT item').id;
+    const sale=await host.engine.execute(token,'sale.complete',{id:crypto.randomUUID(),lines:[{productId,quantity:1}],tenders:[{method:'cash',amount:10000}]});
+    const before=host.engine.db.prepare('SELECT tax_snapshot FROM sales WHERE id=?').get(sale.id);
+    await cloud.api('PUT',path,{enabled:true,reason:'Synthetic browser VAT resumption',expectedRevision:disabled.body.revision});
+    expect((await host.engine.execute(token,'sync.run')).ok).toBe(true);
+    await navigate(page,'Ghana VAT');
+    await page.getByRole('heading',{name:'Backdated VAT exposure · not tax collected',exact:true}).waitFor();
+    expect(host.engine.db.prepare('SELECT tax_snapshot FROM sales WHERE id=?').get(sale.id)).toEqual(before);
+    expect(consoleErrors).toEqual([]);
+  });
 
 });

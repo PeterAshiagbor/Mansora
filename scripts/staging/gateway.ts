@@ -22,6 +22,7 @@ export interface GatewayOptions {
   onboarding?: Pick<WorkspaceOnboarding, 'details' | 'complete'>;
   mode?: DeploymentMode; testWorkspaceIds?: string[]; trustedProxies?: string[];
   onProxyPeer?: (peer: string, source: 'socket' | 'forwarded') => void;
+  vatFeaturePolicy?: (tenantId: string) => Promise<unknown>;
   maxConcurrentPerWorkspace?: number; maxConcurrentImports?: number;
   maxConcurrentRequests?: number;
   maxBodyBytes?: number; sessionTtlMs?: number; now?: () => number;
@@ -190,6 +191,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
               activeImports++; workspaceImports.set(workspace.id, 1); importing = true; guardSpreadsheet(input);
             }
             if (command === 'auth.logout') { if (session) clear(id); cookie(res, workspace.id, null); return json(res, 200, { ok: true, data: { ok: true } }); }
+            if (opts.vatFeaturePolicy) workspace.engine.setMeta('platform_vat_feature',JSON.stringify(await opts.vatFeaturePolicy(workspace.engine.meta('tenant_id')!)));
             const data = await workspace.engine.execute(session?.token ?? null, command, input);
             if (command === 'auth.login') {
               if (session) clear(id);

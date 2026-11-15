@@ -93,6 +93,20 @@ describe.skipIf(!pw || !built)('administrator dashboard CRUD', () => {
     await page.getByLabel('Client status filter').selectOption('suspended');
     await page.getByRole('row').filter({ hasText: 'Updated browser business' }).click();
   });
+  it('requires a reason for Mansora VAT feature changes and displays their history', async () => {
+    await page.getByRole('button',{name:'Change VAT feature',exact:true}).click();
+    let dialog=page.getByRole('dialog',{name:'Change VAT feature',exact:true});
+    expect(await dialog.getByRole('button',{name:'Save VAT feature',exact:true}).isEnabled()).toBe(false);
+    await dialog.getByLabel('Reason for VAT feature change',{exact:true}).fill('Synthetic UI suspension');
+    await dialog.getByRole('button',{name:'Save VAT feature',exact:true}).click();await dialog.waitFor({state:'hidden'});
+    await page.getByText('VAT collection disabled by Mansora',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Change VAT feature',exact:true}).click();
+    dialog=page.getByRole('dialog',{name:'Change VAT feature',exact:true});
+    await dialog.getByLabel('Reason for VAT feature change',{exact:true}).fill('Synthetic UI resume with historical reconciliation');
+    await dialog.getByRole('button',{name:'Save VAT feature',exact:true}).click();await dialog.waitFor({state:'hidden'});
+    await page.getByText('VAT collection enabled',{exact:true}).waitFor();
+    expect((await cloud.api('GET',`/v1/admin/clients/${clientId}`)).body.vatFeature.events).toHaveLength(2);
+  });
   it('assigns a subscription, creates activation, confirms deactivation and scopes the client audit', async () => {
     await page.getByRole('button', { name: 'Change', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Service plan', exact: true });

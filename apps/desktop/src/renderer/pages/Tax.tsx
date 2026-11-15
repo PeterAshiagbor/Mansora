@@ -18,7 +18,7 @@ function TaxNoticeBody({ onOpen }: { onOpen: () => void }) {
     return () => { window.clearInterval(timer); window.removeEventListener('mansora:changed', refresh); window.removeEventListener('focus', refresh); };
   }, [q.reload]);
   const d = q.data;
-  if (!d || (!d.amendmentReviewRequired && (d.registered || (!d.requiresReview && !d.near)))) return null;
+  if (!d || (d.feature?.enabled !== false && !d.amendmentReviewRequired && (d.registered || (!d.requiresReview && !d.near)))) return null;
   return <Alert tone="warn" className="mb-4">{d.message} <Button size="sm" onClick={onOpen}>Review VAT</Button></Alert>;
 }
 export function TaxPage() {
@@ -45,8 +45,9 @@ export function TaxPage() {
       <div className="grid gap-4 sm:grid-cols-3"><Stat label="Tax payable for month" value={money(r.payable)} /><Stat label="Recorded GRA payments" value={money(r.payments)} /><Stat label="Unpaid tax for month" value={money(r.outstanding)} /></div>
       <Card title="VAT and levy reconciliation" pad={false}><Table rows={r.buckets} columns={[
         { header: 'Tax', cell: (b: any) => b.tax.toUpperCase() },
-        ...[['Output', 'output'], ['Refunds', 'reversals'], ['Input credits', 'inputs'], ['Withholding', 'withholding'], ['Adjustments', 'adjustments'], ['Prior credits', 'broughtForward'], ['Payable', 'payable'], ['Carry forward', 'carriedForward']].map(([header, key]) => ({ header, align: 'right' as const, cell: (b: any) => money(b[key]) })),
+        ...[['Collected output', 'output'], ['Historical exposure', 'historicalExposure'], ['Refunds', 'reversals'], ['Input credits', 'inputs'], ['Withholding', 'withholding'], ['Adjustments', 'adjustments'], ['Prior credits', 'broughtForward'], ['Payable', 'payable'], ['Carry forward', 'carriedForward']].map(([header, key]) => ({ header, align: 'right' as const, cell: (b: any) => money(b[key]) })),
       ]} /></Card>
+      {!!r.historicalExposure?.length && <Card title="Backdated VAT exposure · not tax collected"><p className="mb-3 text-sm">Calculated using the legal rules captured with each original sale while collection was disabled. Original invoices and payments remain unchanged. Reconcile original periods before filing.</p><Table rows={r.historicalExposure} columns={[{header:'Date',cell:(e:any)=>e.date},{header:'Source',cell:(e:any)=>e.reference},{header:'Type',cell:(e:any)=>e.kind},...['vat','nhil','getfund'].map(k=>({header:k.toUpperCase(),cell:(e:any)=>money(e[k])}))]} /></Card>}
       <Card title="Net supplies by VAT classification" pad={false}><Table rows={r.classification} columns={[{ header: 'Classification', cell: (v: any) => v.classification }, { header: 'Value excluding tax', cell: (v: any) => money(v.base), align: 'right' }]} /></Card>
       <Card title="Review before filing"><p className="mb-3">Deadline before public-holiday checks: {r.deadlineBeforeHolidayCheck}. File and pay through GRA’s authorised channel.</p><ul className="list-disc space-y-2 pl-5 text-sm">{r.warnings.map((w: string) => <li key={w}>{w}</li>)}</ul></Card>
       <Card title="Tax evidence and filing history" pad={false}><Table rows={r.records} empty="No input credits, certificates, adjustments, payments or filing records in this month" columns={[{ header: 'Date', cell: (v: any) => v.tax_date }, { header: 'Type', cell: (v: any) => v.kind }, { header: 'Reference', cell: (v: any) => v.reference }, { header: 'Reason', cell: (v: any) => v.data.reason ?? 'Filed return' }]} /></Card>

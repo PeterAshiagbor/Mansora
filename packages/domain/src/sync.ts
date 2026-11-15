@@ -140,7 +140,10 @@ export interface SyncPushResult {
   rejected: { id: string; reason: string }[];
 }
 
+export interface VatFeaturePolicy { enabled: boolean; revision: number; events: { revision: number; id: string; enabled: boolean; reason: string; occurredAt: string; adminName: string }[] }
+
 export interface SyncPullResult {
+  vatFeature?: VatFeaturePolicy;
   tenant: { id: string; name: string; status: string };
   subscription: { status: string; renewalDate: string | null; planName: string | null } | null;
   supportAccessLog: { id: string; adminName: string; action: string; occurredAt: string; grantId: string | null }[];

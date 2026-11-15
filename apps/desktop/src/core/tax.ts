@@ -1,4 +1,4 @@
-import { addTax, defaultTaxConfig, fail, mulDivRound, priceCart, sum, taxCart, taxConfigSchema, type TaxClass, type TaxSnapshot } from '@mansora/domain';
+import { addTax, defaultTaxConfig, fail, mulDivRound, priceCart, sum, taxCart, taxConfigSchema, taxAmount, refundTax, type VatFeaturePolicy, type TaxClass, type TaxSnapshot } from '@mansora/domain';
 import { addMonths, eligibleInputBps } from './tax-controls';
 import type { Ctx } from './engine';
 
@@ -23,19 +23,26 @@ export function taxConfig(ctx: Ctx, date = ctx.now().slice(0,10)) {
   return config;
 }
 export const registeredOn = (config: ReturnType<typeof taxConfig>, date: string) => config.registered && !!config.registrationDate && config.registrationDate <= date;
+export function vatFeature(ctx: Ctx): VatFeaturePolicy {
+  return JSON.parse(ctx.setting('platform_vat_feature') ?? '{"enabled":true,"revision":0,"events":[]}');
+}
+export function collectionTaxConfig(ctx: Ctx) {
+  const config = taxConfig(ctx);
+  return vatFeature(ctx).enabled ? config : { ...config, registered:false };
+}
 export function quoteSale(ctx: Ctx, lines: { productId: string; quantity: number; discount: number }[], discount: number) {
-  const config = taxConfig(ctx), date = ctx.now().slice(0, 10);
+  const config = taxConfig(ctx), feature = vatFeature(ctx), date = ctx.now().slice(0, 10);
   if (date < '2026-01-01') fail('TAX_PERIOD_UNSUPPORTED', 'Configure historical VAT rules before recording sales before 2026');
   const products = lines.map(l => {
     const p = ctx.get('SELECT * FROM products WHERE id = ? AND active = 1', l.productId);
     if (!p) fail('PRODUCT_UNAVAILABLE', 'A product in the basket is no longer available');
-    if (config.registered && config.registrationDate! <= date && !config.tin) fail('VAT_PROFILE_REQUIRED', 'VAT is legally due. Record the business TIN and registration details in Ghana VAT settings before issuing invoices.');
-    if (config.registered && config.registrationDate! <= date && !p.tax_class) fail('TAX_CLASS_REQUIRED', `Choose a VAT classification for ${p.name} in Products`);
+    if (feature.enabled && config.registered && config.registrationDate! <= date && !config.tin) fail('VAT_PROFILE_REQUIRED', 'VAT is legally due. Record the business TIN and registration details in Ghana VAT settings before issuing invoices.');
+    if (feature.enabled && config.registered && config.registrationDate! <= date && !p.tax_class) fail('TAX_CLASS_REQUIRED', `Choose a VAT classification for ${p.name} in Products`);
     return p;
   });
   const cart = priceCart(lines.map((l, i) => ({ ...l, unitPrice: products[i].selling_price })), discount);
-  const priced = taxCart(cart, products.map(p => (p.tax_class ?? 'standard') as TaxClass), config, date);
-  return { ...priced, snapshots: priced.snapshots.map((t, i) => ({ ...t, classificationVerified: !!products[i].tax_class })), config };
+  const priced = taxCart(cart, products.map(p => (p.tax_class ?? 'standard') as TaxClass), collectionTaxConfig(ctx), date);
+  return { ...priced, snapshots: priced.snapshots.map((t, i) => ({ ...t, classificationVerified: !!products[i].tax_class, ...(!feature.enabled ? { platformVatSuppressed:true, platformPolicyRevision:feature.revision, legalConfig:config } : {}) })), config };
 }
 export const monthsBefore = (date: string, months: number) => addMonths(date, -months);
 export function taxStatus(ctx: Ctx) {
@@ -60,11 +67,11 @@ export function taxStatus(ctx: Ctx) {
   const amendmentReviewRequired = config.supplyType !== 'goods' && (!config.serviceThresholdConfirmed || !config.serviceThresholdDate || !config.serviceThresholdAuthority || config.serviceThresholdDate > date);
   const requiresReview = amendmentReviewRequired || threeMonthForecast || config.mandatoryRegistration || annual.exceeded || config.forecast > config.threshold || windows.some(w => w.exceeded) || (config.supplyType !== 'goods' && !config.serviceThresholdConfirmed);
   const registered = config.registered && !!config.registrationDate && config.registrationDate <= date;
-  return { config, registered, amendmentReviewRequired, windows, annual, forecast: config.forecast, requiresReview, near: windows.some(w => w.near),
+  return { config, feature:vatFeature(ctx), registered, amendmentReviewRequired, windows, annual, forecast: config.forecast, requiresReview, near: windows.some(w => w.near),
     legacyLines: rows.filter(r => !r.tax_snapshot || JSON.parse(r.tax_snapshot).classificationVerified === false).length,
     unclassified: ctx.get('SELECT COUNT(*) AS n FROM products WHERE active = 1 AND tax_class IS NULL')!.n,
     pendingTrigger: ctx.all("SELECT payload FROM tax_records WHERE kind = 'registration_trigger' ORDER BY tax_date LIMIT 1").map(r => JSON.parse(r.payload))[0] ?? null,
-    message: amendmentReviewRequired ? 'Service VAT amendment needs confirmation. Ask the owner to obtain the enacted commencement date or written GRA clarification, then record the date and source in Tax settings. Existing VAT obligations continue.' : registered ? 'VAT is applied automatically from the legal effective date. Complete GRA registration if still pending.' : requiresReview ? 'VAT registration review required. Confirm the legal effective date; threshold alerts do not create a registration.' : windows.some(w => w.near) ? 'Approaching a VAT turnover band. Review forecast turnover and prepare registration.' : 'Monitoring taxable turnover. Add sales from other branches and channels.' };
+    message: !vatFeature(ctx).enabled ? 'VAT collection is disabled by Mansora. Legal liability continues; historical exposure is retained for reconciliation. Ask your Mansora administrator to enable the feature.' : amendmentReviewRequired ? 'Service VAT amendment needs confirmation. Ask the owner to obtain the enacted commencement date or written GRA clarification, then record the date and source in Tax settings. Existing VAT obligations continue.' : registered ? 'VAT is applied automatically from the legal effective date. Complete GRA registration if still pending.' : requiresReview ? 'VAT registration review required. Confirm the legal effective date; threshold alerts do not create a registration.' : windows.some(w => w.near) ? 'Approaching a VAT turnover band. Review forecast turnover and prepare registration.' : 'Monitoring taxable turnover. Add sales from other branches and channels.' };
 }
 
 type Component = 'vat' | 'nhil' | 'getfund';
@@ -85,7 +92,29 @@ export function vatReport(ctx: Ctx, month: string) {
     sales.push({ id: r.id, reference: r.reference, date: r.tax_date + 'T00:00:00.000Z', product_name: 'External sale: ' + d.reason, invoice_tax: null, tax_snapshot: JSON.stringify(t), line_total: t.total });
   }
   const reconciledLines = new Map(records.filter(r=>r.kind==='adjustment' && r.data.reconcilesSaleItemId && r.data.reconciledSale).map(r=>[r.data.reconcilesSaleItemId,r.data.reconciledSale]));
-  const classificationOf = (r: any) => reconciledLines.get(r.sale_item_id) ?? (r.tax_snapshot ? JSON.parse(r.tax_snapshot) : null);
+  // Derive exposure from the legal configuration captured at supply, never rewrite an invoice or invent collection.
+  const historicalExposure: any[] = [];
+  const exposureLines = new Map<string,any>(), exposureRefunds = new Map<string,any>();
+  const originalByLine = new Map(sales.filter(r=>r.sale_item_id).map(r=>[r.sale_item_id,r]));
+  for (const r of sales) {
+    const t = r.tax_snapshot && JSON.parse(r.tax_snapshot);
+    if (!t?.platformVatSuppressed || !t.classificationVerified || reconciledLines.has(r.sale_item_id)) continue;
+    const expected = taxAmount(r.line_total,t.classification,t.legalConfig?.registered ? t.legalConfig : taxConfig(ctx,r.date.slice(0,10)),r.date.slice(0,10));
+    exposureLines.set(r.sale_item_id,expected);
+    if (expected.vat || expected.nhil || expected.getfund) historicalExposure.push({sourceId:r.sale_item_id,reference:r.reference,date:r.date.slice(0,10),kind:'sale',policyRevision:t.platformPolicyRevision,base:expected.base,...Object.fromEntries(components.map(k=>[k,expected[k]-t[k]]))});
+  }
+  const refunded = new Map<string,number>();
+  for (const r of refunds) {
+    const original = originalByLine.get(r.sale_item_id), t = original?.tax_snapshot && JSON.parse(original.tax_snapshot);
+    if (!t?.platformVatSuppressed || !t.classificationVerified || reconciledLines.has(r.sale_item_id)) continue;
+    const expected=taxAmount(original.line_total,t.classification,t.legalConfig?.registered ? t.legalConfig : taxConfig(ctx,original.date.slice(0,10)),original.date.slice(0,10));
+    const previous=refunded.get(r.sale_item_id) ?? 0; refunded.set(r.sale_item_id,previous+r.line_total);
+    const prior=mulDivRound(previous,expected.total,original.line_total), cumulative=mulDivRound(previous+r.line_total,expected.total,original.line_total);
+    const reversal=refundTax(expected,prior,cumulative-prior), actual=r.tax_snapshot ? JSON.parse(r.tax_snapshot) : {vat:0,nhil:0,getfund:0};
+    exposureRefunds.set(r.refund_item_id,{...reversal,classification:t.classification});
+    if (reversal.vat || reversal.nhil || reversal.getfund) historicalExposure.push({sourceId:r.refund_item_id,reference:r.reference,date:r.date.slice(0,10),kind:'refund',policyRevision:t.platformPolicyRevision,base:-reversal.base,...Object.fromEntries(components.map(k=>[k,-reversal[k]+actual[k]]))});
+  }
+  const classificationOf = (r: any) => reconciledLines.get(r.sale_item_id) ?? exposureLines.get(r.sale_item_id) ?? (r.tax_snapshot ? JSON.parse(r.tax_snapshot) : null);
   const movements: { month: string; vat: number; nhil: number; getfund: number }[] = [];
   for (const [rows, sign] of [[sales, 1], [refunds, -1]] as const) for (const r of rows) {
     const t = r.tax_snapshot ? JSON.parse(r.tax_snapshot) : null;
@@ -94,6 +123,7 @@ export function vatReport(ctx: Ctx, month: string) {
   for (const r of records) if (['input', 'withholding', 'adjustment', 'opening_credit'].includes(r.kind)) {
     movements.push({ month: r.tax_date.slice(0, 7), ...Object.fromEntries(components.map(k => [k, (r.kind === 'adjustment' ? 1 : -1) * (r.data[k] ?? 0)])) } as any);
   }
+  for (const e of historicalExposure) movements.push({month:e.date.slice(0,7),vat:e.vat,nhil:e.nhil,getfund:e.getfund});
   const priorMonths = [...new Set(movements.map(r => r.month).filter(m => m < month))].sort();
   const carry = { vat: 0, nhil: 0, getfund: 0 };
   for (const m of priorMonths) for (const k of components) carry[k] = Math.max(0, carry[k] - sum(movements.filter(r => r.month === m).map(r => r[k])));
@@ -105,16 +135,19 @@ export function vatReport(ctx: Ctx, month: string) {
     const inputs = sum(currentRecords.filter(r => r.kind === 'input' || r.kind === 'opening_credit').map(r => r.data[k] ?? 0));
     const withholding = sum(currentRecords.filter(r => r.kind === 'withholding').map(r => r.data[k] ?? 0));
     const adjustments = sum(currentRecords.filter(r => r.kind === 'adjustment').map(r => r.data[k] ?? 0));
-    const balance = sum([output[k], -reversed[k], adjustments, -inputs, -withholding, -carry[k]]);
-    return { tax: k, output: output[k], reversals: reversed[k], inputs, withholding, adjustments, broughtForward: carry[k], payable: Math.max(0, balance), carriedForward: Math.max(0, -balance) };
+    const exposure = sum(historicalExposure.filter(e=>e.date.slice(0,7)===month).map(e=>e[k]));
+    const balance = sum([output[k], exposure, -reversed[k], adjustments, -inputs, -withholding, -carry[k]]);
+    return { tax: k, output: output[k], historicalExposure:exposure, reversals: reversed[k], inputs, withholding, adjustments, broughtForward: carry[k], payable: Math.max(0, balance), carriedForward: Math.max(0, -balance) };
   });
   const classification = ['standard', 'zero', 'exempt', 'outside'].map(kind => ({ classification: kind, base: sum([
     ...selectedSales.filter(r => classificationOf(r)?.classification === kind).map(r => classificationOf(r).base),
-    ...selectedRefunds.filter(r => r.tax_snapshot && JSON.parse(r.tax_snapshot).classification === kind).map(r => -JSON.parse(r.tax_snapshot).base),
+    ...selectedRefunds.filter(r => (exposureRefunds.get(r.refund_item_id) ?? (r.tax_snapshot && JSON.parse(r.tax_snapshot)))?.classification === kind).map(r => -(exposureRefunds.get(r.refund_item_id) ?? JSON.parse(r.tax_snapshot)).base),
   ]) }));
   const payable = sum(buckets.map(b => b.payable));
   const payments = sum(currentRecords.filter(r => r.kind === 'payment').map(r => r.data.amount));
   const blockers: string[] = [];
+  if (!vatFeature(ctx).enabled) blockers.push('Mansora has disabled the VAT collection feature. Enable it and reconcile historical liability before recording a filing.');
+  if (historicalExposure.length) blockers.push('Historical VAT liability from disabled collection affects this return or its prior balances. Reconcile original periods and fiscal documents before filing; estimated exposure is not tax collected.');
   if (!registeredOn(config,reportDate) || !config.tin) blockers.push('Confirm VAT registration and the business TIN for this period.');
   if ([...selectedSales,...selectedRefunds].some(r => !reconciledLines.has(r.sale_item_id) && (!r.tax_snapshot || JSON.parse(r.tax_snapshot).classificationVerified === false))) blockers.push('Reconcile legacy/unclassified financial transactions before filing.');
   if (selectedSales.some(r => {
@@ -141,6 +174,7 @@ export function vatReport(ctx: Ctx, month: string) {
   const deadline = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0));
   while ([0, 6].includes(deadline.getUTCDay())) deadline.setUTCDate(deadline.getUTCDate() - 1);
   return { month, config, classification, buckets, output, reversed, payable, payments, outstanding: Math.max(0, payable - payments),
+    historicalExposure:historicalExposure.filter(e=>e.date.slice(0,7)===month), feature:vatFeature(ctx),
     blockers, deadlineBeforeHolidayCheck: deadline.toISOString().slice(0, 10), warnings,
     sales: selectedSales, refunds: selectedRefunds, records: currentRecords, allRecords: records };
 }
