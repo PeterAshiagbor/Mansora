@@ -39,6 +39,10 @@
 11. After every push, check CI and record the result in the *Handoff log*. Anything that changes required environment variables, secrets, the Electron bridge or the container stack must update `infrastructure/**` and `tests/hardware/electron-smoke.mjs` in the same change.
 12. Branch from the latest default branch, rebase before opening a PR, and target the **default branch**, not another feature branch.
 
+## Client-facing metadata — 16 November 2026
+
+Codex claims browser/application/package metadata on `codex/client-facing-metadata` at the owner's request. The branded client guide is assigned to another session; Codex supplies the source/context handoff only. Preserve tenant privacy, test-shop labels and actual installer signing/release status. Do not mark GRA certification, production recovery or general readiness complete by changing metadata.
+
 ## Readiness work split — 16 November 2026 (owner requested)
 
 This is the current assignment for the remaining financial audit, security and resilience work. Older rows below remain historical evidence; their stale queued/open labels do not override this split. Assignment is not proof that either agent has started. Each agent claims its branch before implementation and records actual evidence. No open PRs remained at assignment; production was verified at `e904f89`.
