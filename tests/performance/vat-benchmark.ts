@@ -43,7 +43,7 @@ for(const sales of [1000,10000,50000]){
   e.db.pragma('wal_checkpoint(TRUNCATE)');
   const elapsed:number[]=[];
   for(let sample=0;sample<6;sample++){
-   const start=performance.now(),r:any=await e.execute(token,'tax.report',{month:'2026-01'}),ms=performance.now()-start;
+   const start=performance.now(),r:any=await e.execute(token,'tax.report',{month:'2026-01',includeRows:true}),ms=performance.now()-start;
    assert.equal(r.sales.length,sales*3);for(const [index,rate] of [450,75,75].entries()){assert.equal(r.buckets[index].output,(sales-off)*rate);assert.equal(r.buckets[index].historicalExposure,off*rate);assert.equal(r.buckets[index].payable,sales*rate);}assert.equal(r.classification.find((c:any)=>c.classification==='standard').base,sales*3000);
    if(sample>0)elapsed.push(ms);
   }
