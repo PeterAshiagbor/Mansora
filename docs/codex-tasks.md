@@ -39,6 +39,29 @@
 11. After every push, check CI and record the result in the *Handoff log*. Anything that changes required environment variables, secrets, the Electron bridge or the container stack must update `infrastructure/**` and `tests/hardware/electron-smoke.mjs` in the same change.
 12. Branch from the latest default branch, rebase before opening a PR, and target the **default branch**, not another feature branch.
 
+## Readiness work split — 16 November 2026 (owner requested)
+
+This is the current assignment for the remaining financial audit, security and resilience work. Older rows below remain historical evidence; their stale queued/open labels do not override this split. Assignment is not proof that either agent has started. Each agent claims its branch before implementation and records actual evidence. No open PRs remained at assignment; production was verified at `e904f89`.
+
+| ID | Lead | Task and completion evidence | State / dependency |
+| --- | --- | --- | --- |
+| R16-01 | Codex | Configure independent encrypted production backups, retention, protected key custody and failure monitoring. Verify a durable off-site object and record its integrity metadata without secrets. Claude owns any changes needed in backup/restore engine code. | Critical; destination/account access and any spending require the owner's decision. Current enabling flag, bucket and credentials are absent. Supersedes the stale C38 infrastructure assignment; no purchase authorised by this list. |
+| R16-02 | Codex | **Authenticated live TSB checkout → refund → VAT export → recovery rehearsal.** Use clearly labelled synthetic records; inspect receipt/tax splits, stock, cash/credit, return period and export. Recover a copy into an isolated replacement environment and reconcile all figures and numbering. Record actor, timestamps, source IDs and pass/fail evidence without credentials. Never restore over production. | Newly added; not complete. Checkout/refund/export need authorised TSB access; recovery depends on R16-01 and R16-03. Claude reviews the financial expectations. |
+| R16-03 | Claude | Validate and fix backup/restore/catch-up engine behaviour: older backup plus newer cloud facts, unsynced-loss accounting, unique numbering, tenant isolation, rejected-event repair and policy/audit-history recovery. Supply assertions and fixtures to Codex for the witnessed Railway drill. | Scripted drill already passed; production-like witnessed recovery remains open. Owns core/sync fixes; coordinate with R16-01/02. |
+| R16-04 | Claude | Prove automatic registration from **actual synthetic POS sales**, including exact boundary, exempt/zero-rated classification, month-end commencement and no manual registration shortcut. Include admin-off → re-enable → original-period exposure, refunds, input claims, payments/arrears and filed-period corrections. Provide engine/API tests; Codex runs browser acceptance. | Current TSB GHS 750,001 is external-turnover evidence plus explicit synthetic registration; it is not this live boundary-crossing proof. |
+| R16-05 | Claude | Fresh financial/core code review of the combined release and remediation: journals, supplier payables, stock valuation/losses, credit/write-offs, VAT, own-company billing and E-VAT queue integrity. Trace independently calculated expected figures to source and tests; publish unresolved findings. | Prior audit corrections deployed; fresh combined-release sign-off is not complete. Codex independently reviews resulting PRs. |
+| R16-06 | Codex | Independent security/release review: tenant/role boundaries, browser bridge/proxy throttling, authenticated persistence, owner recovery expiry/replay, environment separation, alerts, and stale-version detection. Record live acceptance separately from local/CI results; coordinate core fixes through Claude. | Open. Include remaining acceptance from issue #70; do not repeat already evidenced A22 acquisition work as a new success. |
+| R16-07 | Codex | Enforce main/production branch protections and required production reviewers; verify administrator/provider MFA, access inventory and credential-rotation evidence with account owners. | Main is unprotected and production has no protection rules. Current connector lacks repository-admin rights; provider account owners must apply restricted settings. |
+| R16-08 | Claude | GRA readiness: obtain authoritative Act 1177 commencement, confirm shop and Mansora registration obligations, map approved returns, and implement the single approved fiscal adapter once GRA provides its specification/credentials. Preserve current live-mode refusal until UAT/sign-off. | External/legal dependency. No real GRA submission, certification or taxpayer registration is authorised or implied by this task list. |
+| R16-09 | Codex | Benchmark large-shop VAT/reporting and reconnect workloads; record dataset, latency, resource use and regression thresholds. Propose optimisation to Claude, retaining historical exposure and audit completeness. | Open; full-history VAT scan is a known performance item. Claude owns query/core implementation changes. |
+| R16-10 | Codex | Coordinate witnessed Windows installation/update recovery, replacement-laptop restore, real printer/scanner/drawer and power/network-cut acceptance. Prepare scripts and evidence templates; Claude fixes engine/offline failures. | Needs a physical Windows till, hardware, signing credentials and a witness. Unsigned CI launch is not physical acceptance. |
+| R16-11 | Claude | Complete real-provider acceptance with authorised sandbox accounts: payment/webhook/refund/settlement reconciliation and accountant-reviewed Xero OAuth/mapping/draft journals. Track Hubtel documentation and merchant onboarding separately. | Simulated tests passed; external credentials, provider access and accountant acceptance remain dependencies. No real charges authorised. |
+| R16-12 | Codex | Maintain one current readiness register and reconcile stale board/issue states. Verify observed outage/recovery alert delivery and operational ownership; track privacy, retention, hosting/transfer decisions, recovery targets and cost alerts with owners. | Open. Legal/commercial decisions remain with the owner/adviser; do not silently adopt defaults. |
+
+**Execution order:** Codex starts R16-01 preparation and R16-02 live-test preparation; Claude starts R16-04/05 and the R16-03 recovery checks. Code/test preparation can proceed while external access is pending. Complete the isolated restore after a verified backup exists. Run physical/provider/GRA acceptance only when prerequisites are available. Neither agent may mark resilience or tax compliance complete solely because CI passed.
+
+**Handoff:** Claude should read this section and `docs/operations/financial-hardening-2026-11.md`, then claim a separate branch for each implementation task. Codex owns the infrastructure/browser acceptance evidence and independent review. Shared interfaces/migrations are agreed here before edits; released migrations are never rewritten. Optional future scope (batch/expiry, multiple tills/branches, QuickBooks and unfinished native-design acceptance) remains separate from critical readiness gates.
+
 ## Status board — active work (2026-11-12)
 
 [Complete historical board and evidence](archive/codex-tasks-2026-11-12.md). Only open, reserved or acceptance-pending tasks belong here.
@@ -118,6 +141,11 @@ intake; it never provisions testers. App invitations, Resend diagnostics, DNS an
 infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
+
+### 2026-11-16 — Codex: owner-requested readiness split
+
+Added R16-01–R16-12 above, explicitly including the missing authenticated live TSB checkout/refund/export/recovery rehearsal. Assigned infrastructure, browser/security acceptance and release controls to Codex; financial/core/sync review and provider/GRA implementation to Claude. Preserved earlier history and scope boundaries. These are assignments, not completed tests or evidence that a Claude session has started. Documentation-only change; no production records, credentials or infrastructure changed. CI result will be checked after publication.
+
 
 ### 2026-11-14 — C69 latest-default wrap-up (preserve later work)
 
