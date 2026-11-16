@@ -94,7 +94,11 @@ export function taxPayments(ctx: Ctx) {
 /** Filed returns with what was payable, what has been paid against each, and what is still owed. */
 export function taxArrears(ctx: Ctx) {
   const payments = taxPayments(ctx);
-  const filings = ctx.all("SELECT tax_date, reference, payload FROM tax_records WHERE kind = 'filing' ORDER BY tax_date").map((r) => ({ month: r.tax_date.slice(0, 7), reference: r.reference, payable: Number(JSON.parse(r.payload).payable) || 0 }));
+  // R16-04: an amended return supersedes the original for its month; only the latest filing is owed.
+  const latest = new Map<string, { month: string; reference: string; payable: number }>();
+  for (const r of ctx.all("SELECT tax_date, reference, payload FROM tax_records WHERE kind = 'filing' ORDER BY tax_date, COALESCE(json_extract(payload,'$.sequence'),0), created_at, id"))
+    latest.set(r.tax_date.slice(0, 7), { month: r.tax_date.slice(0, 7), reference: r.reference, payable: Number(JSON.parse(r.payload).payable) || 0 });
+  const filings = [...latest.values()];
   const rows = filings.map((f) => {
     const paid = sum(payments.filter((p) => p.period === f.month).map((p) => p.amount));
     return { ...f, paid, outstanding: Math.max(0, f.payable - paid), overpaid: Math.max(0, paid - f.payable) };
