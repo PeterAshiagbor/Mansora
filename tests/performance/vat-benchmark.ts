@@ -1,5 +1,6 @@
 /** Disposable encrypted VAT-report stress fixture; never connects to a live service. */
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync,rmSync,writeFileSync,statSync } from 'node:fs';
 import { tmpdir,cpus } from 'node:os';
 import { join } from 'node:path';
@@ -43,11 +44,11 @@ for(const sales of [1000,10000,50000]){
   const elapsed:number[]=[];
   for(let sample=0;sample<6;sample++){
    const start=performance.now(),r:any=await e.execute(token,'tax.report',{month:'2026-01'}),ms=performance.now()-start;
-   assert.equal(r.sales.length,sales*3);assert.equal(r.buckets[0].output,(sales-off)*450);assert.equal(r.buckets[0].historicalExposure,off*450);assert.equal(r.buckets[0].payable,sales*450);assert.equal(r.classification.find((c:any)=>c.classification==='standard').base,sales*3000);
+   assert.equal(r.sales.length,sales*3);for(const [index,rate] of [450,75,75].entries()){assert.equal(r.buckets[index].output,(sales-off)*rate);assert.equal(r.buckets[index].historicalExposure,off*rate);assert.equal(r.buckets[index].payable,sales*rate);}assert.equal(r.classification.find((c:any)=>c.classification==='standard').base,sales*3000);
    if(sample>0)elapsed.push(ms);
   }
   elapsed.sort((a,b)=>a-b);const result={sales,saleItems:sales*3,suppressedSales:off,samples:5,medianMs:Math.round(elapsed[2]),p95Ms:Math.round(elapsed[4]),rssMb:Math.round(process.memoryUsage().rss/1024/1024),encryptedDbMb:Math.round(statSync(e.db.name).size/1024/1024),financialAssertions:'passed'};rows.push(result);console.log(JSON.stringify(result));
  }finally{e.db.close();rmSync(root,{recursive:true,force:true});}
 }
-const report={recordedAt:new Date().toISOString(),node:process.version,cpu:cpus()[0]?.model,scope:'Local encrypted SQLite stress fixture. Entire reporting period on one synthetic date; 10% collection suppressed. Five warmed samples; p95 is the slowest of five, not a statistically strong production SLO. No live data or production endpoint.',rows};
+const report={sourceCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),recordedAt:new Date().toISOString(),node:process.version,cpu:cpus()[0]?.model,scope:'Local encrypted SQLite stress fixture. Entire reporting period on one synthetic date; 10% collection suppressed. Five warmed samples; p95 is the slowest of five, not a statistically strong production SLO. No live data or production endpoint.',rows};
 writeFileSync(new URL('./results/vat-readiness-2026-11-16.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
