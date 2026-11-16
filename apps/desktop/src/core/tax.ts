@@ -115,53 +115,70 @@ export function vatReport(ctx: Ctx, month: string) {
   const end = new Date(next); end.setUTCDate(end.getUTCDate() - 1);
   const reportDate = to > ctx.now().slice(0,10) ? ctx.now().slice(0,10) : end.toISOString().slice(0,10);
   const config = taxConfig(ctx,reportDate);
-  const sales = ctx.all(`SELECT i.id AS sale_item_id, s.id, s.receipt_no AS reference, s.created_at AS date, s.tax_snapshot AS invoice_tax, i.product_name, i.tax_snapshot, i.line_total FROM sale_items i JOIN sales s ON s.id = i.sale_id WHERE s.created_at < ? ORDER BY s.created_at, s.rowid, i.rowid`, to + 'T00:00:00.000Z');
-  const refunds = ctx.all(`SELECT i.id AS refund_item_id, i.sale_item_id, s.created_at AS sale_date, r.id, r.refund_no AS reference, r.created_at AS date, s.receipt_no AS original_reference, i.tax_snapshot, i.amount AS line_total FROM refund_items i JOIN refunds r ON r.id = i.refund_id JOIN sales s ON s.id = r.sale_id WHERE r.created_at < ? ORDER BY r.created_at, r.rowid, i.rowid`, to + 'T00:00:00.000Z');
+  // R16-09: a large shop's return must not load and re-parse its whole history. Only this month's lines, plus the
+  // lines sold while Mansora had collection switched off (needed for exposure and its later refunds), are read in
+  // full. Earlier months reach the carry-forward as per-month sums. Each snapshot is parsed once; tax settings are
+  // looked up once per date. Results are identical to the full-history calculation.
+  const fromTs = from + 'T00:00:00.000Z', toTs = to + 'T00:00:00.000Z';
+  const configs = new Map<string, ReturnType<typeof taxConfig>>();
+  const configOn = (d: string) => { let c = configs.get(d); if (!c) configs.set(d, c = taxConfig(ctx, d)); return c; };
+  const parsed = new WeakMap<object, any>();
+  const snap = (r: any) => { if (!r.tax_snapshot) return null; let t = parsed.get(r); if (t === undefined) parsed.set(r, t = JSON.parse(r.tax_snapshot)); return t; };
+  const suppressedLine = `json_extract(i.tax_snapshot, '$.platformVatSuppressed') = 1`;
+  const sales = ctx.all(`SELECT i.id AS sale_item_id, s.id, s.receipt_no AS reference, s.created_at AS date, s.tax_snapshot AS invoice_tax, i.product_name, i.tax_snapshot, i.line_total FROM sale_items i JOIN sales s ON s.id = i.sale_id
+    WHERE s.created_at < ? AND (s.created_at >= ? OR ${suppressedLine}) ORDER BY s.created_at, s.rowid, i.rowid`, toTs, fromTs);
+  const refunds = ctx.all(`SELECT i.id AS refund_item_id, i.sale_item_id, s.created_at AS sale_date, r.id, r.refund_no AS reference, r.created_at AS date, s.receipt_no AS original_reference, i.tax_snapshot, i.amount AS line_total FROM refund_items i JOIN refunds r ON r.id = i.refund_id JOIN sales s ON s.id = r.sale_id
+    WHERE r.created_at < ? AND (r.created_at >= ? OR i.sale_item_id IN (SELECT i.id FROM sale_items i WHERE ${suppressedLine})) ORDER BY r.created_at, r.rowid, i.rowid`, toTs, fromTs);
   const records = ctx.all("SELECT * FROM tax_records WHERE tax_date < ? ORDER BY tax_date, COALESCE(json_extract(payload,'$.sequence'),0), created_at, id", to).map(r => ({ ...r, data: JSON.parse(r.payload) }));
+  const movements: { month: string; vat: number; nhil: number; getfund: number }[] = [];
   for (const r of records.filter(r => r.kind === 'external_sale')) {
     const d = r.data;
-    const t = { base: d.base, vat: d.vat, nhil: d.nhil, getfund: d.getfund, total: sum([d.base,d.vat,d.nhil,d.getfund]), classification: d.classification, classificationVerified: true, registered: d.registeredAtSupply ?? registeredOn(taxConfig(ctx,r.tax_date),r.tax_date) };
-    sales.push({ id: r.id, reference: r.reference, date: r.tax_date + 'T00:00:00.000Z', product_name: 'External sale: ' + d.reason, invoice_tax: null, tax_snapshot: JSON.stringify(t), line_total: t.total });
+    const t = { base: d.base, vat: d.vat, nhil: d.nhil, getfund: d.getfund, total: sum([d.base,d.vat,d.nhil,d.getfund]), classification: d.classification, classificationVerified: true, registered: d.registeredAtSupply ?? registeredOn(configOn(r.tax_date),r.tax_date) };
+    const row = { id: r.id, reference: r.reference, date: r.tax_date + 'T00:00:00.000Z', product_name: 'External sale: ' + d.reason, invoice_tax: null, tax_snapshot: JSON.stringify(t), line_total: t.total };
+    sales.push(row);
+    movements.push({ month: r.tax_date.slice(0, 7), vat: t.vat, nhil: t.nhil, getfund: t.getfund });
   }
+  // Recorded output and credit notes of earlier months, summed in the database.
+  const taxSum = (k: string) => `SUM(json_extract(i.tax_snapshot, '$.${k}'))`;
+  for (const [sql, sign] of [
+    [`SELECT substr(s.created_at, 1, 7) AS month, ${taxSum('vat')} AS vat, ${taxSum('nhil')} AS nhil, ${taxSum('getfund')} AS getfund FROM sale_items i JOIN sales s ON s.id = i.sale_id WHERE s.created_at < ? AND i.tax_snapshot IS NOT NULL GROUP BY 1`, 1],
+    [`SELECT substr(r.created_at, 1, 7) AS month, ${taxSum('vat')} AS vat, ${taxSum('nhil')} AS nhil, ${taxSum('getfund')} AS getfund FROM refund_items i JOIN refunds r ON r.id = i.refund_id WHERE r.created_at < ? AND i.tax_snapshot IS NOT NULL GROUP BY 1`, -1],
+  ] as const) for (const m of ctx.all(sql, fromTs)) movements.push({ month: m.month, vat: sign * (m.vat ?? 0), nhil: sign * (m.nhil ?? 0), getfund: sign * (m.getfund ?? 0) });
   const reconciledLines = new Map(records.filter(r=>r.kind==='adjustment' && r.data.reconcilesSaleItemId && r.data.reconciledSale).map(r=>[r.data.reconcilesSaleItemId,r.data.reconciledSale]));
   // Derive exposure from the legal configuration captured at supply, never rewrite an invoice or invent collection.
   const historicalExposure: any[] = [];
   const exposureLines = new Map<string,any>(), exposureRefunds = new Map<string,any>();
   const originalByLine = new Map(sales.filter(r=>r.sale_item_id).map(r=>[r.sale_item_id,r]));
   for (const r of sales) {
-    const t = r.tax_snapshot && JSON.parse(r.tax_snapshot);
+    const t = snap(r);
     if (!t?.platformVatSuppressed || !t.classificationVerified || reconciledLines.has(r.sale_item_id)) continue;
-    const expected = taxAmount(r.line_total,t.classification,t.legalConfig?.registered ? t.legalConfig : taxConfig(ctx,r.date.slice(0,10)),r.date.slice(0,10));
+    const expected = taxAmount(r.line_total,t.classification,t.legalConfig?.registered ? t.legalConfig : configOn(r.date.slice(0,10)),r.date.slice(0,10));
     exposureLines.set(r.sale_item_id,expected);
     if (expected.vat || expected.nhil || expected.getfund) historicalExposure.push({sourceId:r.sale_item_id,reference:r.reference,date:r.date.slice(0,10),kind:'sale',policyRevision:t.platformPolicyRevision,base:expected.base,...Object.fromEntries(components.map(k=>[k,expected[k]-t[k]]))});
   }
   const refunded = new Map<string,number>();
   for (const r of refunds) {
-    const original = originalByLine.get(r.sale_item_id), t = original?.tax_snapshot && JSON.parse(original.tax_snapshot);
+    const original = originalByLine.get(r.sale_item_id), t = original && snap(original);
     if (!t?.platformVatSuppressed || !t.classificationVerified || reconciledLines.has(r.sale_item_id)) continue;
-    const expected=taxAmount(original.line_total,t.classification,t.legalConfig?.registered ? t.legalConfig : taxConfig(ctx,original.date.slice(0,10)),original.date.slice(0,10));
+    const expected=taxAmount(original.line_total,t.classification,t.legalConfig?.registered ? t.legalConfig : configOn(original.date.slice(0,10)),original.date.slice(0,10));
     const previous=refunded.get(r.sale_item_id) ?? 0; refunded.set(r.sale_item_id,previous+r.line_total);
     const prior=mulDivRound(previous,expected.total,original.line_total), cumulative=mulDivRound(previous+r.line_total,expected.total,original.line_total);
-    const reversal=refundTax(expected,prior,cumulative-prior), actual=r.tax_snapshot ? JSON.parse(r.tax_snapshot) : {vat:0,nhil:0,getfund:0};
+    const reversal=refundTax(expected,prior,cumulative-prior), actual=snap(r) ?? {vat:0,nhil:0,getfund:0};
     exposureRefunds.set(r.refund_item_id,{...reversal,classification:t.classification});
     if (reversal.vat || reversal.nhil || reversal.getfund) historicalExposure.push({sourceId:r.refund_item_id,reference:r.reference,date:r.date.slice(0,10),kind:'refund',policyRevision:t.platformPolicyRevision,base:-reversal.base,...Object.fromEntries(components.map(k=>[k,-reversal[k]+actual[k]]))});
   }
-  const classificationOf = (r: any) => reconciledLines.get(r.sale_item_id) ?? exposureLines.get(r.sale_item_id) ?? (r.tax_snapshot ? JSON.parse(r.tax_snapshot) : null);
-  const movements: { month: string; vat: number; nhil: number; getfund: number }[] = [];
-  for (const [rows, sign] of [[sales, 1], [refunds, -1]] as const) for (const r of rows) {
-    const t = r.tax_snapshot ? JSON.parse(r.tax_snapshot) : null;
-    if (t) movements.push({ month: r.date.slice(0, 7), vat: sign * t.vat, nhil: sign * t.nhil, getfund: sign * t.getfund });
-  }
+  const classificationOf = (r: any) => reconciledLines.get(r.sale_item_id) ?? exposureLines.get(r.sale_item_id) ?? snap(r);
   for (const r of records) if (['input', 'withholding', 'adjustment', 'opening_credit'].includes(r.kind)) {
     movements.push({ month: r.tax_date.slice(0, 7), ...Object.fromEntries(components.map(k => [k, (r.kind === 'adjustment' ? 1 : -1) * (r.data[k] ?? 0)])) } as any);
   }
   for (const e of historicalExposure) movements.push({month:e.date.slice(0,7),vat:e.vat,nhil:e.nhil,getfund:e.getfund});
-  const priorMonths = [...new Set(movements.map(r => r.month).filter(m => m < month))].sort();
+  const byMonth = new Map<string, typeof movements>();
+  for (const r of movements) if (r.month < month) { const list = byMonth.get(r.month) ?? []; list.push(r); byMonth.set(r.month, list); }
   const carry = { vat: 0, nhil: 0, getfund: 0 };
-  for (const m of priorMonths) for (const k of components) carry[k] = Math.max(0, carry[k] - sum(movements.filter(r => r.month === m).map(r => r[k])));
+  for (const m of [...byMonth.keys()].sort()) for (const k of components) carry[k] = Math.max(0, carry[k] - sum(byMonth.get(m)!.map(r => r[k])));
   const selectedSales = sales.filter(r => r.date.slice(0, 7) === month), selectedRefunds = refunds.filter(r => r.date.slice(0, 7) === month);
-  const output = addTax(selectedSales.filter(r => r.tax_snapshot).map(r => JSON.parse(r.tax_snapshot)));
-  const reversed = addTax(selectedRefunds.filter(r => r.tax_snapshot).map(r => JSON.parse(r.tax_snapshot)));
+  const output = addTax(selectedSales.map(snap).filter(Boolean));
+  const reversed = addTax(selectedRefunds.map(snap).filter(Boolean));
   const currentRecords = records.filter(r => r.tax_date.slice(0, 7) === month);
   const buckets = components.map(k => {
     const inputs = sum(currentRecords.filter(r => r.kind === 'input' || r.kind === 'opening_credit').map(r => r.data[k] ?? 0));
@@ -173,7 +190,7 @@ export function vatReport(ctx: Ctx, month: string) {
   });
   const classification = ['standard', 'zero', 'exempt', 'outside'].map(kind => ({ classification: kind, base: sum([
     ...selectedSales.filter(r => classificationOf(r)?.classification === kind).map(r => classificationOf(r).base),
-    ...selectedRefunds.filter(r => (exposureRefunds.get(r.refund_item_id) ?? (r.tax_snapshot && JSON.parse(r.tax_snapshot)))?.classification === kind).map(r => -(exposureRefunds.get(r.refund_item_id) ?? JSON.parse(r.tax_snapshot)).base),
+    ...selectedRefunds.filter(r => (exposureRefunds.get(r.refund_item_id) ?? snap(r))?.classification === kind).map(r => -(exposureRefunds.get(r.refund_item_id) ?? snap(r)).base),
   ]) }));
   const payable = sum(buckets.map(b => b.payable));
   // Payments are matched to the return period they settle, not to the month they were made in (audit F05).
@@ -183,18 +200,18 @@ export function vatReport(ctx: Ctx, month: string) {
   if (!vatFeature(ctx).enabled) blockers.push('Mansora has disabled the VAT collection feature. Enable it and reconcile historical liability before recording a filing.');
   if (historicalExposure.length) blockers.push('Historical VAT liability from disabled collection affects this return or its prior balances. Reconcile original periods and fiscal documents before filing; estimated exposure is not tax collected.');
   if (!registeredOn(config,reportDate) || !config.tin) blockers.push('Confirm VAT registration and the business TIN for this period.');
-  if ([...selectedSales,...selectedRefunds].some(r => !reconciledLines.has(r.sale_item_id) && (!r.tax_snapshot || JSON.parse(r.tax_snapshot).classificationVerified === false))) blockers.push('Reconcile legacy/unclassified financial transactions before filing.');
+  if ([...selectedSales,...selectedRefunds].some(r => !reconciledLines.has(r.sale_item_id) && (!r.tax_snapshot || snap(r).classificationVerified === false))) blockers.push('Reconcile legacy/unclassified financial transactions before filing.');
   if (selectedSales.some(r => {
     if (!r.tax_snapshot || reconciledLines.has(r.sale_item_id)) return false;
-    const t = JSON.parse(r.tax_snapshot), c = taxConfig(ctx,r.date.slice(0,10));
-    return registeredOn(c,r.date.slice(0,10)) && t.classification === 'standard' && !t.registered;
+    const t = snap(r);
+    return t.classification === 'standard' && !t.registered && registeredOn(configOn(r.date.slice(0,10)),r.date.slice(0,10));
   })) blockers.push('Sales were recorded without VAT after the legal effective date. Reconcile the original period with documented corrections before filing.');
   if (selectedRefunds.some(r => {
-    const t = r.tax_snapshot && JSON.parse(r.tax_snapshot);
-    return t && t.classification === 'standard' && !t.registered && registeredOn(taxConfig(ctx,r.sale_date.slice(0,10)),r.sale_date.slice(0,10));
+    const t = snap(r);
+    return t && t.classification === 'standard' && !t.registered && registeredOn(configOn(r.sale_date.slice(0,10)),r.sale_date.slice(0,10));
   })) blockers.push('Historical refund tax is unreconciled for a sale subject to VAT. Obtain original-period GRA review; do not deduct invented credit-note tax.');
   const reconciled = new Set(records.filter(r => r.kind === 'external_sale').map(r => r.data.reconcilesTurnoverId));
-  if (currentRecords.some(r => r.kind === 'turnover' && registeredOn(taxConfig(ctx,r.tax_date),r.tax_date) && !reconciled.has(r.id))) blockers.push('External taxable turnover is missing from the VAT output schedule; reconcile it as an external sale.');
+  if (currentRecords.some(r => r.kind === 'turnover' && registeredOn(configOn(r.tax_date),r.tax_date) && !reconciled.has(r.id))) blockers.push('External taxable turnover is missing from the VAT output schedule; reconcile it as an external sale.');
   for (const r of records.filter(r => r.kind === 'input')) {
     const d = r.data, accrued = d.accrualDate ?? d.invoiceDate;
     if (!accrued || !d.base || r.tax_date > addMonths(accrued,6)) { blockers.push('An input credit affecting this return has missing evidence or exceeds the exact six-month claim limit: ' + r.reference); continue; }
@@ -202,13 +219,12 @@ export function vatReport(ctx: Ctx, month: string) {
     catch { blockers.push('A blocked input category affects this return: ' + r.reference); }
   }
   const warnings = ['Working papers for review and filing through GRA. This is not an E-VAT-certified invoice or an electronically submitted return.', 'Confirm the last working day of the following month against Ghana public holidays and GRA notices.'];
-  if ([...selectedSales, ...selectedRefunds].some(r => !r.tax_snapshot || JSON.parse(r.tax_snapshot).classificationVerified === false)) warnings.push('Legacy transactions lack VAT snapshots. Reconcile them before filing; no historical tax has been invented.');
+  if ([...selectedSales, ...selectedRefunds].some(r => !r.tax_snapshot || snap(r).classificationVerified === false)) warnings.push('Legacy transactions lack VAT snapshots. Reconcile them before filing; no historical tax has been invented.');
   if (!config.registered) warnings.push('Business is not configured as VAT registered for this period.');
   if (ctx.get<{ n: number }>('SELECT COUNT(*) AS n FROM products WHERE active = 1 AND tax_class IS NULL')!.n) warnings.push('Some active products still need tax classification.');
   if (paymentRows.some((p) => p.allocatedByDate)) warnings.push('Some GRA payments were recorded without a return period and are matched by payment date. Check they belong to this return.');
   // Audit F09: goods received while registered with no linked input claim. Either the supplier invoice carried no
   // recoverable tax, or the claim has not been recorded (or the tax was wrongly included in the stock cost).
-  const [fromTs, toTs] = [from + 'T00:00:00.000Z', to + 'T00:00:00.000Z'];
   const unclaimed = config.registered ? ctx.all(`SELECT p.id, p.reference, p.received_at, p.total_cost FROM purchases p WHERE p.received_at >= ? AND p.received_at < ?
     AND NOT EXISTS (SELECT 1 FROM tax_records t WHERE t.kind = 'input' AND json_extract(t.payload, '$.purchaseId') = p.id) ORDER BY p.received_at`, fromTs, toTs) : [];
   if (unclaimed.length) warnings.push(`${unclaimed.length} purchase(s) this month have no input-tax claim linked. Confirm the supplier invoices carried no recoverable VAT, or record the claim; stock costs must exclude recoverable tax.`);

@@ -43,3 +43,23 @@ Method: each area was exercised with synthetic transactions. Every expected figu
 
 - Full suite: 110 files and 555 tests pass. The typecheck is clean.
 - CI on PR #99.
+
+## R16-09 follow-up: VAT return performance (Codex finding on PR #100)
+
+`vatReport` used to load and JSON-parse every sale and refund line ever recorded, reparse each snapshot up to five times, and reload the tax settings for every line. It also sent every line to the Tax screen, which displays none of them. Changes:
+
+- **Less history loaded:** only the reported month's lines are read, plus lines sold while collection was switched off (needed for exposure). Earlier months reach the carry-forward as per-month sums computed in SQLite.
+- **Less repeated work:** each snapshot is parsed once, and the tax settings are looked up once per date.
+- **Smaller response:** `tax.report` returns line counts instead of line rows unless `includeRows: true` is passed. The Excel export still contains every line.
+
+Equivalence was checked against a mixed four-month history: purchases, input credits, carry-forward, collection switched off and on, refunds of switched-off sales in later months, and an external sale. The old and new reports for each month were identical byte for byte once random IDs were masked.
+
+Codex's benchmark (`tests/performance/vat-benchmark.ts`, PR #100) was run on the same machine, 50,000 sales, 150,000 lines, 10% collection suppressed:
+
+| Measure | Before | After |
+| --- | --- | --- |
+| Report for the busy month, median of 5 | 3,705 ms | 2,223–2,813 ms |
+| Data sent to the Tax screen | 98.5 MB | 2.6 MB |
+| Report for the following, quiet month | 1,907 ms | 1,423 ms |
+
+The busy month still processes all 150,000 lines of that month. A further step would aggregate the month's output and classifications in SQLite when rows are not requested. This duplicates the calculation path, so it should follow only if Codex's thresholds still fail on production hardware.
