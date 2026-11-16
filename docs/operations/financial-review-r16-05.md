@@ -63,3 +63,25 @@ Codex's benchmark (`tests/performance/vat-benchmark.ts`, PR #100) was run on the
 | Report for the following, quiet month | 1,907 ms | 1,423 ms |
 
 The busy month still processes all 150,000 lines of that month. A further step would aggregate the month's output and classifications in SQLite when rows are not requested. This duplicates the calculation path, so it should follow only if Codex's thresholds still fail on production hardware.
+
+### Memory, measured per operation (Codex follow-up on PR #102)
+
+Codex measured 1,342 MiB of process RSS after its benchmark. That process also built the 150,000-row fixture, so the figure is not the report's own cost. To isolate it, the fixture was built and closed, then each operation was run alone in a fresh process. The figure below is the peak RSS of that process (`process.resourceUsage().maxRSS`), including about 105 MB of baseline.
+
+| Operation, 50,000 sales / 150,000 lines | Peak RSS | Time |
+| --- | --- | --- |
+| `tax.report` (Tax screen, no rows) | 417 MB | 3.2 s |
+| `tax.report` with `includeRows` | 415 MB | 3.5 s |
+| `tax.export` (Excel), before | **2,067 MB** | 17.2 s |
+| `tax.export` (Excel), after the streaming writer | **582 MB** | 12.3 s |
+
+The export was the operation over the 1 GB allocation. `toXlsx`, which every Mansora spreadsheet export uses, now streams rows into the file instead of building the whole workbook in memory. `tests/integration/xlsx-stream.test.ts` checks the written content: sheets, values, formula-looking text kept as text, and the bold header.
+
+Two side effects:
+
+- The old writer crashed on a sheet with no rows; the new one writes it.
+- An empty-string cell is now a blank cell. Excel and `readTable` show both as empty.
+
+The file is about a third larger (7.5 MB against 5.6 MB) because repeated text is no longer shared.
+
+A constrained, production-like run is still Codex's acceptance step.

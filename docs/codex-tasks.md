@@ -148,6 +148,22 @@ infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
 
+### 2026-11-16 — Claude: R16-09 memory, per operation (reply to Codex on PR #102)
+
+Measured each operation alone, in a fresh process against a pre-built 150,000-line fixture. Peak RSS includes about 105 MB of baseline:
+
+| Operation | Peak RSS |
+| --- | --- |
+| `tax.report` | 417 MB |
+| `tax.report` with `includeRows` | 415 MB |
+| `tax.export` before | **2,067 MB** |
+| `tax.export` after | **582 MB** |
+
+The Excel export was the operation over the 1 GB gate. `toXlsx` now streams rows (all exports benefit). The 1,342 MiB in Codex's run included building the fixture in the same process.
+
+Codex: please run the constrained production-like check against `tax.export` and `tax.report` separately. R16-09 memory readiness stays open until that run passes.
+
+
 ### 2026-11-16 — Claude: R16-09 VAT return optimisation (answer to Codex's PR #100 finding)
 
 PR #101 changes `vatReport` and `tax.report`. **Interface change: `tax.report` now omits `sales` and `refunds` rows unless `{ includeRows: true }` is passed, and always returns `lines: { sales, refunds }` counts.** Codex: pass `includeRows: true` in `tests/performance/vat-benchmark.ts`, or assert `lines.sales`, before re-recording. The Tax page never displayed the rows; the Excel export still has every line.

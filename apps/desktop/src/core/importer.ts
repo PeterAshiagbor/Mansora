@@ -1,3 +1,4 @@
+import { PassThrough } from 'node:stream';
 import { createHash } from 'node:crypto';
 import ExcelJS from 'exceljs';
 import { DomainError, fail, parseGHS, unitCostFromCarton } from '@mansora/domain';
@@ -58,16 +59,25 @@ export function toCsv(rows: unknown[][]): string {
 }
 
 export async function toXlsx(sheets: { name: string; rows: unknown[][] }[]): Promise<Buffer> {
-  const wb = new ExcelJS.Workbook();
+  // R16-09: stream rows straight into the file. Building the whole workbook in memory first used about 2 GB for a
+  // 150,000-line VAT month; the streaming writer keeps only the row being written.
+  const chunks: Buffer[] = [];
+  const out = new PassThrough();
+  out.on('data', (c: Buffer) => chunks.push(c));
+  const done = new Promise<void>((resolve, reject) => { out.on('end', resolve); out.on('error', reject); });
+  const wb = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: out, useStyles: true, useSharedStrings: false });
   wb.creator = 'Mansora Sales & Stock';
   for (const s of sheets) {
     const ws = wb.addWorksheet(s.name.slice(0, 31).replace(/[\\/?*[\]:]/g, ' '));
+    const width = Math.max(0, ...s.rows.slice(0, 50).map((r) => r.length));
+    ws.columns = Array.from({ length: width }, () => ({ width: 18 }));
     // ExcelJS stores strings as text, never as formulas, so values such as -5.00 are written exactly as they are.
-    s.rows.forEach((r) => ws.addRow(r));
-    if (s.rows.length) ws.getRow(1).font = { bold: true };
-    ws.columns.forEach((c) => (c.width = 18));
+    s.rows.forEach((r, i) => { const row = ws.addRow(r); if (i === 0) row.font = { bold: true }; row.commit(); });
+    ws.commit();
   }
-  return Buffer.from(await wb.xlsx.writeBuffer());
+  await wb.commit();
+  await done;
+  return Buffer.concat(chunks);
 }
 
 /** Read the first sheet of an .xlsx or a .csv into rows of strings. */
