@@ -25,6 +25,8 @@ import { inviteTesters } from '../staging/invitations';
 import { apiRuntimeOptions } from '../../apps/api/src/runtime';
 import { seedTestWorkspaces } from '../staging/sample-data';
 import { createWorkspaceOnboarding } from '../staging/workspace-onboarding';
+import { paidPurchaseEligible } from '../../apps/api/src/modules/purchased-setup';
+import { resendFromEnv } from '../../apps/api/src/email';
 
 export async function runRailwayServer() {
   if (process.getuid?.() === 0) throw new Error('Drop root privileges before starting the application.');
@@ -61,10 +63,11 @@ export async function runRailwayServer() {
     const leadInboxes = [process.env.LEAD_ALERT_EMAIL ?? '', process.env.PLATFORM_ALERT_EMAIL ?? ''].join(',').split(',').map(e => e.trim().toLowerCase()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
     if (leadInboxes.length) process.env.RESEND_ALLOWED_RECIPIENTS = [...new Set([...(process.env.RESEND_ALLOWED_RECIPIENTS ?? '').split(',').map(e => e.trim()).filter(Boolean), ...leadInboxes])].join(',');
     const { billing } = createBillingFromEnv(db);
+    const accountEmail = config.mode === 'client' ? resendFromEnv({ clientAccountMessages: true }) : billing.email;
     const [operator] = await db.platform(q => q<{ id: string }>('SELECT id FROM admins WHERE email = $1', [config.adminEmail]));
-    recovery = createOwnerRecovery({ config: stagingConfig(), email: billing.email, issueCode: browserOwnerRecoveryIssuer(db, operator.id), onFailure: () => console.warn('Owner recovery email needs review; no private message content is logged.') });
-    const onboarding = createWorkspaceOnboarding(stagingConfig());
-    app = await buildApp({ ...apiRuntimeOptions(process.env, join(config.dataDir, 'cloud-backups')), trustProxy: ['127.0.0.1', '::1'], db, billing, browserWorkspaces: onboarding, adminOrigins: [config.origin], adminUrl: `${config.origin}/admin/` });
+    recovery = createOwnerRecovery({ config: stagingConfig(), email: accountEmail, issueCode: browserOwnerRecoveryIssuer(db, operator.id), onFailure: () => console.warn('Owner recovery email needs review; no private message content is logged.') });
+    const onboarding = createWorkspaceOnboarding(stagingConfig(), undefined, tenantId => db.platform(q => paidPurchaseEligible(q, tenantId)));
+    app = await buildApp({ ...apiRuntimeOptions(process.env, join(config.dataDir, 'cloud-backups')), trustProxy: ['127.0.0.1', '::1'], db, billing, accountEmail, browserWorkspaces: onboarding, purchasedSetupIssuerId: operator.id, adminOrigins: [config.origin], adminUrl: `${config.origin}/admin/` });
     await app.listen({ host: '127.0.0.1', port: 4000 });
     if (config.mode === 'team-test') await provisionStaging(stagingConfig(), { email: config.adminEmail, password: adminPassword }, config.emails, config.passwords);
     else {
@@ -115,7 +118,7 @@ export async function runRailwayServer() {
         const result=await seedVatDemo({mode:config.mode,version:process.env.MANSORA_VAT_DEMO,dataDir:join(config.dataDir,'staging'),workspaces});
         console.log('Synthetic TSB VAT demo:',JSON.stringify(result));
       }
-    }, onboarding, recovery, tenantId => db.platform(q=>vatFeaturePolicy(q,tenantId)));
+    }, onboarding, recovery, tenantId => db.platform(q=>vatFeaturePolicy(q,tenantId)), email => db.platform(async q => (await q('SELECT 1 FROM admins WHERE email = $1', [email])).length > 0));
     // Off-site system backups (Google Cloud Storage for now), when switched on with MANSORA_SYSTEM_BACKUPS=1.
     const alertTo = process.env.PLATFORM_ALERT_EMAIL?.trim();
     const alert = alertTo ? (subject: string, body: string) => billing.email.send({ to: alertTo, subject, body, idempotencyKey: `mansora-backup-health/${subject}/${new Date().toISOString().slice(0, 13)}` }) : undefined;
@@ -135,7 +138,7 @@ export async function runRailwayServer() {
         .then(result=>console.log('TSB authenticated acceptance:',JSON.stringify(result)))
         .catch(()=>console.warn('TSB authenticated acceptance blocked; inspect the private rehearsal journal.'));},45000);acceptanceTimer.unref();
     }
-    console.log('Railway team testing is ready. Retrieve assigned accounts privately from the persistent volume.');
+    console.log(config.mode === 'client' ? 'Mansora client service is ready.' : 'Railway team testing is ready. Retrieve assigned accounts privately from the persistent volume.');
     return { app, gateway, db, close };
   } catch (error) { clearInterval(timer); clearTimeout(acceptanceTimer); await backups?.close(); await gateway?.close(); await recovery?.close(); await app?.close(); await db.close(); throw error; }
 }

@@ -40,6 +40,27 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     admin = await (await browser.newContext()).newPage(); admin.setDefaultTimeout(10_000); admin.on('pageerror', (e: Error) => errors.push(e.message));
   });
   afterAll(async () => { await browser?.close(); await gateway?.close(); for (const w of workspaces ?? []) w.engine.db.close(); await api?.close(); await cloud?.db.close(); });
+  it('opens branded sign-in without a public shop directory and routes an authenticated manager to their own shop', async () => {
+    const page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+    page.setDefaultTimeout(10_000); page.on('pageerror', (error: Error) => errors.push(error.message));
+    try {
+      await page.goto(gateway.url + '/'); await page.getByRole('heading', { name: 'Sign in', exact: true }).waitFor();
+      expect(new URL(page.url()).pathname).toBe('/signin/');
+      expect(await page.locator('body').innerText()).not.toMatch(/TEAM TEST|Mansora TSA|Mansora TSB/);
+      expect(await page.locator('a[href^="/client/"]').count()).toBe(0);
+      expect(await page.locator('body').evaluate((body: HTMLElement) => body.scrollWidth <= innerWidth)).toBe(true);
+      const manager = accounts.find(account => account.workspace === 'shop-b' && account.role === 'manager')!;
+      await page.getByLabel('Username or email', { exact: true }).fill(manager.username + '@shop-b');
+      await page.getByLabel('Password', { exact: true }).fill('incorrect-password');
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByRole('status').filter({ hasText: 'Incorrect username or password' }).waitFor();
+      expect(new URL(page.url()).pathname).toBe('/signin/');
+      await page.getByLabel('Password', { exact: true }).fill(manager.password);
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
+      expect(new URL(page.url()).pathname).toBe('/client/shop-b/');
+      const state = await page.evaluate(() => (window as any).mansora.invoke('app.state'));
+      expect(state.data.user.role).toBe('manager'); expect(state.data.business.name).toBe('Mansora TSB');
+    } finally { await page.context().close(); }
+  });
   it('keeps owner and cashier independent while they save and sell shared records', async () => {
     expect((await owner.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('owner');
     expect((await cashier.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('cashier');
@@ -61,7 +82,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     expect(workspaces[0].engine.db.prepare("SELECT COUNT(*) AS n FROM products WHERE name = 'Team Excel item'").get()).toMatchObject({ n: 0 });
   });
   it('serves the actual platform dashboard through the same-origin API proxy', async () => {
-    await admin.goto(gateway.url + '/admin/'); await admin.getByLabel('Email', { exact: true }).fill(ADMIN.email); await admin.getByLabel('Password', { exact: true }).fill(ADMIN.password); await admin.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await admin.goto(gateway.url + '/'); await admin.getByLabel('Username or email', { exact: true }).fill(ADMIN.email); await admin.getByLabel('Password', { exact: true }).fill(ADMIN.password); await admin.getByRole('button', { name: 'Sign in', exact: true }).click();
     await navigate(admin, 'Clients'); await admin.getByRole('row').filter({ hasText: 'Mansora TSA' }).waitFor(); await admin.getByRole('row').filter({ hasText: 'Mansora TSB' }).waitFor(); expect(errors).toEqual([]);
   });
   it('completes a sandbox checkout through proxied forms and redirects', async () => {

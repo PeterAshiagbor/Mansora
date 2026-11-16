@@ -131,6 +131,7 @@ it.skipIf(!pw)('lets the owner complete setup in the real browser with CSP and n
     await page.goto(gateway.url + '/onboarding/' + fragment);
     await page.getByText('Browser setup test shop · browser-owner@example.test', { exact: true }).waitFor();
     const chosen = randomBytes(24).toString('base64url');
+    await page.getByLabel('Username', { exact: true }).fill('browser.owner');
     await page.getByLabel('Choose a password', { exact: true }).fill(chosen);
     await page.getByLabel('Confirm password', { exact: true }).fill(chosen);
     await page.getByRole('button', { name: 'Create my workspace', exact: true }).click();

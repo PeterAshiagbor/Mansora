@@ -14,6 +14,7 @@ import { registerAdminRoutes } from './modules/admin';
 import { registerDeviceRoutes } from './modules/device';
 import { registerBugReportRoutes } from './modules/bug-reports';
 import { registerBrandRoutes } from './brand';
+import { registerPurchasedSetupRoutes } from './modules/purchased-setup';
 import { createBillingFromEnv, registerBillingRoutes, queueEmail, deliverQueued, type Billing } from './billing';
 import { HttpError } from './security';
 import { BackupStorageError, FileStorage, type BackupStorage } from './storage';
@@ -23,6 +24,8 @@ export interface AppContext {
   db: Database;
   backupStorage: BackupStorage;
   browserWorkspaces?: BrowserWorkspaceProvisioner;
+  /** Explicit service operator for tenant-bound self-service activation codes. Never supplied by a public caller. */
+  purchasedSetupIssuerId?: string;
   /** Non-payment standing for a business, sent to its laptop on every sync. */
   standing?: (tenantId: string) => Promise<ServiceStanding>;
   /** Outbound email (Resend in production). Staff sign-in codes are sent directly, never queued or stored. */
@@ -34,6 +37,8 @@ export interface AppContext {
 }
 
 export interface AppOptions extends Omit<AppContext, 'backupStorage'>, ObservabilityOptions {
+  /** Request-driven account/device messages; does not replace the background billing email adapter. */
+  accountEmail?: EmailAdapter;
   /** Local fallback for existing callers; unused when backupStorage is supplied. */
   backupDir: string;
   backupStorage?: BackupStorage;
@@ -48,7 +53,7 @@ export interface AppOptions extends Omit<AppContext, 'backupStorage'>, Observabi
 }
 
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
-  const context: AppContext = { db: opts.db, browserWorkspaces: opts.browserWorkspaces, backupStorage: opts.backupStorage ?? new FileStorage(opts.backupDir) };
+  const context: AppContext = { db: opts.db, browserWorkspaces: opts.browserWorkspaces, purchasedSetupIssuerId: opts.purchasedSetupIssuerId, backupStorage: opts.backupStorage ?? new FileStorage(opts.backupDir) };
   const app = Fastify({ logger: opts.logger || opts.logStream ? loggerOptions(opts.logStream) : false, logController: new LogController({ disableRequestLogging: true }), requestIdHeader: false, genReqId: requestId, bodyLimit: 8 * 1024 * 1024, trustProxy: opts.trustProxy ?? false });
   const billing = opts.billing ?? createBillingFromEnv(opts.db).billing;
   const alertTo = process.env.PLATFORM_ALERT_EMAIL?.trim();
@@ -92,10 +97,11 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.setNotFoundHandler((req, reply) => reply.code(404).send({ code: 'NOT_FOUND', message: 'Not found', requestId: req.id }));
   // Delegate at call time, so swapping billing.email (tests, reconfiguration) takes effect here too.
   context.adminUrl = (opts.adminUrl ?? process.env.ADMIN_PUBLIC_URL ?? (opts.adminOrigins?.[0] ? `${opts.adminOrigins[0]}/` : undefined))?.replace(/\/*$/, '/');
-  context.email = { configured: () => billing.email.configured(), send: (m) => billing.email.send(m) };
+  context.email = opts.accountEmail ?? { configured: () => billing.email.configured(), send: (m) => billing.email.send(m) };
   context.standing = (tenantId) => opts.db.platform((q) => tenantStanding(billing, q, tenantId));
   registerDeviceRoutes(app, context);
   registerAdminRoutes(app, context);
+  registerPurchasedSetupRoutes(app, context);
   registerBugReportRoutes(app, context);
   registerBrandRoutes(app);
   registerContactRoutes(app, context);

@@ -402,7 +402,9 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
   const plans = planOptions.data ?? [];
   const [edit, setEdit] = useState<any | null>(null);
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
-  const [browserWorkspace, setBrowserWorkspace] = useState<{ status: string; url: string; expiresAt?: string } | null>(null);
+  const [browserWorkspace, setBrowserWorkspace] = useState<{ status: string; url?: string; expiresAt?: string; ownerUsername?: string; emailSent?: boolean } | null>(null);
+  const [workspaceUsername, setWorkspaceUsername] = useState('');
+  const [emailWorkspaceLink, setEmailWorkspaceLink] = useState(true);
   const [sub, setSub] = useState<any | null>(null);
   const [recovery, setRecovery] = useState<{ reason: string; code?: string; expiresAt?: string } | null>(null);
   const act = useAction();
@@ -460,7 +462,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
               ))}
             </dl>
             <div className="mt-3 flex flex-wrap gap-2">
-              {data.browserWorkspaceAvailable && <Button size="sm" disabled={act.busy} onClick={() => act.run(async () => setBrowserWorkspace(await api('POST', `/v1/admin/clients/${id}/browser-workspace`)))}>Browser workspace</Button>}
+              {data.browserWorkspaceAvailable && <Button size="sm" disabled={act.busy} onClick={() => { setWorkspaceUsername(''); setEmailWorkspaceLink(true); setBrowserWorkspace({ status: 'draft' }); }}>Browser workspace</Button>}
               <Button size="sm" disabled={act.busy || !!device} title={device ? 'Deactivate the current laptop first' : ''} onClick={() => act.run(async () => setCode(await api('POST', `/v1/admin/clients/${id}/activation-codes`)))}>Create activation code</Button>
               {device && <Button size="sm" disabled={act.busy} onClick={() => setRecovery({ reason: '' })}>Owner recovery code</Button>}
               {device && <Button size="sm" variant="danger" disabled={act.busy} onClick={() => setRevoking(true)}>Deactivate laptop</Button>}
@@ -515,8 +517,18 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
       )}
       {browserWorkspace && (
         <Modal title="Browser workspace" open onClose={() => setBrowserWorkspace(null)} footer={<Button variant="primary" onClick={() => { setBrowserWorkspace(null); reload(); }}>Done</Button>}>
-          <p>{browserWorkspace.status === 'ready' ? 'The workspace is ready. The owner can sign in at this address.' : 'Share this private setup link only with the recorded business owner. They choose their own password. This link expires in 30 minutes.'}</p>
-          <Field label="Workspace link"><Input readOnly value={browserWorkspace.url} onFocus={(event) => event.currentTarget.select()} /></Field>
+          {browserWorkspace.status === 'draft' ? <div className="space-y-4">
+            <p>Create the account for {c.owner_name} using the recorded owner email, {c.email || 'not recorded'}. The owner chooses their own password.</p>
+            <Field label="Assign owner username (optional)" hint="Use 3–40 letters, numbers, dots, dashes or underscores. Leave empty to let the owner choose."><Input value={workspaceUsername} onChange={event => setWorkspaceUsername(event.target.value)} maxLength={40} autoComplete="off" /></Field>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={emailWorkspaceLink} onChange={event => setEmailWorkspaceLink(event.target.checked)} /> Email the private setup link to the owner</label>
+            <Button variant="primary" disabled={act.busy || !c.email} onClick={() => act.run(async () => setBrowserWorkspace(await api('POST', `/v1/admin/clients/${id}/browser-workspace`, { ownerUsername: workspaceUsername.trim() || undefined, sendEmail: emailWorkspaceLink })))}>Create owner setup link</Button>
+          </div> : <>
+            <p>{browserWorkspace.status === 'ready' ? 'The workspace is ready. The owner can sign in with their username or recorded email.' : 'Share this private setup link only with the recorded business owner. They choose their own password. This link expires in 30 minutes.'}</p>
+            {browserWorkspace.ownerUsername && <p className="mt-3 text-sm">Owner username: <strong>{browserWorkspace.ownerUsername}</strong></p>}
+            {browserWorkspace.emailSent && <Alert tone="good">The setup email was accepted for delivery to the recorded owner email.</Alert>}
+            <Field label="Workspace link"><Input readOnly value={browserWorkspace.url ?? ''} onFocus={(event) => event.currentTarget.select()} /></Field>
+          </>}
+          {act.error && <Alert tone="bad" className="mt-3">{act.error}</Alert>}
         </Modal>
       )}
       {code && (
