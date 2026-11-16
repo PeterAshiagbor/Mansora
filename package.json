@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Mansora Sales & Stock Platform - offline-first POS, inventory and client administration",
+  "description": "Mansora Sales & Stock — sales, inventory, customer balances and business reporting",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -41,5 +41,7 @@
   "overrides": {
     "uuid": "11.1.1",
     "minimatch@>=7": "11.0.1"
-  }
+  },
+  "author": "Mansora Consulting and Business Solutions Limited",
+  "homepage": "https://mansora-consulting.com"
 }

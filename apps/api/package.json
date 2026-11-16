@@ -22,5 +22,8 @@
     "@electric-sql/pglite": "^0.5.15",
     "@types/pg": "^8.11.0",
     "esbuild": "^0.28.2"
-  }
+  },
+  "description": "Mansora Sales & Stock application services for client administration, synchronisation and business reporting.",
+  "author": "Mansora Consulting and Business Solutions Limited",
+  "homepage": "https://mansora-consulting.com"
 }
