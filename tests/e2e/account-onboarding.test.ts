@@ -28,11 +28,11 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/desktop/dist/renderer/index.
     cloud.billing.email = { configured: () => true, send: async message => { sent.push(message); return { id: 'synthetic-mail-' + sent.length }; } };
     const config = { mode: 'client' as const, origin: 'http://127.0.0.1:0', apiUrl: cloud.url, dataDir: tempDir(), key: randomBytes(32).toString('hex'), clientDir: join(root, 'apps/desktop/dist/renderer'), adminDir: join(root, 'apps/admin-web/dist') };
     writeFileSync(join(config.dataDir, 'workspaces.json'), '[]');
-    const onboarding = createWorkspaceOnboarding(config, undefined, tenant => cloud.db.platform(q => paidPurchaseEligible(q, tenant)));
+    const onboarding = createWorkspaceOnboarding(config, undefined, tenant => cloud.db.platform(q => paidPurchaseEligible(q, tenant, true)));
     gateway = await startStagingGateway({ ...config, workspaces, onboarding, port: 0, adminIdentityExists: email => cloud.db.platform(async q => (await q('SELECT 1 FROM admins WHERE email=$1', [email])).length > 0) });
     onboarding.attach(workspaces, gateway.registerWorkspace);
     const issuer = (await cloud.api('GET', '/v1/admin/me')).body.id;
-    await cloud.app.close(); app = await buildApp({ db: cloud.db, backupDir: tempDir(), billing: cloud.billing, browserWorkspaces: onboarding, purchasedSetupIssuerId: issuer, adminOrigins: [gateway.publicOrigin], adminUrl: gateway.publicOrigin + '/admin/' });
+    await cloud.app.close(); app = await buildApp({ db: cloud.db, backupDir: tempDir(), billing: cloud.billing, browserWorkspaces: onboarding, purchasedSetupIssuerId: issuer, allowSandboxAccountSetup: true, adminOrigins: [gateway.publicOrigin], adminUrl: gateway.publicOrigin + '/admin/' });
     await app.listen({ host: '127.0.0.1', port: Number(new URL(cloud.url).port) });
     cloud.billing.env.publicBaseUrl = gateway.publicOrigin + '/api'; cloud.sandbox.baseUrl = gateway.publicOrigin + '/api';
     browser = await pw.chromium.launch(); operator = await page(); owner = await page();
@@ -91,6 +91,8 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/desktop/dist/renderer/index.
       // Real application and signed webhook path, with the sandbox provider; no real money.
       await buyer.getByRole('button', { name: 'Approve', exact: true }).click(); await buyer.getByRole('heading', { name: 'Thank you', exact: true }).waitFor();
       expect((await billingAdmin(cloud).get(`/invoices/${invoiceId}`)).body.status).toBe('paid');
+      expect(await cloud.db.platform(q => paidPurchaseEligible(q, client.body.id))).toBe(false); // Production excludes the simulated payment.
+      expect(await cloud.db.platform(q => paidPurchaseEligible(q, client.body.id, true))).toBe(true); // Explicit synthetic fixture only.
       await buyer.goto(gateway.url); await buyer.getByRole('link', { name: 'Set up a purchased account', exact: true }).click(); await scan(buyer);
       await buyer.getByLabel('Owner email', { exact: true }).fill(email); await buyer.getByRole('button', { name: 'Email my setup link', exact: true }).click(); await buyer.getByRole('status').filter({ hasText: 'eligible paid purchase' }).waitFor();
       const invite = sent.find(message => message.to === email && message.subject.startsWith('Set up your')); expect(invite).toBeTruthy(); expect(workspaces).toHaveLength(pendingCount);

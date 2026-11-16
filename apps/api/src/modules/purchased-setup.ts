@@ -6,12 +6,17 @@ import type { AppContext } from '../app';
 import type { Query } from '../db';
 import { httpError, newActivationCode, RateLimiter, sha256 } from '../security';
 
-export async function paidPurchaseEligible(q: Query, tenantId: string): Promise<boolean> {
+export async function paidPurchaseEligible(q: Query, tenantId: string, allowSandbox = false): Promise<boolean> {
   return (await q(`SELECT 1 FROM tenants t JOIN client_subscriptions s ON s.tenant_id = t.id
     JOIN invoices i ON i.subscription_id = s.id AND i.tenant_id = t.id
     WHERE t.id = $1 AND t.status NOT IN ('closed', 'suspended') AND s.status IN ('active', 'trial')
       AND i.status = 'paid' AND i.total > 0 AND i.amount_paid - i.amount_refunded >= i.total
-      AND i.amount_credited = 0 AND i.amount_written_off = 0 LIMIT 1`, [tenantId])).length > 0;
+      AND i.amount_credited = 0 AND i.amount_written_off = 0
+      AND ($2::boolean OR (SELECT COALESCE(SUM(a.amount - a.refunded), 0)
+        FROM payment_allocations a JOIN billing_payments p ON p.id = a.payment_id
+        WHERE a.invoice_id = i.id AND p.tenant_id = t.id AND NOT p.sandbox
+          AND p.status IN ('successful', 'partially_refunded')) >= i.total)
+      LIMIT 1`, [tenantId, allowSandbox])).length > 0;
 }
 
 export function registerPurchasedSetupRoutes(app: FastifyInstance, ctx: AppContext) {
@@ -26,12 +31,12 @@ export function registerPurchasedSetupRoutes(app: FastifyInstance, ctx: AppConte
     const tenants = await ctx.db.platform(q => q<{ id: string; name: string; owner_name: string; email: string }>("SELECT id, name, owner_name, email FROM tenants WHERE lower(email) = $1 AND status NOT IN ('closed', 'suspended') LIMIT 2", [email]));
     if (tenants.length !== 1) return reply.code(202).send(response);
     const tenant = tenants[0];
-    const allowed = await ctx.db.platform(q => paidPurchaseEligible(q, tenant.id));
+    const allowed = await ctx.db.platform(q => paidPurchaseEligible(q, tenant.id, ctx.allowSandboxAccountSetup));
     if (!allowed) return reply.code(202).send(response);
     const code = newActivationCode();
     const binding = await ctx.db.platform(async q => {
       const [operator] = await q<{ id: string }>("SELECT id FROM admins WHERE id = $1 AND status = 'active'", [ctx.purchasedSetupIssuerId]);
-      if (!operator || !await paidPurchaseEligible(q, tenant.id)) return undefined;
+      if (!operator || !await paidPurchaseEligible(q, tenant.id, ctx.allowSandboxAccountSetup)) return undefined;
       const hasDevice = (await q("SELECT 1 FROM devices WHERE tenant_id = $1 AND status = 'active'", [tenant.id])).length > 0;
       // Existing installations use sign-in/recovery, never a second empty workspace.
       if (hasDevice) return undefined;

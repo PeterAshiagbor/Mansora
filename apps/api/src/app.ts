@@ -26,6 +26,8 @@ export interface AppContext {
   browserWorkspaces?: BrowserWorkspaceProvisioner;
   /** Explicit service operator for tenant-bound self-service activation codes. Never supplied by a public caller. */
   purchasedSetupIssuerId?: string;
+  /** Explicit synthetic test host only. Railway client mode always supplies false. */
+  allowSandboxAccountSetup?: boolean;
   /** Non-payment standing for a business, sent to its laptop on every sync. */
   standing?: (tenantId: string) => Promise<ServiceStanding>;
   /** Outbound email (Resend in production). Staff sign-in codes are sent directly, never queued or stored. */
@@ -53,7 +55,7 @@ export interface AppOptions extends Omit<AppContext, 'backupStorage'>, Observabi
 }
 
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
-  const context: AppContext = { db: opts.db, browserWorkspaces: opts.browserWorkspaces, purchasedSetupIssuerId: opts.purchasedSetupIssuerId, backupStorage: opts.backupStorage ?? new FileStorage(opts.backupDir) };
+  const context: AppContext = { db: opts.db, browserWorkspaces: opts.browserWorkspaces, purchasedSetupIssuerId: opts.purchasedSetupIssuerId, allowSandboxAccountSetup: opts.allowSandboxAccountSetup, backupStorage: opts.backupStorage ?? new FileStorage(opts.backupDir) };
   const app = Fastify({ logger: opts.logger || opts.logStream ? loggerOptions(opts.logStream) : false, logController: new LogController({ disableRequestLogging: true }), requestIdHeader: false, genReqId: requestId, bodyLimit: 8 * 1024 * 1024, trustProxy: opts.trustProxy ?? false });
   const billing = opts.billing ?? createBillingFromEnv(opts.db).billing;
   const alertTo = process.env.PLATFORM_ALERT_EMAIL?.trim();

@@ -67,8 +67,8 @@ export async function runRailwayServer() {
     const accountEmail = config.mode === 'client' ? resendFromEnv({ clientAccountMessages: true }) : billing.email;
     const [operator] = await db.platform(q => q<{ id: string }>('SELECT id FROM admins WHERE email = $1', [config.adminEmail]));
     recovery = createOwnerRecovery({ config: stagingConfig(), email: accountEmail, issueCode: browserOwnerRecoveryIssuer(db, operator.id), onFailure: () => console.warn('Owner recovery email needs review; no private message content is logged.') });
-    const onboarding = createWorkspaceOnboarding(stagingConfig(), undefined, tenantId => db.platform(q => paidPurchaseEligible(q, tenantId)));
-    app = await buildApp({ ...apiRuntimeOptions(process.env, join(config.dataDir, 'cloud-backups')), trustProxy: ['127.0.0.1', '::1'], db, billing, accountEmail, browserWorkspaces: onboarding, purchasedSetupIssuerId: operator.id, adminOrigins: [config.origin], adminUrl: `${config.origin}/admin/` });
+    const onboarding = createWorkspaceOnboarding(stagingConfig(), undefined, tenantId => db.platform(q => paidPurchaseEligible(q, tenantId, config.mode === 'team-test')));
+    app = await buildApp({ ...apiRuntimeOptions(process.env, join(config.dataDir, 'cloud-backups')), trustProxy: ['127.0.0.1', '::1'], db, billing, accountEmail, browserWorkspaces: onboarding, purchasedSetupIssuerId: operator.id, allowSandboxAccountSetup: config.mode === 'team-test', adminOrigins: [config.origin], adminUrl: `${config.origin}/admin/` });
     await app.listen({ host: '127.0.0.1', port: 4000 });
     if (config.mode === 'team-test') await provisionStaging(stagingConfig(), { email: config.adminEmail, password: adminPassword }, config.emails, config.passwords);
     else {
