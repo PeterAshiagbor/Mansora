@@ -8,12 +8,12 @@ import { startStagingGateway } from './gateway';
 import type { OwnerRecovery } from './owner-recovery';
 import type { WorkspaceOnboarding } from './workspace-onboarding';
 import type { StagingWorkspace } from './gateway';
-export async function startConfiguredStaging(readiness?: () => Promise<boolean>, beforeListen?: (workspaces: StagingWorkspace[]) => Promise<void>, onboarding?: WorkspaceOnboarding, ownerRecovery?: OwnerRecovery, vatFeaturePolicy?: (tenantId: string) => Promise<unknown>) {
+export async function startConfiguredStaging(readiness?: () => Promise<boolean>, beforeListen?: (workspaces: StagingWorkspace[]) => Promise<void>, onboarding?: WorkspaceOnboarding, ownerRecovery?: OwnerRecovery, vatFeaturePolicy?: (tenantId: string) => Promise<unknown>, adminIdentityExists?: (email: string) => Promise<boolean>) {
   const config = stagingConfig(), workspaces = loadWorkspaces(config), policy = gatewayPolicyFromEnv(process.env, config.mode);
   const manifest = join(config.dataDir, 'test-accounts.json');
   const testWorkspaceIds: string[] = existsSync(manifest) ? [...new Set<string>(JSON.parse(readFileSync(manifest, 'utf8')).map((a: any) => a.workspace))] : [];
   let gateway: Awaited<ReturnType<typeof startStagingGateway>>;
-  try { await beforeListen?.(workspaces); gateway = await startStagingGateway({ ...config, ...policy, testWorkspaceIds, workspaces, loginAliases: loadLoginAliases(config.dataDir), readiness, onboarding, ownerRecovery, vatFeaturePolicy, host: process.env.STAGING_BIND_HOST ?? '0.0.0.0', port: Number(process.env.PORT ?? 4500) }); try { onboarding?.attach(workspaces, gateway.registerWorkspace); ownerRecovery?.attach(workspaces); } catch (error) { await gateway.close(); throw error; } }
+  try { await beforeListen?.(workspaces); gateway = await startStagingGateway({ ...config, ...policy, testWorkspaceIds, workspaces, loginAliases: loadLoginAliases(config.dataDir, workspaces), readiness, onboarding, ownerRecovery, vatFeaturePolicy, adminIdentityExists, host: process.env.STAGING_BIND_HOST ?? '0.0.0.0', port: Number(process.env.PORT ?? 4500) }); try { onboarding?.attach(workspaces, gateway.registerWorkspace); ownerRecovery?.attach(workspaces); } catch (error) { await gateway.close(); throw error; } }
   catch (e) { for (const w of workspaces) w.engine.db.close(); throw e; }
   const running = new Set<string>();
   let backgroundPaused = false, stopping = false, snapshot: Promise<unknown> | undefined;

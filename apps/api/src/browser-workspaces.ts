@@ -4,9 +4,10 @@ import { httpError, newActivationCode, sha256 } from './security';
 /** Server-only adapter: the platform issues a tenant-bound owner setup link. */
 export interface BrowserWorkspaceInvite {
   tenantId: string; label: string; ownerName: string; ownerEmail: string; activationCode: string; hasActiveDevice?: boolean;
+  ownerUsername?: string; requiresPaidPurchase?: boolean;
 }
 export interface BrowserWorkspaceLink {
-  workspaceId: string; url: string; status: 'pending' | 'ready'; expiresAt?: string;
+  workspaceId: string; url: string; status: 'pending' | 'ready'; expiresAt?: string; ownerUsername?: string; emailSent?: boolean;
 }
 export interface BrowserWorkspaceProvisioner {
   invite(input: BrowserWorkspaceInvite): Promise<BrowserWorkspaceLink>;

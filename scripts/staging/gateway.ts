@@ -1,4 +1,7 @@
-/** Authenticated browser transport for the unchanged native engine. Staging only. */
+/** Authenticated browser transport for the native engine and public sign-in. */
+import { findLoginAccounts, normaliseLogin, publicLogin, usernameTaken } from './login-directory';
+import { signInHtml, signInCss, signInScript, purchasedSetupHtml, purchasedSetupScript, staffSetupHtml, staffSetupScript } from './sign-in-page';
+import { verifyLoginPassword } from '../../apps/api/src/security';
 import { clientAddress, trustedProxyMatcher, type DeploymentMode } from './gateway-policy';
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
@@ -19,26 +22,26 @@ export interface GatewayOptions {
   clientDir: string; adminDir: string; port?: number; host?: string;
   loginAliases?: Record<string, Record<string, string>>; readiness?: () => Promise<boolean>;
   ownerRecovery?: Pick<OwnerRecovery, 'available' | 'request' | 'complete'>;
-  onboarding?: Pick<WorkspaceOnboarding, 'details' | 'complete'>;
+  onboarding?: Pick<WorkspaceOnboarding, 'details' | 'complete'> & Partial<Pick<WorkspaceOnboarding, 'usernameReserved'>>;
   mode?: DeploymentMode; testWorkspaceIds?: string[]; trustedProxies?: string[];
   onProxyPeer?: (peer: string, source: 'socket' | 'forwarded') => void;
   vatFeaturePolicy?: (tenantId: string) => Promise<unknown>;
+  adminIdentityExists?: (email: string) => Promise<boolean>;
   maxConcurrentPerWorkspace?: number; maxConcurrentImports?: number;
   maxConcurrentRequests?: number;
   maxBodyBytes?: number; sessionTtlMs?: number; now?: () => number;
 }
 class HttpError extends Error { constructor(public status: number, public code: string, message: string) { super(message); } }
 const MIME: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.json': 'application/json' };
-const escape = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 export function stagingOrigin(value: string): URL {
   const url = new URL(value);
   if (url.username || url.password || url.pathname !== '/' || url.search || url.hash || (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)))) throw new Error('STAGING_ORIGIN must be an HTTPS origin; HTTP is allowed only on loopback for tests.');
   return url;
 }
 async function body(req: IncomingMessage, limit: number): Promise<Buffer> {
-  if (Number(req.headers['content-length'] ?? 0) > limit) { req.resume(); throw new HttpError(413, 'BODY_TOO_LARGE', 'This upload exceeds the staging request limit.'); }
+  if (Number(req.headers['content-length'] ?? 0) > limit) { req.resume(); throw new HttpError(413, 'BODY_TOO_LARGE', 'This upload exceeds the request limit.'); }
   const chunks: Buffer[] = []; let size = 0;
-  for await (const chunk of req) { const bytes = Buffer.from(chunk); size += bytes.length; if (size > limit) throw new HttpError(413, 'BODY_TOO_LARGE', 'This upload exceeds the staging request limit.'); chunks.push(bytes); }
+  for await (const chunk of req) { const bytes = Buffer.from(chunk); size += bytes.length; if (size > limit) throw new HttpError(413, 'BODY_TOO_LARGE', 'This upload exceeds the request limit.'); chunks.push(bytes); }
   return Buffer.concat(chunks);
 }
 function file(root: string, name: string): string | null {
@@ -75,6 +78,20 @@ export async function startStagingGateway(opts: GatewayOptions) {
     if (++next.count > count) throw new HttpError(429, 'TRY_LATER', 'Too many sign-in attempts. Please wait before trying again.');
   };
   const json = (res: ServerResponse, status: number, data: unknown) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); };
+  const signInSession = (req: IncomingMessage, res: ServerResponse, workspace: StagingWorkspace, token: string) => {
+    for (const [key, old] of sessions) if (old.expires <= now()) clear(key);
+    if (sessions.size >= 500) { workspace.engine.endSession(token); throw new HttpError(503, 'SESSIONS_FULL', 'Sign-in is busy. Please try later.'); }
+    clear(sessionId(req));
+    const id = randomBytes(32).toString('hex');
+    sessions.set(id, { workspace: workspace.id, token, expires: now() + (opts.sessionTtlMs ?? 12 * 3_600_000) });
+    cookie(res, workspace.id, id);
+  };
+  const adminSignIn = async (path: string, input: unknown, address: string) => {
+    const response = await fetch(new URL(path, upstream), { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': address }, body: JSON.stringify(input), signal: AbortSignal.timeout(30_000) });
+    const data = await response.json() as any;
+    if (!response.ok) throw new HttpError(response.status, response.status === 401 ? 'INVALID_CREDENTIALS' : data.code ?? 'SIGN_IN_UNAVAILABLE', response.status === 401 ? 'Incorrect username or password.' : response.status === 429 ? 'Too many sign-in attempts. Please wait and try again.' : 'Sign-in is temporarily unavailable. Please try again.');
+    return data.requiresTotp ? { requiresTotp: true, challenge: data.challenge, expiresAt: data.expiresAt } : { platform: 'admin', token: data.token };
+  };
   const server = createServer(async (req, res) => {
     res.setHeader('cache-control', 'no-store'); res.setHeader('x-content-type-options', 'nosniff'); res.setHeader('referrer-policy', 'no-referrer'); res.setHeader('x-frame-options', 'DENY');
     res.setHeader('x-robots-tag', 'noindex, nofollow, noarchive'); res.setHeader('permissions-policy', 'geolocation=(), microphone=(), camera=(self)' /* camera: barcode scanning, C57 */); res.setHeader('cross-origin-resource-policy', 'same-origin');
@@ -85,12 +102,60 @@ export async function startStagingGateway(opts: GatewayOptions) {
       const client = clientAddress(req, trusted);
       if (req.headers['x-real-ip'] && !observedPeers.has(client.peer) && observedPeers.size < 10) { observedPeers.add(client.peer); opts.onProxyPeer?.(client.peer, client.source); }
       if (counted && snapshotPaused) { res.setHeader('retry-after', '2'); throw new HttpError(503, 'SERVER_BUSY', 'A protected recovery snapshot is being prepared. Please retry shortly.'); }
-      if (counted && activeRequests >= (opts.maxConcurrentRequests ?? 16)) { res.setHeader('retry-after', '2'); throw new HttpError(503, 'SERVER_BUSY', 'The test server is busy. Please retry shortly.'); }
+      if (counted && activeRequests >= (opts.maxConcurrentRequests ?? 16)) { res.setHeader('retry-after', '2'); throw new HttpError(503, 'SERVER_BUSY', 'Mansora is busy. Please retry shortly.'); }
       if (counted) { activeRequests++; admitted = true; }
       if (!req.url?.startsWith('/') || req.url.startsWith('//')) throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.');
       const url = new URL(req.url, origin);
       let path: string; try { path = decodeURIComponent(url.pathname); } catch { throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.'); }
       if (path.includes('\\') || path.includes('\0')) throw new HttpError(400, 'BAD_REQUEST', 'Invalid request path.');
+      if (req.method === 'GET' && path === '/') { res.writeHead(302, { location: '/signin/' }); res.end(); return; }
+      if (req.method === 'GET' && ['/signup/', '/signup/app.js'].includes(path)) { res.writeHead(200, { 'content-type': path.endsWith('.js') ? MIME['.js'] : MIME['.html'] }); res.end(path.endsWith('.js') ? purchasedSetupScript : purchasedSetupHtml); return; }
+      if (req.method === 'GET' && ['/staff-setup/', '/staff-setup/app.js'].includes(path)) { res.writeHead(200, { 'content-type': path.endsWith('.js') ? MIME['.js'] : MIME['.html'] }); res.end(path.endsWith('.js') ? staffSetupScript : staffSetupHtml); return; }
+      if (req.method === 'GET' && ['/signin', '/signin/', '/signin/style.css', '/signin/app.js'].includes(path)) {
+        if (path === '/signin') { res.writeHead(308, { location: '/signin/' }); res.end(); return; }
+        const asset = path.endsWith('.css') ? [MIME['.css'], signInCss] : path.endsWith('.js') ? [MIME['.js'], signInScript] : [MIME['.html'], signInHtml];
+        res.writeHead(200, { 'content-type': asset[0] }); res.end(asset[1]); return;
+      }
+      if (['/signin/login', '/signin/totp', '/signin/accept-invite'].includes(path)) {
+        if (req.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST to sign in.');
+        if (req.headers.origin !== origin.origin) throw new HttpError(403, 'ORIGIN_DENIED', 'Open the sign-in page directly.');
+        if (!(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) throw new HttpError(415, 'JSON_REQUIRED', 'Send application/json.');
+        budget('signin-ip:' + client.address, 60, 60_000);
+        let input: any; try { input = JSON.parse((await body(req, 4096)).toString('utf8')); } catch (error) { if (error instanceof HttpError) throw error; throw new HttpError(400, 'BAD_JSON', 'The sign-in request could not be read.'); }
+        if (path === '/signin/totp') {
+          if (typeof input?.challenge !== 'string' || input.challenge.length > 100 || typeof input.code !== 'string' || input.code.length > 64) throw new HttpError(400, 'INVALID_INPUT', 'Enter your verification code.');
+          budget('signin-factor:' + input.challenge, 20, 15 * 60_000);
+          return json(res, 200, { ok: true, data: await adminSignIn('/v1/admin/login/totp', input, client.address) });
+        }
+        const accepting = path === '/signin/accept-invite';
+        if (accepting) {
+          if (typeof input?.code !== 'string' || input.code.length > 30) throw new HttpError(400, 'INVALID_INPUT', 'Enter your one-time sign-in code.');
+          input.password = input.newPassword;
+        }
+        if (typeof input?.username !== 'string' || !input.username.trim() || input.username.length > 254 || typeof input.password !== 'string' || !input.password || input.password.length > 200) throw new HttpError(400, 'INVALID_INPUT', 'Enter your username and password.');
+        const username = normaliseLogin(input.username);
+        budget('signin-user:' + username, 20, 15 * 60_000);
+        const explicitAdmin = username.startsWith('admin:'), email = explicitAdmin ? username.slice(6) : username;
+        const candidates = explicitAdmin ? [] : findLoginAccounts(workspaces.values(), opts.loginAliases, username);
+        const isAdmin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (opts.adminIdentityExists ? await opts.adminIdentityExists(email) : !candidates.length);
+        if (candidates.length > 1 || (candidates.length && isAdmin)) {
+          await verifyLoginPassword(input.password);
+          throw new HttpError(401, 'INVALID_CREDENTIALS', 'Incorrect username or password. Use your assigned shop-qualified sign-in if needed.');
+        }
+        if (isAdmin && !accepting) return json(res, 200, { ok: true, data: await adminSignIn('/v1/admin/login', { email, password: input.password }, client.address) });
+        const account = candidates[0];
+        if (!account) { await verifyLoginPassword(input.password); throw new HttpError(401, 'INVALID_CREDENTIALS', 'Incorrect username or password.'); }
+        budget(`user:${account.workspace.id}:${normaliseLogin(account.username)}`, 20, 15 * 60_000);
+        try {
+          if (accepting) await account.workspace.engine.execute(null, 'auth.acceptInvite', { username: account.username, code: input.code, newPassword: input.password });
+          const data = await account.workspace.engine.execute(null, 'auth.login', { username: account.username, password: input.password });
+          signInSession(req, res, account.workspace, data.token);
+          return json(res, 200, { ok: true, data: { platform: 'client', url: `/client/${account.workspace.id}/` } });
+        } catch (error) {
+          if (error instanceof DomainError) throw new HttpError(401, 'INVALID_CREDENTIALS', 'Incorrect username or password.');
+          throw error;
+        }
+      }
       if (path.startsWith('/api/')) {
         // The public pay page's form sends the payer on to Paystack's hosted checkout. Browsers apply form-action to that
         // redirect, so payment pages, and only those, also allow Paystack's checkout address.
@@ -130,19 +195,15 @@ export async function startStagingGateway(opts: GatewayOptions) {
         let input: any; try { input = JSON.parse((await body(req, 4096)).toString('utf8')); } catch (error) { if (error instanceof HttpError) throw error; throw new HttpError(400, 'BAD_JSON', 'The setup request could not be read.'); }
         if (typeof input?.token !== 'string' || !/^[a-zA-Z0-9_-]{43}$/.test(input.token)) throw new HttpError(410, 'SETUP_LINK_UNAVAILABLE', 'This setup link is unavailable or expired. Ask Mansora for a new link.');
         if (path.endsWith('/complete')) budget('setup-proof:' + input.token, 5, 15 * 60_000);
-        const data = path.endsWith('/details') ? opts.onboarding.details(input.token) : await opts.onboarding.complete(input.token, input.password);
+        const data = path.endsWith('/details') ? opts.onboarding.details(input.token) : await opts.onboarding.complete(input.token, input.password, input.username);
         return json(res, 200, { ok: true, data });
       }
       if (path === '/healthz') { const ready = opts.readiness ? await opts.readiness().catch(() => false) : true; return json(res, ready ? 200 : 503, { ok: ready, mode: opts.mode === 'client' ? 'client' : 'team-staging', ...(opts.trustedProxies?.length ? { clientAddressSource: client.source } : {}) }); }
-      if (req.method === 'GET' && path === '/' && opts.mode === 'client') {
-        res.setHeader('content-type', MIME['.html']); res.end('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mansora workspace access</title></head><body><main><h1>Mansora workspace access</h1><p>Sign in using your private workspace address. Contact Mansora if you need help finding it.</p><a href="/admin/">Platform administration</a></main></body></html>'); return;
-      }
-      if (req.method === 'GET' && path === '/') { res.setHeader('content-type', MIME['.html']); res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Mansora team testing</title><link rel="stylesheet" href="/staging.css"></head><body>${BANNER}<main style="max-width:760px;margin:40px auto;padding:24px;font:16px/1.6 system-ui"><h1>Mansora team testing</h1><p>Sign in with your assigned test account. Use sample data only; records are saved and shared within each business.</p><ul>${opts.workspaces.map(w => `<li><a href="/client/${w.id}/">${escape(w.label)}</a></li>`).join('')}<li><a href="/admin/">Mansora administration</a></li></ul><p>The browser environment covers business workflows. Test printers, scanners, cash drawers and offline selling in the desktop application.</p></main></body></html>`); return; }
       if (req.method === 'GET' && path === '/staging.css') { res.writeHead(200, { 'content-type': MIME['.css'] }); res.end(STYLE); return; }
       if (req.method === 'GET' && path === '/config.js') { res.writeHead(200, { 'content-type': MIME['.js'] }); res.end('window.MANSORA_API_URL = "/api";'); return; }
       const match = path.match(/^\/client\/([a-z0-9][a-z0-9-]{1,40})(?:\/(.*))?$/);
       if (match) {
-        const workspace = workspaces.get(match[1]); if (!workspace) throw new HttpError(404, 'NOT_FOUND', 'Test workspace not found.');
+        const workspace = workspaces.get(match[1]); if (!workspace) throw new HttpError(404, 'NOT_FOUND', 'Workspace not found.');
         const prefix = `/client/${workspace.id}/`, tail = match[2] ?? '';
         if (!path.endsWith('/') && match[2] === undefined) { res.writeHead(308, { location: prefix }); res.end(); return; }
         if (opts.ownerRecovery && tail.startsWith('recover/')) {
@@ -175,14 +236,14 @@ export async function startStagingGateway(opts: GatewayOptions) {
             const alias = aliases && Object.hasOwn(aliases, name) ? aliases[name] : undefined;
             if (alias) input = { ...input, username: alias };
           }
-          if (['activation.activate', 'device.relink'].includes(command)) throw new HttpError(403, 'STAGING_MANAGED', 'The deployment administrator manages activation and re-linking for shared test workspaces.');
+          if (['activation.activate', 'device.relink'].includes(command)) throw new HttpError(403, 'STAGING_MANAGED', 'The deployment administrator manages activation and re-linking for browser workspaces.');
           let id = sessionId(req), session = id ? sessions.get(id) : undefined;
           if (session && session.expires <= now()) { clear(id); session = undefined; cookie(res, workspace.id, null); }
           if (session?.workspace !== workspace.id) session = undefined;
           if (command === 'auth.login') {
             budget(`ip:${workspace.id}:${client.address}`, 60, 60_000); budget(`user:${workspace.id}:${String(input?.username ?? '').trim().toLowerCase().slice(0, 100)}`, 20, 15 * 60_000);
           }
-          let importing = false;
+          let importing = false, previousUsername: string | undefined;
           try {
             const importingCommand = ['import.preview', 'import.commit'].includes(command);
             const importActor = importingCommand ? (await workspace.engine.execute(session?.token ?? null, 'app.state')).user : null;
@@ -192,14 +253,24 @@ export async function startStagingGateway(opts: GatewayOptions) {
             }
             if (command === 'auth.logout') { if (session) clear(id); cookie(res, workspace.id, null); return json(res, 200, { ok: true, data: { ok: true } }); }
             if (opts.vatFeaturePolicy) workspace.engine.setMeta('platform_vat_feature',JSON.stringify(await opts.vatFeaturePolicy(workspace.engine.meta('tenant_id')!)));
+            if (command === 'staff.save') {
+              const actor = (await workspace.engine.execute(session?.token ?? null, 'app.state')).user;
+              if (can(actor, 'staff.manage') && typeof input?.username === 'string') {
+                const current = input.id ? workspace.engine.db.prepare('SELECT username FROM users WHERE id = ?').get(input.id) as { username: string } | undefined : undefined;
+                previousUsername = current?.username;
+                // Legacy duplicates may be edited without renaming or resetting their accounts.
+                if ((!current || normaliseLogin(current.username) !== normaliseLogin(input.username)) && (usernameTaken(workspaces.values(), workspace.id, input.id, input.username) || opts.onboarding?.usernameReserved?.(input.username))) throw new HttpError(409, 'USERNAME_TAKEN', 'This username is taken. Choose another username.');
+              }
+            }
             const data = await workspace.engine.execute(session?.token ?? null, command, input);
+            if (command === 'staff.save' && previousUsername && opts.loginAliases?.[workspace.id]) {
+              for (const [alias, username] of Object.entries(opts.loginAliases[workspace.id])) if (normaliseLogin(username) === normaliseLogin(previousUsername)) opts.loginAliases[workspace.id][alias] = input.username.trim();
+            }
             if (command === 'auth.login') {
-              if (session) clear(id);
-              for (const [key, old] of sessions) if (old.expires <= now()) clear(key);
-              if (sessions.size >= 500) { workspace.engine.endSession(data.token); throw new HttpError(503, 'SESSIONS_FULL', 'The test server is at its session limit. Please try later.'); }
-              id = randomBytes(32).toString('hex'); sessions.set(id, { workspace: workspace.id, token: data.token, expires: now() + (opts.sessionTtlMs ?? 12 * 3_600_000) }); cookie(res, workspace.id, id);
+              signInSession(req, res, workspace, data.token);
               return json(res, 200, { ok: true, data: { user: data.user } });
             }
+            if (command === 'staff.list') return json(res, 200, { ok: true, data: data.map((user: any) => ({ ...user, publicLogin: publicLogin(workspace.id, user.username) })) });
             return json(res, 200, { ok: true, data });
           } catch (e) {
             if (e instanceof SpreadsheetGuardError) throw new HttpError(e.status, e.code, e.message);
@@ -210,7 +281,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
         if (req.method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
         if (tail === 'bridge.js') {
           res.writeHead(200, { 'content-type': MIME['.js'] });
-          res.end(`${opts.ownerRecovery?.available() ? "window.MANSORA_OWNER_RECOVERY_URL=" + JSON.stringify(prefix + "recover/") + ";" : ""}window.mansora = {invoke: async (command,input) => {try {const r=await fetch(${JSON.stringify(prefix + 'invoke')},{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({command,input})});return await r.json();}catch {return {ok:false,error:{code:'OFFLINE',message:'Cannot reach the team test server. Reconnect and check saved records before retrying a transaction.'}};}}};`); return;
+          res.end(`${opts.ownerRecovery?.available() ? "window.MANSORA_OWNER_RECOVERY_URL=" + JSON.stringify(prefix + "recover/") + ";" : ""}window.mansora = {invoke: async (command,input) => {try {const r=await fetch(${JSON.stringify(prefix + 'invoke')},{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({command,input})});return await r.json();}catch {return {ok:false,error:{code:'OFFLINE',message:'Cannot reach Mansora. Reconnect and check saved records before retrying a transaction.'}};}}};`); return;
         }
         const target = file(opts.clientDir, tail || 'index.html'); if (!target) throw new HttpError(404, 'NOT_FOUND', 'Not found.');
         res.setHeader('content-type', MIME[extname(target)]);
@@ -226,7 +297,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
     } catch (e) {
       const known = e instanceof HttpError || e instanceof ApiHttpError;
       const status = known ? e.status : 502, code = known ? e.code : 'STAGING_UNAVAILABLE';
-      const message = known ? e.message : 'The test service could not complete this request. Check saved records before retrying a transaction.';
+      const message = known ? e.message : 'Mansora could not complete this request. Check saved records before retrying a transaction.';
       if (!res.headersSent) json(res, status, { ok: false, error: { code, message }, message }); else res.end();
     } finally { if (admitted) activeRequests--; if (workspaceAdmitted) { const remaining = (workspaceRequests.get(workspaceAdmitted) ?? 1) - 1; if (remaining) workspaceRequests.set(workspaceAdmitted, remaining); else workspaceRequests.delete(workspaceAdmitted); } }
   });

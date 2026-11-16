@@ -48,3 +48,7 @@ production data:
 - payments stay in Paystack test mode, as everywhere until the live go-ahead.
 
 The corporate website (Vercel) is separate: its pull requests get Vercel preview deployments, and `main` is live.
+
+## Public sign-in release
+
+The unified sign-in release uses the existing `client` deployment mode for production, while staging remains `team-test`. Set both `MANSORA_DEPLOYMENT_MODE` and the legacy `MANSORA_STAGING_MODE` consistently if both are present; mismatches fail startup. Both public roots redirect to `/signin/`, without listing businesses. Explicit synthetic shops keep their private test notice; ordinary production administration and new clients do not inherit a blanket test banner. Private account manifests, encrypted stores and audit history are preserved. Payment sandbox notices are not branding and must remain truthful. See [sign-in and accounts](sign-in-and-accounts.md).

@@ -103,3 +103,7 @@ Each is isolated so it can be changed.
 ### C17-01 — 2026-11-14: document print defaults
 
 Use A4 CSS page defaults and the existing browser/Electron PDF facilities for invoices and receipts. Keep server output as script-free printable HTML, as permitted by the original C17 scope; add no heavy production PDF dependency. Users retain their own print settings. This is a presentation default, not a tax/issuer or legal-compliance decision. Verify actual generated PDF content in a dedicated Chromium/Poppler CI job.
+
+### 2026-11-16 — Unified sign-in and purchase-bound account setup
+
+At the owner's request, replace public test navigation with branded credential-based routing. Use unique, case-insensitive hosted usernames and canonical `username@workspace-id` identities for legacy/offline duplicates. Never identify an account by matching a password across shops or impose cross-account password equality checks. Preserve existing credentials and history. Mansora can assign owner usernames/email private setup links; owners manage staff invitations. Purchaser self-service requires an existing fully paid subscription invoice plus recorded-owner email proof, with paid eligibility rechecked at activation. This does not authorise unverified/free activation or pretend the separate live/public purchase checkout is available. Production uses client mode; staging and explicitly synthetic shops retain truthful test identification.
