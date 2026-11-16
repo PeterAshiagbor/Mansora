@@ -31,14 +31,18 @@ export function ShiftsPage() {
       {current.data?.overnight && <Alert tone="warn" className="mb-4">This shift was opened on {dateTime(current.data.shift.opened_at)} and was not closed. Count the cash and close it, then open a new shift for today.</Alert>}
       {current.data && t && (
         <Card title={`Your open shift · since ${dateTime(current.data.shift.opened_at)}`} className="mb-4" actions={<><Button size="sm" onClick={() => setCashMove(true)}>Cash in / out</Button><Button size="sm" variant="primary" onClick={() => setClosing(true)}>Close shift</Button></>}>
-          <div className="grid grid-cols-3 gap-3 xl:grid-cols-6">
+          {t.blind ? <div className="grid grid-cols-3 gap-3">
+            <Stat label="Opening float" value={money(t.openingFloat)} />
+            <Stat label="Sales on this shift" value={t.salesCount} />
+            <Stat label="Non-cash sales" value={money(t.nonCashSales)} hint="Cash expected is shown after you count and close" />
+          </div> : <div className="grid grid-cols-3 gap-3 xl:grid-cols-6">
             <Stat label="Opening float" value={money(t.openingFloat)} />
             <Stat label="Cash sales" value={money(t.cashSales)} hint={`${t.salesCount} sale(s)`} />
             <Stat label="Cash repayments" value={money(t.cashRepayments)} />
             <Stat label="Cash refunds" value={less(t.cashRefunds)} />
             <Stat label="Other cash out / in" value={`${less(t.cashOut + t.cashExpenses)} / ${t.cashIn ? '+' : ''}${plain(t.cashIn)}`} />
             <Stat label="Cash expected in till" value={money(t.expectedCash)} tone="good" hint={`Non-cash sales ${money(t.nonCashSales)}`} />
-          </div>
+          </div>}
         </Card>
       )}
       <div className="mb-3"><DateRange {...range} onChange={setRange} /></div>
@@ -49,31 +53,39 @@ export function ShiftsPage() {
             { header: 'Opened', cell: (s) => dateTime(s.opened_at) },
             { header: 'Closed', cell: (s) => dateTime(s.closed_at) },
             { header: 'Sales', align: 'right', cell: (s) => money(s.totals.salesTotal) },
-            { header: 'Expected cash', align: 'right', cell: (s) => money(s.expected_cash ?? s.totals.expectedCash) },
+            { header: 'Expected cash', align: 'right', cell: (s) => (s.expected_cash ?? s.totals.expectedCash) == null ? 'After count' : money(s.expected_cash ?? s.totals.expectedCash) },
             { header: 'Counted', align: 'right', cell: (s) => money(s.counted_cash) },
             { header: 'Difference', align: 'right', cell: (s) => (s.variance == null ? '' : s.variance === 0 ? <Badge tone="good">Balanced</Badge> : <Badge tone={s.variance < 0 ? 'bad' : 'warn'}>{s.variance < 0 ? 'Short ' : 'Over '}{plain(Math.abs(s.variance))}</Badge>) },
             { header: 'Status', cell: (s) => (s.status === 'open' ? <Badge tone="info">Open</Badge> : s.status === 'reviewed' ? <Badge tone="good">Signed off by {s.reviewed_by_name}</Badge> : can('shift.review') ? <Button size="sm" onClick={() => setReview(s)}>Sign off</Button> : <Badge>Awaiting sign-off</Badge>) },
           ]} />
       </Card></QueryView>
-      {closing && t && <CloseModal expected={t.expectedCash} onClose={() => setClosing(false)} onDone={() => { setClosing(false); reload(); }} />}
+      {closing && t && <CloseModal expected={t.blind ? null : t.expectedCash} onClose={() => setClosing(false)} onDone={() => { setClosing(false); reload(); }} />}
       {cashMove && <CashMoveModal onClose={() => setCashMove(false)} onDone={() => { setCashMove(false); reload(); }} />}
       {review && <ReviewModal shift={review} onClose={() => setReview(null)} onDone={() => { setReview(null); reload(); }} />}
     </div>
   );
 }
 
-function CloseModal({ expected, onClose, onDone }: { expected: number; onClose: () => void; onDone: () => void }) {
+function CloseModal({ expected, onClose, onDone }: { expected: number | null; onClose: () => void; onDone: () => void }) {
   const [counted, setCounted] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
+  const [result, setResult] = useState<{ expectedCash: number; variance: number } | null>(null);
   const { run, busy } = useAction();
-  const diff = counted == null ? null : counted - expected;
+  const blind = expected == null;
+  const diff = counted == null || blind ? null : counted - expected;
+  if (result) return (
+    <Modal title="Shift closed" open onClose={onDone} footer={<Button variant="primary" onClick={onDone}>Done</Button>}>
+      <p className="text-sm">Expected in till: <strong>{money(result.expectedCash)}</strong></p>
+      <Alert className="mt-3" tone={result.variance === 0 ? 'good' : 'warn'}>{result.variance === 0 ? 'The till balances.' : result.variance < 0 ? `The till is short by ${money(-result.variance)}. A manager will review it.` : `The till is over by ${money(result.variance)}. A manager will review it.`}</Alert>
+    </Modal>
+  );
   return (
     <Modal title="Close shift" open onClose={onClose}
-      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || counted == null || (diff !== 0 && !notes.trim())} onClick={() => run(async () => { await call('shift.close', { countedCash: counted, notes: notes || null }); onDone(); }, 'Shift closed')}>Close shift</Button></>}>
+      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || counted == null || (diff != null && diff !== 0 && !notes.trim())} onClick={() => run(async () => { const r = await call('shift.close', { countedCash: counted, notes: notes || null }); if (blind) setResult(r); else onDone(); }, 'Shift closed')}>Close shift</Button></>}>
       <div className="space-y-3">
         <p className="text-sm text-slate-600">Count all the cash in the till, including the float, and enter the total.</p>
         <Field label="Cash counted (GHS)"><MoneyInput value={counted} onChange={setCounted} autoFocus className="!text-lg" /></Field>
-        <div className="flex justify-between rounded-md bg-slate-50 px-3 py-2 text-sm"><span>Expected in till</span><strong className="tabular-nums">{money(expected)}</strong></div>
+        {blind ? <p className="text-sm text-slate-600">Count before you see the expected amount. It is shown once the shift is closed.</p> : <div className="flex justify-between rounded-md bg-slate-50 px-3 py-2 text-sm"><span>Expected in till</span><strong className="tabular-nums">{money(expected)}</strong></div>}
         {diff != null && <Alert tone={diff === 0 ? 'good' : 'warn'}>{diff === 0 ? 'The till balances.' : diff < 0 ? `The till is short by ${money(-diff)}.` : `The till is over by ${money(diff)}.`}</Alert>}
         <Field label={diff ? 'Explain the difference (required)' : 'Notes (optional)'}><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       </div>

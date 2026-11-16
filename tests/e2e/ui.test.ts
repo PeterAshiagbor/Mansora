@@ -160,8 +160,9 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
     await shop.getByText('RF-000001').waitFor();
     await shop.keyboard.press('Escape');
     await nav('Cashier shifts');
-    await shop.getByText('Cash expected in till').waitFor();
-    await shop.getByText('GHS 153.00').first().waitFor(); // 100 float + 61 sale - 8 refund
+    // Audit F12: the cashier counts blind; the expected cash (100 float + 61 sale - 8 refund) is checked in the data.
+    await shop.getByText('Cash expected is shown after you count and close').waitFor();
+    expect(await shop.getByText('Cash expected in till').count()).toBe(0);
     await shop.getByRole('button', { name: 'Lock / sign out' }).click();
   });
 

@@ -63,7 +63,7 @@ export function registerBillingRoutes(app: FastifyInstance, b: Billing): void {
     const body = z.object({
       invoiceLeadDays: n.min(0).max(60), defaultDueDays: n.min(0).max(120), maxAttempts: n.min(1).max(10), retryDays: n.min(1).max(30), activationPolicy: z.enum(['first_payment', 'mandate']),
       reminders: z.object({ enabled: z.boolean(), offsets: z.object(Object.fromEntries(REMINDER_STEPS.map((s) => [s, n.min(-30).max(180)])) as Record<(typeof REMINDER_STEPS)[number], z.ZodNumber>) }),
-      issuer: z.object({ name: text(120), address: z.string().max(300), phone: z.string().max(40), email: z.string().max(160), tin: z.string().max(40), paymentInstructions: z.string().max(600) }),
+      issuer: z.object({ name: text(120), address: z.string().max(300), phone: z.string().max(40), email: z.string().max(160), tin: z.string().max(40), paymentInstructions: z.string().max(600), vatRegistered: z.boolean().optional(), vatNumber: z.string().max(40).optional() }),
       standing: z.object({ noticeAfterDays: n, warnAfterDays: n, restrictAfterDays: n }).optional(),
     }).parse(req.body);
     const problem = body.standing ? policyProblem(body.standing) : null;

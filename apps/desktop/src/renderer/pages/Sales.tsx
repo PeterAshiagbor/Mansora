@@ -81,7 +81,7 @@ function SaleDetail({ id, onClose }: { id: string; onClose: () => void }) {
           {refunds.length === 0 && <span className="text-slate-500">None</span>}
           {refunds.map((r: any) => (
             <div key={r.id} className="mb-1">
-              <div className="flex justify-between"><span className="font-medium">{r.refund_no}</span><span className="tabular-nums">−{money(r.amount)}</span></div>
+              <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.refund_no}</span><span className="flex items-center gap-2"><Button size="sm" disabled={busy} onClick={() => run(async () => printHtml((await call<{ html: string }>('refund.document', { id: r.id })).html))}>Print credit note</Button><span className="tabular-nums">−{money(r.amount)}</span></span></div>
               <div className="text-xs text-slate-500">{dateTime(r.created_at)} · {r.reason} · approved by {r.authorised_by_name}{r.payout_amount > 0 && ` · paid out by ${METHOD[r.payout_method]}`}{r.credit_reduction > 0 && ` · ${money(r.credit_reduction)} taken off credit`}</div>
             </div>
           ))}

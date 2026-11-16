@@ -8,7 +8,10 @@ export interface LineInput { description: string; quantity: number; unitPrice: n
 const money = (n: number) => `GH₵${(n / 100).toFixed(2)}`;
 
 /** Exact integer pricing. Totals can never disagree with their lines. */
-export function priceInvoice(lines: LineInput[], extraDiscount = 0, taxBps = 0) {
+/** Ghana standard rates on the same taxable value (Act 1151, from 1 January 2026), in basis points. */
+export const GHANA_VAT_COMPONENTS = { vat: 1500, nhil: 250, getfund: 250 } as const;
+
+export function priceInvoice(lines: LineInput[], extraDiscount = 0, taxBps = 0, ghanaVat = false) {
   if (!lines.length) fail(400, 'EMPTY_INVOICE', 'An invoice needs at least one line');
   let subtotal = 0, lineDiscounts = 0, net = 0;
   const priced = lines.map((l, i) => {
@@ -21,8 +24,13 @@ export function priceInvoice(lines: LineInput[], extraDiscount = 0, taxBps = 0) 
   });
   if (!Number.isSafeInteger(extraDiscount) || extraDiscount < 0 || extraDiscount > net) fail(400, 'INVALID_DISCOUNT', 'The invoice discount cannot exceed the invoice amount');
   const taxable = net - extraDiscount;
+  if (ghanaVat) {
+    const breakdown = { vat: mulDivRound(taxable, GHANA_VAT_COMPONENTS.vat, 10_000), nhil: mulDivRound(taxable, GHANA_VAT_COMPONENTS.nhil, 10_000), getfund: mulDivRound(taxable, GHANA_VAT_COMPONENTS.getfund, 10_000) };
+    const tax = breakdown.vat + breakdown.nhil + breakdown.getfund;
+    return { priced, subtotal, discountTotal: lineDiscounts + extraDiscount, taxTotal: tax, total: taxable + tax, taxBps: 2000, breakdown };
+  }
   const tax = mulDivRound(taxable, taxBps, 10_000);
-  return { priced, subtotal, discountTotal: lineDiscounts + extraDiscount, taxTotal: tax, total: taxable + tax };
+  return { priced, subtotal, discountTotal: lineDiscounts + extraDiscount, taxTotal: tax, total: taxable + tax, taxBps, breakdown: null as null | { vat: number; nhil: number; getfund: number } };
 }
 
 export interface NewInvoice {
@@ -34,12 +42,14 @@ export async function createInvoice(b: Billing, q: Query, i: NewInvoice): Promis
   const [tenant] = await q(`SELECT id, status FROM tenants WHERE id = $1`, [i.tenantId]);
   if (!tenant) fail(404, 'NOT_FOUND', 'Client not found');
   if (tenant.status === 'closed') fail(409, 'CLIENT_CLOSED', 'This client account is closed');
-  const p = priceInvoice(i.lines, i.extraDiscount ?? 0, i.taxBps ?? 0);
+  // An explicit rate on a manual invoice is kept as entered; otherwise Mansora's VAT registration decides.
+  const ghanaVat = i.taxBps === undefined && !!(await loadSettings(q)).issuer.vatRegistered;
+  const p = priceInvoice(i.lines, i.extraDiscount ?? 0, i.taxBps ?? 0, ghanaVat);
   const id = randomUUID();
   const rows = await q(
-    `INSERT INTO invoices (id, tenant_id, subscription_id, status, is_initial, due_date, period_start, period_end, subtotal, discount_total, tax_bps, tax_total, total, notes, idempotency_key, created_by, created_at)
-     VALUES ($1, $2, $3, 'draft', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (idempotency_key) DO NOTHING RETURNING id`,
-    [id, i.tenantId, i.subscriptionId ?? null, i.isInitial ?? false, i.dueDate ?? null, i.periodStart ?? null, i.periodEnd ?? null, p.subtotal, p.discountTotal, i.taxBps ?? 0, p.taxTotal, p.total, i.notes ?? null, i.idempotencyKey ?? null, i.actor.type === 'admin' ? i.actor.id : null, nowIso(b)],
+    `INSERT INTO invoices (id, tenant_id, subscription_id, status, is_initial, due_date, period_start, period_end, subtotal, discount_total, tax_bps, tax_total, total, notes, idempotency_key, created_by, created_at, tax_breakdown)
+     VALUES ($1, $2, $3, 'draft', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) ON CONFLICT (idempotency_key) DO NOTHING RETURNING id`,
+    [id, i.tenantId, i.subscriptionId ?? null, i.isInitial ?? false, i.dueDate ?? null, i.periodStart ?? null, i.periodEnd ?? null, p.subtotal, p.discountTotal, p.taxBps, p.taxTotal, p.total, i.notes ?? null, i.idempotencyKey ?? null, i.actor.type === 'admin' ? i.actor.id : null, nowIso(b), p.breakdown ? JSON.stringify(p.breakdown) : null],
   );
   if (!rows.length) { // the same billing period was already invoiced: return that invoice, create nothing
     const [existing] = await q(`SELECT id FROM invoices WHERE idempotency_key = $1`, [i.idempotencyKey]);

@@ -1,8 +1,10 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { can, DomainError, effectiveStanding, fail, RESTRICTED_COMMANDS, restrictionMessage, SYNC_TABLES, zCalendarDate, type ServiceStanding, type Permission, type Role, type SyncTable } from '@mansora/domain';
+import { createHash } from 'node:crypto';
+import { can, DomainError, effectiveStanding, fail, RESTRICTED_COMMANDS, restrictionMessage, SYNC_TABLES, validateEventRows, zCalendarDate, type ServiceStanding, type Permission, type Role, type SyncTable } from '@mansora/domain';
 import type { Db } from './db';
 import { verifyPassword } from './passwords';
+import { checkClock, stampClock } from './periods';
 
 export interface UserRow {
   id: string;
@@ -108,13 +110,21 @@ export class Ctx {
     this.track(table, key);
   }
   audit(entityType: string | null, entityId: string | null, detail: Record<string, unknown> = {}, action = this.command): void {
+    let text = JSON.stringify(detail);
+    // Audit F03: the sync contract caps audit detail. A long detail is summarised (its full content lives in the
+    // records it describes) so the audit entry, and every row synced with it, can always reach the cloud.
+    if (text.length > MAX_AUDIT_DETAIL) {
+      const summary: Record<string, unknown> = { truncated: true, originalLength: text.length, sha256: createHash('sha256').update(text).digest('hex') };
+      for (const [k, v] of Object.entries(detail)) summary[k] = Array.isArray(v) ? { items: v.length } : typeof v === 'string' ? v.slice(0, 200) : typeof v === 'object' && v !== null ? '[object]' : v;
+      text = JSON.stringify(summary).slice(0, MAX_AUDIT_DETAIL);
+    }
     this.insert('audit_logs', {
       id: this.id(),
       actor_id: this.actor?.id ?? null,
       action,
       entity_type: entityType,
       entity_id: entityId,
-      detail: JSON.stringify(detail),
+      detail: text,
       occurred_at: this.now(),
     });
   }
@@ -137,7 +147,11 @@ export class Ctx {
   tx<T>(fn: () => T): T {
     return this.db.transaction(() => { const result = fn(); this.flush(); return result; }).immediate();
   }
-  /** Write one outbox event containing every synced row this command touched. */
+  /**
+   * Write the outbox event(s) for every synced row this command touched. Large commands are split into several
+   * events in table order (parents first); each is checked against the sync contract before commit, so a change
+   * the server would refuse can never be committed locally (audit F03).
+   */
   flush(): void {
     if (this.touched.size === 0) return;
     const rows: Record<string, unknown[]> = {};
@@ -148,11 +162,36 @@ export class Ctx {
       rows[table] = [...keys].map((k) => stmt.get(k)).filter(Boolean);
     }
     this.touched.clear();
-    this.run(
-      'INSERT INTO outbox (id, type, payload, actor_id, occurred_at) VALUES (?, ?, ?, ?, ?)',
-      this.id(), this.command, JSON.stringify({ rows }), this.actor?.id ?? null, this.now(),
-    );
+    for (const payload of chunkRows(rows)) {
+      try { validateEventRows(payload as any); } catch (e: any) {
+        const issue = e?.issues?.[0];
+        fail('SYNC_CONTRACT', `This change could not be prepared for the cloud copy (${issue ? `${issue.path.join('.')}: ${issue.message}` : 'invalid data'}). Nothing was saved. Shorten the text you entered or contact Mansora support.`);
+      }
+      this.run('INSERT INTO outbox (id, type, payload, actor_id, occurred_at) VALUES (?, ?, ?, ?, ?)', this.id(), this.command, JSON.stringify({ rows: payload }), this.actor?.id ?? null, this.now());
+    }
   }
+}
+
+export const MAX_AUDIT_DETAIL = 18_000;
+/** Rows per event kept well inside the server's 5,000-rows-per-table and request-size limits. */
+export const EVENT_ROW_BUDGET = 1_000;
+const TABLE_ORDER = Object.keys(SYNC_TABLES) as SyncTable[];
+
+/** Split one command's rows into events of at most EVENT_ROW_BUDGET rows, preserving table order. */
+export function chunkRows(rows: Record<string, unknown[]>): Record<string, unknown[]>[] {
+  const order = [...TABLE_ORDER.filter((t) => t in rows), ...Object.keys(rows).filter((t) => !(TABLE_ORDER as string[]).includes(t))];
+  const out: Record<string, unknown[]>[] = [];
+  let current: Record<string, unknown[]> = {};
+  let size = 0;
+  for (const table of order) {
+    for (const row of rows[table]) {
+      if (size >= EVENT_ROW_BUDGET) { out.push(current); current = {}; size = 0; }
+      (current[table] ??= []).push(row);
+      size++;
+    }
+  }
+  if (size || !out.length) out.push(current);
+  return out;
 }
 
 export class Engine {
@@ -287,8 +326,10 @@ export class Engine {
     }
     const ctx = new Ctx(this, name, actor);
     ctx.sessionToken = token;
+    // Audit F07: a clock moved backwards must not place new financial records in an earlier period.
+    checkClock(this, name);
     try {
-      if (def.async) return await def.run(ctx, parsed.data);
+      if (def.async) { const out = await def.run(ctx, parsed.data); stampClock(this, name); return out; }
       if (!def.mutates) return def.run(ctx, parsed.data);
       const previousFailures = this.credentialFailures;
       const failures = new Map<string, { attempts: number; lockedUntil: string | null }>();
@@ -298,6 +339,7 @@ export class Engine {
           const result = def.run(ctx, parsed.data);
           ctx.flush();
           this.beforeCommit?.(name);
+          stampClock(this, name);
           return result;
         }).immediate();
       } catch (error) {

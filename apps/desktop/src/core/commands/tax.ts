@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { fail, mulDivRound, taxConfigSchema, zCalendarDate } from '@mansora/domain';
 import { defineCommands, empty, zId, zMoney, zText, type Ctx } from '../engine';
-import { monthsBefore, quoteSale, recordRegistrationTrigger, taxConfig, taxStatus, vatReport } from '../tax';
+import { monthsBefore, quoteSale, recordRegistrationTrigger, taxConfig, taxPayments as taxPaymentsList, taxStatus, vatReport } from '../tax';
 import { toXlsx } from '../importer';
+import { requireOpenPeriod } from '../periods';
 
 const zMonth = z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/);
 export function requireTaxPeriodOpen(ctx: Ctx, date: string) {
@@ -16,6 +17,7 @@ function insertRecord(ctx: Ctx, input: { id: string; kind: string; date: string;
   const existing = ctx.get('SELECT id FROM tax_records WHERE id = ?', input.id);
   if (existing) return { id: existing.id, duplicate: true };
   if (input.kind !== 'payment') requireTaxPeriodOpen(ctx, input.date);
+  if (input.kind !== 'payment' && input.kind !== 'filing') requireOpenPeriod(ctx, input.date);
   ctx.insert('tax_records', { id: input.id, kind: input.kind, tax_date: input.date, reference: input.reference, payload: JSON.stringify(data), created_by: ctx.user.id, created_at: ctx.now() });
   ctx.audit('tax_record', input.id, { kind: input.kind, reference: input.reference, date: input.date });
   return { id: input.id };
@@ -26,7 +28,21 @@ const recordInput = z.object({
   invoiceDate: zCalendarDate.optional(), purchaseId: zId.optional(),
   base: zMoney.default(0), vat: z.number().int().safe().default(0), nhil: z.number().int().safe().default(0), getfund: z.number().int().safe().default(0),
   amount: zMoney.default(0), eligibleBps: z.number().int().min(0).max(10000).default(10000), evidenceConfirmed: z.literal(true),
+  /** For a payment: the VAT return month it settles (audit F05). Defaults to the month before the payment date. */
+  period: zMonth.optional(),
 });
+
+/** Checks shared by input-tax claims recorded on their own and those recorded with a goods receipt (audit F09). */
+export function checkInputClaim(ctx: Ctx, input: { date: string; reference: string; supplierTin: string; invoiceDate?: string; purchaseId?: string }) {
+  if (!input.supplierTin || !input.invoiceDate) fail('TAX_EVIDENCE_REQUIRED', 'Enter the supplier TIN and supplier invoice date');
+  if (input.invoiceDate > input.date || input.invoiceDate < monthsBefore(input.date.slice(0, 7) + '-01', 6)) fail('INPUT_CREDIT_PERIOD', 'Check the six-month input-credit time limit and invoice date');
+  const duplicate = ctx.all("SELECT payload, reference FROM tax_records WHERE kind = 'input' AND reference = ?", input.reference).some(r => String(JSON.parse(r.payload).supplierTin).toLowerCase() === input.supplierTin.toLowerCase());
+  if (duplicate) fail('DUPLICATE_TAX_INVOICE', 'This supplier invoice has already been recorded');
+  if (input.purchaseId) {
+    if (!ctx.get('SELECT 1 FROM purchases WHERE id = ?', input.purchaseId)) fail('NOT_FOUND', 'Purchase not found');
+    if (ctx.get("SELECT 1 FROM tax_records WHERE kind = 'input' AND json_extract(payload, '$.purchaseId') = ?", input.purchaseId)) fail('DUPLICATE_TAX_INVOICE', 'An input-tax claim is already linked to this purchase');
+  }
+}
 export const taxCommands = defineCommands({
   'tax.current': { perm: 'sale.create', input: empty, run: ctx => taxConfig(ctx) },
   'tax.status': { perm: 'report.sales', input: empty, run: ctx => taxStatus(ctx) },
@@ -63,12 +79,11 @@ export const taxCommands = defineCommands({
         const c = taxConfig(ctx, input.date);
         if (!c.registered || !c.registrationDate || c.registrationDate > input.date) fail('VAT_REGISTRATION_REQUIRED', 'Record the applicable VAT registration before claiming credits or adjustments');
       }
-      if (input.kind === 'input') {
-        if (!input.supplierTin || !input.invoiceDate) fail('TAX_EVIDENCE_REQUIRED', 'Enter the supplier TIN and supplier invoice date');
-        if (input.invoiceDate > input.date || input.invoiceDate < monthsBefore(input.date.slice(0, 7) + '-01', 6)) fail('INPUT_CREDIT_PERIOD', 'Check the six-month input-credit time limit and invoice date');
-        const duplicate = ctx.all("SELECT payload, reference FROM tax_records WHERE kind = 'input' AND reference = ?", input.reference).some(r => JSON.parse(r.payload).supplierTin.toLowerCase() === input.supplierTin.toLowerCase());
-        if (duplicate) fail('DUPLICATE_TAX_INVOICE', 'This supplier invoice has already been recorded');
-        if (input.purchaseId && !ctx.get('SELECT 1 FROM purchases WHERE id = ?', input.purchaseId)) fail('NOT_FOUND', 'Purchase not found');
+      if (input.kind === 'input') checkInputClaim(ctx, input);
+      if (input.kind === 'payment') {
+        const period = input.period ?? monthsBefore(input.date.slice(0, 7) + '-01', 1).slice(0, 7);
+        if (period > input.date.slice(0, 7)) fail('INVALID_PERIOD', 'A payment cannot settle a return for a month after the payment date');
+        input.period = period;
       }
       if (['withholding', 'opening_credit', 'payment'].includes(input.kind) && ctx.get('SELECT 1 FROM tax_records WHERE kind = ? AND reference = ?', input.kind, input.reference)) fail('DUPLICATE_TAX_EVIDENCE', 'This tax evidence reference has already been recorded');
       if (input.kind === 'withholding' && (input.nhil || input.getfund)) fail('INVALID_WITHHOLDING', 'VAT withholding certificates offset VAT, not NHIL or GETFund');
@@ -91,6 +106,7 @@ export const taxCommands = defineCommands({
         { name: 'Supply classifications', rows: [['Classification', 'Net base GHS'], ...r.classification.map(c => [c.classification, c.base / 100])] },
         { name: 'Sales', rows: [['Receipt', 'Date', 'Product', 'Tax class', 'Base GHS', 'VAT GHS', 'NHIL GHS', 'GETFund GHS', 'Total GHS', 'Invoice identity snapshot'], ...r.sales.map(s => { const t = s.tax_snapshot ? JSON.parse(s.tax_snapshot) : null; return [s.reference, s.date, s.product_name, t?.classification ?? 'legacy-unverified', ...[t?.base, t?.vat, t?.nhil, t?.getfund, s.line_total].map(n => n == null ? '' : n / 100), s.invoice_tax]; })] },
         { name: 'Credit notes', rows: [['Credit note', 'Original receipt', 'Date', 'Base GHS', 'VAT GHS', 'NHIL GHS', 'GETFund GHS', 'Total GHS'], ...r.refunds.map(s => { const t = s.tax_snapshot ? JSON.parse(s.tax_snapshot) : null; return [s.reference, s.original_reference, s.date, ...[t?.base, t?.vat, t?.nhil, t?.getfund, s.line_total].map(n => n == null ? '' : n / 100)]; })] },
+        { name: 'Filed returns and payments', rows: [['Return month', 'Filing reference', 'Payable GHS', 'Paid GHS', 'Still owed GHS'], ...r.arrears.rows.map(x => [x.month, x.reference, x.payable / 100, x.paid / 100, x.outstanding / 100]), [], ['Payment reference', 'Paid on', 'Return month settled', 'GHS', 'Matched by'], ...taxPaymentsList(ctx).map(p => [p.reference, p.paidOn, p.period, p.amount / 100, p.allocatedByDate ? 'payment date (no period recorded)' : 'return period'])] },
         { name: 'Input and other evidence', rows: [['ID', 'Kind', 'Tax date', 'Reference', 'Evidence and amounts in pesewas'], ...r.allRecords.map(s => [s.id, s.kind, s.tax_date, s.reference, s.payload])] },
       ]);
       return { fileName: `Ghana-VAT-${input.month}.xlsx`, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', contentBase64: buffer.toString('base64') };

@@ -12544,6 +12544,782 @@
         "Mansora: no access (not synced)"
       ],
       "assessment": "Activity chronology."
+    },
+    {
+      "key": "cloud.customers.tin",
+      "purpose": "Optional business customer TIN, printed on VAT receipts so the customer can evidence an input-tax claim. Column: tin.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.invoices.tax_breakdown",
+      "purpose": "VAT, NHIL and GETFund on Mansora's own invoices, when Mansora is VAT registered (audit F18). Column: tax_breakdown.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.ledger_records.tenant_id",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: tenant_id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.ledger_records.id",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.ledger_records.kind",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: kind.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.ledger_records.record_date",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: record_date.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.ledger_records.reference",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: reference.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.ledger_records.payload",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: payload.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.ledger_records.created_by",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: created_by.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.ledger_records.created_at",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: created_at.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.products.tax_class",
+      "purpose": "VAT classification of the product (standard, zero-rated, exempt, outside scope). Column: tax_class.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.refund_items.tax_snapshot",
+      "purpose": "Immutable VAT, NHIL and GETFund amounts, classification, rates, seller TIN and (for business customers) buyer name and TIN at the time of the transaction. Column: tax_snapshot.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.sale_items.tax_snapshot",
+      "purpose": "Immutable VAT, NHIL and GETFund amounts, classification, rates, seller TIN and (for business customers) buyer name and TIN at the time of the transaction. Column: tax_snapshot.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.sales.tax_snapshot",
+      "purpose": "Immutable VAT, NHIL and GETFund amounts, classification, rates, seller TIN and (for business customers) buyer name and TIN at the time of the transaction. Column: tax_snapshot.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.tax_configs.tenant_id",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: tenant_id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_configs.id",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_configs.effective_date",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: effective_date.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_configs.payload",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: payload.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.tax_configs.created_by",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: created_by.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_configs.created_at",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: created_at.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_records.tenant_id",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: tenant_id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_records.id",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_records.kind",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: kind.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_records.tax_date",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: tax_date.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_records.reference",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: reference.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.tax_records.payload",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: payload.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.tax_records.created_by",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: created_by.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.tax_records.created_at",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: created_at.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.customers.tin",
+      "purpose": "Optional business customer TIN, printed on VAT receipts so the customer can evidence an input-tax claim. Column: tin.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.ledger_records.id",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: id.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.ledger_records.kind",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: kind.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.ledger_records.record_date",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: record_date.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.ledger_records.reference",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: reference.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.ledger_records.payload",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: payload.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.ledger_records.created_by",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: created_by.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.ledger_records.created_at",
+      "purpose": "Financial control records: month closes and reopenings, customer debt write-offs and confirmed clock corrections (audit F07, F17). Column: created_at.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.products.tax_class",
+      "purpose": "VAT classification of the product (standard, zero-rated, exempt, outside scope). Column: tax_class.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.refund_items.tax_snapshot",
+      "purpose": "Immutable VAT, NHIL and GETFund amounts, classification, rates, seller TIN and (for business customers) buyer name and TIN at the time of the transaction. Column: tax_snapshot.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.sale_items.tax_snapshot",
+      "purpose": "Immutable VAT, NHIL and GETFund amounts, classification, rates, seller TIN and (for business customers) buyer name and TIN at the time of the transaction. Column: tax_snapshot.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.sales.tax_snapshot",
+      "purpose": "Immutable VAT, NHIL and GETFund amounts, classification, rates, seller TIN and (for business customers) buyer name and TIN at the time of the transaction. Column: tax_snapshot.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.tax_configs.id",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: id.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.tax_configs.effective_date",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: effective_date.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.tax_configs.payload",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: payload.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.tax_configs.created_by",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: created_by.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.tax_configs.created_at",
+      "purpose": "Dated VAT registration, rate and pricing settings, so each transaction is taxed under the rules in force on its date (Act 1151). Column: created_at.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.tax_records.id",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: id.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.tax_records.kind",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: kind.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.tax_records.tax_date",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: tax_date.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.tax_records.reference",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: reference.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.tax_records.payload",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: payload.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "May identify a business owner, sole trader or customer (TIN, names in snapshots or free-text references/reasons). Statutory retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.tax_records.created_by",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: created_by.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.tax_records.created_at",
+      "purpose": "VAT evidence: input-tax claims, withholding certificates, adjustments, payments to GRA, filings and registration triggers, kept as statutory records. Column: created_at.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
     }
   ]
 }

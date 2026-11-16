@@ -671,6 +671,8 @@ export function PaymentSettings() {
         <div className="grid gap-3 sm:grid-cols-2">
           {([['name', 'Business name'], ['address', 'Address'], ['phone', 'Phone'], ['email', 'Billing email'], ['tin', 'Tax identification number']] as const).map(([k, text]) => <Field key={k} label={text}><Input required={k === 'name'} type={k === 'email' ? 'email' : 'text'} maxLength={{ name: 120, address: 300, phone: 40, email: 160, tin: 40 }[k]} value={cur.issuer[k]} onChange={(e) => set({ issuer: { ...cur.issuer, [k]: e.target.value } })} /></Field>)}
           <Field label="Payment instructions"><Textarea maxLength={600} value={cur.issuer.paymentInstructions} onChange={(e) => set({ issuer: { ...cur.issuer, paymentInstructions: e.target.value } })} /></Field>
+          <label className="flex items-center gap-2 text-sm"><input id="issuer-vat-registered" type="checkbox" checked={!!cur.issuer.vatRegistered} onChange={(e) => set({ issuer: { ...cur.issuer, vatRegistered: e.target.checked } })} /> Mansora is VAT registered: add VAT 15%, NHIL 2.5% and GETFund 2.5% to new invoices</label>
+          {cur.issuer.vatRegistered && <Field label="Mansora VAT registration number"><Input id="issuer-vat-number" maxLength={40} value={cur.issuer.vatNumber ?? ''} onChange={(e) => set({ issuer: { ...cur.issuer, vatNumber: e.target.value } })} /></Field>}
         </div>
         <div className="mt-3"><Button variant="primary" disabled={act.busy || !s} onClick={() => act.run(async () => { await api('PUT', '/v1/admin/billing/settings', payload()); settings.reload(); setS(null); }, 'Settings saved')}>Save settings</Button></div>
       </Card>

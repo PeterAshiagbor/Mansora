@@ -3,7 +3,7 @@ import { CameraScanButton } from '../components/CameraScanner';
 import { TaskLinks } from '../components/TaskLinks';
 import { unitCostFromCarton } from '@mansora/domain';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Tabs, Textarea, QueryView, useUnsavedChanges } from '@mansora/ui';
-import { call, dateTime, ExportButtons, money, MoneyInput, plain, useAction, useApp, useQuery, useToast, uuid } from '../lib';
+import { call, dateTime, ExportButtons, money, MoneyInput, plain, today, useAction, useApp, useQuery, useToast, uuid } from '../lib';
 
 const TYPE_LABEL: Record<string, string> = {
   OPENING_STOCK: 'Opening stock', PURCHASE_RECEIVED: 'Purchase received', SALE: 'Sale', SALE_REFUND: 'Refund (returned)', DAMAGE: 'Damaged',
@@ -98,6 +98,7 @@ function StockCount({ onDone }: { onDone: () => void }) {
   const { data } = countQuery;
   const [counted, setCounted] = useState<Record<string, string>>({});
   const [note, setNote] = useState('');
+  const [startedAt] = useState(() => new Date().toISOString());
   const { run, busy } = useAction();
   useUnsavedChanges(Object.values(counted).some((value) => value !== '') || !!note.trim(), 'the physical stock count');
   const rows: any[] = data?.rows ?? [];
@@ -132,7 +133,7 @@ function StockCount({ onDone }: { onDone: () => void }) {
       </Card></QueryView>
       <div className="mt-3 flex items-end gap-3">
         <Field label="Note" className="flex-1"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Month-end count" /></Field>
-        <Button variant="primary" disabled={busy || !!countQuery.error || !data || invalidCounts || lines.length === 0} onClick={() => run(async () => { const r = await call('stock.count', { note: note || null, lines: lines.map(({ productId, counted }) => ({ productId, counted })) }); setCounted({}); onDone(); return r; }, `Stock count saved: ${diffs.length} adjustment(s)`)}>
+        <Button variant="primary" disabled={busy || !!countQuery.error || !data || invalidCounts || lines.length === 0} onClick={() => run(async () => { const r = await call('stock.count', { note: note || null, startedAt, lines: lines.map(({ productId, counted }) => ({ productId, counted })) }); setCounted({}); onDone(); return r; }, `Stock count saved: ${diffs.length} adjustment(s)`)}>
           Save count ({lines.length} counted, {diffs.length} different)
         </Button>
       </div>
@@ -233,16 +234,43 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
   const [supplierId, setSupplierId] = useState('');
   const [reference, setReference] = useState('');
   const [items, setItems] = useState<{ productId: string; quantity: string; unitCost: number | null }[]>([{ productId: '', quantity: '', unitCost: null }]);
+  const { state } = useApp();
+  const tax = useQuery<any>('tax.current');
+  const vatRegistered = !!tax.data?.registered && state.user?.role === 'owner';
+  const [claim, setClaim] = useState(false);
+  const [t, setT] = useState({ supplierTin: '', invoiceDate: today(), vat: 0 as number | null, nhil: 0 as number | null, getfund: 0 as number | null });
+  const [duplicate, setDuplicate] = useState<string | null>(null);
+  const [duplicateReason, setDuplicateReason] = useState('');
   const { run, busy } = useAction();
+  const claimReady = !claim || (!!t.supplierTin.trim() && !!reference.trim() && t.vat != null && t.nhil != null && t.getfund != null);
   const set = (i: number, patch: Partial<(typeof items)[number]>) => setItems(items.map((x, k) => (k === i ? { ...x, ...patch } : x)));
   const valid = items.filter((i) => i.productId && Number.isSafeInteger(Number(i.quantity)) && Number(i.quantity) > 0 && i.unitCost != null);
   const total = valid.reduce((a, i) => a + Number(i.quantity) * (i.unitCost ?? 0), 0);
   return (
     <Modal title="Receive stock" open onClose={onClose} wide
       footer={<><span className="mr-auto self-center text-sm">Total cost: <strong>{money(total)}</strong></span><Button dismiss onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={busy || valid.length === 0 || valid.length !== items.length} onClick={() => run(async () => { await call('purchase.receive', { id, supplierId: supplierId || null, reference: reference || null, items: valid.map((i) => ({ productId: i.productId, quantity: Number(i.quantity), unitCost: i.unitCost })) }); onDone(); }, 'Stock received')}>Receive into stock</Button></>}>
+        <Button variant="primary" disabled={busy || valid.length === 0 || valid.length !== items.length || !claimReady || (!!duplicate && !duplicateReason.trim())} onClick={() => run(async () => {
+          try {
+            await call('purchase.receive', { id, supplierId: supplierId || null, reference: reference || null, items: valid.map((i) => ({ productId: i.productId, quantity: Number(i.quantity), unitCost: i.unitCost })),
+              inputTax: claim ? { supplierTin: t.supplierTin, invoiceDate: t.invoiceDate, vat: t.vat, nhil: t.nhil, getfund: t.getfund, evidenceConfirmed: true } : undefined, duplicateReason: duplicate ? duplicateReason : null });
+          } catch (e: any) { if (e.code === 'DUPLICATE_PURCHASE') setDuplicate(e.message); throw e; }
+          onDone();
+        }, 'Stock received')}>Receive into stock</Button></>}>
       {productOptions.error && <QueryView query={productOptions} label="products for this receipt">{null}</QueryView>}
-      <p className="mb-3 text-xs leading-relaxed text-slate-600">Enter whole selling units and their unit purchase cost. A carton must be converted to its individual items before receiving.</p>
+      <p className="mb-3 text-xs leading-relaxed text-slate-600">Enter whole selling units and their unit purchase cost. A carton must be converted to its individual items before receiving.{tax.data?.registered && ' This business is VAT registered: enter unit costs excluding the VAT, NHIL and GETFund you can recover.'}</p>
+      {duplicate && <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"><p className="mb-2">{duplicate}</p><Field label="Reason for receiving this invoice again"><Input id="receive-duplicate-reason" value={duplicateReason} onChange={(e) => setDuplicateReason(e.target.value)} /></Field></div>}
+      {vatRegistered && <div className="mb-3 rounded-md border border-slate-200 p-3">
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={claim} onChange={(e) => setClaim(e.target.checked)} /> Claim the input tax on this supplier invoice</label>
+        {claim && <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <Field label="Supplier TIN"><Input id="receive-supplier-tin" value={t.supplierTin} onChange={(e) => setT({ ...t, supplierTin: e.target.value })} /></Field>
+          <Field label="Supplier invoice date"><Input id="receive-invoice-date" type="date" value={t.invoiceDate} max={today()} onChange={(e) => setT({ ...t, invoiceDate: e.target.value })} /></Field>
+          <div />
+          <Field label="VAT on invoice (GHS)"><MoneyInput value={t.vat} onChange={(v) => setT({ ...t, vat: v })} /></Field>
+          <Field label="NHIL on invoice (GHS)"><MoneyInput value={t.nhil} onChange={(v) => setT({ ...t, nhil: v })} /></Field>
+          <Field label="GETFund on invoice (GHS)"><MoneyInput value={t.getfund} onChange={(v) => setT({ ...t, getfund: v })} /></Field>
+          <p className="text-xs text-slate-600 sm:col-span-3">The invoice number above is required. Keep the original invoice. The claim is recorded once, with this receipt, in the VAT working papers.</p>
+        </div>}
+      </div>}
       <div className="mb-3 grid grid-cols-2 gap-3">
         <Field label="Supplier"><Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">No supplier</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
         <Field label="Invoice / waybill number"><Input value={reference} onChange={(e) => setReference(e.target.value)} /></Field>

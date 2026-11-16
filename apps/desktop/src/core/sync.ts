@@ -1,6 +1,7 @@
 import { SYNC_PROTOCOL_VERSION, type SyncPullResult, type SyncPushResult } from '@mansora/domain';
 import { recordMansoraPayments } from './mansora-expenses';
-import type { Engine } from './engine';
+import { Ctx, type Engine } from './engine';
+import { reconcileSnapshot } from './restore';
 import { maybeSendDailySummary } from './summary';
 
 const BATCH = 50;
@@ -51,6 +52,21 @@ export async function call(engine: Engine, path: string, init: RequestInit): Pro
  * stored it. If the connection drops at any point the events simply stay
  * pending and are sent again later; the server ignores ones it already has.
  */
+export const RECONCILE_FLAG = 'restore_pending_reconcile';
+
+/** Audit F04: after a backup file is restored, merge what the cloud holds before sending anything. */
+export async function reconcileAfterRestore(engine: Engine): Promise<ReturnType<typeof reconcileSnapshot>> {
+  const snap = await call(engine, '/v1/sync/snapshot', { method: 'GET' });
+  const ctx = new Ctx(engine, 'sync.reconcile', null);
+  return ctx.tx(() => {
+    const result = reconcileSnapshot(ctx, snap.tables);
+    ctx.audit('sync', null, result, 'sync.reconciled_after_restore');
+    engine.setMeta(RECONCILE_FLAG, null);
+    engine.setMeta('restore_reconcile_later', null);
+    return result;
+  });
+}
+
 export async function syncNow(engine: Engine): Promise<SyncOutcome> {
   const state = engine.syncState;
   if (!engine.activated) return { ok: false, pushed: 0, rejected: 0, pending: 0, error: 'Not activated' };
@@ -63,6 +79,7 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
   // optional field gets pushes without it, so telemetry can never stop a shop from syncing.
   let usage: ReturnType<typeof activity> | undefined = state.activityUnsupported ? undefined : activity(engine);
   try {
+    if (engine.meta(RECONCILE_FLAG) || engine.meta('restore_reconcile_later')) await reconcileAfterRestore(engine);
     for (let first = true; ; first = false) {
       const rows = engine.db.prepare(`SELECT * FROM outbox WHERE status = 'pending' ORDER BY seq LIMIT ?`).all(BATCH) as any[];
       if (rows.length === 0 && !first) break;

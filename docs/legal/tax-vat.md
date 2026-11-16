@@ -51,6 +51,14 @@ Ordinary monthly filing/payment is due by the last working day of the next month
 
 “Record GRA filing” is for a return already submitted through GRA: capture the acknowledgement, note, financial snapshot and SHA-256 fingerprint, then lock the month against backdated tax records. Later corrections use documented open-period adjustments; GRA payment evidence can still be added against a filed month. Filed snapshots are retained even if later evidence changes a subsequent return. Retention/deletion must preserve statutory financial evidence; these additions use the existing immutable-record and encrypted-backup controls.
 
+## November 2026 hardening (financial audit)
+
+- **Payments by return period (F05).** A GRA payment records the VAT return month it settles; it defaults to the month before the payment date. Each return shows payments against it, and the VAT page and workbook list filed returns with payable, paid and still owed. Older payments recorded without a period are matched by payment date and flagged.
+- **Automatic registration trigger (F06).** Products without a VAT class no longer stop the trigger. They count as taxable (the conservative reading), and the trigger records that classification review is required. Only history with no tax snapshot at all still blocks automatic determination.
+- **Input tax with the goods receipt (F09).** A VAT-registered owner can record the supplier invoice's VAT, NHIL and GETFund when receiving stock. Unit costs are then entered excluding that recoverable tax, and the claim is created once, linked to the receipt. A second claim against the same receipt is refused. The monthly papers list purchases with no linked claim.
+- **Bounded queries (F16).** The monthly report loads only the chosen month's lines; earlier months are summed in the database for the carry-forward.
+- **Accounting periods (F07).** Besides the VAT filing lock, the owner can close any finished month for all financial records (Settings → Accounting periods).
+
 ## GRA connection and rollout limits
 
 The repository has no GRA production credentials, approved E-VAT integration contract, fiscal signing material, or taxpayer onboarding confirmation. The new export is **reconcilable working papers**, not a claimed GRA upload schema, certified tax invoice, GRA registration, or direct filing endpoint. Mansora must complete the applicable GRA certified-invoicing/ERP onboarding before presenting these receipts as certified E-VAT invoices. The January guideline requires certified invoicing and describes a 24-hour downtime notification obligation; offline storage alone is not evidence of fiscal-invoicing compliance.

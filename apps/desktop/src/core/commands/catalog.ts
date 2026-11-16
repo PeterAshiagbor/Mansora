@@ -1,7 +1,10 @@
 import { z } from 'zod';
-import { fail, TAX_CLASSES, PRESET_IDS, PRESETS, sum, type PresetId } from '@mansora/domain';
+import { fail, TAX_CLASSES, PRESET_IDS, PRESETS, sum, zCalendarDate, type PresetId } from '@mansora/domain';
 import { defineCommands, empty, zId, zMoney, zOptText, zQty, zText, type Ctx } from '../engine';
 import { moveStock } from '../stock';
+import { requireOpenPeriod } from '../periods';
+import { taxConfig } from '../tax';
+import { checkInputClaim, requireTaxPeriodOpen } from './tax';
 
 const productInput = z.object({
   id: zId.optional(),
@@ -178,6 +181,7 @@ export const catalogCommands = defineCommands({
     run: (ctx, input) => {
       if (input.delta === 0) fail('INVALID_QUANTITY', 'Enter a quantity other than zero');
       if (input.type === 'DAMAGE' && input.delta > 0) fail('INVALID_QUANTITY', 'Damaged stock must reduce the quantity');
+      requireOpenPeriod(ctx, ctx.now());
       const refId = ctx.id();
       const r = moveStock(ctx, { productId: input.productId, type: input.type, delta: input.delta, refType: 'adjustment', refId, reason: input.reason });
       ctx.audit('product', input.productId, { type: input.type, delta: input.delta, reason: input.reason, newQuantity: r.quantity });
@@ -188,23 +192,34 @@ export const catalogCommands = defineCommands({
   'stock.count': {
     perm: 'stock.adjust',
     mutates: true,
-    input: z.object({ note: zOptText(300), lines: z.array(z.object({ productId: zId, counted: z.number().int().nonnegative().max(10_000_000) })).min(1).max(5000) }),
+    input: z.object({
+      note: zOptText(300), lines: z.array(z.object({ productId: zId, counted: z.number().int().nonnegative().max(10_000_000) })).min(1).max(5000),
+      /** Audit F21: when the count sheet was opened. Sales and receipts made while counting are not mistaken for differences. */
+      startedAt: z.string().datetime().optional(),
+    }),
     run: (ctx, input) => {
       // One physical count per product: two lines for the same product would compound into extra adjustments.
       if (new Set(input.lines.map((l) => l.productId)).size !== input.lines.length) fail('INVALID_INPUT', 'Each product may appear only once in a stock count');
+      requireOpenPeriod(ctx, ctx.now());
+      // A browser's clock can differ slightly from the shop's: a start time "in the future" means no movements since.
+      const startedAt = input.startedAt && input.startedAt < ctx.now() ? input.startedAt : undefined;
+      if (startedAt && Date.parse(ctx.now()) - Date.parse(startedAt) > 24 * 3_600_000) fail('INVALID_INPUT', 'A stock count must be finished within 24 hours of starting it');
       const countId = ctx.id();
       const adjustments: { productId: string; system: number; counted: number; delta: number }[] = [];
       for (const line of input.lines) {
         // R70-06: a product that does not exist (or was removed) is an error, never a silent "unchanged".
         if (!ctx.get('SELECT 1 FROM products WHERE id = ? AND active = 1', line.productId)) fail('NOT_FOUND', 'A counted product no longer exists. Reload the stock count and try again.');
         const bal = ctx.get('SELECT quantity FROM stock_balances WHERE product_id = ?', line.productId);
-        const system = bal?.quantity ?? 0;
+        // The count describes the shelf when counting started: movements since then are added to it.
+        const since = startedAt ? ctx.get<{ v: number }>(`SELECT COALESCE(SUM(quantity_delta), 0) AS v FROM inventory_movements WHERE product_id = ? AND occurred_at >= ?`, line.productId, startedAt)!.v : 0;
+        const system = (bal?.quantity ?? 0) - since;
         const delta = line.counted - system;
         if (delta === 0) continue;
         moveStock(ctx, { productId: line.productId, type: 'STOCK_COUNT_ADJUSTMENT', delta, refType: 'stock_count', refId: countId, reason: input.note ?? 'Stock count' });
         adjustments.push({ productId: line.productId, system, counted: line.counted, delta });
       }
-      ctx.audit('stock_count', countId, { counted: input.lines.length, adjustments });
+      // The movements carry each product's difference; the audit entry keeps a bounded summary (audit F03).
+      ctx.audit('stock_count', countId, { startedAt: input.startedAt ?? null, counted: input.lines.length, adjusted: adjustments.length, unitsAdded: adjustments.filter((a) => a.delta > 0).reduce((t, a) => t + a.delta, 0), unitsRemoved: adjustments.filter((a) => a.delta < 0).reduce((t, a) => t - a.delta, 0), adjustments: adjustments.slice(0, 50) });
       return { id: countId, adjusted: adjustments.length };
     },
   },
@@ -297,13 +312,33 @@ export const catalogCommands = defineCommands({
     input: z.object({
       id: zId.optional(), supplierId: zId.nullish(), reference: zOptText(80),
       items: z.array(z.object({ productId: zId, quantity: zQty, unitCost: zMoney })).min(1).max(1000),
+      /**
+       * Audit F09: for a VAT-registered business, the supplier invoice's recoverable VAT, NHIL and GETFund. Unit
+       * costs are then the amounts EXCLUDING that tax, and the input claim is recorded with the receipt, once.
+       */
+      inputTax: z.object({ supplierTin: zText(80), invoiceDate: zCalendarDate, vat: zMoney, nhil: zMoney, getfund: zMoney, evidenceConfirmed: z.literal(true) }).optional(),
+      /** Receiving the same supplier invoice twice is refused unless this is set with a reason (audit F10). */
+      duplicateReason: zOptText(300),
     }),
     run: (ctx, input) => {
       const id = input.id ?? ctx.id();
       if (ctx.get('SELECT 1 FROM purchases WHERE id = ?', id)) return { id, duplicate: true };
       // Receiving sets catalogue costs and the moving average, so it needs permission to edit cost prices.
       ctx.require('product.cost');
+      requireOpenPeriod(ctx, ctx.now());
       const now = ctx.now();
+      if (input.reference) {
+        const same = ctx.get(`SELECT id, received_at FROM purchases WHERE lower(reference) = lower(?) AND COALESCE(supplier_id, '') = COALESCE(?, '')`, input.reference, input.supplierId ?? null);
+        if (same && !input.duplicateReason) fail('DUPLICATE_PURCHASE', `Supplier invoice ${input.reference} was already received on ${String(same.received_at).slice(0, 10)}. Check it is not the same delivery; to record it again, give a reason.`, { purchaseId: same.id });
+      }
+      if (input.inputTax) {
+        if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner may record input-tax claims');
+        if (!input.reference) fail('TAX_EVIDENCE_REQUIRED', 'Enter the supplier invoice number to claim its input tax');
+        const today = now.slice(0, 10), c = taxConfig(ctx, today);
+        if (!c.registered || !c.registrationDate || c.registrationDate > today) fail('VAT_REGISTRATION_REQUIRED', 'Input tax can only be claimed while VAT registered');
+        requireTaxPeriodOpen(ctx, today);
+        checkInputClaim(ctx, { date: today, reference: input.reference, supplierTin: input.inputTax.supplierTin, invoiceDate: input.inputTax.invoiceDate });
+      }
       const totalCost = sum(input.items.map((i) => i.quantity * i.unitCost));
       if (!Number.isSafeInteger(totalCost)) fail('INVALID_AMOUNT', 'This purchase is too large to record. Split it into smaller purchases.');
       ctx.insert('purchases', {
@@ -316,7 +351,14 @@ export const catalogCommands = defineCommands({
         const p = ctx.get('SELECT version FROM products WHERE id = ?', item.productId);
         ctx.update('products', item.productId, { cost_price: item.unitCost, version: p.version + 1, updated_at: now });
       }
-      ctx.audit('purchase', id, { items: input.items.length, reference: input.reference });
+      if (input.inputTax) {
+        const t = input.inputTax, taxId = ctx.id();
+        const data = { kind: 'input', date: now.slice(0, 10), reference: input.reference, reason: 'Recorded with goods receipt', supplierTin: t.supplierTin, invoiceDate: t.invoiceDate, purchaseId: id,
+          base: totalCost, vat: t.vat, nhil: t.nhil, getfund: t.getfund, eligibleBps: 10000, evidenceConfirmed: true, originalTaxes: { vat: t.vat, nhil: t.nhil, getfund: t.getfund } };
+        ctx.insert('tax_records', { id: taxId, kind: 'input', tax_date: now.slice(0, 10), reference: input.reference!, payload: JSON.stringify(data), created_by: ctx.user.id, created_at: now });
+        ctx.audit('tax_record', taxId, { kind: 'input', reference: input.reference, purchaseId: id });
+      }
+      ctx.audit('purchase', id, { items: input.items.length, reference: input.reference, inputTax: !!input.inputTax, duplicateReason: input.duplicateReason ?? undefined });
       return { id };
     },
   },

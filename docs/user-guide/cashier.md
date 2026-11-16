@@ -39,8 +39,14 @@ give a reason. Untick "Sellable" if the item is damaged.
 
 ## Ending your shift
 
-Cashier shifts → **Close shift** → count all the cash and enter it. The system
-shows if the till is short or over. If it does not balance, write why.
+Cashier shifts → **Close shift** → count all the cash and enter it. You do not
+see the amount the till should hold until you have counted: this protects you,
+because the count is your own. After closing, the system shows the expected cash
+and whether the till was short or over. A manager reviews any difference.
+
+If a customer's Mobile Money or card transaction ID was already used on another
+payment, the sale is stopped and a manager must look at the payment message and
+approve it. A reused ID is the usual sign of a fake payment message.
 
 ## If the internet goes off
 

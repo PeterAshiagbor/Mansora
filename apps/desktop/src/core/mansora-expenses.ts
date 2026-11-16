@@ -26,11 +26,18 @@ export async function recordMansoraPayments(engine: Engine, payments: SyncPullRe
   let recorded = 0;
   try {
     for (const p of todo) {
-      await engine.execute(token, 'expense.create', {
+      const base = {
         id: mansoraExpenseId(p.id), category: MANSORA_EXPENSE_CATEGORY,
         description: `Mansora Sales & Stock subscription, receipt ${p.receiptNumber}${p.invoices ? ` for invoice ${p.invoices}` : ''} (recorded automatically)`.slice(0, 300),
         amount: p.amount, expenseDate: p.receivedAt.slice(0, 10), paymentMethod: METHOD[p.method] ?? 'bank', receiptReference: p.receiptNumber.slice(0, 80),
-      });
+      };
+      try {
+        await engine.execute(token, 'expense.create', base);
+      } catch (e: any) {
+        // A payment dated in a month the owner has since closed is recorded today, saying when it was paid.
+        if (e?.code !== 'PERIOD_CLOSED' && e?.code !== 'INVALID_DATE') throw e;
+        await engine.execute(token, 'expense.create', { ...base, expenseDate: engine.now().toISOString().slice(0, 10), description: `${base.description.slice(0, 250)} (paid ${base.expenseDate})` });
+      }
       recorded++;
     }
   } finally { try { engine.endSession(token); } catch { /* already ended */ } }

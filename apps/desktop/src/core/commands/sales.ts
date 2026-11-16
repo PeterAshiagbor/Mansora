@@ -3,8 +3,9 @@ import { fail, PAYMENT_METHODS, refundTax, refundLineAmount, SETTLEMENT_METHODS,
 import { dayBounds, defineCommands, likeContains, zApprover, zId, zMoney, zOptText, zQty, zRange, zText, type Ctx } from '../engine';
 import { quoteSale, recordRegistrationTrigger } from '../tax';
 import { requireTaxPeriodOpen } from './tax';
-import { renderReceiptHtml } from '../receipt';
-import { moveStock, nextNumber, openShift, requireOpenShift } from '../stock';
+import { requireOpenPeriod } from '../periods';
+import { renderCreditNoteHtml, renderReceiptHtml } from '../receipt';
+import { checkReferences, moveStock, nextNumber, openShift, requireOpenShift } from '../stock';
 
 function loadSale(ctx: Ctx, id: string) {
   const sale = ctx.get(
@@ -61,6 +62,7 @@ export const salesCommands = defineCommands({
       if (existing) return { id: existing.id, receiptNo: existing.receipt_no, duplicate: true };
 
       requireTaxPeriodOpen(ctx, ctx.now().slice(0, 10));
+      requireOpenPeriod(ctx, ctx.now());
       const shift = requireOpenShift(ctx, 'making a sale');
       if (new Set(input.lines.map((l) => l.productId)).size !== input.lines.length) fail('INVALID_INPUT', 'Each product may appear only once in the basket');
       const products = input.lines.map((l) => {
@@ -86,6 +88,7 @@ export const salesCommands = defineCommands({
         } else discountApprovedBy = ctx.authorise('sale.discount', input.approver);
       }
       const settlement = settlePayments(cart.total, input.tenders);
+      const referenceApprovedBy = checkReferences(ctx, settlement.payments.map((p) => p.reference), input.approver);
       if (settlement.creditAmount > 0) {
         if (!input.customerId) fail('CUSTOMER_REQUIRED', 'Choose a customer for a credit sale');
         ctx.authorise('credit.sell', input.approver);
@@ -93,7 +96,7 @@ export const salesCommands = defineCommands({
       if (input.customerId && !ctx.get('SELECT 1 FROM customers WHERE id = ? AND active = 1', input.customerId)) fail('NOT_FOUND', 'Customer not found');
 
       const now = ctx.now();
-      const customer = input.customerId ? ctx.get('SELECT name, phone FROM customers WHERE id = ?', input.customerId) : null;
+      const customer = input.customerId ? ctx.get('SELECT name, phone, tin FROM customers WHERE id = ?', input.customerId) : null;
       const receiptNo = nextNumber(ctx, 'R');
       const costs = products.map((p) => p.average_cost as number);
       const costTotal = sum(cart.lines.map((l, i) => l.quantity * costs[i]));
@@ -121,7 +124,7 @@ export const salesCommands = defineCommands({
         });
       }
       recordRegistrationTrigger(ctx);
-      ctx.audit('sale', input.id, { receiptNo, total: cart.total, discount: cart.discountTotal, credit: settlement.creditAmount, discountApprovedBy });
+      ctx.audit('sale', input.id, { receiptNo, total: cart.total, discount: cart.discountTotal, credit: settlement.creditAmount, discountApprovedBy, ...(referenceApprovedBy ? { referenceReuseApprovedBy: referenceApprovedBy } : {}) });
       return { id: input.id, receiptNo, total: cart.total, change: settlement.change };
     },
   },
@@ -161,6 +164,22 @@ export const salesCommands = defineCommands({
     },
   },
 
+  /** Audit F15: a printable credit note for one refund. */
+  'refund.document': {
+    perm: 'sale.create',
+    input: z.object({ id: zId }),
+    run: (ctx, input) => {
+      const refund = ctx.get(`SELECT r.*, a.name AS authorised_by_name FROM refunds r JOIN users a ON a.id = r.authorised_by WHERE r.id = ?`, input.id);
+      if (!refund) fail('NOT_FOUND', 'Refund not found');
+      const s = loadSale(ctx, refund.sale_id); // applies the cashier "own sales only" rule
+      const items = ctx.all(`SELECT ri.quantity, ri.amount, ri.restocked, ri.tax_snapshot, i.product_name FROM refund_items ri JOIN sale_items i ON i.id = ri.sale_item_id WHERE ri.refund_id = ? ORDER BY ri.rowid`, input.id);
+      const tax = s.sale.tax_snapshot ? JSON.parse(s.sale.tax_snapshot) : null;
+      const m = (k: string) => ctx.setting(k) ?? '';
+      const html = renderCreditNoteHtml({ business: { name: m('business_name'), phone: m('business_phone'), address: m('business_address'), ...tax?.business }, refund, sale: s.sale, items });
+      return { html, refundNo: refund.refund_no as string };
+    },
+  },
+
   /**
    * Refund all or part of a sale. Never edits the sale: a separate refund
    * record references it. Needs refund approval (own permission or a
@@ -181,6 +200,7 @@ export const salesCommands = defineCommands({
       const dup = ctx.get('SELECT id, refund_no FROM refunds WHERE id = ?', input.id);
       if (dup) return { id: dup.id, refundNo: dup.refund_no, duplicate: true };
       requireTaxPeriodOpen(ctx, ctx.now().slice(0, 10));
+      requireOpenPeriod(ctx, ctx.now());
       const authorisedBy = ctx.authorise('refund.approve', input.approver);
       const sale = ctx.get('SELECT * FROM sales WHERE id = ?', input.saleId);
       if (!sale) fail('NOT_FOUND', 'Sale not found');

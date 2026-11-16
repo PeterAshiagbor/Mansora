@@ -339,6 +339,8 @@ function PayModal({ total, customerId, customerName, needsDiscountApproval, onCl
     } catch (e: any) {
       setError(e.message);
       setBusy(false);
+      // A reused Mobile Money or card reference needs a manager to look at the payment message and approve it.
+      if (e.code === 'REFERENCE_ALREADY_USED' && !approver) setApproval(true);
     }
   };
   const rest = Math.max(0, total - nonCash);

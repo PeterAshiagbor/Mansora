@@ -40,7 +40,11 @@ person may do. Disable a login the day someone leaves; it takes effect at once.
 - **Cashier shifts**: see every shift's expected cash, counted cash and difference. Sign off closed shifts. The dashboard lists open shifts and flags any left open from an earlier day. If someone went home without closing their shift, close it for them under **Cashier shifts → Shifts left open by others** after counting their till.
 - **Who can do what**: on the Staff page, open *Who can do what* for each role's permissions, or read [who-can-do-what.md](who-can-do-what.md).
 - **Credit & repayments**: who owes what, what is overdue, and record repayments. A repayment is never counted as a new sale.
-- **Expenses**: record running costs. They are shown separately from the cost of goods.
+- **Expenses**: record running costs. They are shown separately from the cost of goods. An expense cannot be dated in the future or in a closed month.
+- **Debt that will not be collected**: Credit & repayments → **Write off**. Only you can do this. It is recorded with your name and reason, and shown as a loss in Gross profit. The Credit page also shows debt by age: not yet due, 1–30, 31–60, 61–90 and over 90 days overdue.
+- **Closing a month**: Settings → **Accounting periods** → choose the month → **Close month**. After that nothing can be dated in that month or earlier, so your figures and your accountant's stay fixed. If something was missed, reopen the month with a reason (also recorded).
+- **Computer clock**: if the laptop's date is moved back behind the last sale, selling stops until the clock is right. If the clock was fast and has been corrected, confirm it in Settings → Accounting periods.
+- **Journal for your accountant**: Import & export → **Journal for your accountant** gives balanced daily journals (sales without VAT, cost of goods, refunds, stock losses, customer credit, expenses, till cash, payments to GRA) that your accountant can post to your books or to Xero or QuickBooks.
 
 ## Reports
 
@@ -49,9 +53,13 @@ person may do. Disable a login the day someone leaves; it takes effect at once.
 **Mobile money & card check** (Reports): at closing, compare the expected mobile money and card totals with your wallet statement and card terminal report. Every payment is listed with its transaction ID. A red warning means the same ID was entered twice, which can be a fake or reused payment message; a yellow one means a payment has no ID to match.
 
 Sales, payments, gross profit and stock for any dates, exportable to Excel, CSV
-or printed/PDF. Reports work without internet. "Gross profit" is sales minus the
-cost of the goods sold; it is not your final profit, because the system is not a
-full accounting package.
+or printed/PDF. Reports work without internet. "Gross profit" is sales (without VAT
+and levies) minus the cost of the goods sold. Below it, **Losses** shows damaged or
+missing stock, returns that could not be resold, cash short at shift close and debt
+written off, then gross profit after losses. Neither is your final profit: expenses
+are listed separately, and the system is not a full accounting package. The stock
+report also shows stock value at the end of the chosen period, for month-end and
+year-end closing stock.
 
 ## Your data and Mansora
 

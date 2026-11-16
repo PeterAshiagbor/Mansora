@@ -124,6 +124,8 @@ function registerIpc(): void {
       for (const suffix of ['', '-wal', '-shm']) if (existsSync(dbFile + suffix)) renameSync(dbFile + suffix, `${dbFile}${suffix}.empty-${Date.now()}`);
       renameSync(staged, dbFile);
       startEngine();
+      // Audit F04: the backup may be older than the cloud copy. Catch up before any new receipt number is issued.
+      if (engine.activated) engine.setMeta('restore_pending_reconcile', '1');
       tokens.clear();
       return { ok: true, summary };
     } catch (e) {

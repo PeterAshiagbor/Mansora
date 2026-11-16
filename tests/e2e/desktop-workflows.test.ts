@@ -230,14 +230,18 @@ describe.skipIf(!pw || !built)('remaining desktop workflows through the real int
     await expense.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByRole('cell', { name: 'Synthetic till expense', exact: true }).waitFor();
     expect(read('SELECT amount, shift_id FROM expenses')).toMatchObject({ amount: 400, shift_id: expect.any(String) });
-    await nav('Cashier shifts'); await page.getByText('GHS 122.00', { exact: true }).first().waitFor();
+    // Audit F12: the cashier counts blind. Expected cash (122.00) and the 2.00 shortage appear only after closing.
+    await nav('Cashier shifts'); await page.getByText('Cash expected is shown after you count and close').waitFor();
+    expect(await page.getByText('GHS 122.00', { exact: true }).count()).toBe(0);
     await page.getByRole('button', { name: 'Close shift', exact: true }).click();
     const close = page.getByRole('dialog', { name: 'Close shift', exact: true });
     await close.getByLabel('Cash counted (GHS)').fill('120');
-    await close.getByText('The till is short by GHS 2.00.', { exact: true }).waitFor();
-    expect(await close.getByRole('button', { name: 'Close shift', exact: true }).isDisabled()).toBe(true);
-    await close.getByLabel('Explain the difference (required)').fill('Synthetic shortage for review');
+    await close.getByLabel('Notes (optional)').fill('Synthetic shortage for review');
     await close.getByRole('button', { name: 'Close shift', exact: true }).click();
+    const done = page.getByRole('dialog', { name: 'Shift closed', exact: true });
+    await done.getByText('GHS 122.00', { exact: true }).waitFor();
+    await done.getByText('The till is short by GHS 2.00. A manager will review it.', { exact: true }).waitFor();
+    await done.getByRole('button', { name: 'Done', exact: true }).click();
     await page.getByText('Short 2.00', { exact: true }).waitFor();
     await signOut(); await signIn(manager); await nav('Settings');
     expect(await page.getByLabel(/^Discount limit/).isDisabled()).toBe(true);

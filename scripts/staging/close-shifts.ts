@@ -6,6 +6,8 @@
 import { chmodSync, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { StagingWorkspace } from './gateway';
+import { Ctx } from '../../apps/desktop/src/core/engine';
+import { shiftTotals } from '../../apps/desktop/src/core/commands/people';
 
 export const CLOSE_SHIFTS_OPERATION = '2026-11-14-close-open-shifts';
 
@@ -24,7 +26,9 @@ export async function closeOpenShifts(o: { id?: string; dataDir: string; workspa
       try {
         const current = await w.engine.execute(token, 'shift.current', {});
         if (!current) continue;
-        await w.engine.execute(token, 'shift.close', { countedCash: current.totals.expectedCash, notes: 'Closed by Mansora at the owner\'s request; the till was not counted.' });
+        // The cashier's own view hides expected cash while the shift is open (blind count), so read it directly.
+        const expected = shiftTotals(new Ctx(w.engine, 'staging.close-shifts', null), current.shift).expectedCash;
+        await w.engine.execute(token, 'shift.close', { countedCash: expected, notes: 'Closed by Mansora at the owner\'s request; the till was not counted.' });
         result.closed++;
       } catch { result.failures++; }
       finally { try { w.engine.endSession(token); } catch { /* already ended */ } }

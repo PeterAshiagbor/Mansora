@@ -27,8 +27,8 @@ export function CustomersPage() {
       </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? 'Edit customer' : 'Add customer'} open onClose={() => setEdit(null)}
-          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('customer.save', { id: edit.id, name: edit.name, phone: edit.phone, email: edit.email ?? '', notes: edit.notes }); setEdit(null); reload(); }, 'Customer saved')}>Save</Button></>}>
-          <CustomerFields value={{ name: edit.name ?? '', phone: edit.phone ?? '', email: edit.email ?? '', notes: edit.notes ?? '' }} onChange={(v) => setEdit({ ...edit, ...v })} />
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('customer.save', { id: edit.id, name: edit.name, phone: edit.phone, email: edit.email ?? '', notes: edit.notes, tin: edit.tin ?? '' }); setEdit(null); reload(); }, 'Customer saved')}>Save</Button></>}>
+          <CustomerFields value={{ name: edit.name ?? '', phone: edit.phone ?? '', email: edit.email ?? '', notes: edit.notes ?? '', tin: edit.tin ?? '' }} onChange={(v) => setEdit({ ...edit, ...v })} />
         </Modal>
       )}
       {view && <CustomerView id={view} onClose={() => setView(null)} />}
@@ -62,6 +62,8 @@ export function CreditPage() {
   const creditQuery = useQuery<any>('credit.list', { status });
   const { data, reload } = creditQuery;
   const [repay, setRepay] = useState<any | null>(null);
+  const [writeOff, setWriteOff] = useState<any | null>(null);
+  const owner = state.user?.role === 'owner';
   return (
     <div>
       <PageHeader title="Credit & repayments" subtitle="Money customers still owe from credit sales."
@@ -72,6 +74,9 @@ export function CreditPage() {
         <Stat label="Overdue" value={money(data?.totalOverdue)} tone={data?.totalOverdue ? 'bad' : 'default'} />
         <Stat label="Open credit records" value={data?.accounts.filter((a: any) => a.status === 'open').length ?? '…'} />
       </div>
+      {data?.aging && <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+        {([['current', 'Not yet due'], ['d1_30', '1–30 days overdue'], ['d31_60', '31–60 days'], ['d61_90', '61–90 days'], ['d90plus', 'Over 90 days']] as const).map(([k, label]) => <Stat key={k} label={label} value={money(data.aging[k])} tone={k === 'd90plus' && data.aging[k] ? 'bad' : k !== 'current' && data.aging[k] ? 'warn' : 'default'} />)}
+      </div>}
       <div className="mb-3 flex gap-2 no-print"><Button size="sm" variant={status === 'open' ? 'primary' : 'secondary'} onClick={() => setStatus('open')}>Still owing</Button><Button size="sm" variant={status === 'all' ? 'primary' : 'secondary'} onClick={() => setStatus('all')}>All, including settled</Button></div>
       <QueryView query={creditQuery} label="customer credit"><Card pad={false}>
         <Table rows={data?.accounts} rowKey={(r: any) => r.id} empty="Nobody owes anything"
@@ -81,14 +86,34 @@ export function CreditPage() {
             { header: 'Credit given', align: 'right', cell: (a: any) => money(a.original_balance) },
             { header: 'Still owed', align: 'right', cell: (a: any) => <strong>{money(a.outstanding_balance)}</strong> },
             { header: 'Due', cell: (a: any) => (a.overdue ? <Badge tone="bad">Overdue {a.due_date}</Badge> : a.status === 'settled' ? <Badge tone="good">Settled</Badge> : a.due_date ?? '') },
-            { header: '', align: 'right', cell: (a: any) => a.status === 'open' && <div className="flex flex-wrap justify-end gap-2"><ShareWhatsApp phone={a.customer_phone} message={debtMessage(state.business.name, a)} label="Review debt reminder" /><Button size="sm" variant="primary" onClick={() => setRepay(a)}>Receive payment</Button></div> },
+            { header: '', align: 'right', cell: (a: any) => a.status === 'open' && <div className="flex flex-wrap justify-end gap-2"><ShareWhatsApp phone={a.customer_phone} message={debtMessage(state.business.name, a)} label="Review debt reminder" /><Button size="sm" variant="primary" onClick={() => setRepay(a)}>Receive payment</Button>{owner && <Button size="sm" variant="danger" onClick={() => setWriteOff(a)}>Write off</Button>}</div> },
           ]} />
       </Card></QueryView>
       <Card title="Recent repayments" pad={false} className="mt-4">
         <Table rows={data?.recentRepayments} empty="No repayments yet" columns={[{ header: 'Date', cell: (r: any) => dateTime(r.created_at) }, { header: 'Customer', cell: (r: any) => r.customer_name }, { header: 'Method', cell: (r: any) => METHOD[r.method] }, { header: 'Received by', cell: (r: any) => r.received_by_name }, { header: 'Amount', align: 'right', cell: (r: any) => money(r.amount) }]} />
       </Card>
       {repay && <RepayModal account={repay} onClose={() => setRepay(null)} onDone={() => { setRepay(null); reload(); }} />}
+      {writeOff && <WriteOffModal account={writeOff} onClose={() => setWriteOff(null)} onDone={() => { setWriteOff(null); reload(); }} />}
     </div>
+  );
+}
+
+/** Audit F17: debt that will not be collected is written off by the owner; it then shows as a loss in Gross profit. */
+function WriteOffModal({ account, onClose, onDone }: { account: any; onClose: () => void; onDone: () => void }) {
+  const [id] = useState(uuid);
+  const [amount, setAmount] = useState<number | null>(account.outstanding_balance);
+  const [reason, setReason] = useState('');
+  const { run, busy } = useAction();
+  const tooMuch = (amount ?? 0) > account.outstanding_balance;
+  return (
+    <Modal title={`Write off debt: ${account.customer_name}`} open onClose={onClose}
+      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="danger" disabled={busy || !amount || tooMuch || !reason.trim()} onClick={() => run(async () => { await call('credit.writeOff', { id, creditAccountId: account.id, amount, reason }); onDone(); }, 'Debt written off')}>Write off</Button></>}>
+      <div className="space-y-3">
+        <p className="text-sm text-slate-600">Owes <strong>{money(account.outstanding_balance)}</strong> on receipt {account.receipt_no}. A write-off cannot be undone. It is recorded with your name and shown as a loss.</p>
+        <Field label="Amount to write off (GHS)" error={tooMuch ? 'This is more than the amount owed' : null}><MoneyInput value={amount} onChange={setAmount} /></Field>
+        <Field label="Reason"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+      </div>
+    </Modal>
   );
 }
 

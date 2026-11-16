@@ -414,4 +414,25 @@ CREATE TRIGGER tax_records_no_update BEFORE UPDATE ON tax_records BEGIN SELECT R
 CREATE TRIGGER tax_records_no_delete BEFORE DELETE ON tax_records BEGIN SELECT RAISE(ABORT, 'Tax records cannot be deleted'); END;
 `,
   },
+  {
+    id: 6,
+    name: 'ledger_records',
+    sql: `
+-- Financial control records that are not sales, stock or tax: month closes and reopenings, customer debt
+-- write-offs and acknowledged clock corrections. Insert-only and synced, like the other financial facts.
+CREATE TABLE ledger_records (
+ id TEXT PRIMARY KEY,
+ kind TEXT NOT NULL CHECK (kind IN ('period_close','period_reopen','credit_writeoff','clock_override')),
+ record_date TEXT NOT NULL, reference TEXT NOT NULL, payload TEXT NOT NULL,
+ created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL
+);
+CREATE INDEX ledger_records_kind ON ledger_records(kind, record_date);
+CREATE TRIGGER ledger_records_no_update BEFORE UPDATE ON ledger_records BEGIN SELECT RAISE(ABORT, 'ledger_records records are immutable'); END;
+CREATE TRIGGER ledger_records_no_delete BEFORE DELETE ON ledger_records BEGIN SELECT RAISE(ABORT, 'ledger_records records cannot be deleted'); END;
+CREATE INDEX payments_reference ON payments(reference) WHERE reference IS NOT NULL;
+CREATE INDEX purchases_reference ON purchases(reference) WHERE reference IS NOT NULL;
+-- Audit F15: a business customer's TIN, printed on its receipts so it can evidence an input-tax claim.
+ALTER TABLE customers ADD COLUMN tin TEXT;
+`,
+  },
 ];

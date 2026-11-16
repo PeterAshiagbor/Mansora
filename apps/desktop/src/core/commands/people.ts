@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { cashVariance, EXPENSE_METHODS, expectedCash, fail, isOvernightShift, SETTLEMENT_METHODS, zCalendarDate } from '@mansora/domain';
 import { dayBounds, defineCommands, empty, likeContains, zApprover, zId, zMoney, zOptText, zRange, zText, type Ctx } from '../engine';
-import { openShift, requireOpenShift } from '../stock';
+import { checkReferences, openShift, requireOpenShift } from '../stock';
+import { requireOpenPeriod } from '../periods';
 
 /** The last nine digits of a Ghanaian number, so 024 123 4567 and +233 24 123 4567 count as the same phone. */
 export const phoneKey = (phone: string | null | undefined) => { const d = (phone ?? '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : null; };
@@ -25,6 +26,18 @@ export function shiftTotals(ctx: Ctx, shift: any) {
     salesCount: one('SELECT COUNT(*) AS v FROM sales WHERE shift_id = ?'),
     salesTotal: one('SELECT COALESCE(SUM(total), 0) AS v FROM sales WHERE shift_id = ?'),
   };
+}
+
+/**
+ * Audit F12: blind cash count. While a shift is open, staff without shift review rights do not see how much cash the
+ * till should hold, so the count cannot be made to match it. The expected figure and difference appear after closing.
+ */
+const BLIND_KEYS = ['cashSales', 'cashRepayments', 'cashRefunds', 'cashExpenses', 'cashIn', 'cashOut', 'expectedCash'] as const;
+function blindTotals(ctx: Ctx, shift: any, totals: ReturnType<typeof shiftTotals>) {
+  if (shift.status !== 'open' || ctx.can('shift.review')) return { ...totals, blind: false };
+  const out: Record<string, unknown> = { ...totals, blind: true };
+  for (const k of BLIND_KEYS) out[k] = null;
+  return out;
 }
 
 export const peopleCommands = defineCommands({
@@ -56,7 +69,7 @@ export const peopleCommands = defineCommands({
   'customer.add': {
     perm: 'sale.create',
     mutates: true,
-    input: z.object({ name: zText(120), phone: zOptText(40), email: z.string().trim().email().max(160).or(z.literal('')).nullish().transform((v) => v || null), notes: zOptText(500) }),
+    input: z.object({ name: zText(120), phone: zOptText(40), email: z.string().trim().email().max(160).or(z.literal('')).nullish().transform((v) => v || null), notes: zOptText(500), tin: zOptText(40) }),
     run: (ctx, input) => {
       const key = phoneKey(input.phone);
       if (key) {
@@ -65,7 +78,7 @@ export const peopleCommands = defineCommands({
       }
       const now = ctx.now();
       const id = ctx.id();
-      ctx.insert('customers', { id, name: input.name, phone: input.phone, email: input.email, notes: input.notes, active: 1, created_at: now, updated_at: now });
+      ctx.insert('customers', { id, name: input.name, phone: input.phone, email: input.email, notes: input.notes, tin: input.tin, active: 1, created_at: now, updated_at: now });
       ctx.audit('customer', id, { name: input.name, active: true, addedAtSale: true });
       return { id, name: input.name, phone: input.phone };
     },
@@ -73,11 +86,13 @@ export const peopleCommands = defineCommands({
   'customer.save': {
     perm: 'customer.manage',
     mutates: true,
-    input: z.object({ id: zId.optional(), name: zText(120), phone: zOptText(40), email: z.string().trim().email().max(160).or(z.literal('')).nullish().transform((v) => v || null), notes: zOptText(500), active: z.boolean().default(true) }),
+    input: z.object({ id: zId.optional(), name: zText(120), phone: zOptText(40), email: z.string().trim().email().max(160).or(z.literal('')).nullish().transform((v) => v || null), notes: zOptText(500), active: z.boolean().default(true),
+      /** Optional business TIN (audit F15). Left out = unchanged; empty = cleared. */
+      tin: z.string().trim().max(40).optional() }),
     run: (ctx, input) => {
       const now = ctx.now();
       const id = input.id ?? ctx.id();
-      const row = { name: input.name, phone: input.phone, email: input.email, notes: input.notes, active: input.active ? 1 : 0, updated_at: now };
+      const row = { name: input.name, phone: input.phone, email: input.email, notes: input.notes, active: input.active ? 1 : 0, updated_at: now, ...(input.tin !== undefined ? { tin: input.tin || null } : {}) };
       if (input.id) ctx.update('customers', id, row);
       else ctx.insert('customers', { id, ...row, created_at: now });
       ctx.audit('customer', id, { name: input.name, active: input.active });
@@ -111,6 +126,17 @@ export const peopleCommands = defineCommands({
         accounts,
         totalOutstanding: (ctx.get(`SELECT COALESCE(SUM(outstanding_balance), 0) AS v FROM credit_accounts`) as any).v as number,
         totalOverdue: (ctx.get(`SELECT COALESCE(SUM(outstanding_balance), 0) AS v FROM credit_accounts WHERE status = 'open' AND due_date IS NOT NULL AND due_date < ?`, today) as any).v as number,
+        // Audit F17: outstanding debt by days past its due date (no due date counts as current).
+        aging: (() => {
+          const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90plus: 0 };
+          for (const r of ctx.all<{ due_date: string | null; outstanding_balance: number }>(`SELECT due_date, outstanding_balance FROM credit_accounts WHERE status = 'open' AND outstanding_balance > 0`)) {
+            const days = r.due_date ? Math.round((Date.parse(today) - Date.parse(r.due_date)) / 86_400_000) : 0;
+            const k = days <= 0 ? 'current' : days <= 30 ? 'd1_30' : days <= 60 ? 'd31_60' : days <= 90 ? 'd61_90' : 'd90plus';
+            buckets[k] += r.outstanding_balance;
+          }
+          return buckets;
+        })(),
+        writtenOff: ctx.all<{ payload: string }>(`SELECT payload FROM ledger_records WHERE kind = 'credit_writeoff'`).reduce((t, r) => t + (Number(JSON.parse(r.payload).amount) || 0), 0),
         recentRepayments: ctx.all(
           `SELECT r.*, c.name AS customer_name, u.name AS received_by_name FROM credit_repayments r
            JOIN customers c ON c.id = r.customer_id JOIN users u ON u.id = r.received_by ORDER BY r.created_at DESC LIMIT 50`,
@@ -122,13 +148,15 @@ export const peopleCommands = defineCommands({
   'credit.repay': {
     perm: 'credit.repayment',
     mutates: true,
-    input: z.object({ id: zId, creditAccountId: zId, amount: zMoney, method: z.enum(SETTLEMENT_METHODS), reference: zOptText(80) }),
+    input: z.object({ id: zId, creditAccountId: zId, amount: zMoney, method: z.enum(SETTLEMENT_METHODS), reference: zOptText(80), approver: zApprover }),
     run: (ctx, input) => {
       if (ctx.get('SELECT 1 FROM credit_repayments WHERE id = ?', input.id)) return { id: input.id, duplicate: true };
       const acc = ctx.get('SELECT * FROM credit_accounts WHERE id = ?', input.creditAccountId);
       if (!acc) fail('NOT_FOUND', 'Credit record not found');
       if (input.amount <= 0) fail('INVALID_AMOUNT', 'Enter a repayment amount');
+      requireOpenPeriod(ctx, ctx.now());
       if (input.amount > acc.outstanding_balance) fail('REPAYMENT_TOO_LARGE', 'The repayment is more than the amount outstanding', { outstanding: acc.outstanding_balance });
+      const referenceApprovedBy = input.method === 'cash' ? null : checkReferences(ctx, [input.reference], input.approver);
       const shift = input.method === 'cash' ? requireOpenShift(ctx, 'receiving cash') : openShift(ctx);
       const now = ctx.now();
       ctx.insert('credit_repayments', {
@@ -137,7 +165,7 @@ export const peopleCommands = defineCommands({
       });
       const outstanding = acc.outstanding_balance - input.amount;
       ctx.update('credit_accounts', acc.id, { outstanding_balance: outstanding, status: outstanding === 0 ? 'settled' : 'open', updated_at: now });
-      ctx.audit('credit_account', acc.id, { repaymentId: input.id, amount: input.amount, method: input.method, outstanding });
+      ctx.audit('credit_account', acc.id, { repaymentId: input.id, amount: input.amount, method: input.method, outstanding, ...(referenceApprovedBy ? { referenceReuseApprovedBy: referenceApprovedBy } : {}) });
       return { id: input.id, outstanding };
     },
   },
@@ -167,6 +195,10 @@ export const peopleCommands = defineCommands({
       if (ctx.get('SELECT 1 FROM expenses WHERE id = ?', input.id)) return { id: input.id, duplicate: true };
       if (input.amount <= 0) fail('INVALID_AMOUNT', 'Enter an expense amount');
       if (input.paidFromTill && input.paymentMethod !== 'cash') fail('INVALID_INPUT', 'Only cash expenses can be paid from the till');
+      // Audit F07: an expense cannot be dated in the future, or in a closed month.
+      if (input.expenseDate > ctx.now().slice(0, 10)) fail('INVALID_DATE', 'An expense cannot be dated in the future');
+      requireOpenPeriod(ctx, input.expenseDate);
+      if (input.paidFromTill && input.expenseDate !== ctx.now().slice(0, 10)) fail('INVALID_DATE', 'Cash paid from the till today must be dated today');
       // Only cash taken from the till affects the cashier's expected cash.
       const shift = input.paidFromTill ? requireOpenShift(ctx, 'paying an expense from the till') : null;
       ctx.insert('expenses', {
@@ -183,7 +215,7 @@ export const peopleCommands = defineCommands({
     input: empty,
     run: (ctx) => {
       const shift = openShift(ctx);
-      return shift ? { shift, totals: shiftTotals(ctx, shift), overnight: isOvernightShift(shift.opened_at, ctx.now()) } : null;
+      return shift ? { shift, totals: blindTotals(ctx, shift, shiftTotals(ctx, shift)), overnight: isOvernightShift(shift.opened_at, ctx.now()) } : null;
     },
   },
   /** Every shift still open, for the owner and managers: who, since when, and whether it was left open overnight. */
@@ -216,6 +248,7 @@ export const peopleCommands = defineCommands({
     run: (ctx, input) => {
       const shift = requireOpenShift(ctx, 'recording a cash movement');
       if (input.amount <= 0) fail('INVALID_AMOUNT', 'Enter an amount');
+      requireOpenPeriod(ctx, ctx.now());
       const authorisedBy = ctx.authorise('shift.review', input.approver);
       const id = ctx.id();
       ctx.insert('shift_cash_movements', { id, shift_id: shift.id, direction: input.direction, amount: input.amount, reason: input.reason, authorised_by: authorisedBy, created_at: ctx.now() });
@@ -247,7 +280,7 @@ export const peopleCommands = defineCommands({
          WHERE s.opened_at >= ? AND s.opened_at < ? ${mine} ORDER BY s.opened_at DESC`,
         ...(mine ? [from, to, ctx.user.id] : [from, to]),
       );
-      return rows.map((s) => ({ ...s, totals: shiftTotals(ctx, s) }));
+      return rows.map((s) => ({ ...s, totals: blindTotals(ctx, s, shiftTotals(ctx, s)) }));
     },
   },
   /**

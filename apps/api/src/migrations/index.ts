@@ -877,4 +877,22 @@ CREATE POLICY tenant_isolation ON tax_records USING (tenant_id = NULLIF(current_
 GRANT SELECT, INSERT ON tax_configs, tax_records TO mansora_tenant;
 `,
   },
+  {
+    id: 18,
+    name: 'ledger_records',
+    sql: `
+CREATE TABLE ledger_records (
+ tenant_id uuid NOT NULL REFERENCES tenants(id), id uuid NOT NULL, kind text NOT NULL,
+ record_date text NOT NULL, reference text NOT NULL, payload text NOT NULL,
+ created_by uuid NOT NULL, created_at timestamptz NOT NULL, PRIMARY KEY (tenant_id, id)
+);
+ALTER TABLE ledger_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ledger_records FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON ledger_records USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
+GRANT SELECT, INSERT ON ledger_records TO mansora_tenant;
+ALTER TABLE customers ADD COLUMN tin text;
+-- Audit F18: VAT, NHIL and GETFund on Mansora's own invoices, when Mansora is VAT registered.
+ALTER TABLE invoices ADD COLUMN tax_breakdown text;
+`,
+  },
 ];

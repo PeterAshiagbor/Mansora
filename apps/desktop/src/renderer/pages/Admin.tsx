@@ -3,7 +3,7 @@ import { ContactMansora } from '../components/ContactMansora';
 import { TaskLinks } from '../components/TaskLinks';
 import { ROLE_DEFAULTS, roleMatrix, type Role } from '@mansora/domain';
 import { Alert, Badge, Button, Card, Disclosure, Field, Input, Modal, PageHeader, Select, Stat, Table, QueryView, WorkflowSteps, useUnsavedChanges } from '@mansora/ui';
-import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, marginLabel, money, saveFile, today, useAction, useApp, useQuery, useToast } from '../lib';
+import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, marginLabel, money, saveFile, today, useAction, useApp, useQuery, useToast, uuid } from '../lib';
 
 // ---------------------------------------------------------------- Staff
 export function StaffPage() {
@@ -94,6 +94,52 @@ function RoleMatrix() {
 
 // ---------------------------------------------------------------- Settings
 /** C33: the owner's opt-in closing summary email. */
+/**
+ * Audit F07: month-end close and clock confirmation. Closing a month stops anything being dated in it or earlier,
+ * so reports and the accountant's figures for that month stay fixed.
+ */
+/** Audit F08: balanced daily journals on a default chart of accounts, for the accountant. Not financial statements. */
+function JournalExportCard() {
+  const [range, setRange] = useState({ from: `${today().slice(0, 7)}-01`, to: today() });
+  const { run, busy } = useAction();
+  return (
+    <Card title="Journal for your accountant" className="mt-4">
+      <p className="mb-3 text-sm text-slate-600">Balanced double-entry journals for each day: sales net of VAT and levies, cost of goods sold, refunds, stock losses, customer credit, expenses, till cash and payments to GRA, on a standard chart of accounts. Your accountant posts them to the business books or to Xero or QuickBooks. This is not a set of financial statements.</p>
+      <div className="flex flex-wrap items-end gap-2"><DateRange {...range} onChange={setRange} /><Button disabled={busy} onClick={() => run(async () => saveFile(await call('accounting.journalExport', range)), 'Journal created')}>Download journal (Excel)</Button></div>
+    </Card>
+  );
+}
+
+function AccountingPeriodsCard() {
+  const status = useQuery<any>('period.status');
+  const { run, busy } = useAction();
+  const lastMonth = today().slice(0, 7) > '2000-01' ? new Date(Date.UTC(Number(today().slice(0, 4)), Number(today().slice(5, 7)) - 2, 1)).toISOString().slice(0, 7) : '';
+  const [month, setMonth] = useState(lastMonth);
+  const [note, setNote] = useState('');
+  const [clockReason, setClockReason] = useState('');
+  const through = status.data?.closedThrough as string | null | undefined;
+  return (
+    <Card title="Accounting periods" className="mt-4">
+      <p className="mb-3 text-sm text-slate-600">{through ? <>Closed through <strong>{through}</strong>. Nothing can be dated in a closed month; corrections go in the current month.</> : 'No month has been closed yet.'}</p>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Field label="Month to close"><Input id="period-month" type="month" value={month} max={lastMonth} onChange={(e) => setMonth(e.target.value)} /></Field>
+        <Field label="Note"><Input id="period-note" value={note} placeholder="e.g. Checked with accountant" onChange={(e) => setNote(e.target.value)} /></Field>
+        <div className="flex items-end gap-2">
+          <Button variant="primary" disabled={busy || !month || !note.trim()} onClick={() => run(async () => { await call('period.close', { id: uuid(), month, note }); setNote(''); status.reload(); }, `${month} closed`)}>Close month</Button>
+          {through && <Button disabled={busy || !note.trim()} onClick={() => run(async () => { await call('period.reopen', { id: uuid(), month: through, reason: note }); setNote(''); status.reload(); }, `${through} reopened`)}>Reopen {through}</Button>}
+        </div>
+      </div>
+      <div className="mt-4 border-t border-slate-100 pt-3">
+        <p className="mb-2 text-sm text-slate-600">If this computer's clock was fast and has been corrected, sales are refused until you confirm the time is now right.</p>
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Reason"><Input id="clock-reason" value={clockReason} placeholder="e.g. Clock was 2 hours fast" onChange={(e) => setClockReason(e.target.value)} /></Field>
+          <Button disabled={busy || !clockReason.trim()} onClick={() => run(async () => { await call('clock.acknowledge', { reason: clockReason }); setClockReason(''); }, 'Clock confirmed')}>Confirm clock is correct</Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function DailySummaryCard() {
   const query = useQuery<any>('summary.settings');
   const { run, busy } = useAction();
@@ -154,6 +200,7 @@ export function SettingsPage() {
         </Card>
       )}
       {state.user?.role === 'owner' && <DailySummaryCard />}
+      {state.user?.role === 'owner' && <AccountingPeriodsCard />}
       <Card title="Change my password">
         <div className="grid grid-cols-3 gap-3">
           <Field label="Current password"><Input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} autoComplete="current-password" /></Field>
@@ -245,6 +292,7 @@ export function DataPage() {
           </div>
         </Card>
       )}
+      {can('data.export') && <JournalExportCard />}
     </div>
   );
 }
@@ -292,8 +340,9 @@ export function SyncPage() {
             <Stat label="Last successful sync" value={<span className="text-lg">{dateTime(s.lastSyncAt)}</span>} />
             <Stat label="Sync errors" value={s.rejected} tone={s.rejected ? 'bad' : 'default'} />
           </div>
+          {s.restorePending && <Alert tone="bad" className="mb-3"><strong>This laptop was restored from a backup.</strong> Choose Sync now so it can catch up with sales made after the backup. Selling resumes once it has.{state.user?.role === 'owner' && <> No internet? <Button size="sm" className="ml-2" disabled={busy} onClick={() => run(async () => { await call('sync.continueOffline', { reason: 'No connection after restore' }); status.reload(); }, 'Selling resumed; receipt numbers continue from a new block')}>Continue offline</Button></>}</Alert>}
           {s.lastError && <Alert tone="warn" className="mb-3">Last attempt: {s.lastError}. The app keeps working; it will try again automatically.</Alert>}
-          {s.rejected > 0 && <Alert tone="bad" className="mb-3">{s.rejected} change(s) were refused by the server and need Mansora support. Your local records are intact.</Alert>}
+          {s.rejected > 0 && <Alert tone="bad" className="mb-3">{s.rejected} change(s) were refused by the server, so the cloud copy is missing them. Your local records are intact.{state.user?.role === 'owner' && <> <Button size="sm" className="ml-2" disabled={busy} onClick={() => run(async () => { const r = await call('sync.repairRejected', {}); await call('sync.run'); status.reload(); queue.reload(); if (r.stillFailing.length) throw new Error(`${r.stillFailing.length} change(s) still need Mansora support`); }, 'Refused changes rebuilt and sent again')}>Repair and resend</Button></>}</Alert>}
           {s.unprotected > 0 && <Alert tone="warn" className="mb-3"><strong>{s.unprotected} change(s) exist only on this laptop.</strong> If the laptop is lost or damaged before they sync or are backed up, they cannot be recovered. Connect to the internet or make a backup.</Alert>}
         </>
       )}
