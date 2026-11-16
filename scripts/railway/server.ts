@@ -1,3 +1,4 @@
+import { rehearseTsb } from '../staging/tsb-acceptance';
 import { seedVatDemo } from '../staging/vat-demo';
 import { vatFeaturePolicy } from '../../apps/api/src/vat-features';
 import { browserOwnerRecoveryIssuer } from '../../apps/api/src/browser-workspaces';
@@ -41,6 +42,8 @@ export async function runRailwayServer() {
   let app: Awaited<ReturnType<typeof buildApp>> | undefined, gateway: Awaited<ReturnType<typeof startConfiguredStaging>> | undefined;
   let recovery: OwnerRecovery | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let acceptanceTimer: ReturnType<typeof setTimeout> | undefined, acceptanceRun: Promise<unknown> | undefined;
+  let acceptanceWorkspaces: import('../staging/gateway').StagingWorkspace[] = [];
   let backups: ReturnType<typeof startSystemBackups>;
   try {
     // The approved service plans (pricing of 14 November 2026), added if missing.
@@ -69,6 +72,7 @@ export async function runRailwayServer() {
       if (!existsSync(join(dataDir, 'workspaces.json'))) writeFileSync(join(dataDir, 'workspaces.json'), '[]\n', { mode: 0o600, flag: 'wx' });
     }
     gateway = await startConfiguredStaging(async () => { const r = await fetch('http://127.0.0.1:4000/health/ready', { signal: AbortSignal.timeout(3000) }); return r.ok; }, async workspaces => {
+      acceptanceWorkspaces = workspaces;
       const result = await inviteTesters({ id: config.mode === 'team-test' ? process.env.STAGING_TESTER_INVITATION_ID : undefined, dataDir: join(config.dataDir, 'staging'), origin: config.origin, workspaces, email: billing.email, onActivated: async (tenantId, email) => {
         await db.platform(async q => {
           await q("UPDATE tenants SET email = $2 WHERE id = $1 AND (email IS NULL OR email LIKE '%@mansora.example')", [tenantId, email]);
@@ -123,9 +127,15 @@ export async function runRailwayServer() {
       .then(() => runBugDigest({ db, email: billing.email, to: process.env.BUG_REPORT_EMAIL })).then((r) => { if (r?.sent) console.log(`Problem reports email sent: ${r.reports} report(s).`); }, () => console.error('Problem reports email failed; it will be retried.'))
       .finally(() => { billingRun = undefined; }); }, 15 * 60_000); timer.unref();
     let stopping = false;
-    const close = async () => { if (stopping) return; stopping = true; clearInterval(timer); await backups?.close(); await gateway!.close(); await billingRun; await app!.close(); await db.close(); };
+    const close = async () => { if (stopping) return; stopping = true; clearInterval(timer); clearTimeout(acceptanceTimer); await acceptanceRun; await backups?.close(); await gateway!.close(); await billingRun; await app!.close(); await db.close(); };
     for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => { void close().then(() => process.exit(0), () => process.exit(1)); });
+    if (process.env.MANSORA_TSB_ACCEPTANCE) {
+      // After readiness, exercise the public origin with existing assigned synthetic-shop credentials.
+      acceptanceTimer=setTimeout(()=>{acceptanceRun=rehearseTsb({mode:config.mode,version:process.env.MANSORA_TSB_ACCEPTANCE,origin:config.origin,dataDir:join(config.dataDir,'staging'),workspaces:acceptanceWorkspaces})
+        .then(result=>console.log('TSB authenticated acceptance:',JSON.stringify(result)))
+        .catch(()=>console.warn('TSB authenticated acceptance blocked; inspect the private rehearsal journal.'));},45000);acceptanceTimer.unref();
+    }
     console.log('Railway team testing is ready. Retrieve assigned accounts privately from the persistent volume.');
     return { app, gateway, db, close };
-  } catch (error) { clearInterval(timer); await backups?.close(); await gateway?.close(); await recovery?.close(); await app?.close(); await db.close(); throw error; }
+  } catch (error) { clearInterval(timer); clearTimeout(acceptanceTimer); await backups?.close(); await gateway?.close(); await recovery?.close(); await app?.close(); await db.close(); throw error; }
 }
