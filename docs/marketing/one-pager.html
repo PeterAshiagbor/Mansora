@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mansora Sales &amp; Stock - Pricing Decision Brief</title>
+<style>
+@font-face{font-family:'DM Sans';font-style:normal;font-weight:400 700;font-display:swap;src:url('https://app.mansora-consulting.com/api/brand/dm-sans-latin.woff2') format('woff2')}
+:root{--purple:#38145c;--purple2:#5c2d85;--gold:#c48b17;--cream:#fffaf1;--soft:#f8f3fc;--ink:#221634;--muted:#5e5269;--line:#e6dcef;--goldsoft:#fff4d6;--good:#f3fbf5;--bad:#fff4f2}
+*{box-sizing:border-box}html,body{margin:0;padding:0;background:#ece9e4;color:var(--ink);font-family:'DM Sans','Segoe UI',Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-size:9.05px;line-height:1.33}
+.page{width:210mm;height:297mm;margin:0 auto 10mm;background:var(--cream);position:relative;overflow:hidden;page-break-after:always}.page:last-child{page-break-after:auto;margin-bottom:0}
+.brandbar{height:29mm;background:var(--purple);border-bottom:2mm solid var(--gold);padding:5.6mm 10.5mm 4.8mm;display:flex;align-items:center;justify-content:space-between;gap:7mm}.brandleft{display:flex;align-items:center;gap:3.8mm}.logo-box{width:16mm;height:16mm;border-radius:3mm;background:#fff;overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;flex:0 0 auto}.logo{display:none;width:100%;height:100%;object-fit:contain}.logo-box.loaded .logo{display:block}.logo-fallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;border:1px solid #eadcf4;background:linear-gradient(145deg,#fff 0%,#f8f3fc 100%);font:700 11px/1 Georgia,'Times New Roman',serif;color:var(--purple);letter-spacing:-.05em}.logo-fallback b{color:var(--gold);font-weight:700}.logo-box.loaded .logo-fallback{display:none}.wordmark{font:700 19px/1 Georgia,'Times New Roman',serif;letter-spacing:.17em;color:#fff}.platform{margin-top:1.2mm;color:#f6dea8;font-size:8.7px;font-weight:700}.internal{text-align:right;color:#f9e8bd;font-size:8px;line-height:1.28}.internal strong{display:block;color:#fff;font:600 12px/1.1 Georgia,'Times New Roman',serif;margin-bottom:1mm}
+main{padding:6.3mm 10.5mm 5mm}h1,h2,h3,h4{font-family:Georgia,'Times New Roman',serif;color:var(--purple);margin:0}h1{font-size:21.5px;line-height:1.05}h2{font-size:14px;line-height:1.1;margin-bottom:2.6mm}h3{font-size:10.6px;line-height:1.15}h4{font-size:9.5px;line-height:1.15}.eyebrow{color:var(--gold);font-weight:800;text-transform:uppercase;letter-spacing:.09em;font-size:7.6px;margin-bottom:1.5mm}.sub{color:var(--muted);font-size:8.8px;line-height:1.36;margin-top:2mm}.sub strong{color:var(--ink)}
+.summary{display:grid;grid-template-columns:1.6fr .9fr;gap:4mm;margin-bottom:4mm}.decision{background:#fff;border:1px solid var(--line);border-radius:3mm;padding:3.7mm 4mm}.decision .big{font:700 14px/1.2 Georgia,'Times New Roman',serif;color:var(--purple);margin-top:1mm}.decision p{color:var(--muted);margin-top:1.6mm}.signal{background:var(--purple);color:#fff;border-radius:3mm;padding:3.7mm 4mm;border-bottom:1.3mm solid var(--gold)}.signal b{display:block;font:700 12.5px/1.1 Georgia,'Times New Roman',serif;margin-bottom:1.8mm}.signal p{color:#f1eafa;font-size:8.2px}.chips{display:flex;flex-wrap:wrap;gap:1.4mm;margin-top:2.2mm}.chip{display:inline-block;padding:.7mm 1.6mm;border-radius:999px;background:var(--soft);color:var(--purple2);border:1px solid var(--line);font-size:7.2px;font-weight:700}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:3mm}.card{background:#fff;border:1px solid var(--line);border-radius:2.6mm;padding:3mm 3.4mm}.card.soft{background:var(--soft)}.card.gold{background:var(--goldsoft);border-color:#efd49a}.card p{color:var(--muted);font-size:8px}.card strong{color:var(--ink)}.bullets{margin:2mm 0 0;padding:0;list-style:none;display:grid;gap:1.5mm}.bullets li{position:relative;padding-left:4.1mm;color:var(--muted);font-size:7.85px;line-height:1.27}.bullets li:before{content:'✓';position:absolute;left:0;top:-.1mm;width:3mm;height:3mm;border-radius:50%;background:var(--purple2);color:#fff;font-size:6.5px;display:flex;align-items:center;justify-content:center;font-weight:800}.bullets b{color:var(--ink)}
+.market{margin-top:4mm}.market-head{display:flex;justify-content:space-between;gap:5mm;align-items:end;margin-bottom:2.2mm}.market-head p{color:var(--muted);font-size:7.5px;text-align:right}.table-wrap{background:#fff;border:1px solid var(--line);border-radius:2.6mm;overflow:hidden}.market table{width:100%;border-collapse:collapse;font-size:7.3px;line-height:1.22}.market th{background:var(--purple);color:#fff;text-align:left;padding:1.6mm 2mm;font-weight:700}.market td{padding:1.45mm 2mm;border-top:1px solid var(--line);vertical-align:top}.market tr:nth-child(even) td{background:#fcf9fe}.market td.price{font-weight:800;color:var(--purple);white-space:nowrap}.market td.note{color:var(--muted)}
+.band{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4mm;margin-top:3mm}.band-card{border-radius:2.4mm;padding:2.7mm 3mm;border:1px solid var(--line);background:#fff}.band-card b{display:block;font:700 11px/1 Georgia,'Times New Roman',serif;color:var(--purple);margin-bottom:1.1mm}.band-card span{display:block;color:var(--muted);font-size:7.4px}.band-card.reco{background:var(--soft);border:1.3px solid var(--purple2)}
+.footnote{position:absolute;left:10.5mm;right:10.5mm;bottom:5mm;color:var(--muted);font-size:6.4px;line-height:1.28;border-top:1px solid var(--line);padding-top:2mm}.footnote b{color:var(--purple)}
+/* Page 2 */
+.p2head{display:flex;justify-content:space-between;align-items:end;gap:5mm;margin-bottom:3.5mm}.p2head .tag{font-size:7.5px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.08em}.recommend{background:var(--purple);color:#fff;border-radius:3mm;padding:3.8mm 4.2mm;border-bottom:1.4mm solid var(--gold);margin-bottom:3.7mm;display:grid;grid-template-columns:1.25fr .75fr;gap:5mm;align-items:center}.recommend h2{color:#fff;margin-bottom:1.5mm}.recommend p{color:#f1eafa;font-size:8.2px}.recommend .callout{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:2.3mm;padding:2.8mm}.recommend .callout b{display:block;font:700 12px/1 Georgia,'Times New Roman',serif;color:#fff;margin-bottom:1mm}.recommend .callout span{font-size:7.7px;color:#f7edff}
+.options{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5mm;margin-bottom:3.8mm}.option{background:#fff;border:1px solid var(--line);border-radius:2.7mm;padding:3mm;min-height:36mm}.option.recommended{border:1.3px solid var(--purple2);box-shadow:inset 0 1.1mm 0 var(--purple2)}.option .name{font:700 11px/1 Georgia,'Times New Roman',serif;color:var(--purple);margin-bottom:1.2mm}.option .prices{font-weight:800;color:var(--ink);font-size:10.8px;letter-spacing:-.02em}.option .prices small{font-size:6.5px;color:var(--muted);font-weight:600}.option p{color:var(--muted);font-size:7.2px;line-height:1.25;margin-top:1.5mm}.badge{display:inline-block;margin-top:1.5mm;padding:.55mm 1.25mm;border-radius:999px;background:var(--goldsoft);color:#885b05;font-size:6.5px;font-weight:800}
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4mm}.plan{background:#fff;border:1px solid var(--line);border-radius:2.6mm;padding:2.8mm}.plan.business{border:1.3px solid var(--purple2);background:#fdfbff}.plan h3{margin-bottom:1mm}.plan .price{font-size:12.2px;font-weight:800;color:var(--ink)}.plan .price small{font-size:6.8px;color:var(--muted);font-weight:600}.plan ul{margin:1.6mm 0 0;padding-left:3.8mm;color:var(--muted);font-size:7.1px;line-height:1.27}.plan li{margin-bottom:.65mm}.soon{display:inline-block;margin-top:1mm;padding:.55mm 1.15mm;border-radius:999px;background:var(--goldsoft);color:#885b05;font-size:6.2px;font-weight:800}
+.sales{display:grid;grid-template-columns:1.1fr .9fr;gap:3mm;margin-top:3.7mm}.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:1.6mm;margin-top:2.1mm}.step{background:var(--soft);border:1px solid var(--line);border-radius:2mm;padding:2.1mm}.step i{display:flex;width:4.2mm;height:4.2mm;border-radius:50%;background:var(--gold);color:#fff;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:6.7px;margin-bottom:1.2mm}.step b{display:block;color:var(--ink);font-size:7.5px;margin-bottom:.7mm}.step span{color:var(--muted);font-size:6.7px;line-height:1.25}.decision-list{display:grid;gap:1.45mm;margin-top:1.8mm}.drow{display:grid;grid-template-columns:4mm 1fr;gap:1.4mm;font-size:7.5px;line-height:1.25;color:var(--muted)}.drow span:first-child{color:var(--purple2);font-weight:900}.drow b{color:var(--ink)}
+.sources{margin-top:3.3mm;background:#fff;border:1px solid var(--line);border-radius:2.4mm;padding:2.6mm 3mm}.sources h3{margin-bottom:1.2mm}.sources p{font-size:6.5px;line-height:1.3;color:var(--muted)}.sources a{color:var(--purple2);text-decoration:none}
+footer{position:absolute;left:0;right:0;bottom:0;height:13.5mm;background:#fff;border-top:1px solid var(--line);padding:3mm 10.5mm 2.5mm;display:flex;align-items:center;justify-content:space-between;gap:5mm;color:var(--muted);font-size:7.2px}footer strong{color:var(--purple)}footer .contact{white-space:nowrap;color:var(--ink)}footer .contact span{color:var(--purple2);font-weight:700}
+@page{size:A4;margin:0}@media print{html,body{background:#fff}.page{margin:0;width:210mm;height:297mm;box-shadow:none}}
+@media screen and (max-width:760px){body{background:var(--cream);font-size:14px}.page{width:100%;height:auto;min-height:100vh;margin:0;overflow:visible;page-break-after:auto}.brandbar{height:auto;padding:20px 18px}.internal{display:none}.logo-box{width:56px;height:56px}.wordmark{font-size:18px}main{padding:22px 18px 80px}.summary,.grid2,.recommend,.sales{grid-template-columns:1fr}.market table{font-size:11px}.table-wrap{overflow:auto}.band,.options,.plan-grid,.steps{grid-template-columns:1fr}h1{font-size:31px}h2{font-size:21px}h3{font-size:16px}.sub,.card p,.bullets li,.recommend p,.option p,.plan ul,.drow{font-size:13px}.market-head{display:block}.market-head p{text-align:left;margin-top:8px}.footnote{position:static;margin-top:20px}.p2head{display:block}footer{position:static;height:auto;padding:16px 18px;display:block}.contact{margin-top:8px}}
+</style>
+</head>
+<body>
+<section class="page">
+  <header class="brandbar">
+    <div class="brandleft">
+      <div class="logo-box"><img class="logo" src="https://app.mansora-consulting.com/api/brand/mansora-logo.png" alt="Mansora logo" onload="this.parentElement.classList.add('loaded')" onerror="this.remove()"><div class="logo-fallback">MC<b>&amp;</b>BS</div></div>
+      <div><div class="wordmark">MANSORA</div><div class="platform">Sales &amp; Stock platform</div></div>
+    </div>
+    <div class="internal"><strong>Internal pricing decision brief</strong>Market scan checked 14 November 2026</div>
+  </header>
+  <main>
+    <div class="summary">
+      <section class="decision">
+        <div class="eyebrow">The question for the team</div>
+        <h1>What should Mansora Sales &amp; Stock cost - and what must justify that price?</h1>
+        <p class="sub"><strong>Basic POS and stock tracking are already cheap in Ghana.</strong> The price case for Mansora is stronger when we sell the owner-control layer: fewer blind spots around cash, credit, Mobile Money, staff activity, stock movement and day-end reporting.</p>
+        <div class="chips"><span class="chip">Small Ghanaian shops</span><span class="chip">Provisions</span><span class="chip">Retail</span><span class="chip">Wholesale</span><span class="chip">Cedi billing</span><span class="chip">Local support</span></div>
+      </section>
+      <aside class="signal"><b>Pricing signal</b><p>Public Ghana-focused POS entry plans commonly sit around <strong>GH₵90-150/month</strong>. Fuller operating tiers often move into <strong>GH₵150-300+</strong>, while premium products can reach GH₵299-599+.</p><p style="margin-top:2mm">That makes the earlier <strong>GH₵129 / 229 / 399</strong> idea credible - but the top tier needs enough real value to support the premium.</p></aside>
+    </div>
+
+    <section class="grid2">
+      <article class="card soft">
+        <h2>What customers are really paying us to solve</h2>
+        <ul class="bullets">
+          <li><b>Continuity:</b> the till keeps selling offline and syncs later.</li>
+          <li><b>Accountability:</b> named logins, audit history, discounts, refunds and shift cash differences make mistakes and theft easier to spot.</li>
+          <li><b>Credit control:</b> who owes what, repayments, customer statements and reviewed WhatsApp debt reminders.</li>
+          <li><b>Money checks:</b> Mobile Money/card closing checks plus bank and MoMo statement import in the launch scope.</li>
+          <li><b>Stock control:</b> low-stock alerts, supplier reorder lists, purchases, adjustments and phone-camera counts.</li>
+          <li><b>Owner visibility:</b> daily summary email, sales/payment/stock/expense/gross-profit reports, backups and full exports.</li>
+        </ul>
+      </article>
+      <article class="card gold">
+        <h2>What is not yet a strong reason to charge more</h2>
+        <p>Several competitors already offer selling, inventory, basic reports and offline mode at low prices. We should not position Mansora as “just another POS”.</p>
+        <ul class="bullets" style="margin-top:2.2mm">
+          <li><b>Multiple tills / branches:</b> coming soon.</li>
+          <li><b>VAT receipts:</b> coming soon.</li>
+          <li><b>Automatic Mobile Money debits:</b> not part of the offer; MoMo is pay-per-invoice.</li>
+          <li><b>Silent receipt printing in the Windows app:</b> coming soon.</li>
+        </ul>
+        <p style="margin-top:2mm"><strong>Implication:</strong> do not let the Plus price depend mainly on features that are still coming.</p>
+      </article>
+    </section>
+
+    <section class="market">
+      <div class="market-head"><h2>Current market snapshot</h2><p>Public list prices; package limits and tax treatment vary.</p></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Provider</th><th>Entry</th><th>Next / core tier</th><th>What the market is offering</th></tr></thead>
+          <tbody>
+            <tr><td>HilsonPOS</td><td class="price">GH₵90</td><td class="price">GH₵149 / 249</td><td class="note">Offline till, MoMo, stock, purchases, expenses and support; higher tiers add branches/accounting.</td></tr>
+            <tr><td>SellarPro</td><td class="price">GH₵99</td><td class="price">GH₵150 / 250</td><td class="note">Offline selling, inventory, reports, roles/permissions and Ghana-based support.</td></tr>
+            <tr><td>Retill</td><td class="price">GH₵99</td><td class="price">GH₵199 / 299</td><td class="note">Mobile + web, inventory, staff roles, backups and broader branch capacity on higher tiers.</td></tr>
+            <tr><td>Ventrix RMS</td><td class="price">Free</td><td class="price">GH₵150</td><td class="note">Free owner-only tier; Plus adds unlimited catalogue, exports, shifts, expenses and audit logs.</td></tr>
+            <tr><td>Obali</td><td class="price">Free</td><td class="price">GH₵100 / 150</td><td class="note">Low-cost Ghana offer with offline checkout; paid tiers add staff, credit, expenses and daily reports.</td></tr>
+            <tr><td>Vemli POS</td><td class="price">From GH₵149</td><td class="price">Higher tiers</td><td class="note">Offline selling, MoMo, inventory, staff controls, local setup/training and optional advanced modules.</td></tr>
+            <tr><td>AstraPOS</td><td class="price">GH₵299</td><td class="price">GH₵499</td><td class="note">Premium local positioning with MoMo, dashboard, multiple cashiers/branches and support.</td></tr>
+            <tr><td>RetaillyPOS</td><td class="price">GH₵299</td><td class="price">GH₵599 / 999</td><td class="note">Broader retail suite including purchases, finance, banking and multi-branch features.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="band">
+        <div class="band-card"><b>GH₵90-150</b><span>Price-sensitive entry zone. Customers can find credible alternatives here.</span></div>
+        <div class="band-card reco"><b>GH₵129-229</b><span>Good Mansora zone if we lead with control, support and onboarding - not only POS.</span></div>
+        <div class="band-card"><b>GH₵300+</b><span>Needs a clear premium story: branches, VAT, deeper finance or high-touch service.</span></div>
+      </div>
+      <div class="grid2" style="margin-top:3mm">
+        <article class="card"><h2>Why Mansora can sit above the cheapest tools</h2><p>The strongest difference is not the checkout screen. It is the combination of <strong>named accountability, shift cash checks, credit control, supplier/reorder workflow, owner summaries, MoMo checks, statement import, audit history and assisted local onboarding</strong>. That is a clearer business-control story than “POS + stock”.</p></article>
+        <article class="card soft"><h2>Why we should not start too high</h2><p>A shop owner can already find credible Ghana-focused systems below GH₵150. Mansora must first earn proof through pilots, references and reliable support. <strong>The Business plan should feel like the obvious upgrade from a notebook - not a software luxury.</strong></p></article>
+      </div>
+    </section>
+  </main>
+  <div class="footnote"><b>Research note:</b> Competitor prices above are public web prices checked on 14 November 2026. They are useful market signals, not audited quotations. Providers can change plans, limits, taxes or promotions.</div>
+</section>
+
+<section class="page">
+  <header class="brandbar">
+    <div class="brandleft">
+      <div class="logo-box"><img class="logo" src="https://app.mansora-consulting.com/api/brand/mansora-logo.png" alt="Mansora logo" onload="this.parentElement.classList.add('loaded')" onerror="this.remove()"><div class="logo-fallback">MC<b>&amp;</b>BS</div></div>
+      <div><div class="wordmark">MANSORA</div><div class="platform">Sales &amp; Stock platform</div></div>
+    </div>
+    <div class="internal"><strong>Pricing recommendation</strong>For team discussion - not customer-facing</div>
+  </header>
+  <main>
+    <div class="p2head"><div><div class="tag">Recommended direction</div><h1>Price for adoption, but protect the value of local support.</h1></div><p class="sub" style="max-width:65mm;text-align:right;margin:0">Mansora should sit above the cheapest “just sell and track stock” tools, but below a full ERP-style promise until branches and VAT receipts are live.</p></div>
+
+    <section class="recommend">
+      <div><h2>Balanced launch model</h2><p>Keep <strong>Starter at GH₵129</strong> and <strong>Business at GH₵229</strong>. These sit inside the live market while giving Mansora room to provide onboarding and human support. Keep <strong>Plus at GH₵399</strong> as the future premium anchor, but do not make it the main selling plan until multi-till/branch and VAT receipt features are ready.</p></div>
+      <div class="callout"><b>Lead with Business</b><span>It contains the features that most directly answer the owner’s pain: staff accountability, credit, supplier/reorder workflows, reporting, daily summary and MoMo checking.</span></div>
+    </section>
+
+    <h2>Three pricing choices for the team</h2>
+    <div class="options">
+      <article class="option"><div class="name">A. Penetration</div><div class="prices">99 / 179 / 299 <small>GHS per month</small></div><p>Best if the immediate goal is rapid adoption and references. Easier against low-cost competitors, but leaves less room for support and may be harder to raise later.</p><span class="badge">Fastest adoption</span></article>
+      <article class="option recommended"><div class="name">B. Balanced - recommended</div><div class="prices">129 / 229 / 399 <small>GHS per month</small></div><p>Competitive entry, stronger Business value, and a premium anchor for the roadmap. Best fit if Mansora wants to be affordable but not bargain software.</p><span class="badge">Best balance</span></article>
+      <article class="option"><div class="name">C. Service-led premium</div><div class="prices">149 / 249 / 449 <small>GHS per month</small></div><p>Works only if assisted onboarding, training and responsive support are consistently bundled and customers feel the service difference.</p><span class="badge">Higher support margin</span></article>
+    </div>
+
+    <h2>Recommended package shape if Option B is chosen</h2>
+    <div class="plan-grid">
+      <article class="plan"><h3>Starter</h3><div class="price">GH₵129 <small>/ month</small></div><ul><li>1 till</li><li>Sales and receipts</li><li>Products, prices and barcodes</li><li>Stock, counts and low-stock alerts</li><li>Basic sales/stock visibility</li><li>Product import, backups and exports</li></ul></article>
+      <article class="plan business"><h3>Business</h3><div class="price">GH₵229 <small>/ month</small></div><ul><li>Everything in Starter</li><li>Named staff logins and cashier shifts</li><li>Customer credit, repayments and WhatsApp reminder drafts</li><li>Suppliers, purchases and reorder list</li><li>Expenses, profit and broader reports</li><li>Daily summary email</li><li>MoMo/card check + bank/MoMo statement import</li></ul></article>
+      <article class="plan"><h3>Plus</h3><div class="price">GH₵399 <small>/ month</small></div><ul><li>Everything in Business</li><li>Priority support</li><li>Designed as the growth tier</li><li>More tills / branches</li><li>VAT receipts</li></ul><span class="soon">Coming soon: more tills / branches + VAT receipts</span></article>
+    </div>
+
+    <section class="sales">
+      <article class="card soft">
+        <h2>How it should be sold</h2>
+        <div class="steps">
+          <div class="step"><i>1</i><b>Find the leak</b><span>Ask about cash shortages, credit, MoMo mismatches and missing stock.</span></div>
+          <div class="step"><i>2</i><b>Demo the control</b><span>Show shift differences, credit balances, reorder lists and owner reports.</span></div>
+          <div class="step"><i>3</i><b>Set it up</b><span>Import the product list, configure staff and train the team.</span></div>
+          <div class="step"><i>4</i><b>Default to Business</b><span>Use Starter as the price-sensitive fallback, not the hero plan.</span></div>
+          <div class="step"><i>5</i><b>Retain locally</b><span>Monthly support, easy payment and an owner who knows who to call.</span></div>
+        </div>
+        <p style="margin-top:2.2mm;color:var(--muted);font-size:7.4px"><strong style="color:var(--ink)">Billing:</strong> card can be automatic; Mobile Money is paid per invoice. Keep yearly billing at <strong>2 months free</strong> - a familiar market incentive.</p>
+      </article>
+      <article class="card">
+        <h2>Setup fee: keep it, but sell the service</h2>
+        <p>A naked GH₵400 “setup fee” can create friction because several competitors advertise no setup fee, free trials or free data import.</p>
+        <div class="decision-list">
+          <div class="drow"><span>→</span><div><b>Rename it:</b> Assisted onboarding &amp; training - GH₵400.</div></div>
+          <div class="drow"><span>→</span><div><b>Include:</b> product import, staff setup, permissions, training and first closing check.</div></div>
+          <div class="drow"><span>→</span><div><b>Waive it:</b> for pilot shops and consider waiving it on annual Business/Plus.</div></div>
+          <div class="drow"><span>→</span><div><b>Do not compete on free forever:</b> Mansora’s model depends on support and dependable operations, not only software access.</div></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid2" style="margin-top:3.3mm">
+      <article class="card gold"><h2>Decision to make now</h2><p><strong>Recommended:</strong> approve GH₵129 Starter and GH₵229 Business for launch; keep GH₵399 Plus as the premium roadmap price; keep 2 months free annually; keep GH₵400 assisted onboarding but waive it for pilots.</p></article>
+      <article class="card"><h2>What would make us revisit price?</h2><p>After the pilot, review: close rate, support time per shop, willingness to pay for Business, how often customers ask for branches/VAT, churn risk, and whether the system is preventing enough day-to-day loss or admin work to make the subscription feel obvious.</p></article>
+    </section>
+
+    <section class="sources">
+      <h3>Market sources used</h3>
+      <p>HilsonPOS - hilsonpos.com · SellarPro - sellarpro.com · Retill - retill.versified.com.gh · Ventrix RMS - ventryman.com · Obali - apex-meta.com/obali · Vemli POS - vemli.co/pos · AstraPOS - astrapos.app · RetaillyPOS - retailly.app · Loyverse - loyverse.com/pricing. Prices checked 14 November 2026.</p>
+    </section>
+  </main>
+  <footer><div><strong>Mansora Consulting &amp; Business Solutions</strong> · Sales &amp; Stock platform · mansora-consulting.com</div><div class="contact"><span>[phone]</span> · <span>[email]</span></div></footer>
+</section>
+</body>
+</html>
