@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fail, grossMarginBps, sum } from '@mansora/domain';
+import { fail, grossMarginBps, movingAverageCost, sum } from '@mansora/domain';
 import { dayBounds, defineCommands, empty, zRange, type Ctx } from '../engine';
 import { dailySummary, sendSummary, summarySettings, SUMMARY_KEYS } from '../summary';
 
@@ -8,8 +8,11 @@ import { dailySummary, sendSummary, summarySettings, SUMMARY_KEYS } from '../sum
  *   Gross sales  = sum of sale totals completed in the period (after discounts)
  *   Refunds      = sum of refund amounts created in the period
  *   Net sales    = gross sales - refunds
- *   COGS         = cost of items sold - cost of refunded items returned to stock
- *   Gross profit = net sales - COGS       (expenses are reported separately, never netted)
+ *   COGS         = cost of items sold - cost of all refunded items (tax-exclusive revenue basis)
+ *   Gross profit = tax-exclusive net sales - COGS
+ *   Losses       = stock written off (damage, count differences, corrections), unsellable returns, cash short or
+ *                  over at shift close and customer debt written off. Shown as separate lines (audit F02).
+ *   Gross profit after losses = gross profit - losses   (expenses are reported separately, never netted)
  */
 function v(ctx: Ctx, sql: string, ...params: unknown[]): number {
   return (ctx.get(sql, ...params) as { v: number }).v;
@@ -27,7 +30,9 @@ function salesTotals(ctx: Ctx, from: string, to: string, cashierId?: string) {
   const taxOnSales = v(ctx, `SELECT COALESCE(SUM(COALESCE(json_extract(tax_snapshot,'$.vat'),0)+COALESCE(json_extract(tax_snapshot,'$.nhil'),0)+COALESCE(json_extract(tax_snapshot,'$.getfund'),0)),0) AS v FROM sales WHERE created_at >= ? AND created_at < ? ${c}`, ...p);
   const taxOnRefunds = v(ctx, `SELECT COALESCE(SUM(COALESCE(json_extract(ri.tax_snapshot,'$.vat'),0)+COALESCE(json_extract(ri.tax_snapshot,'$.nhil'),0)+COALESCE(json_extract(ri.tax_snapshot,'$.getfund'),0)),0) AS v FROM refund_items ri JOIN refunds r ON r.id = ri.refund_id JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at < ? ${cashierId ? 'AND s.cashier_id = ?' : ''}`, ...p);
   const netTax = taxOnSales-taxOnRefunds;
-  return { gross, count, discounts, refunds, net: gross - refunds, taxOnSales, taxOnRefunds, netTax, netExcludingTax: gross-refunds-netTax };
+  return { gross, count, discounts, refunds, net: gross - refunds, taxOnSales, taxOnRefunds, netTax, netExcludingTax: gross-refunds-netTax,
+    // Same figures under the names the hardening reports use (audit F13).
+    tax: netTax, netExclTax: gross - refunds - netTax };
 
 }
 
@@ -48,7 +53,7 @@ function byProduct(ctx: Ctx, from: string, to: string) {
     from, to,
   );
   const refunded = ctx.all(
-    `SELECT ri.product_id, MAX(i.product_name) AS name, SUM(ri.quantity) AS qty, SUM(ri.amount - COALESCE(json_extract(ri.tax_snapshot, '$.vat'), 0) - COALESCE(json_extract(ri.tax_snapshot, '$.nhil'), 0) - COALESCE(json_extract(ri.tax_snapshot, '$.getfund'), 0)) AS amount, SUM(CASE WHEN ri.restocked = 1 THEN ri.quantity * i.cost_snapshot ELSE 0 END) AS cogs
+    `SELECT ri.product_id, MAX(i.product_name) AS name, SUM(ri.quantity) AS qty, SUM(ri.amount - COALESCE(json_extract(ri.tax_snapshot, '$.vat'), 0) - COALESCE(json_extract(ri.tax_snapshot, '$.nhil'), 0) - COALESCE(json_extract(ri.tax_snapshot, '$.getfund'), 0)) AS amount, SUM(ri.quantity * i.cost_snapshot) AS cogs
      FROM refund_items ri JOIN refunds r ON r.id = ri.refund_id JOIN sale_items i ON i.id = ri.sale_item_id
      WHERE r.created_at >= ? AND r.created_at < ? GROUP BY ri.product_id`,
     from, to,
@@ -63,6 +68,35 @@ function byProduct(ctx: Ctx, from: string, to: string) {
     map.set(r.product_id, e);
   }
   return [...map.values()].map((e) => ({ ...e, grossProfit: e.revenue - e.cogs, marginBps: grossMarginBps(e.revenue, e.cogs) }));
+}
+
+/** Losses in the period, each from its own source records, in pesewas. Positive = loss, negative = gain. */
+export function lossesFor(ctx: Ctx, from: string, to: string, fromDay: string, toDay: string) {
+  const stock = (type: string) => v(ctx, `SELECT COALESCE(SUM(-quantity_delta * unit_cost), 0) AS v FROM inventory_movements WHERE type = ? AND occurred_at >= ? AND occurred_at < ?`, type, from, to);
+  const damage = stock('DAMAGE'), stockCount = stock('STOCK_COUNT_ADJUSTMENT'), corrections = stock('MANUAL_CORRECTION');
+  const unsellableReturns = v(ctx, `SELECT COALESCE(SUM(ri.quantity * i.cost_snapshot), 0) AS v FROM refund_items ri JOIN refunds r ON r.id = ri.refund_id JOIN sale_items i ON i.id = ri.sale_item_id WHERE ri.restocked = 0 AND r.created_at >= ? AND r.created_at < ?`, from, to);
+  const cashShortOver = -v(ctx, `SELECT COALESCE(SUM(variance), 0) AS v FROM shifts WHERE closed_at IS NOT NULL AND closed_at >= ? AND closed_at < ?`, from, to);
+  const debtWrittenOff = sum(ctx.all<{ payload: string }>(`SELECT payload FROM ledger_records WHERE kind = 'credit_writeoff' AND record_date >= ? AND record_date <= ?`, fromDay, toDay).map((r) => Number(JSON.parse(r.payload).amount) || 0));
+  const lines = { damage, stockCount, corrections, unsellableReturns, cashShortOver, debtWrittenOff };
+  return { ...lines, total: sum(Object.values(lines)) };
+}
+
+/**
+ * Stock position at the end of `day`, rebuilt by replaying the immutable movement ledger with the same
+ * moving-average rule the till uses (audit F14). Value uses max(quantity, 0), as the current valuation does.
+ */
+export function stockAsAt(ctx: Ctx, day: string) {
+  const [, end] = dayBounds({ from: day, to: day });
+  const state = new Map<string, { quantity: number; averageCost: number }>();
+  const moves = ctx.db.prepare(`SELECT product_id, quantity_delta, unit_cost FROM inventory_movements WHERE occurred_at < ? ORDER BY occurred_at, rowid`).iterate(end) as Iterable<any>;
+  for (const m of moves) {
+    const s = state.get(m.product_id) ?? { quantity: 0, averageCost: 0 };
+    if (m.quantity_delta > 0) s.averageCost = movingAverageCost(s.quantity, s.averageCost, m.quantity_delta, m.unit_cost);
+    s.quantity += m.quantity_delta;
+    state.set(m.product_id, s);
+  }
+  const rows = [...state].map(([productId, s]) => ({ productId, quantity: s.quantity, averageCost: s.averageCost, value: Math.max(0, s.quantity) * s.averageCost }));
+  return { asAt: day, valuation: sum(rows.map((r) => r.value)), units: sum(rows.map((r) => r.quantity)), rows };
 }
 
 export const reportCommands = defineCommands({
@@ -131,11 +165,15 @@ export const reportCommands = defineCommands({
       const products = byProduct(ctx, from, to).sort((a, b) => b.grossProfit - a.grossProfit);
       const revenue = sum(products.map((p) => p.revenue));
       const cogs = sum(products.map((p) => p.cogs));
+      const losses = lossesFor(ctx, from, to, input.from, input.to);
       return {
         revenue,
         cogs,
         grossProfit: revenue - cogs,
         marginBps: grossMarginBps(revenue, cogs),
+        losses,
+        grossProfitAfterLosses: revenue - cogs - losses.total,
+        basis: 'Revenue excludes VAT, NHIL and GETFund collected. Losses are valued at moving-average cost.',
         byProduct: products,
         // Reported alongside, deliberately not subtracted: this is not a net-profit statement.
         expenses: v(ctx, 'SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE expense_date >= ? AND expense_date <= ?', input.from, input.to),
@@ -241,9 +279,11 @@ export const reportCommands = defineCommands({
           ...types, from, to,
         );
       const strip = (rows: any[], keys: string[]) => (cost ? rows : rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !keys.includes(k)))));
+      const asAt = cost ? stockAsAt(ctx, input.to) : null;
       return {
         onHand: strip(onHand, ['average_cost', 'value']),
         valuation: cost ? sum(onHand.map((r) => r.value)) : null,
+        asAt: asAt ? { date: asAt.asAt, valuation: asAt.valuation, units: asAt.units } : null,
         lowStock: onHand.filter((r) => r.quantity <= r.reorder_level).map((r) => ({ id: r.id, name: r.name, quantity: r.quantity, reorder_level: r.reorder_level })),
         damages: strip(moves(['DAMAGE']), ['unit_cost']),
         adjustments: strip(moves(['STOCK_COUNT_ADJUSTMENT', 'MANUAL_CORRECTION']), ['unit_cost']),

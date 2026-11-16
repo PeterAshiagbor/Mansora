@@ -16,6 +16,8 @@ import { buildApp } from '../apps/api/src/app';
 import { connectEmbedded } from '../apps/api/src/db';
 import { createAdmin } from '../apps/api/src/modules/admin';
 import { startDevHost } from '../apps/desktop/dev/host';
+import { Ctx } from '../apps/desktop/src/core/engine';
+import { shiftTotals } from '../apps/desktop/src/core/commands/people';
 import { syncNow } from '../apps/desktop/src/core';
 import { serveStatic } from './static';
 
@@ -117,7 +119,8 @@ await e.execute(owner, 'expense.create', { id: randomUUID(), category: 'Transpor
 await e.execute(owner, 'expense.create', { id: randomUUID(), category: 'Electricity', description: 'Prepaid units (sample)', amount: GHS(120), expenseDate: new Date().toISOString().slice(0, 10), paymentMethod: 'momo', paidFromTill: false });
 await e.execute(owner, 'stock.adjust', { productId: products['Key Soap bar'], type: 'DAMAGE', delta: -2, reason: 'Water damage' });
 const cur = await e.execute(esi, 'shift.current', {});
-await e.execute(esi, 'shift.close', { countedCash: cur.totals.expectedCash - 100 });
+// The cashier counts blind; the sample shortage of 1.00 is set against the system's expected cash.
+await e.execute(esi, 'shift.close', { countedCash: shiftTotals(new Ctx(e, 'walkthrough', null), cur.shift).expectedCash - 100 });
 await e.execute(esi, 'shift.open', { openingFloat: GHS(150) });
 await e.execute(owner, 'support.grant', { scope: 'reports', purpose: 'Help with first month reports', hours: 24 });
 {

@@ -44,6 +44,23 @@ export function moveStock(ctx: Ctx, m: MoveInput): { unitCost: number; quantity:
   return { unitCost, quantity };
 }
 
+/** Case- and space-insensitive form of a Mobile Money or card transaction reference. */
+export const normaliseReference = (ref: string) => ref.replace(/\s+/g, '').toUpperCase();
+
+/**
+ * Audit F11: a transaction reference already used on another sale or repayment is the usual sign of a reused or
+ * fake payment message. It is refused unless a supervisor approves it on the spot. Returns the approver, if any.
+ */
+export function checkReferences(ctx: Ctx, refs: (string | null | undefined)[], approver?: { username: string; password: string } | null): string | null {
+  const keys = refs.filter((r): r is string => !!r && !!r.trim()).map(normaliseReference);
+  if (new Set(keys).size !== keys.length) fail('DUPLICATE_REFERENCE', 'The same transaction reference is entered twice on this payment');
+  const norm = (col: string) => `upper(replace(replace(replace(${col}, ' ', ''), char(9), ''), char(10), ''))`;
+  const used = keys.filter((k) => ctx.get(`SELECT 1 FROM payments WHERE reference IS NOT NULL AND ${norm('reference')} = ? UNION ALL SELECT 1 FROM credit_repayments WHERE reference IS NOT NULL AND ${norm('reference')} = ? LIMIT 1`, k, k));
+  if (!used.length) return null;
+  if (!approver && !ctx.can('shift.review')) fail('REFERENCE_ALREADY_USED', `Transaction reference ${used.join(', ')} was already used on another payment. Check the customer's payment message; a manager must approve to accept it.`, { references: used });
+  return ctx.authorise('shift.review', approver);
+}
+
 /** The signed-in user's open shift, if any. */
 export function openShift(ctx: Ctx): any | undefined {
   return ctx.get(`SELECT * FROM shifts WHERE cashier_id = ? AND status = 'open'`, ctx.user.id);
@@ -57,6 +74,9 @@ export function requireOpenShift(ctx: Ctx, why: string): any {
 
 /** Next human-readable document number, e.g. R-000042. Stored transactionally with the document. */
 export function nextNumber(ctx: Ctx, prefix: string): string {
+  // Audit F04: a laptop restored from a backup must catch up with the cloud before issuing numbers, or it could
+  // reuse receipt numbers already given to customers after the backup was made.
+  if (ctx.setting('restore_pending_reconcile')) fail('RECONCILE_REQUIRED', 'This laptop was restored from a backup. Connect to the internet and choose Sync now so it can catch up with sales made after the backup. If there is no connection, the owner can continue offline from the Sync page.');
   const key = `seq_${prefix}`;
   const next = Number(ctx.setting(key) ?? 0) + 1;
   ctx.engine.setMeta(key, String(next));

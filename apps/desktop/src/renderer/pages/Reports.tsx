@@ -58,7 +58,7 @@ function ProfitSnapshot({ range }: { range: { from: string; to: string } }) {
   const query = useQuery<any>('report.profit', range);
   const { data: d } = query;
   if (!d) return <QueryView query={query} label="report data">{null}</QueryView>;
-  return <Card title="Profitability at a glance"><div className="grid grid-cols-2 gap-4 xl:grid-cols-4"><div><p className="text-xs text-slate-600">Cost of goods sold</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(d.cogs)}</p></div><div><p className="text-xs text-slate-600">Gross profit</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(d.grossProfit)}</p></div><div><p className="text-xs text-slate-600">Gross margin</p><p className="mt-2 text-xl font-semibold tabular-nums">{percent(d.marginBps)}</p></div><div><p className="text-xs text-slate-600">Recorded expenses</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(d.expenses)}</p></div></div><p className="mt-5 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-600">Gross profit is net sales less recorded cost of goods sold. Expenses are separate. These figures do not represent a complete accounting profit-and-loss statement.</p></Card>;
+  return <Card title="Profitability at a glance"><div className="grid grid-cols-2 gap-4 xl:grid-cols-4"><div><p className="text-xs text-slate-600">Cost of goods sold</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(d.cogs)}</p></div><div><p className="text-xs text-slate-600">Gross profit</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(d.grossProfit)}</p></div><div><p className="text-xs text-slate-600">Gross margin</p><p className="mt-2 text-xl font-semibold tabular-nums">{percent(d.marginBps)}</p></div><div><p className="text-xs text-slate-600">After stock, cash and debt losses</p><p className="mt-2 text-xl font-semibold tabular-nums">{money(d.grossProfitAfterLosses)}</p></div></div><p className="mt-5 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-600">Gross profit is tax-exclusive net sales less recorded cost of goods sold. Losses ({money(d.losses.total)}) are damaged or missing stock, unsellable returns, cash short at shift close and debt written off. Recorded expenses ({money(d.expenses)}) are separate. These figures are not a complete accounting profit-and-loss statement.</p></Card>;
 }
 function ExpenseReport({ range }: { range: { from: string; to: string } }) {
   const query = useQuery<any>('expense.list', range);
@@ -163,12 +163,15 @@ function ProfitReport({ range }: { range: { from: string; to: string } }) {
   return (
     <>
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Stat label="Net sales" value={money(d.revenue)} />
+        <Stat label="Net sales (excl. VAT and levies)" value={money(d.revenue)} />
         <Stat label="Cost of goods sold" value={money(d.cogs)} />
         <Stat label="Gross profit" value={money(d.grossProfit)} tone={d.grossProfit >= 0 ? 'good' : 'bad'} />
         <Stat label="Gross margin" value={percent(d.marginBps)} />
       </div>
-      <Alert className="mb-4">Expenses recorded in this period: <strong>{money(d.expenses)}</strong>. They are shown separately and are not subtracted here. Gross profit is not net profit; a full accounting statement is outside this version.</Alert>
+      <Card title="Losses in this period" className="mb-4" pad={false} actions={<ExportButtons title="Losses" columns={['Loss', 'GHS']} rows={() => LOSS_LINES.map(([k, label]) => [label, plain(d.losses[k])])} />}>
+        <Table rows={[...LOSS_LINES.map(([k, label]) => ({ label, amount: d.losses[k] })), { label: 'Total losses', amount: d.losses.total, total: true }, { label: 'Gross profit after losses', amount: d.grossProfitAfterLosses, total: true }]} empty="" columns={[{ header: 'Line', cell: (r: any) => r.total ? <strong>{r.label}</strong> : r.label }, { header: 'Amount', align: 'right', cell: (r: any) => r.total ? <strong>{money(r.amount)}</strong> : money(r.amount) }]} />
+      </Card>
+      <Alert className="mb-4">Losses are valued at moving-average cost; a negative amount is a gain (for example stock found in a count, or cash over). Expenses recorded in this period: <strong>{money(d.expenses)}</strong>. They are shown separately and are not subtracted here. This is not net profit; a full accounting statement is outside this version.</Alert>
       <Card title="Gross profit by product" pad={false} actions={<ExportButtons title="Gross profit by product" columns={['Product', 'Qty', 'Sales', 'Cost', 'Gross profit', 'Margin %']} rows={() => d.byProduct.map((r: any) => [r.name, r.quantity, plain(r.revenue), plain(r.cogs), plain(r.grossProfit), r.marginBps == null ? '' : (r.marginBps / 100).toFixed(1)])} />}>
         <Table rows={d.byProduct} empty="No sales in this period" columns={[{ header: 'Product', cell: (r: any) => r.name }, { header: 'Qty', align: 'right', cell: (r: any) => r.quantity }, { header: 'Sales', align: 'right', cell: (r: any) => money(r.revenue) }, { header: 'Cost', align: 'right', cell: (r: any) => money(r.cogs) }, { header: 'Gross profit', align: 'right', cell: (r: any) => <strong>{money(r.grossProfit)}</strong> }, { header: 'Margin', align: 'right', cell: (r: any) => percent(r.marginBps) }]} />
       </Card>
@@ -176,6 +179,7 @@ function ProfitReport({ range }: { range: { from: string; to: string } }) {
   );
 }
 
+const LOSS_LINES: [string, string][] = [['damage', 'Damaged stock'], ['stockCount', 'Stock count differences'], ['corrections', 'Manual stock corrections'], ['unsellableReturns', 'Returns not put back in stock'], ['cashShortOver', 'Cash short (over) at shift close'], ['debtWrittenOff', 'Customer debt written off']];
 const TYPE: Record<string, string> = { OPENING_STOCK: 'Opening stock', PURCHASE_RECEIVED: 'Purchases received', SALE: 'Sales', SALE_REFUND: 'Returned by customers', DAMAGE: 'Damaged', STOCK_COUNT_ADJUSTMENT: 'Stock count', MANUAL_CORRECTION: 'Manual correction' };
 function StockReport({ range }: { range: { from: string; to: string } }) {
   const query = useQuery<any>('report.stock', range);
@@ -185,11 +189,12 @@ function StockReport({ range }: { range: { from: string; to: string } }) {
   const moveCols = [{ header: 'When', cell: (r: any) => r.occurred_at.slice(0, 10) }, { header: 'Product', cell: (r: any) => r.product }, { header: 'Change', align: 'right' as const, cell: (r: any) => r.quantity_delta }, { header: 'By', cell: (r: any) => r.actor }, { header: 'Reason', cell: (r: any) => r.reason ?? '' }];
   return (
     <>
-      <p className="mb-4 text-xs leading-relaxed text-slate-600">Stock on hand and valuation are the current position. Damage, adjustments and movement summaries use the selected date range.</p>
-      <div className="mb-4 grid grid-cols-3 gap-3">
+      <p className="mb-4 text-xs leading-relaxed text-slate-600">Stock on hand is the current position. The value at the end of the period is rebuilt from the stock movement history. Damage, adjustments and movement summaries use the selected date range.</p>
+      <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Products in stock list" value={d.onHand.length} />
         <Stat label="Low or out of stock" value={d.lowStock.length} tone={d.lowStock.length ? 'warn' : 'good'} />
-        {cost && <Stat label="Stock value (at average cost)" value={money(d.valuation)} />}
+        {cost && <Stat label="Stock value now (at average cost)" value={money(d.valuation)} />}
+        {cost && d.asAt && <Stat label={`Stock value at end of ${d.asAt.date}`} value={money(d.asAt.valuation)} hint="For month-end and year-end closing stock" />}
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Stock on hand" pad={false} className="xl:col-span-2" actions={<ExportButtons title="Stock on hand" columns={['Product', 'SKU', 'Category', 'In stock', 'Reorder level', ...(cost ? ['Average cost', 'Value'] : [])]} rows={() => d.onHand.map((r: any) => [r.name, r.sku ?? '', r.category ?? '', r.quantity, r.reorder_level, ...(cost ? [plain(r.average_cost), plain(r.value)] : [])])} />}>

@@ -83,7 +83,10 @@ describe('TEST 06 - refunds', () => {
     expect(report.totals).toMatchObject({ gross: 6000, refunds: 1750, net: 4250 });
     const profit = await s.run(s.owner, 'report.profit', { from: today, to: today });
     expect(profit.revenue).toBe(4250);
-    expect(profit.cogs).toBe(4 * 900 + 2 * 333 - 900);
+    // Audit F02: the unsellable soap return (333) leaves COGS and is shown as a loss; profit after losses is unchanged.
+    expect(profit.cogs).toBe(4 * 900 + 2 * 333 - 900 - 333);
+    expect(profit.losses.unsellableReturns).toBe(333);
+    expect(profit.grossProfitAfterLosses).toBe(4250 - (4 * 900 + 2 * 333 - 900));
 
     // Cannot refund more than what remains eligible.
     await expectCode(s.run(s.manager, 'refund.create', { id: uuid(), saleId, reason: 'x', payoutMethod: 'momo', lines: [{ saleItemId: milk.id, quantity: 4 }] }), 'REFUND_EXCEEDS_SALE');
@@ -210,8 +213,11 @@ describe('TEST 10 - cash shift reconciliation', () => {
     await s.run(s.manager, 'expense.create', { id: uuid(), category: 'Transport', description: 'Delivery', amount: 700, expenseDate: '2026-11-09', paymentMethod: 'momo' }); // not from till
 
     const expected = 10_000 + 16_000 + 2000 - 8000 - 5000;
+    // Audit F12: the cashier counts blind; a manager sees the same open shift's expected cash.
     const current = await s.run(s.cashier, 'shift.current', {});
-    expect(current.totals).toMatchObject({ cashSales: 18_000, cashRefunds: 8000, cashOut: 5000, nonCashSales: 4000, expectedCash: expected, salesCount: 3 });
+    expect(current.totals).toMatchObject({ blind: true, cashSales: null, expectedCash: null, nonCashSales: 4000, salesCount: 3 });
+    const managerView = (await s.run(s.manager, 'shift.list', { from: '2026-11-01', to: '2026-11-30' })).find((x: any) => x.id === current.shift.id);
+    expect(managerView.totals).toMatchObject({ cashSales: 18_000, cashRefunds: 8000, cashOut: 5000, nonCashSales: 4000, expectedCash: expected, salesCount: 3 });
     const closed = await s.run(s.cashier, 'shift.close', { countedCash: expected - 250, notes: 'Short' });
     expect(closed).toMatchObject({ expectedCash: expected, variance: -250 });
     await expectCode(s.run(s.cashier, 'sale.complete', { id: uuid(), lines: [{ productId: s.products.soap, quantity: 1 }], tenders: cash(500) }), 'NO_OPEN_SHIFT');

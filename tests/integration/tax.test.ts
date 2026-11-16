@@ -64,7 +64,7 @@ describe('VAT transactions and evidence', () => {
     await shop.run(shop.owner, 'tax.file', { id: uuid(), month: '2026-10', reference: 'GRA-ACK', reason: 'Reconciled and submitted through GRA', reviewed: true, fiscalEvidenceConfirmed: true, submittedDate: '2026-11-15' });
     await expectCode(shop.run(shop.owner, 'tax.record', { id: uuid(), kind: 'adjustment', date: '2026-10-01', reference: 'ADJ', reason: 'Correction', vat: 10, evidenceConfirmed: true }), 'TAX_PERIOD_CLOSED');
     await expectCode(shop.run(shop.owner, 'tax.record', { id: uuid(), kind: 'adjustment', date: '2026-09-01', reference: 'EARLIER', reason: 'Would change filed carry-forward', vat: -10, evidenceConfirmed: true }), 'TAX_PERIOD_CLOSED');
-    await shop.run(shop.owner, 'tax.record', { id: uuid(), kind: 'payment', date: '2026-10-01', reference: 'GRA-PAY', reason: 'October tax paid in November', amount: 100, evidenceConfirmed: true });
+    await shop.run(shop.owner, 'tax.record', { id: uuid(), kind: 'payment', date: '2026-10-01', reference: 'GRA-PAY', reason: 'October tax paid in November', amount: 100, period: '2026-10', evidenceConfirmed: true });
     expect((await shop.run(shop.owner, 'tax.report', { month: '2026-10' })).payments).toBe(100);
     expect(() => shop.engine.db.prepare('DELETE FROM tax_records').run()).toThrow();
   });

@@ -69,6 +69,10 @@ export function taxStatus(ctx: Ctx) {
   const registered = config.registered && !!config.registrationDate && config.registrationDate <= date;
   return { config, feature:vatFeature(ctx), registered, amendmentReviewRequired, windows, annual, forecast: config.forecast, requiresReview, near: windows.some(w => w.near),
     legacyLines: rows.filter(r => !r.tax_snapshot || JSON.parse(r.tax_snapshot).classificationVerified === false).length,
+    /** Lines with no tax snapshot at all (recorded before VAT support): their value cannot be verified. */
+    unverifiedLines: rows.filter(r => !r.tax_snapshot).length,
+    /** Lines from products without a VAT class: counted as taxable, which is the conservative reading. */
+    unclassifiedLines: rows.filter(r => r.tax_snapshot && JSON.parse(r.tax_snapshot).classificationVerified === false).length,
     unclassified: ctx.get('SELECT COUNT(*) AS n FROM products WHERE active = 1 AND tax_class IS NULL')!.n,
     pendingTrigger: ctx.all("SELECT payload FROM tax_records WHERE kind = 'registration_trigger' ORDER BY tax_date LIMIT 1").map(r => JSON.parse(r.payload))[0] ?? null,
     message: !vatFeature(ctx).enabled ? 'VAT collection is disabled by Mansora. Legal liability continues; historical exposure is retained for reconciliation. Ask your Mansora administrator to enable the feature.' : amendmentReviewRequired ? 'Service VAT amendment needs confirmation. Ask the owner to obtain the enacted commencement date or written GRA clarification, then record the date and source in Tax settings. Existing VAT obligations continue.' : registered ? 'VAT is applied automatically from the legal effective date. Complete GRA registration if still pending.' : requiresReview ? 'VAT registration review required. Confirm the legal effective date; threshold alerts do not create a registration.' : windows.some(w => w.near) ? 'Approaching a VAT turnover band. Review forecast turnover and prepare registration.' : 'Monitoring taxable turnover. Add sales from other branches and channels.' };
@@ -76,6 +80,30 @@ export function taxStatus(ctx: Ctx) {
 
 type Component = 'vat' | 'nhil' | 'getfund';
 const components: Component[] = ['vat', 'nhil', 'getfund'];
+const monthOf = (r: { tax_date: string; data: any }) => (/^\d{4}-\d{2}$/.test(String(r.data?.period ?? '')) ? String(r.data.period) : r.tax_date.slice(0, 7));
+
+/** Payments to GRA, each allocated to the return period it settles (audit F05). Older records without a period
+ *  are allocated by payment date, as before, and flagged so the owner can see them. */
+export function taxPayments(ctx: Ctx) {
+  return ctx.all("SELECT * FROM tax_records WHERE kind = 'payment' ORDER BY tax_date, created_at, rowid").map((r) => {
+    const data = JSON.parse(r.payload);
+    return { id: r.id, reference: r.reference, paidOn: r.tax_date, amount: Number(data.amount) || 0, period: monthOf({ tax_date: r.tax_date, data }), allocatedByDate: !data.period };
+  });
+}
+
+/** Filed returns with what was payable, what has been paid against each, and what is still owed. */
+export function taxArrears(ctx: Ctx) {
+  const payments = taxPayments(ctx);
+  const filings = ctx.all("SELECT tax_date, reference, payload FROM tax_records WHERE kind = 'filing' ORDER BY tax_date").map((r) => ({ month: r.tax_date.slice(0, 7), reference: r.reference, payable: Number(JSON.parse(r.payload).payable) || 0 }));
+  const rows = filings.map((f) => {
+    const paid = sum(payments.filter((p) => p.period === f.month).map((p) => p.amount));
+    return { ...f, paid, outstanding: Math.max(0, f.payable - paid), overpaid: Math.max(0, paid - f.payable) };
+  });
+  const filed = new Set(filings.map((f) => f.month));
+  const unmatched = payments.filter((p) => !filed.has(p.period));
+  return { rows, outstanding: sum(rows.map((r) => r.outstanding)), overpaid: sum(rows.map((r) => r.overpaid)), unmatchedPayments: unmatched };
+}
+
 /** Evidence schedule. Captured snapshots, never today's rates, drive both returns and credit notes. */
 export function vatReport(ctx: Ctx, month: string) {
   const from = month + '-01', next = new Date(from + 'T00:00:00Z'); next.setUTCMonth(next.getUTCMonth() + 1);
@@ -144,7 +172,9 @@ export function vatReport(ctx: Ctx, month: string) {
     ...selectedRefunds.filter(r => (exposureRefunds.get(r.refund_item_id) ?? (r.tax_snapshot && JSON.parse(r.tax_snapshot)))?.classification === kind).map(r => -(exposureRefunds.get(r.refund_item_id) ?? JSON.parse(r.tax_snapshot)).base),
   ]) }));
   const payable = sum(buckets.map(b => b.payable));
-  const payments = sum(currentRecords.filter(r => r.kind === 'payment').map(r => r.data.amount));
+  // Payments are matched to the return period they settle, not to the month they were made in (audit F05).
+  const paymentRows = taxPayments(ctx).filter((p) => p.period === month);
+  const payments = sum(paymentRows.map((p) => p.amount));
   const blockers: string[] = [];
   if (!vatFeature(ctx).enabled) blockers.push('Mansora has disabled the VAT collection feature. Enable it and reconcile historical liability before recording a filing.');
   if (historicalExposure.length) blockers.push('Historical VAT liability from disabled collection affects this return or its prior balances. Reconcile original periods and fiscal documents before filing; estimated exposure is not tax collected.');
@@ -170,10 +200,18 @@ export function vatReport(ctx: Ctx, month: string) {
   const warnings = ['Working papers for review and filing through GRA. This is not an E-VAT-certified invoice or an electronically submitted return.', 'Confirm the last working day of the following month against Ghana public holidays and GRA notices.'];
   if ([...selectedSales, ...selectedRefunds].some(r => !r.tax_snapshot || JSON.parse(r.tax_snapshot).classificationVerified === false)) warnings.push('Legacy transactions lack VAT snapshots. Reconcile them before filing; no historical tax has been invented.');
   if (!config.registered) warnings.push('Business is not configured as VAT registered for this period.');
-  if (taxStatus(ctx).unclassified) warnings.push('Some active products still need tax classification.');
+  if (ctx.get<{ n: number }>('SELECT COUNT(*) AS n FROM products WHERE active = 1 AND tax_class IS NULL')!.n) warnings.push('Some active products still need tax classification.');
+  if (paymentRows.some((p) => p.allocatedByDate)) warnings.push('Some GRA payments were recorded without a return period and are matched by payment date. Check they belong to this return.');
+  // Audit F09: goods received while registered with no linked input claim. Either the supplier invoice carried no
+  // recoverable tax, or the claim has not been recorded (or the tax was wrongly included in the stock cost).
+  const [fromTs, toTs] = [from + 'T00:00:00.000Z', to + 'T00:00:00.000Z'];
+  const unclaimed = config.registered ? ctx.all(`SELECT p.id, p.reference, p.received_at, p.total_cost FROM purchases p WHERE p.received_at >= ? AND p.received_at < ?
+    AND NOT EXISTS (SELECT 1 FROM tax_records t WHERE t.kind = 'input' AND json_extract(t.payload, '$.purchaseId') = p.id) ORDER BY p.received_at`, fromTs, toTs) : [];
+  if (unclaimed.length) warnings.push(`${unclaimed.length} purchase(s) this month have no input-tax claim linked. Confirm the supplier invoices carried no recoverable VAT, or record the claim; stock costs must exclude recoverable tax.`);
   const deadline = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0));
   while ([0, 6].includes(deadline.getUTCDay())) deadline.setUTCDate(deadline.getUTCDate() - 1);
-  return { month, config, classification, buckets, output, reversed, payable, payments, outstanding: Math.max(0, payable - payments),
+  return { month, config, classification, buckets, output, reversed, payable, payments, outstanding: Math.max(0, payable - payments), paymentRows,
+    arrears: taxArrears(ctx), unclaimedPurchases: unclaimed,
     historicalExposure:historicalExposure.filter(e=>e.date.slice(0,7)===month), feature:vatFeature(ctx),
     blockers, deadlineBeforeHolidayCheck: deadline.toISOString().slice(0, 10), warnings,
     sales: selectedSales, refunds: selectedRefunds, records: currentRecords, allRecords: records };
@@ -189,10 +227,12 @@ export function recordRegistrationTrigger(ctx: Ctx, reviewHistory = false) {
   const threeMonthForecast = status.windows[1].exceeded && sum([status.windows[1].total, c.forecastNineMonths]) > c.threshold;
   const forecast = c.forecast > c.threshold;
   if (c.supplyType !== 'goods' && (!c.serviceThresholdConfirmed || !c.serviceThresholdDate || !c.serviceThresholdAuthority || c.serviceThresholdDate > ctx.now().slice(0, 10))) return;
-  if (status.legacyLines) return;
+  // Audit F06: only history with no tax snapshot at all blocks the automatic decision. Unclassified products are
+  // normal for an unregistered shop; they count as taxable (the conservative reading) and the trigger asks for review.
+  if (status.unverifiedLines) return;
   const facts = ctx.all(`SELECT s.created_at AS at, i.tax_snapshot FROM sale_items i JOIN sales s ON s.id = i.sale_id WHERE s.created_at <= ?`, ctx.now())
     .filter(r => r.tax_snapshot).map(r => ({ date: r.at.slice(0, 10), tax: JSON.parse(r.tax_snapshot) }))
-    .filter(r => r.tax.classificationVerified !== false && ['standard','zero'].includes(r.tax.classification)).map(r => ({ date: r.date, value: r.tax.base }));
+    .filter(r => ['standard','zero'].includes(r.tax.classification)).map(r => ({ date: r.date, value: r.tax.base }));
   const external = ctx.all("SELECT * FROM tax_records WHERE kind IN ('turnover','external_sale') AND tax_date <= ? ORDER BY tax_date", ctx.now().slice(0,10));
   const reconciled = new Set(external.filter(r => r.kind === 'external_sale').map(r => JSON.parse(r.payload).reconcilesTurnoverId));
   for (const r of external) { const d = JSON.parse(r.payload); if (!['exempt','outside'].includes(d.classification) && !reconciled.has(r.id)) facts.push({ date: r.tax_date, value: d.base }); }
@@ -220,6 +260,6 @@ export function recordRegistrationTrigger(ctx: Ctx, reviewHistory = false) {
   const deadline = annual || threeMonthForecast ? new Date(date + 'T00:00:00Z') : new Date(next);
   deadline.setUTCDate(deadline.getUTCDate() + (annual || threeMonthForecast ? 30 : 29));
   const applicationDueDate = deadline.toISOString().slice(0,10), id = ctx.id();
-  ctx.insert('tax_records', { id, kind: 'registration_trigger', tax_date: date, reference: 'Automatic VAT registration obligation', payload: JSON.stringify({ effectiveDate, requirementDate: date, detectedDate: ctx.now().slice(0,10), applicationDueDate, trigger: triggerKind, annual: status.annual.total, forecast: c.forecast, forecastNineMonths: c.forecastNineMonths, threshold: c.threshold, reason: 'Act 1151 sections 6 and 8. A backdated discovery does not postpone the original legal effective date.' }), created_by: ctx.user.id, created_at: ctx.now() });
+  ctx.insert('tax_records', { id, kind: 'registration_trigger', tax_date: date, reference: 'Automatic VAT registration obligation', payload: JSON.stringify({ effectiveDate, requirementDate: date, detectedDate: ctx.now().slice(0,10), applicationDueDate, classificationReview: status.unclassifiedLines > 0, unclassifiedLines: status.unclassifiedLines, unclassifiedProducts: status.unclassified, trigger: triggerKind, annual: status.annual.total, forecast: c.forecast, forecastNineMonths: c.forecastNineMonths, threshold: c.threshold, reason: 'Act 1151 sections 6 and 8. A backdated discovery does not postpone the original legal effective date.' }), created_by: ctx.user.id, created_at: ctx.now() });
   ctx.audit('tax_record', id, { effectiveDate, requirementDate: date }, 'tax.registration_triggered');
 }

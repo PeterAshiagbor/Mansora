@@ -5,6 +5,10 @@ import { fileHash, readTable, toCsv, toXlsx } from '../importer';
 import { fileFingerprints, guessCategory, isStatementHeader, normaliseRef, parseStatementDate, readStatementRows, STATEMENT_FIELDS, suggestStatementMapping, type StatementRow } from '../statements';
 import { readPdfTable } from '../pdf-table';
 import { tablePdf } from '../pdf-write';
+import { closedThrough } from '../periods';
+
+/** A statement line dated in a closed month is left pending rather than recorded as an expense there (audit F07). */
+const isPeriodOpen = (ctx: Ctx, date: string) => { const t = closedThrough(ctx); return !t || date.slice(0, 7) > t; };
 
 const zFile = z.object({ fileName: zText(200), contentBase64: z.string().max(15_000_000) });
 const zMapping = z.partialRecord(z.enum(STATEMENT_FIELDS), z.string().max(200));
@@ -223,7 +227,7 @@ export const statementCommands = defineCommands({
         let matchType: string | null = null, matchId: string | null = null, category: string | null = null;
         if (s.kind === 'confirm' && !chosen) { matchType = s.matchType; matchId = s.matchId; }
         else if (s.kind === 'linked') { matchType = s.matchType; matchId = s.matchId; }
-        else if (l.amount_out > 0 && (chosen || s.kind === 'expense')) {
+        else if (l.amount_out > 0 && (chosen || s.kind === 'expense') && isPeriodOpen(ctx, l.txn_date)) {
           category = chosen ?? (s as { category: string }).category;
           const expenseId = ctx.id();
           ctx.insert('expenses', {

@@ -43,7 +43,9 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
     await page.getByRole('button', { name: /New sale.*Enter/ }).click();
   });
   it('preserves an unavailable draft on failed resume and confirms discard without a sale or stock movement', async () => {
-    await scan(); await page.keyboard.press('F4'); await page.getByRole('button', { name: 'Parked baskets (1) · F6', exact: true }).click();
+    // F4 is ignored until the engine's asynchronous price quote returns; wait for parking to be available first.
+    await scan(); await expect.poll(() => page.getByRole('button', { name: 'Park basket (F4)', exact: true }).isEnabled()).toBe(true);
+    await page.keyboard.press('F4'); await page.getByRole('button', { name: 'Parked baskets (1) · F6', exact: true }).click();
     await host.engine.execute(owner, 'product.save', { id: productId, name: 'Paper', sku: 'PAPER', barcode: '6001000000011', sellingPrice: 300, active: false });
     await page.getByRole('button', { name: 'Resume basket 1', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: 'The parked basket is preserved' }).waitFor();

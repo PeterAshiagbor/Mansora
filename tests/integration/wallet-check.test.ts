@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { CASHIER, makeShop, MANAGER } from '../helpers';
+import { CASHIER, expectCode, makeShop, MANAGER } from '../helpers';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -14,7 +14,9 @@ describe('mobile money and card end-of-day check', () => {
     // Cashier: one mobile money sale, one card sale with no reference, one split cash + momo sale reusing a reference, one cash-only sale.
     const s1 = await sell(shop.cashier, [{ productId: p.milk, quantity: 2 }], [{ method: 'momo', amount: 2500, reference: 'TX-100' }]);
     await sell(shop.cashier, [{ productId: p.soap, quantity: 2 }], [{ method: 'card', amount: 1000 }]);
-    await sell(shop.cashier, [{ productId: p.rice, quantity: 1 }], [{ method: 'momo', amount: 3000, reference: ' tx -100 ' }, { method: 'cash', amount: 5000 }]);
+    // Audit F11: a reused reference is refused at the till until a manager checks the payment message and approves.
+    await expectCode(sell(shop.cashier, [{ productId: p.rice, quantity: 1 }], [{ method: 'momo', amount: 3000, reference: ' tx -100 ' }, { method: 'cash', amount: 5000 }]), 'REFERENCE_ALREADY_USED');
+    await sell(shop.cashier, [{ productId: p.rice, quantity: 1 }], [{ method: 'momo', amount: 3000, reference: ' tx -100 ' }, { method: 'cash', amount: 5000 }], { approver: { username: MANAGER.username, password: MANAGER.password } });
     await sell(shop.cashier, [{ productId: p.soap, quantity: 1 }], [{ method: 'cash', amount: 500 }]);
 
     // Manager: a credit sale later repaid by mobile money, and a mobile money refund of part of the first sale.

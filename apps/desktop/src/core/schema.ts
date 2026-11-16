@@ -418,4 +418,46 @@ CREATE TRIGGER tax_records_no_delete BEFORE DELETE ON tax_records BEGIN SELECT R
 ALTER TABLE customers ADD COLUMN tin TEXT;
 ALTER TABLE customers ADD COLUMN address TEXT;
 ` },
+  {
+    id: 7,
+    name: 'ledger_records',
+    sql: `
+-- Financial control records that are not sales, stock or tax: month closes and reopenings, customer debt
+-- write-offs and acknowledged clock corrections. Insert-only and synced, like the other financial facts.
+CREATE TABLE ledger_records (
+ id TEXT PRIMARY KEY,
+ kind TEXT NOT NULL CHECK (kind IN ('period_close','period_reopen','credit_writeoff','clock_override','supplier_payment')),
+ record_date TEXT NOT NULL, reference TEXT NOT NULL, payload TEXT NOT NULL,
+ created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL
+);
+CREATE INDEX ledger_records_kind ON ledger_records(kind, record_date);
+CREATE TRIGGER ledger_records_no_update BEFORE UPDATE ON ledger_records BEGIN SELECT RAISE(ABORT, 'ledger_records records are immutable'); END;
+CREATE TRIGGER ledger_records_no_delete BEFORE DELETE ON ledger_records BEGIN SELECT RAISE(ABORT, 'ledger_records records cannot be deleted'); END;
+CREATE INDEX payments_reference ON payments(reference) WHERE reference IS NOT NULL;
+CREATE INDEX purchases_reference ON purchases(reference) WHERE reference IS NOT NULL;
+-- Audit F08: when a supplier invoice bought on credit falls due.
+ALTER TABLE purchases ADD COLUMN due_date TEXT;
+-- Audit F01: every VAT invoice and credit note queued for the GRA E-VAT interface, with its submission status and the
+-- fiscal identifiers GRA returns. Queued in the same transaction as the sale or refund, so none can be missed.
+CREATE TABLE evat_submissions (
+ id TEXT PRIMARY KEY,
+ document_type TEXT NOT NULL CHECK (document_type IN ('invoice','credit_note')),
+ document_id TEXT NOT NULL UNIQUE, document_no TEXT NOT NULL, payload TEXT NOT NULL, payload_sha256 TEXT NOT NULL,
+ status TEXT NOT NULL CHECK (status IN ('pending','accepted','rejected')),
+ provider TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, fiscal_id TEXT, qr TEXT, signature TEXT, last_error TEXT,
+ created_at TEXT NOT NULL, submitted_at TEXT, updated_at TEXT NOT NULL
+);
+CREATE INDEX evat_submissions_status ON evat_submissions(status, created_at);
+-- An accepted submission is final: its identifiers can never be changed.
+CREATE TRIGGER evat_submissions_final BEFORE UPDATE ON evat_submissions WHEN OLD.status = 'accepted' BEGIN SELECT RAISE(ABORT, 'Accepted E-VAT submissions are immutable'); END;
+CREATE TRIGGER evat_submissions_no_delete BEFORE DELETE ON evat_submissions BEGIN SELECT RAISE(ABORT, 'E-VAT submissions cannot be deleted'); END;
+-- Audit F08: daily journals pushed to the owner's accounting package (Xero), one row per day, so a day is never
+-- posted twice. Local to this laptop: the external system holds the journal itself.
+CREATE TABLE accounting_exports (
+ id TEXT PRIMARY KEY, provider TEXT NOT NULL, journal_date TEXT NOT NULL, payload_sha256 TEXT NOT NULL,
+ external_id TEXT, status TEXT NOT NULL CHECK (status IN ('posted','failed')), last_error TEXT,
+ created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, UNIQUE (provider, journal_date)
+);
+`,
+  },
 ];

@@ -27,6 +27,13 @@ const t = (mode: SyncTableSpec['mode'], cols: Record<string, ColType>, key = 'id
 export const SYNC_TABLES = {
   tax_configs: t('insert', { id: 'id', effective_date: 'text', payload: 'json', created_by: 'id', created_at: 'ts' }),
   tax_records: t('insert', { id: 'id', kind: 'text', tax_date: 'text', reference: 'text', payload: 'json', created_by: 'id', created_at: 'ts' }),
+  /** GRA E-VAT submissions and their status (audit F01). Current-state rows: newest updated_at wins. */
+  evat_submissions: t('upsert', {
+    id: 'id', document_type: 'text', document_id: 'id', document_no: 'text', payload: 'json', payload_sha256: 'text', status: 'text', provider: 'text', attempts: 'int',
+    fiscal_id: 'text?', qr: 'text?', signature: 'text?', last_error: 'text?', created_at: 'ts', submitted_at: 'ts?', updated_at: 'ts',
+  }),
+  /** Month closes, debt write-offs and clock overrides. Needs cloud migration 20 before laptops upgrade. */
+  ledger_records: t('insert', { id: 'id', kind: 'text', record_date: 'text', reference: 'text', payload: 'json', created_by: 'id', created_at: 'ts' }),
   users: t('upsert', { id: 'id', username: 'text', name: 'text', role: 'text', status: 'text', permissions: 'json', created_at: 'ts', updated_at: 'ts' }),
   categories: t('upsert', { id: 'id', name: 'text', active: 'int', updated_at: 'ts' }),
   products: t('upsert', {
@@ -39,7 +46,7 @@ export const SYNC_TABLES = {
     actor_id: 'id', reason: 'text?', occurred_at: 'ts',
   }),
   suppliers: t('upsert', { id: 'id', name: 'text', phone: 'text?', notes: 'text?', momo_number: 'text+', location: 'text+', supplies: 'text+', updated_at: 'ts' }),
-  purchases: t('insert', { id: 'id', supplier_id: 'id?', reference: 'text?', status: 'text', total_cost: 'int', received_at: 'ts', created_by: 'id' }),
+  purchases: t('insert', { id: 'id', supplier_id: 'id?', reference: 'text?', status: 'text', total_cost: 'int', received_at: 'ts', created_by: 'id', due_date: 'text+' }),
   purchase_items: t('insert', { id: 'id', purchase_id: 'id', product_id: 'id', quantity: 'int', unit_cost: 'int' }),
   sales: t('insert', {
     id: 'id', receipt_no: 'text', shift_id: 'id', cashier_id: 'id', customer_id: 'id?', subtotal: 'int', discount_total: 'int', total: 'int',

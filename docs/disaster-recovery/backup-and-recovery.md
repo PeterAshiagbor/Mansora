@@ -32,8 +32,10 @@ The API can store encrypted backups in a private S3-compatible bucket or the exi
 
 1. Install the app. Do not activate.
 2. Activation screen → "Restore from a backup instead" → passphrase → choose the `.mbk` file.
-3. The app verifies the backup (decryption, SQLite integrity and foreign-key checks), restores it under the new laptop's own key and opens it. Staff sign in as before. Anything that was waiting to sync is sent.
-4. In the dashboard, the laptop keeps its identity. If the old laptop was stolen, see the limitation below.
+3. The app verifies the backup (decryption, SQLite integrity and foreign-key checks), restores it under the new laptop's own key and opens it. Staff sign in as before.
+4. **Catch-up with the cloud (audit F04).** A backup is usually older than the cloud copy. Until the laptop has caught up, sales and refunds are refused with "This laptop was restored from a backup" so it cannot reuse receipt numbers already given to customers. Choose **Sync now**: the laptop downloads the cloud copy, adds the sales, refunds, stock movements and other records made after the backup, rebuilds stock and customer balances from those records, continues receipt numbering after the highest number on either side, and then sends anything waiting. Covered by `tests/sync/restore-reconcile.test.ts`.
+5. No internet at the shop? The owner can choose **Continue offline** on the Sync page. Receipt and refund numbers then jump to the next block of 100,000 (for example R-100001), so they cannot collide with numbers issued after the backup. The jump is recorded in the audit history, and the catch-up still runs on the next successful sync.
+6. In the dashboard, the laptop keeps its identity. If the old laptop was stolen, see the limitation below.
 
 ## No backup file? Rebuild from the cloud
 
@@ -48,6 +50,10 @@ Anything that had not synced when the old laptop was lost is gone. Covered by `t
 
 A restored backup carries the old laptop's identity. Mansora deactivates that identity (which stops the thief's copy syncing), creates a new activation code, and the owner enters it under Sync status → Repair tools → Re-link. Records are kept and syncing resumes.
 
+## Changes the server refused
+
+A change the server refuses (for example an audit entry from an older version that was larger than the sync limit) is shown as a sync error. The local records are intact. The owner chooses **Repair and resend** on the Sync page: the refused change is rebuilt from the same rows, any over-long audit detail is summarised with a fingerprint, it is split into events the server accepts, and it is sent again. Since the November 2026 hardening, every change is checked against the sync contract before it is saved, so new refusals should not occur.
+
 ## After the cloud database is rolled back
 
 Sync status → Repair tools → "Send all records again" queues everything for re-sending. The server ignores what it already holds, so nothing is duplicated.
@@ -55,6 +61,6 @@ Sync status → Repair tools → "Send all records again" queues everything for 
 ## Honest limitations
 
 - **Automatic daily backups are optional and off by default.** The owner switches them on under Backup & recovery with a passphrase. They run while the app is open. The passphrase is not stored; a key derived from it is kept in the encrypted local database. The file name carries the information needed to reopen it with the passphrase, so automatic backup files must not be renamed.
-- **None of these recovery paths has been rehearsed on physical laptops**; they are verified by automated tests.
+- A scripted laptop-loss drill (`scripts/recovery/drill.ts`) was run on 16 November 2026 and passed: every figure matched the cloud copy and recovery took under one second of processing. See [rehearsal-2026-11-16.md](rehearsal-2026-11-16.md). **The witnessed rehearsals on a physical laptop and on Railway are still outstanding**; they are verified by automated tests. A witnessed rehearsal, with the measured recovery point and recovery time recorded here, is still required before a paying client relies on them.
 - Rebuilding from the cloud does not bring back staff passwords, pending unsynced records, import history or local backup records.
 - A forgotten backup passphrase cannot be recovered.

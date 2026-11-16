@@ -3,8 +3,10 @@ import { z } from 'zod';
 import { fail, TAX_CLASSES, taxAmount, taxConfigSchema, zCalendarDate } from '@mansora/domain';
 import { defineCommands, empty, zId, zMoney, zText, type Ctx } from '../engine';
 import { addMonths, claimTaxes, eligibleInputBps, evidenceKey } from '../tax-controls';
-import { monthsBefore, quoteSale, recordRegistrationTrigger, registeredOn, taxConfig, taxStatus, vatReport } from '../tax';
+import { monthsBefore, quoteSale, recordRegistrationTrigger, registeredOn, taxConfig, taxPayments as taxPaymentsList, taxStatus, vatReport } from '../tax';
 import { toXlsx } from '../importer';
+import { requireOpenPeriod } from '../periods';
+import { evatStatus, requireEvatMode, runEvatQueue } from '../evat';
 
 const zMonth = z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/);
 function taxPeriodStates(ctx: Ctx) {
@@ -22,6 +24,7 @@ function insertRecord(ctx: Ctx, input: { id: string; kind: string; date: string;
   const existing = ctx.get('SELECT id FROM tax_records WHERE id = ?', input.id);
   if (existing) return { id: existing.id, duplicate: true };
   if (input.kind !== 'payment') requireTaxPeriodOpen(ctx, input.date);
+  if (input.kind !== 'payment' && input.kind !== 'filing') requireOpenPeriod(ctx, input.date);
   ctx.insert('tax_records', { id: input.id, kind: input.kind, tax_date: input.date, reference: input.reference, payload: JSON.stringify({ ...(data as object), sequence: Number(ctx.get("SELECT COALESCE(MAX(json_extract(payload,'$.sequence')),0) AS n FROM tax_records")!.n) + 1 }), created_by: ctx.user.id, created_at: ctx.now() });
   ctx.audit('tax_record', input.id, { kind: input.kind, reference: input.reference, date: input.date });
   return { id: input.id };
@@ -37,8 +40,52 @@ const recordInput = z.object({
   legalAuthority: z.string().trim().max(400).default(''), originalPeriod: zMonth.optional(),
   base: zMoney.default(0), vat: z.number().int().safe().default(0), nhil: z.number().int().safe().default(0), getfund: z.number().int().safe().default(0),
   amount: zMoney.default(0), eligibleBps: z.number().int().min(0).max(10000).default(10000), evidenceConfirmed: z.literal(true),
+  /** For a payment: the VAT return month it settles (audit F05). Defaults to the month before the payment date. */
+  period: zMonth.optional(),
 });
+
+/** Checks shared by input-tax claims recorded on their own and those recorded with a goods receipt (audit F09). */
+export function checkInputClaim(ctx: Ctx, input: { date: string; reference: string; supplierTin: string; invoiceDate?: string; purchaseId?: string }) {
+  if (!input.supplierTin || !input.invoiceDate) fail('TAX_EVIDENCE_REQUIRED', 'Enter the supplier TIN and supplier invoice date');
+  const c = taxConfig(ctx, input.date);
+  // Same rules as tax.record: the claim accrues on the invoice date (never before registration) and must be made
+  // within six calendar months of it. Pre-registration stock needs the section 51 workflow in tax evidence instead.
+  if (c.registrationDate && input.invoiceDate < c.registrationDate) fail('PRE_REGISTRATION_INPUT', 'This invoice is dated before VAT registration. Record it under Ghana VAT → Record tax evidence with the pre-registration details.');
+  if (input.invoiceDate > input.date || input.date > addMonths(input.invoiceDate, 6)) fail('INPUT_CREDIT_PERIOD', 'Input credit must be claimed within six calendar months of the invoice date');
+  const duplicate = ctx.all("SELECT payload, reference FROM tax_records WHERE kind = 'input'").some(r => evidenceKey(r.reference) === evidenceKey(input.reference) && evidenceKey(String(JSON.parse(r.payload).supplierTin)) === evidenceKey(input.supplierTin));
+  if (duplicate) fail('DUPLICATE_TAX_INVOICE', 'This supplier invoice has already been recorded');
+  if (input.purchaseId) {
+    if (!ctx.get('SELECT 1 FROM purchases WHERE id = ?', input.purchaseId)) fail('NOT_FOUND', 'Purchase not found');
+    if (ctx.get("SELECT 1 FROM tax_records WHERE kind = 'input' AND json_extract(payload, '$.purchaseId') = ?", input.purchaseId)) fail('DUPLICATE_TAX_INVOICE', 'An input-tax claim is already linked to this purchase');
+  }
+}
 export const taxCommands = defineCommands({
+  /** Audit F01: E-VAT submission queue status, including the 24-hour downtime flag. */
+  'evat.status': { perm: 'report.sales', input: empty, run: (ctx) => evatStatus(ctx) },
+  'evat.configure': {
+    perm: 'settings.manage', mutates: true, input: z.object({ mode: z.string(), reason: zText(300) }),
+    run: (ctx, input) => {
+      owner(ctx);
+      const mode = requireEvatMode(input.mode);
+      const previous = ctx.setting('evat_mode') ?? 'off';
+      ctx.engine.setMeta('evat_mode', mode);
+      ctx.audit('evat', null, { from: previous, to: mode, reason: input.reason }, 'evat.configured');
+      return { mode };
+    },
+  },
+  'evat.run': { perm: 'report.sales', async: true, input: empty, run: (ctx) => runEvatQueue(ctx.engine) },
+  /** Send a rejected document again after the cause (for example a missing TIN in settings for later documents) is fixed. */
+  'evat.retry': {
+    perm: 'settings.manage', mutates: true, input: z.object({ id: zId }),
+    run: (ctx, input) => {
+      owner(ctx);
+      const row = ctx.get(`SELECT * FROM evat_submissions WHERE id = ?`, input.id);
+      if (!row || row.status !== 'rejected') fail('NOT_FOUND', 'Only a rejected E-VAT submission can be sent again');
+      ctx.update('evat_submissions', row.id, { status: 'pending', updated_at: ctx.now() });
+      ctx.audit('evat_submission', row.id, { documentNo: row.document_no }, 'evat.retry');
+      return { id: row.id };
+    },
+  },
   'tax.current': { perm: 'sale.create', input: empty, run: ctx => taxConfig(ctx) },
   'tax.status': { perm: 'report.sales', input: empty, run: ctx => taxStatus(ctx) },
   'tax.history': { perm: 'settings.manage', input: empty, run: ctx => ctx.all("SELECT * FROM tax_configs ORDER BY effective_date DESC, COALESCE(json_extract(payload,'$.revision'),0) DESC, created_at DESC, id DESC") },
@@ -94,6 +141,13 @@ export const taxCommands = defineCommands({
         if (duplicate) fail('DUPLICATE_TAX_INVOICE', 'This supplier invoice has already been recorded');
         if (input.purchaseId && !ctx.get('SELECT 1 FROM purchases WHERE id = ?', input.purchaseId)) fail('NOT_FOUND', 'Purchase not found');
         eligibleInputBps(input);
+        if (input.purchaseId && ctx.get("SELECT 1 FROM tax_records WHERE kind = 'input' AND json_extract(payload, '$.purchaseId') = ?", input.purchaseId)) fail('DUPLICATE_TAX_INVOICE', 'An input-tax claim is already linked to this purchase');
+      }
+      if (input.kind === 'payment') {
+        // Audit F05: a payment records the VAT return month it settles; by default the month before payment.
+        const period = input.period ?? monthsBefore(input.date.slice(0, 7) + '-01', 1).slice(0, 7);
+        if (period > input.date.slice(0, 7)) fail('INVALID_PERIOD', 'A payment cannot settle a return for a month after the payment date');
+        input.period = period;
       }
       if (input.kind === 'adjustment' && (!input.legalAuthority || (input.originalPeriod && input.originalPeriod !== input.date.slice(0,7)))) fail('TAX_ADJUSTMENT_REVIEW_REQUIRED', 'Record the legal adjustment basis. Prior-return corrections require the GRA-authorised amendment workflow, not netting into a later month');
       let reconciledSale: unknown;
@@ -147,6 +201,7 @@ export const taxCommands = defineCommands({
         { name: 'Supply classifications', rows: [['Classification', 'Net base GHS'], ...r.classification.map(c => [c.classification, c.base / 100])] },
         { name: 'Sales', rows: [['Receipt', 'Date', 'Product', 'Tax class', 'Base GHS', 'VAT GHS', 'NHIL GHS', 'GETFund GHS', 'Total GHS', 'Invoice identity snapshot'], ...r.sales.map(s => { const t = s.tax_snapshot ? JSON.parse(s.tax_snapshot) : null; return [s.reference, s.date, s.product_name, t?.classification ?? 'legacy-unverified', ...[t?.base, t?.vat, t?.nhil, t?.getfund, s.line_total].map(n => n == null ? '' : n / 100), s.invoice_tax]; })] },
         { name: 'Credit notes', rows: [['Credit note', 'Original receipt', 'Date', 'Base GHS', 'VAT GHS', 'NHIL GHS', 'GETFund GHS', 'Total GHS'], ...r.refunds.map(s => { const t = s.tax_snapshot ? JSON.parse(s.tax_snapshot) : null; return [s.reference, s.original_reference, s.date, ...[t?.base, t?.vat, t?.nhil, t?.getfund, s.line_total].map(n => n == null ? '' : n / 100)]; })] },
+        { name: 'Filed returns and payments', rows: [['Return month', 'Filing reference', 'Payable GHS', 'Paid GHS', 'Still owed GHS'], ...r.arrears.rows.map(x => [x.month, x.reference, x.payable / 100, x.paid / 100, x.outstanding / 100]), [], ['Payment reference', 'Paid on', 'Return month settled', 'GHS', 'Matched by'], ...taxPaymentsList(ctx).map(p => [p.reference, p.paidOn, p.period, p.amount / 100, p.allocatedByDate ? 'payment date (no period recorded)' : 'return period'])] },
         { name: 'Input credit schedule', rows: [['Record ID','Supplier TIN','Invoice','Invoice date','Accrual date','Claim date','Base GHS','Invoice VAT','Invoice NHIL','Invoice GETFund','Applied eligible %','Claimed VAT','Claimed NHIL','Claimed GETFund','Category','Attribution','Evidence'], ...r.records.filter(v=>v.kind==='input').map(v=>[v.id,v.data.supplierTin,v.reference,v.data.invoiceDate,v.data.accrualDate,v.tax_date,v.data.base/100,...['vat','nhil','getfund'].map(k=>(v.data.originalTaxes?.[k] ?? v.data[k])/100),(v.data.appliedEligibleBps ?? v.data.eligibleBps)/100,...['vat','nhil','getfund'].map(k=>v.data[k]/100),v.data.inputCategory ?? 'legacy-review',v.data.attribution ?? 'legacy-review',v.data.reason])] },
         { name: 'Credits payments and filings', rows: [['ID','Type','Tax period/date','Reference','VAT credit GHS','Payment GHS','Recorded at','Reason or authority'], ...r.allRecords.filter(v=>['withholding','payment','filing','period_reopened'].includes(v.kind)).map(v=>[v.id,v.kind,v.tax_date,v.reference,(v.data.vat ?? 0)/100,(v.data.amount ?? 0)/100,v.created_at,v.data.legalAuthority ?? v.data.reason])] },
         { name: 'Input and other evidence', rows: [['ID', 'Kind', 'Tax date', 'Reference', 'Evidence and amounts in pesewas'], ...r.allRecords.map(s => [s.id, s.kind, s.tax_date, s.reference, s.payload])] },

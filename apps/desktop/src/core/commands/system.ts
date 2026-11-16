@@ -1,10 +1,11 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { SAMPLE_GUIDE, sampleShopRows, TEMPLATE_GUIDE } from '../sample-shop';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { fail, formatGHS, SYNC_TABLES } from '@mansora/domain';
+import { fail, formatGHS, SYNC_TABLES, validateEventRows } from '@mansora/domain';
 import { createBackupFile, deriveAutoKey, verifyBackupFile } from '../backup';
-import { Ctx, dayBounds, defineCommands, likeContains, empty, zId, zRange, zText, type Engine } from '../engine';
+import { chunkRows, Ctx, dayBounds, defineCommands, likeContains, empty, MAX_AUDIT_DETAIL, zId, zRange, zText, type Engine } from '../engine';
 import { buildPreview, fileHash, IMPORT_FIELDS, readTable, suggestMapping, TEMPLATE_ROWS, toCsv, toXlsx, type ExistingKeys } from '../importer';
 import { syncNow, uploadBackup } from '../sync';
 import { createProduct } from './catalog';
@@ -85,7 +86,7 @@ export const systemCommands = defineCommands({
       const s = ctx.engine.syncState;
       return {
         pending,
-        rejected: n(`SELECT COUNT(*) AS v FROM outbox WHERE status = 'rejected'`) as number,
+        rejected: n(`SELECT COUNT(*) AS v FROM outbox WHERE status = 'rejected' AND COALESCE(last_error, '') NOT LIKE '[repaired]%'`) as number,
         oldestPendingAt: n(`SELECT MIN(occurred_at) AS v FROM outbox WHERE status = 'pending'`) as string | null,
         lastSyncAt: ctx.setting('last_sync_at') ?? null,
         state: s.running ? 'syncing' : s.online === false ? 'offline' : s.online === true ? 'online' : 'unknown',
@@ -95,6 +96,7 @@ export const systemCommands = defineCommands({
         autoBackup: !!ctx.setting('backup_auto'),
         /** Changes that exist only on this laptop: not yet on the server and not in any backup. */
         unprotected: n(`SELECT COUNT(*) AS v FROM outbox WHERE status = 'pending' AND seq > ${Number(lastBackup?.last_outbox_seq ?? 0)}`) as number,
+        restorePending: !!ctx.setting('restore_pending_reconcile'),
         tenantStatus: ctx.setting('tenant_status') ?? 'active',
         subscription: JSON.parse(ctx.setting('subscription') ?? 'null'),
         standing: ctx.engine.standing(),
@@ -120,6 +122,58 @@ export const systemCommands = defineCommands({
       const res = ctx.run(`UPDATE outbox SET status = 'pending', synced_at = NULL WHERE status = 'synced' AND seq >= ?`, input.fromSeq);
       ctx.audit('sync', null, { fromSeq: input.fromSeq, requeued: res.changes });
       return { requeued: res.changes };
+    },
+  },
+  /**
+   * Audit F03 repair: events the server refused (for example an oversized stock-count audit entry from an older
+   * version) are rebuilt from the same rows, with over-long audit detail summarised, split into events that meet
+   * the sync contract and queued again. Inserts are idempotent on the server. The original event is kept and marked.
+   */
+  'sync.repairRejected': {
+    perm: 'settings.manage',
+    mutates: true,
+    input: empty,
+    run: (ctx) => {
+      if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can repair refused sync changes');
+      const bad = ctx.all(`SELECT seq, id, type, payload, actor_id, occurred_at, last_error FROM outbox WHERE status = 'rejected' AND COALESCE(last_error, '') NOT LIKE '[repaired]%' ORDER BY seq`);
+      let events = 0;
+      const failed: number[] = [];
+      for (const e of bad) {
+        const rows = JSON.parse(e.payload).rows as Record<string, any[]>;
+        if (rows.audit_logs) rows.audit_logs = rows.audit_logs.map((r) => (String(r.detail ?? '').length > MAX_AUDIT_DETAIL ? { ...r, detail: JSON.stringify({ truncated: true, originalLength: String(r.detail).length, sha256: createHash('sha256').update(String(r.detail)).digest('hex') }) } : r));
+        const chunks = chunkRows(rows);
+        try { for (const c of chunks) validateEventRows(c as any); } catch { failed.push(e.seq); continue; }
+        for (const c of chunks) ctx.run('INSERT INTO outbox (id, type, payload, actor_id, occurred_at) VALUES (?, ?, ?, ?, ?)', ctx.id(), `${e.type}.resend`, JSON.stringify({ rows: c }), e.actor_id, e.occurred_at);
+        ctx.run(`UPDATE outbox SET last_error = ? WHERE seq = ?`, `[repaired] ${e.last_error ?? ''}`.slice(0, 2000), e.seq);
+        events += chunks.length;
+      }
+      ctx.audit('sync', null, { repaired: bad.length - failed.length, queued: events, stillFailing: failed.length }, 'sync.repair_rejected');
+      return { repaired: bad.length - failed.length, queued: events, stillFailing: failed };
+    },
+  },
+  /**
+   * After a restore with no connection: continue offline. Numbering jumps to the next block of 100,000 so it cannot
+   * collide with numbers issued after the backup; the jump is recorded. Reconciliation still runs on the next sync.
+   */
+  'sync.continueOffline': {
+    perm: 'settings.manage',
+    mutates: true,
+    input: z.object({ reason: zText(300) }),
+    run: (ctx, input) => {
+      if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner can continue offline after a restore');
+      if (!ctx.setting('restore_pending_reconcile')) fail('NOT_NEEDED', 'This laptop does not need to catch up');
+      const jumps: Record<string, string> = {};
+      for (const prefix of ['R', 'RF']) {
+        const current = Number(ctx.setting(`seq_${prefix}`) ?? 0);
+        const next = (Math.floor(current / 100_000) + 1) * 100_000;
+        ctx.engine.setMeta(`seq_${prefix}`, String(next));
+        jumps[prefix] = `${current} -> ${next + 1}`;
+      }
+      ctx.engine.setMeta('restore_offline_numbering', '1');
+      ctx.engine.setMeta('restore_pending_reconcile', null);
+      ctx.engine.setMeta('restore_reconcile_later', '1');
+      ctx.audit('sync', null, { reason: input.reason, numbering: jumps }, 'sync.continue_offline_after_restore');
+      return { numbering: jumps };
     },
   },
   'sync.run': { perm: 'auth', async: true, input: empty, run: (ctx) => syncNow(ctx.engine) },
