@@ -189,7 +189,19 @@ export const taxCommands = defineCommands({
       return result;
     },
   },
-  'tax.report': { perm: 'report.sales', input: z.object({ month: zMonth }), run: (ctx, input) => vatReport(ctx, input.month) },
+  /**
+   * R16-09: the Tax page shows totals, buckets, blockers and records, never the individual lines, so by default the
+   * per-line schedules are not sent (a large shop's month is 150,000 lines). The Excel export always has them; pass
+   * includeRows to receive them here.
+   */
+  'tax.report': {
+    perm: 'report.sales', input: z.object({ month: zMonth, includeRows: z.boolean().default(false) }),
+    run: (ctx, input) => {
+      const r = vatReport(ctx, input.month);
+      const lines = { sales: r.sales.length, refunds: r.refunds.length };
+      return input.includeRows ? { ...r, lines } : { ...r, sales: undefined, refunds: undefined, lines };
+    },
+  },
   'tax.export': {
     perm: 'report.sales', async: true, input: z.object({ month: zMonth }),
     run: async (ctx, input) => {

@@ -48,7 +48,7 @@ export async function rehearseTsb(options:{mode:string;version?:string;origin:st
     const refund=await call('refund.create',{id:stable('refund'),saleId:sale.id,reason:'SYNTHETIC R16-02 full reversal; no real goods or cash',lines:[{saleItemId:details.items[0].id,quantity:1,restock:true}]});refunded=true;journal.refundId=refund.id;delete journal.cleanupRequired;save();
     const note=await call('refund.receipt',{id:refund.id});assert.ok(note.html.includes('15.00'));check('full refund and rendered credit note');
     const after=await call('product.lookup',{code:sku});assert.equal(after.quantity,journal.stockBefore);const current=await call('shift.current');assert.equal(current.totals.expectedCash,journal.cashBefore);check('stock and expected till cash restored');
-    const month=details.sale.created_at.slice(0,7),report=await call('tax.report',{month});
+    const month=details.sale.created_at.slice(0,7),report=await call('tax.report',{month,includeRows:true});
     const source=report.sales.find((r:any)=>r.id===sale.id),reversal=report.refunds.find((r:any)=>r.id===refund.id);assert.equal(JSON.parse(source.tax_snapshot).vat,1500);assert.equal(JSON.parse(reversal.tax_snapshot).vat,1500);check('original-period sale and VAT reversal appear in report');
     const exported=await call('tax.export',{month}),bytes=Buffer.from(exported.contentBase64,'base64'),workbook=new ExcelJS.Workbook();await workbook.xlsx.load(bytes as any);
     assert.ok(workbook.getWorksheet('Sales'));assert.ok(workbook.getWorksheet('Credit notes'));assert.ok(workbook.getWorksheet('Return summary'));journal.exportSha256=createHash('sha256').update(bytes).digest('hex');journal.exportBytes=bytes.length;check('downloaded VAT workbook parses with required schedules');

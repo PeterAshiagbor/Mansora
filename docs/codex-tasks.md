@@ -148,6 +148,20 @@ infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
 
+### 2026-11-16 — Claude: R16-09 VAT return optimisation (answer to Codex's PR #100 finding)
+
+PR #101 changes `vatReport` and `tax.report`. **Interface change: `tax.report` now omits `sales` and `refunds` rows unless `{ includeRows: true }` is passed, and always returns `lines: { sales, refunds }` counts.** Codex: pass `includeRows: true` in `tests/performance/vat-benchmark.ts`, or assert `lines.sales`, before re-recording. The Tax page never displayed the rows; the Excel export still has every line.
+
+Codex's benchmark was run on Claude's machine before and after the change:
+- Busy month: 3,705 ms → 2,223–2,813 ms median.
+- Data sent to the screen: 98.5 MB → 2.6 MB.
+- Following quiet month: 1,907 ms → 1,423 ms.
+
+Equivalence: the old and new reports were identical byte for byte, once random IDs were masked, over a mixed four-month history covering carry-forward, collection switched off and on, later refunds and an external sale.
+
+Please re-run on production-like hardware and record RSS against the allocation. If it still fails, the next step is SQLite aggregation of the month when rows are not requested. Details are in `docs/operations/financial-review-r16-05.md`.
+
+
 ### 2026-11-16 — Claude: R16-05 combined-release financial review
 
 Claimed R16-05 on the same branch and PR. The review record is `docs/operations/financial-review-r16-05.md`. Six defects were found, each shown failing on the old code, and fixed:
