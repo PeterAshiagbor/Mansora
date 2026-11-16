@@ -42,6 +42,15 @@ it('compensates a committed sale after an assertion failure, retains evidence an
   expect(Number((f.b.engine.db.prepare('SELECT COUNT(*) n FROM refunds').get() as any).n)).toBe(1);
  }finally{await f.close();}
 });
+it('finds and compensates a committed sale even when the sale response is lost',async()=>{
+ const f=await fixture();try{
+  let loseReply=true;
+  const transport:typeof fetch=async(url,init)=>{const p=JSON.parse(String(init?.body));const response=await fetch(url,init);if(p.command==='sale.complete' && loseReply){loseReply=false;await response.text();throw new TypeError('Simulated lost reply after commit');}return response;};
+  const result:any=await rehearseTsb({...f.options,fetch:transport});expect(result.complete).toBe(false);expect(result.cleanupRefunded).toBe(true);expect(result.cleanupRequired).not.toBe(true);
+  expect(Number((f.b.engine.db.prepare('SELECT COUNT(*) n FROM sales').get() as any).n)).toBe(1);expect(Number((f.b.engine.db.prepare('SELECT COUNT(*) n FROM refunds').get() as any).n)).toBe(1);
+  expect(await rehearseTsb({...f.options,fetch:transport})).toMatchObject({complete:true});
+ }finally{await f.close();}
+});
 it('rejects non-test deployment modes before any credentials or workspace access',async()=>{
  await expect(rehearseTsb({mode:'client',version:'r16-02-v1',origin:'https://example.test',dataDir:'/missing',workspaces:[]})).rejects.toThrow('TSB_ACCEPTANCE_MODE_REQUIRED');
  expect(await rehearseTsb({mode:'client',origin:'https://example.test',dataDir:'/missing',workspaces:[]})).toEqual({disabled:true});

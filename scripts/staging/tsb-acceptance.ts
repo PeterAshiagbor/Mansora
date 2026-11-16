@@ -41,10 +41,11 @@ export async function rehearseTsb(options:{mode:string;version?:string;origin:st
     const quote=await call('sale.quote',{lines:[{productId:product.id,quantity:1}],cartDiscount:0});
     assert.deepEqual({total:quote.total,vat:quote.tax.vat,nhil:quote.tax.nhil,getfund:quote.tax.getfund},{total:12000,vat:1500,nhil:250,getfund:250});check('trusted VAT quote matches independently calculated GHS 120 split');
     if(journal.stockBefore===undefined){journal.stockBefore=product.quantity;const current=await call('shift.current');journal.cashBefore=current.totals.expectedCash;save();}
+    journal.saleId=stable('sale');journal.saleAttempted=true;save();
     sale=await call('sale.complete',{id:stable('sale'),lines:[{productId:product.id,quantity:1}],tenders:[{method:'cash',amount:12000,reference:'SYNTHETIC R16-02 REHEARSAL'}]});journal.saleId=sale.id;save();
     details=await call('sale.get',{id:sale.id});assert.equal(details.sale.total,12000);assert.equal(JSON.parse(details.items[0].tax_snapshot).vat,1500);
     const receipt=await call('sale.receipt',{id:sale.id});assert.ok(receipt.html.includes('15.00'));assert.ok(receipt.html.includes(sale.receiptNo??receipt.receiptNo));check('sale, immutable VAT snapshot and rendered receipt');
-    const refund=await call('refund.create',{id:stable('refund'),saleId:sale.id,reason:'SYNTHETIC R16-02 full reversal; no real goods or cash',lines:[{saleItemId:details.items[0].id,quantity:1,restock:true}]});refunded=true;journal.refundId=refund.id;save();
+    const refund=await call('refund.create',{id:stable('refund'),saleId:sale.id,reason:'SYNTHETIC R16-02 full reversal; no real goods or cash',lines:[{saleItemId:details.items[0].id,quantity:1,restock:true}]});refunded=true;journal.refundId=refund.id;delete journal.cleanupRequired;save();
     const note=await call('refund.receipt',{id:refund.id});assert.ok(note.html.includes('15.00'));check('full refund and rendered credit note');
     const after=await call('product.lookup',{code:sku});assert.equal(after.quantity,journal.stockBefore);const current=await call('shift.current');assert.equal(current.totals.expectedCash,journal.cashBefore);check('stock and expected till cash restored');
     const month=details.sale.created_at.slice(0,7),report=await call('tax.report',{month});
@@ -56,7 +57,10 @@ export async function rehearseTsb(options:{mode:string;version?:string;origin:st
     journal.complete=true;journal.completedAt=new Date().toISOString();journal.recovery='NOT RUN: independent production backup and isolated restore required';save();return journal;
   } catch(error) {
     journal.failedAt=new Date().toISOString();journal.failure=error instanceof Error && error.message.startsWith('TSB_ACCEPTANCE_')?error.message:'TSB_ACCEPTANCE_ASSERTION_OR_TRANSPORT_FAILED';
-    if(sale && !refunded){try{details ??=await call('sale.get',{id:sale.id});await call('refund.create',{id:stable('refund'),saleId:sale.id,reason:'SYNTHETIC R16-02 cleanup after interrupted acceptance',lines:[{saleItemId:details.items[0].id,quantity:1,restock:true}]});journal.cleanupRefunded=true;}catch{journal.cleanupRequired=true;}}
+    if(journal.saleAttempted && !refunded){
+      try{details ??=await call('sale.get',{id:journal.saleId});await call('refund.create',{id:stable('refund'),saleId:journal.saleId,reason:'SYNTHETIC R16-02 cleanup after interrupted acceptance',lines:[{saleItemId:details.items[0].id,quantity:1,restock:true}]});journal.cleanupRefunded=true;delete journal.cleanupRequired;}
+      catch(cleanupError){if(cleanupError instanceof Error && cleanupError.message.includes(':sale.get:') && cleanupError.message.endsWith(':NOT_FOUND'))journal.cleanupNoCommittedSale=true;else journal.cleanupRequired=true;}
+    }
     save();return {complete:false,...journal};
   } finally {
     if(cookie && journal.createdShiftId && (refunded || journal.cleanupRefunded) && !journal.cleanupRequired) {try {const current=await call('shift.current');if(current?.id===journal.createdShiftId)await call('shift.close',{countedCash:current.totals.expectedCash,notes:'Synthetic R16-02 rehearsal cleanup; no real cash'});}catch{journal.shiftReviewRequired=true;save();}}
