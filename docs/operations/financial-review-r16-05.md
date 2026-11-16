@@ -85,3 +85,47 @@ Two side effects:
 The file is about a third larger (7.5 MB against 5.6 MB) because repeated text is no longer shared.
 
 A constrained, production-like run is still Codex's acceptance step.
+
+### Summary path aggregated in SQLite (Codex follow-up on PR #102)
+
+The Tax screen's `tax.report` without rows no longer loads the month's ordinary lines. SQLite returns one grouped stand-in row per day and VAT treatment, made up of these fields:
+
+- classification
+- registered flag
+- verified flag
+- whether the snapshot is missing
+- summed base, VAT, NHIL, GETFund, total and line amount
+
+These are the only fields the return calculation reads.
+
+Some lines are still loaded one by one, because they need individual treatment:
+
+- lines sold while collection was switched off
+- lines reconciled by an adjustment
+- refunds of either kind
+
+Export and filing (`tax.file`) still use the full line-by-line path.
+
+`tests/integration/vat-summary-equivalence.test.ts` compares the summary with the full return for every month of a mixed history and requires every figure, blocker and warning to be equal. The history covers:
+
+- a legacy line with no snapshot
+- unclassified lines
+- a backdated registration that leaves a sale without VAT, and its refund
+- zero-rated and exempt sales
+- collection switched off and back on, with later refunds
+- a reconciled line and its refund
+- an input credit and an external sale
+
+Three deliberate mistakes in the grouping (a wrong registered flag, a wrong verified flag, legacy lines treated as snapshots) each made the test fail.
+
+Each path was measured in a fresh process against the pre-built 150,000-line fixture with 10% of collection switched off:
+
+| Path | Peak RSS | Time |
+| --- | --- | --- |
+| Tax screen summary | 380 MB | 2.2 s |
+| `includeRows` (four runs in one process) | 1,129 MB | 2.2–2.3 s each |
+| Excel export (streamed) | 579 MB | 10.1 s |
+
+The summary's remaining cost is mainly the 15,000 switched-off lines, which have to be handled one by one for exposure. A real shop has almost none.
+
+The full-row path is used only on request and by filing. A single run measured 415 MB earlier; repeated runs in one process build up uncollected memory.

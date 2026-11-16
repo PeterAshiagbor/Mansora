@@ -109,7 +109,8 @@ export function taxArrears(ctx: Ctx) {
 }
 
 /** Evidence schedule. Captured snapshots, never today's rates, drive both returns and credit notes. */
-export function vatReport(ctx: Ctx, month: string) {
+export function vatReport(ctx: Ctx, month: string, opts: { rows?: boolean } = {}) {
+  const withRows = opts.rows !== false;
   const from = month + '-01', next = new Date(from + 'T00:00:00Z'); next.setUTCMonth(next.getUTCMonth() + 1);
   const to = next.toISOString().slice(0, 10);
   const end = new Date(next); end.setUTCDate(end.getUTCDate() - 1);
@@ -125,11 +126,37 @@ export function vatReport(ctx: Ctx, month: string) {
   const parsed = new WeakMap<object, any>();
   const snap = (r: any) => { if (!r.tax_snapshot) return null; let t = parsed.get(r); if (t === undefined) parsed.set(r, t = JSON.parse(r.tax_snapshot)); return t; };
   const suppressedLine = `json_extract(i.tax_snapshot, '$.platformVatSuppressed') = 1`;
-  const sales = ctx.all(`SELECT i.id AS sale_item_id, s.id, s.receipt_no AS reference, s.created_at AS date, s.tax_snapshot AS invoice_tax, i.product_name, i.tax_snapshot, i.line_total FROM sale_items i JOIN sales s ON s.id = i.sale_id
-    WHERE s.created_at < ? AND (s.created_at >= ? OR ${suppressedLine}) ORDER BY s.created_at, s.rowid, i.rowid`, toTs, fromTs);
-  const refunds = ctx.all(`SELECT i.id AS refund_item_id, i.sale_item_id, s.created_at AS sale_date, r.id, r.refund_no AS reference, r.created_at AS date, s.receipt_no AS original_reference, i.tax_snapshot, i.amount AS line_total FROM refund_items i JOIN refunds r ON r.id = i.refund_id JOIN sales s ON s.id = r.sale_id
-    WHERE r.created_at < ? AND (r.created_at >= ? OR i.sale_item_id IN (SELECT i.id FROM sale_items i WHERE ${suppressedLine})) ORDER BY r.created_at, r.rowid, i.rowid`, toTs, fromTs);
   const records = ctx.all("SELECT * FROM tax_records WHERE tax_date < ? ORDER BY tax_date, COALESCE(json_extract(payload,'$.sequence'),0), created_at, id", to).map(r => ({ ...r, data: JSON.parse(r.payload) }));
+  const reconciledIds = JSON.stringify(records.filter(r => r.kind === 'adjustment' && r.data.reconcilesSaleItemId && r.data.reconciledSale).map(r => r.data.reconcilesSaleItemId));
+  const reconciledLine = `i.id IN (SELECT value FROM json_each(?))`;
+  // With rows: every line of the month. Without rows (R16-09 summary): only lines that need individual treatment
+  // (switched-off collection, reconciled lines and their refunds); the rest arrive below as per-day groups.
+  const saleCols = `i.id AS sale_item_id, s.id, s.receipt_no AS reference, s.created_at AS date, s.tax_snapshot AS invoice_tax, i.product_name, i.tax_snapshot, i.line_total`;
+  const refundCols = `i.id AS refund_item_id, i.sale_item_id, s.created_at AS sale_date, r.id, r.refund_no AS reference, r.created_at AS date, s.receipt_no AS original_reference, i.tax_snapshot, i.amount AS line_total`;
+  const specialOriginal = `i.sale_item_id IN (SELECT i.id FROM sale_items i WHERE ${suppressedLine} OR ${reconciledLine})`;
+  const sales: any[] = withRows
+    ? ctx.all(`SELECT ${saleCols} FROM sale_items i JOIN sales s ON s.id = i.sale_id WHERE s.created_at < ? AND (s.created_at >= ? OR ${suppressedLine}) ORDER BY s.created_at, s.rowid, i.rowid`, toTs, fromTs)
+    : ctx.all(`SELECT ${saleCols} FROM sale_items i JOIN sales s ON s.id = i.sale_id WHERE s.created_at < ? AND (${suppressedLine} OR (s.created_at >= ? AND ${reconciledLine})) ORDER BY s.created_at, s.rowid, i.rowid`, toTs, fromTs, reconciledIds);
+  const refunds: any[] = withRows
+    ? ctx.all(`SELECT ${refundCols} FROM refund_items i JOIN refunds r ON r.id = i.refund_id JOIN sales s ON s.id = r.sale_id WHERE r.created_at < ? AND (r.created_at >= ? OR i.sale_item_id IN (SELECT i.id FROM sale_items i WHERE ${suppressedLine})) ORDER BY r.created_at, r.rowid, i.rowid`, toTs, fromTs)
+    : ctx.all(`SELECT ${refundCols} FROM refund_items i JOIN refunds r ON r.id = i.refund_id JOIN sales s ON s.id = r.sale_id WHERE r.created_at < ? AND (i.sale_item_id IN (SELECT i.id FROM sale_items i WHERE ${suppressedLine}) OR (r.created_at >= ? AND ${specialOriginal})) ORDER BY r.created_at, r.rowid, i.rowid`, toTs, fromTs, reconciledIds);
+  const lineCounts = { sales: 0, refunds: 0 };
+  if (!withRows) {
+    // One stand-in row per day and VAT treatment, carrying summed amounts. The calculation below reads only the
+    // date, classification, registered/verified flags and amounts, so totals, classifications and blockers match.
+    const keys = `json_extract(i.tax_snapshot, '$.classification') AS classification, json_extract(i.tax_snapshot, '$.registered') AS registered, json_extract(i.tax_snapshot, '$.classificationVerified') AS verified, i.tax_snapshot IS NULL AS legacy`;
+    const sums = (amount: string) => `${['base', 'vat', 'nhil', 'getfund', 'total'].map((k) => `SUM(json_extract(i.tax_snapshot, '$.${k}')) AS ${k}`).join(', ')}, SUM(${amount}) AS line_total, COUNT(*) AS n`;
+    const stand = (g: any) => g.legacy ? null : JSON.stringify({ classification: g.classification, registered: g.registered === 1, ...(g.verified === null ? {} : { classificationVerified: g.verified === 1 }), base: g.base ?? 0, vat: g.vat ?? 0, nhil: g.nhil ?? 0, getfund: g.getfund ?? 0, total: g.total ?? 0 });
+    const notSpecial = `NOT (COALESCE(json_extract(i.tax_snapshot, '$.platformVatSuppressed'), 0) = 1 OR ${reconciledLine})`;
+    for (const g of ctx.all(`SELECT substr(s.created_at, 1, 10) AS day, ${keys}, ${sums('i.line_total')} FROM sale_items i JOIN sales s ON s.id = i.sale_id
+        WHERE s.created_at >= ? AND s.created_at < ? AND ${notSpecial} GROUP BY 1, 2, 3, 4, 5`, fromTs, toTs, reconciledIds)) {
+      sales.push({ sale_item_id: null, date: g.day + 'T00:00:00.000Z', tax_snapshot: stand(g), line_total: g.line_total }); lineCounts.sales += g.n;
+    }
+    for (const g of ctx.all(`SELECT substr(r.created_at, 1, 10) AS day, substr(s.created_at, 1, 10) AS sale_day, ${keys}, ${sums('i.amount')} FROM refund_items i JOIN refunds r ON r.id = i.refund_id JOIN sales s ON s.id = r.sale_id
+        WHERE r.created_at >= ? AND r.created_at < ? AND NOT ${specialOriginal} GROUP BY 1, 2, 3, 4, 5, 6`, fromTs, toTs, reconciledIds)) {
+      refunds.push({ refund_item_id: null, sale_item_id: null, date: g.day + 'T00:00:00.000Z', sale_date: g.sale_day + 'T00:00:00.000Z', tax_snapshot: stand(g), line_total: g.line_total }); lineCounts.refunds += g.n;
+    }
+  }
   const movements: { month: string; vat: number; nhil: number; getfund: number }[] = [];
   for (const r of records.filter(r => r.kind === 'external_sale')) {
     const d = r.data;
@@ -177,6 +204,8 @@ export function vatReport(ctx: Ctx, month: string) {
   const carry = { vat: 0, nhil: 0, getfund: 0 };
   for (const m of [...byMonth.keys()].sort()) for (const k of components) carry[k] = Math.max(0, carry[k] - sum(byMonth.get(m)!.map(r => r[k])));
   const selectedSales = sales.filter(r => r.date.slice(0, 7) === month), selectedRefunds = refunds.filter(r => r.date.slice(0, 7) === month);
+  const lines = withRows ? { sales: selectedSales.length, refunds: selectedRefunds.length }
+    : { sales: lineCounts.sales + selectedSales.filter(r => r.sale_item_id || r.product_name).length, refunds: lineCounts.refunds + selectedRefunds.filter(r => r.refund_item_id).length };
   const output = addTax(selectedSales.map(snap).filter(Boolean));
   const reversed = addTax(selectedRefunds.map(snap).filter(Boolean));
   const currentRecords = records.filter(r => r.tax_date.slice(0, 7) === month);
@@ -234,7 +263,7 @@ export function vatReport(ctx: Ctx, month: string) {
     arrears: taxArrears(ctx), unclaimedPurchases: unclaimed,
     historicalExposure:historicalExposure.filter(e=>e.date.slice(0,7)===month), feature:vatFeature(ctx),
     blockers, deadlineBeforeHolidayCheck: deadline.toISOString().slice(0, 10), warnings,
-    sales: selectedSales, refunds: selectedRefunds, records: currentRecords, allRecords: records };
+    lines, sales: withRows ? selectedSales : undefined, refunds: withRows ? selectedRefunds : undefined, records: currentRecords, allRecords: records };
 }
 
 /** Section 8: liability starts in the period after the registration requirement arose.
