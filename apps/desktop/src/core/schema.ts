@@ -451,6 +451,13 @@ CREATE INDEX evat_submissions_status ON evat_submissions(status, created_at);
 -- An accepted submission is final: its identifiers can never be changed.
 CREATE TRIGGER evat_submissions_final BEFORE UPDATE ON evat_submissions WHEN OLD.status = 'accepted' BEGIN SELECT RAISE(ABORT, 'Accepted E-VAT submissions are immutable'); END;
 CREATE TRIGGER evat_submissions_no_delete BEFORE DELETE ON evat_submissions BEGIN SELECT RAISE(ABORT, 'E-VAT submissions cannot be deleted'); END;
+-- Audit F08: daily journals pushed to the owner's accounting package (Xero), one row per day, so a day is never
+-- posted twice. Local to this laptop: the external system holds the journal itself.
+CREATE TABLE accounting_exports (
+ id TEXT PRIMARY KEY, provider TEXT NOT NULL, journal_date TEXT NOT NULL, payload_sha256 TEXT NOT NULL,
+ external_id TEXT, status TEXT NOT NULL CHECK (status IN ('posted','failed')), last_error TEXT,
+ created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, UNIQUE (provider, journal_date)
+);
 `,
   },
 ];

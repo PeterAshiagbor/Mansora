@@ -45,6 +45,7 @@ person may do. Disable a login the day someone leaves; it takes effect at once.
 - **Closing a month**: Settings → **Accounting periods** → choose the month → **Close month**. After that nothing can be dated in that month or earlier, so your figures and your accountant's stay fixed. If something was missed, reopen the month with a reason (also recorded).
 - **Computer clock**: if the laptop's date is moved back behind the last sale, selling stops until the clock is right. If the clock was fast and has been corrected, confirm it in Settings → Accounting periods.
 - **Owed to suppliers**: when receiving stock you will pay for later, tick **Bought on credit** and enter the due date. Purchases → **Owed to suppliers** shows what is owed, how late, and records payments (from the till, bank or Mobile Money).
+- **Xero**: Import & export → **Xero** connects your own Xero organisation. Map each Mansora account to your Xero account code once, then **Send to Xero**: each day arrives in Xero as a draft journal for your accountant to post.
 - **Journal for your accountant**: Import & export → **Journal for your accountant** gives balanced daily journals (sales without VAT, cost of goods, refunds, stock losses, customer credit, expenses, till cash, payments to GRA) that your accountant can post to your books or to Xero or QuickBooks.
 
 ## Reports

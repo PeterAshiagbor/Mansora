@@ -13972,6 +13972,141 @@
         "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
       ],
       "assessment": "Direct contact detail of a customer or sole trader; personal data. Lawyer to confirm purpose limits and retention with the tax records."
+    },
+    {
+      "key": "laptop.accounting_exports.id",
+      "purpose": "Record of a daily journal sent to the owner's Xero organisation (date, payload hash, Xero journal ID, status), so a day is never posted twice (audit F08). Column: id.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational accounting metadata; created_by links to a staff member. Laptop only; the journal itself is held in the owner's Xero organisation under the owner's own agreement with Xero."
+    },
+    {
+      "key": "laptop.accounting_exports.provider",
+      "purpose": "Record of a daily journal sent to the owner's Xero organisation (date, payload hash, Xero journal ID, status), so a day is never posted twice (audit F08). Column: provider.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational accounting metadata; created_by links to a staff member. Laptop only; the journal itself is held in the owner's Xero organisation under the owner's own agreement with Xero."
+    },
+    {
+      "key": "laptop.accounting_exports.journal_date",
+      "purpose": "Record of a daily journal sent to the owner's Xero organisation (date, payload hash, Xero journal ID, status), so a day is never posted twice (audit F08). Column: journal_date.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational accounting metadata; created_by links to a staff member. Laptop only; the journal itself is held in the owner's Xero organisation under the owner's own agreement with Xero."
+    },
+    {
+      "key": "laptop.accounting_exports.payload_sha256",
+      "purpose": "Record of a daily journal sent to the owner's Xero organisation (date, payload hash, Xero journal ID, status), so a day is never posted twice (audit F08). Column: payload_sha256.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational accounting metadata; created_by links to a staff member. Laptop only; the journal itself is held in the owner's Xero organisation under the owner's own agreement with Xero."
+    },
+    {
+      "key": "laptop.accounting_exports.external_id",
+      "purpose": "Record of a daily journal sent to the owner's Xero organisation (date, payload hash, Xero journal ID, status), so a day is never posted twice (audit F08). Column: external_id.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational accounting metadata; created_by links to a staff member. Laptop only; the journal itself is held in the owner's Xero organisation under the owner's own agreement with Xero."
+    },
+    {
+      "key": "laptop.accounting_exports.status",
+      "purpose": "Record of a daily journal sent to the owner's Xero organisation (date, payload hash, Xero journal ID, status), so a day is never posted twice (audit F08). Column: status.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational accounting metadata; created_by links to a staff member. Laptop only; the journal itself is held in the owner's Xero organisation under the owner's own agreement with Xero."
+    },
+    {
+      "key": "laptop.accounting_exports.last_error",
+      "purpose": "Record of a daily journal sent to the owner's Xero organisation (date, payload hash, Xero journal ID, status), so a day is never posted twice (audit F08). Column: last_error.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational accounting metadata; created_by links to a staff member. Laptop only; the journal itself is held in the owner's Xero organisation under the owner's own agreement with Xero."
+    },
+    {
+      "key": "laptop.accounting_exports.created_by",
+      "purpose": "Record of a daily journal sent to the owner's Xero organisation (date, payload hash, Xero journal ID, status), so a day is never posted twice (audit F08). Column: created_by.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational accounting metadata; created_by links to a staff member. Laptop only; the journal itself is held in the owner's Xero organisation under the owner's own agreement with Xero."
+    },
+    {
+      "key": "laptop.accounting_exports.created_at",
+      "purpose": "Record of a daily journal sent to the owner's Xero organisation (date, payload hash, Xero journal ID, status), so a day is never posted twice (audit F08). Column: created_at.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational accounting metadata; created_by links to a staff member. Laptop only; the journal itself is held in the owner's Xero organisation under the owner's own agreement with Xero."
     }
   ]
 }

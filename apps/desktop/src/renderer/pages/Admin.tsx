@@ -3,7 +3,7 @@ import { ContactMansora } from '../components/ContactMansora';
 import { TaskLinks } from '../components/TaskLinks';
 import { ROLE_DEFAULTS, roleMatrix, type Role } from '@mansora/domain';
 import { Alert, Badge, Button, Card, Disclosure, Field, Input, Modal, PageHeader, Select, Stat, Table, QueryView, WorkflowSteps, useUnsavedChanges } from '@mansora/ui';
-import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, marginLabel, money, saveFile, today, useAction, useApp, useQuery, useToast, uuid } from '../lib';
+import { call, DateRange, dateTime, daysAgo, ExportButtons, fileToBase64, marginLabel, money, openExternal, saveFile, today, useAction, useApp, useQuery, useToast, uuid } from '../lib';
 
 // ---------------------------------------------------------------- Staff
 export function StaffPage() {
@@ -106,6 +106,47 @@ function JournalExportCard() {
     <Card title="Journal for your accountant" className="mt-4">
       <p className="mb-3 text-sm text-slate-600">Balanced double-entry journals for each day: sales net of VAT and levies, cost of goods sold, refunds, stock losses, customer credit, expenses, till cash and payments to GRA, on a standard chart of accounts. Your accountant posts them to the business books or to Xero or QuickBooks. This is not a set of financial statements.</p>
       <div className="flex flex-wrap items-end gap-2"><DateRange {...range} onChange={setRange} /><Button disabled={busy} onClick={() => run(async () => saveFile(await call('accounting.journalExport', range)), 'Journal created')}>Download journal (Excel)</Button></div>
+    </Card>
+  );
+}
+
+/**
+ * Audit F08: send the daily journals to the business's own Xero organisation as drafts for the accountant.
+ * The owner signs in to Xero; Mansora never sees the Xero password.
+ */
+function XeroCard() {
+  const q = useQuery<any>('xero.status');
+  const { run, busy } = useAction();
+  const [clientId, setClientId] = useState('');
+  const [redirectUri, setRedirectUri] = useState('');
+  const [callback, setCallback] = useState('');
+  const [range, setRange] = useState({ from: `${today().slice(0, 7)}-01`, to: today() });
+  const [mapping, setMapping] = useState<Record<string, string> | null>(null);
+  const d = q.data;
+  if (!d) return <QueryView query={q} label="Xero connection">{null}</QueryView>;
+  const map = mapping ?? d.mapping;
+  return (
+    <Card title="Xero" className="mt-4">
+      {!d.connected ? <>
+        <p className="mb-3 text-sm text-slate-600">Connect your own Xero organisation to send each day's balanced journal to Xero as a draft. Your accountant reviews and posts it there. Ask your accountant or Mansora for the Xero app client ID and redirect address.</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Xero app client ID"><Input id="xero-client-id" value={clientId} onChange={(e) => setClientId(e.target.value)} /></Field>
+          <Field label="Redirect address"><Input id="xero-redirect" value={redirectUri} placeholder="https://…" onChange={(e) => setRedirectUri(e.target.value)} /></Field>
+        </div>
+        <Button className="mt-3" disabled={busy || !clientId.trim() || !redirectUri.trim()} onClick={() => run(async () => { const r = await call('xero.authUrl', { clientId, redirectUri }); await openExternal(r.url); })}>Sign in to Xero</Button>
+        <Field className="mt-3" label="After signing in, paste the full address Xero sent you to"><Input id="xero-callback" value={callback} onChange={(e) => setCallback(e.target.value)} /></Field>
+        <Button className="mt-2" variant="primary" disabled={busy || !callback.trim()} onClick={() => run(async () => { const u = new URL(callback.trim()); await call('xero.connect', { code: u.searchParams.get('code') ?? '', state: u.searchParams.get('state') ?? '' }); setCallback(''); q.reload(); }, 'Xero connected')}>Finish connecting</Button>
+      </> : <>
+        <p className="mb-3 text-sm">Connected to <strong>{d.tenant.name}</strong>. Choose the Xero account code for each Mansora account, then send a date range. Each day is sent once, as a draft.</p>
+        <Table rows={Object.entries(d.chart).map(([code, name]) => ({ code, name }))} columns={[{ header: 'Mansora account', cell: (r: any) => `${r.code} ${r.name}` }, { header: 'Xero account code', cell: (r: any) => <Input aria-label={`Xero code for ${r.code}`} value={map[r.code] ?? ''} onChange={(e) => setMapping({ ...map, [r.code]: e.target.value })} className="w-28" /> }]} />
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <Button disabled={busy || !mapping} onClick={() => run(async () => { await call('xero.mapping', { mapping: Object.fromEntries(Object.entries(map).filter(([, v]) => String(v).trim())) }); setMapping(null); q.reload(); }, 'Account mapping saved')}>Save mapping</Button>
+          <DateRange {...range} onChange={setRange} />
+          <Button variant="primary" disabled={busy} onClick={() => run(async () => { const r = await call('xero.push', range); q.reload(); if (r.failed) throw new Error(`${r.failed} day(s) were refused by Xero: ${r.errors.join('; ')}`); return r; }, 'Journals sent to Xero as drafts')}>Send to Xero</Button>
+          <Button variant="danger" disabled={busy} onClick={() => run(async () => { await call('xero.disconnect', {}); q.reload(); }, 'Xero disconnected')}>Disconnect</Button>
+        </div>
+        {d.pushed.length > 0 && <Table rows={d.pushed} columns={[{ header: 'Day', cell: (r: any) => r.journal_date }, { header: 'Status', cell: (r: any) => (r.status === 'posted' ? <Badge tone="good">Sent as draft</Badge> : <Badge tone="bad">Refused</Badge>) }, { header: 'Detail', cell: (r: any) => r.last_error ?? r.external_id ?? '' }]} />}
+      </>}
     </Card>
   );
 }
@@ -217,7 +258,7 @@ export function SettingsPage() {
 // ---------------------------------------------------------------- Import & export
 const FIELD_LABEL: Record<string, string> = { name: 'Product name *', sku: 'SKU', barcode: 'Barcode', category: 'Category', unit: 'Unit', cost_price: 'Unit cost price (GHS)', carton_cost: 'Carton cost (GHS)', units_per_carton: 'Selling units per carton', selling_price: 'Selling price *', opening_stock: 'Opening stock', reorder_level: 'Reorder level' };
 export function DataPage() {
-  const { can, go } = useApp();
+  const { can, go, state } = useApp();
   const toast = useToast();
   const [completed, setCompleted] = useState<{ created: number; skipped: number; fileName: string } | null>(null);
   const history = useQuery<any[]>('import.history');
@@ -293,6 +334,7 @@ export function DataPage() {
         </Card>
       )}
       {can('data.export') && <JournalExportCard />}
+      {state.user?.role === 'owner' && <XeroCard />}
     </div>
   );
 }

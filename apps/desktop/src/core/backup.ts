@@ -85,7 +85,8 @@ export function createBackupFile(db: Db, dbKey: string | null, dir: string, pass
       else copy.pragma(`cipher = 'sqlcipher'`);
       // A portable backup must never carry a remembered decryption passphrase.
       copy.pragma('secure_delete = ON');
-      copy.prepare("DELETE FROM meta WHERE key IN ('backup_passphrase', 'backup_auto')").run();
+      // Accounting-package tokens are credentials too: a restored laptop must connect Xero again.
+      copy.prepare("DELETE FROM meta WHERE key IN ('backup_passphrase', 'backup_auto', 'xero_tokens', 'xero_pkce_verifier', 'xero_oauth_state')").run();
       copy.pragma('journal_mode = DELETE');
       copy.pragma(`rekey = '${secret.replace(/'/g, "''")}'`);
     } finally {
