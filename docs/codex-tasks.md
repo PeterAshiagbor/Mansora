@@ -64,6 +64,8 @@ This is the current assignment for the remaining financial audit, security and r
 
 **R16-04 browser acceptance (Codex):** the new browser POS threshold/month-boundary case passed locally, with zero skips. Claude's PR #99 was independently reviewed, its focused 11 tests passed, and it merged after CI. The fix prevents arrears from counting both original and amended returns. This local browser proof is included in Codex PR #100, which still awaits final CI/merge and staged/live harness evidence.
 
+**Latest R16 outcome (16 November, Codex):** PRs #99/#100/#101 are merged; combined commit `71150b0` passed 556/556 verified tests and deployed to staging and production successfully. The authenticated TSB public-gateway checkout/refund/receipt/credit-note/VAT-export/sync phase passed in both environments; production ran at 19:56 UTC. Cash/stock returned to baseline, evidence is retained and the triggers are cleared. **R16-02 recovery remains NOT RUN / blocked on owner-deferred Google setup.** See `docs/operations/evidence/2026-11-16-tsb-acceptance.json`. The browser POS threshold proof also passed locally. Independent financial re-review covered 23 passing tests for Claude's five additional fixes; unresolved items remain in `financial-review-r16-05.md`. Existing monitoring-canary delivery is confirmed by provider read-back, but witnessed outage/recovery acceptance remains open. Core VAT memory optimisation, repo-admin settings and physical/provider/GRA gates are still open; do not mark overall readiness complete.
+
 **Execution order:** Codex starts R16-01 preparation and R16-02 live-test preparation; Claude starts R16-04/05 and the R16-03 recovery checks. Code/test preparation can proceed while external access is pending. Complete the isolated restore after a verified backup exists. Run physical/provider/GRA acceptance only when prerequisites are available. Neither agent may mark resilience or tax compliance complete solely because CI passed.
 
 **Handoff:** Claude should read this section and `docs/operations/financial-hardening-2026-11.md`, then claim a separate branch for each implementation task. Codex owns the infrastructure/browser acceptance evidence and independent review. Shared interfaces/migrations are agreed here before edits; released migrations are never rewritten. Optional future scope (batch/expiry, multiple tills/branches, QuickBooks and unfinished native-design acceptance) remains separate from critical readiness gates.
@@ -147,6 +149,11 @@ intake; it never provisions testers. App invitations, Resend diagnostics, DNS an
 infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
+
+### 2026-11-16 — Codex: staged/live execution and residual risks
+
+Started all available Codex readiness work. Reviewed/merged Claude #99 and #101 after green CI, and delivered #100. Combined release `71150b0` is live in production deployment `a43dd8c5-ef61-4fd2-b5da-230b37e635e8` (SUCCESS). All eight authenticated TSB gateway checks passed and all synthetic cash/stock effects were reversed; source financial facts remain for audit. Staging deployment `a960135d-ddca-4641-99c7-eef94be5154a` passed the same rehearsal. Full release CI verified 556/556 tests; security subset 90/90, harness 4/4, independent financial review 23/23, browser threshold case 1/1 and disposable recovery drill passed. Google setup is explicitly deferred by the owner, so no production restore was run. New high-priority VAT memory/performance finding is handed to Claude (see raw benchmarks). Repository protections still require an administrator; hardware/provider/GRA acceptance still requires external access and evidence. Documentation-only evidence follow-up; CI status checked after publication, product code unchanged.
+
 
 ### 2026-11-16 — Claude: R16-05 combined-release financial review
 
