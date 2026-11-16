@@ -13844,6 +13844,134 @@
         "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
       ],
       "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.customers.address",
+      "purpose": "Optional business customer address, printed on VAT tax documents where required. Column: address.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Direct contact detail of a customer or sole trader; personal data. Lawyer to confirm purpose limits and retention with the tax records."
+    },
+    {
+      "key": "cloud.tenant_vat_feature_events.revision",
+      "purpose": "Mansora platform history of switching a client's VAT collection feature on or off, with reason and administrator (audit control). Column: revision.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Administrator identifier and free-text reason are linkable to a person; platform audit record. Lawyer to confirm the accountability retention period."
+    },
+    {
+      "key": "cloud.tenant_vat_feature_events.id",
+      "purpose": "Mansora platform history of switching a client's VAT collection feature on or off, with reason and administrator (audit control). Column: id.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Administrator identifier and free-text reason are linkable to a person; platform audit record. Lawyer to confirm the accountability retention period."
+    },
+    {
+      "key": "cloud.tenant_vat_feature_events.tenant_id",
+      "purpose": "Mansora platform history of switching a client's VAT collection feature on or off, with reason and administrator (audit control). Column: tenant_id.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Administrator identifier and free-text reason are linkable to a person; platform audit record. Lawyer to confirm the accountability retention period."
+    },
+    {
+      "key": "cloud.tenant_vat_feature_events.enabled",
+      "purpose": "Mansora platform history of switching a client's VAT collection feature on or off, with reason and administrator (audit control). Column: enabled.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Administrator identifier and free-text reason are linkable to a person; platform audit record. Lawyer to confirm the accountability retention period."
+    },
+    {
+      "key": "cloud.tenant_vat_feature_events.reason",
+      "purpose": "Mansora platform history of switching a client's VAT collection feature on or off, with reason and administrator (audit control). Column: reason.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Administrator identifier and free-text reason are linkable to a person; platform audit record. Lawyer to confirm the accountability retention period."
+    },
+    {
+      "key": "cloud.tenant_vat_feature_events.admin_id",
+      "purpose": "Mansora platform history of switching a client's VAT collection feature on or off, with reason and administrator (audit control). Column: admin_id.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Administrator identifier and free-text reason are linkable to a person; platform audit record. Lawyer to confirm the accountability retention period."
+    },
+    {
+      "key": "cloud.tenant_vat_feature_events.occurred_at",
+      "purpose": "Mansora platform history of switching a client's VAT collection feature on or off, with reason and administrator (audit control). Column: occurred_at.",
+      "locations": [
+        "Cloud PostgreSQL platform billing plane",
+        "Hosting/database backups if configured; provider, region and retention require confirmation"
+      ],
+      "access": [
+        "Mansora billing service and authorised platform administrators through endpoint-specific controls; secret payment tokens excluded from ordinary responses",
+        "Client owner only through explicitly projected own-business billing endpoints; not general access to platform tables",
+        "Privileged hosting/database operators subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Administrator identifier and free-text reason are linkable to a person; platform audit record. Lawyer to confirm the accountability retention period."
+    },
+    {
+      "key": "laptop.customers.address",
+      "purpose": "Optional business customer address, printed on VAT tax documents where required. Column: address.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Direct contact detail of a customer or sole trader; personal data. Lawyer to confirm purpose limits and retention with the tax records."
     }
   ]
 }

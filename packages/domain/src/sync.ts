@@ -32,7 +32,7 @@ export const SYNC_TABLES = {
     id: 'id', document_type: 'text', document_id: 'id', document_no: 'text', payload: 'json', payload_sha256: 'text', status: 'text', provider: 'text', attempts: 'int',
     fiscal_id: 'text?', qr: 'text?', signature: 'text?', last_error: 'text?', created_at: 'ts', submitted_at: 'ts?', updated_at: 'ts',
   }),
-  /** Month closes, debt write-offs and clock overrides. Needs cloud migration 18 before laptops upgrade. */
+  /** Month closes, debt write-offs and clock overrides. Needs cloud migration 20 before laptops upgrade. */
   ledger_records: t('insert', { id: 'id', kind: 'text', record_date: 'text', reference: 'text', payload: 'json', created_by: 'id', created_at: 'ts' }),
   users: t('upsert', { id: 'id', username: 'text', name: 'text', role: 'text', status: 'text', permissions: 'json', created_at: 'ts', updated_at: 'ts' }),
   categories: t('upsert', { id: 'id', name: 'text', active: 'int', updated_at: 'ts' }),
@@ -62,7 +62,7 @@ export const SYNC_TABLES = {
     reason: 'text', requested_by: 'id', authorised_by: 'id', shift_id: 'id?', created_at: 'ts',
   }),
   refund_items: t('insert', { id: 'id', refund_id: 'id', sale_item_id: 'id', product_id: 'id', quantity: 'int', amount: 'int', restocked: 'int', tax_snapshot: 'text+' }),
-  customers: t('upsert', { id: 'id', name: 'text', phone: 'text?', email: 'text?', notes: 'text?', tin: 'text+', active: 'int', created_at: 'ts', updated_at: 'ts' }),
+  customers: t('upsert', { tin: 'text+', address: 'text+', id: 'id', name: 'text', phone: 'text?', email: 'text?', notes: 'text?', active: 'int', created_at: 'ts', updated_at: 'ts' }),
   credit_accounts: t('upsert', {
     id: 'id', customer_id: 'id', sale_id: 'id', original_balance: 'int', outstanding_balance: 'int', due_date: 'text?', status: 'text',
     created_at: 'ts', updated_at: 'ts',
@@ -147,7 +147,10 @@ export interface SyncPushResult {
   rejected: { id: string; reason: string }[];
 }
 
+export interface VatFeaturePolicy { enabled: boolean; revision: number; events: { revision: number; id: string; enabled: boolean; reason: string; occurredAt: string; adminName: string }[] }
+
 export interface SyncPullResult {
+  vatFeature?: VatFeaturePolicy;
   tenant: { id: string; name: string; status: string };
   subscription: { status: string; renewalDate: string | null; planName: string | null } | null;
   supportAccessLog: { id: string; adminName: string; action: string; occurredAt: string; grantId: string | null }[];

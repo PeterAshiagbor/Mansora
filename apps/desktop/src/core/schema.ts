@@ -414,8 +414,12 @@ CREATE TRIGGER tax_records_no_update BEFORE UPDATE ON tax_records BEGIN SELECT R
 CREATE TRIGGER tax_records_no_delete BEFORE DELETE ON tax_records BEGIN SELECT RAISE(ABORT, 'Tax records cannot be deleted'); END;
 `,
   },
+  { id: 6, name: 'customer_tax_identity', sql: `
+ALTER TABLE customers ADD COLUMN tin TEXT;
+ALTER TABLE customers ADD COLUMN address TEXT;
+` },
   {
-    id: 6,
+    id: 7,
     name: 'ledger_records',
     sql: `
 -- Financial control records that are not sales, stock or tax: month closes and reopenings, customer debt
@@ -431,8 +435,6 @@ CREATE TRIGGER ledger_records_no_update BEFORE UPDATE ON ledger_records BEGIN SE
 CREATE TRIGGER ledger_records_no_delete BEFORE DELETE ON ledger_records BEGIN SELECT RAISE(ABORT, 'ledger_records records cannot be deleted'); END;
 CREATE INDEX payments_reference ON payments(reference) WHERE reference IS NOT NULL;
 CREATE INDEX purchases_reference ON purchases(reference) WHERE reference IS NOT NULL;
--- Audit F15: a business customer's TIN, printed on its receipts so it can evidence an input-tax claim.
-ALTER TABLE customers ADD COLUMN tin TEXT;
 -- Audit F08: when a supplier invoice bought on credit falls due.
 ALTER TABLE purchases ADD COLUMN due_date TEXT;
 -- Audit F01: every VAT invoice and credit note queued for the GRA E-VAT interface, with its submission status and the

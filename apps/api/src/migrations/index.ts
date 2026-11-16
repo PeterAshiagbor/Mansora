@@ -877,8 +877,22 @@ CREATE POLICY tenant_isolation ON tax_records USING (tenant_id = NULLIF(current_
 GRANT SELECT, INSERT ON tax_configs, tax_records TO mansora_tenant;
 `,
   },
+  { id: 18, name: 'customer_tax_identity', sql: `
+ALTER TABLE customers ADD COLUMN tin text;
+ALTER TABLE customers ADD COLUMN address text;
+` },
+  { id: 19, name: 'platform_vat_feature_history', sql: `
+CREATE TABLE tenant_vat_feature_events (
+ revision bigserial PRIMARY KEY, id uuid NOT NULL UNIQUE, tenant_id uuid NOT NULL REFERENCES tenants(id),
+ enabled boolean NOT NULL, reason text NOT NULL, admin_id uuid NOT NULL REFERENCES admins(id),
+ occurred_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX tenant_vat_feature_history ON tenant_vat_feature_events(tenant_id, revision);
+GRANT SELECT, INSERT ON tenant_vat_feature_events TO mansora_platform;
+GRANT USAGE, SELECT ON SEQUENCE tenant_vat_feature_events_revision_seq TO mansora_platform;
+` },
   {
-    id: 18,
+    id: 20,
     name: 'ledger_records',
     sql: `
 CREATE TABLE ledger_records (
@@ -890,7 +904,6 @@ ALTER TABLE ledger_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ledger_records FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON ledger_records USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
 GRANT SELECT, INSERT ON ledger_records TO mansora_tenant;
-ALTER TABLE customers ADD COLUMN tin text;
 ALTER TABLE purchases ADD COLUMN due_date text;
 CREATE TABLE evat_submissions (
  tenant_id uuid NOT NULL REFERENCES tenants(id), id uuid NOT NULL, document_type text NOT NULL, document_id uuid NOT NULL, document_no text NOT NULL,

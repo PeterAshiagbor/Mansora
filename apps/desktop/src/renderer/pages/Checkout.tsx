@@ -12,6 +12,8 @@ interface Product {
   sku: string | null;
   barcode: string | null;
   selling_price: number;
+  display_price?: number | null;
+  price_includes_tax?: boolean;
   quantity: number;
   category_id: string | null;
 }
@@ -174,11 +176,11 @@ export function Checkout() {
             const inBasket = lines.find((l) => l.product.id === p.id)?.quantity ?? 0;
             const left = p.quantity - inBasket;
             return (
-              <button key={p.id} type="button" onClick={() => add(p)} disabled={left <= 0 && !state.business.allowNegativeStock}
+              <button key={p.id} type="button" onClick={() => add(p)} disabled={p.display_price === null || (left <= 0 && !state.business.allowNegativeStock)}
                 className="m-sale-product rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-brand-500 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:cursor-not-allowed disabled:opacity-50">
                 <div className="line-clamp-2 min-h-10 text-sm font-medium text-slate-900">{p.name}</div>
                 <div className="mt-1 flex items-end justify-between">
-                  <span className="text-base font-semibold tabular-nums text-brand-800">{money(p.selling_price)}</span>
+                  <span className="text-base font-semibold tabular-nums text-brand-800">{p.display_price === null ? 'VAT classification needed' : money(p.display_price ?? p.selling_price)}{p.price_includes_tax && p.display_price != null && <small className="block text-xs">Including VAT and levies</small>}</span>
                   <span className={cx('text-xs', left <= 0 ? 'font-semibold text-red-700' : 'text-slate-500')}>{left <= 0 ? state.business.allowNegativeStock ? 'No stock recorded' : 'Out of stock' : `${left} left`}</span>
                 </div>
               </button>

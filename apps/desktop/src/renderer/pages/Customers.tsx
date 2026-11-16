@@ -27,8 +27,8 @@ export function CustomersPage() {
       </Card></QueryView>
       {edit && (
         <Modal title={edit.id ? 'Edit customer' : 'Add customer'} open onClose={() => setEdit(null)}
-          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('customer.save', { id: edit.id, name: edit.name, phone: edit.phone, email: edit.email ?? '', notes: edit.notes, tin: edit.tin ?? '' }); setEdit(null); reload(); }, 'Customer saved')}>Save</Button></>}>
-          <CustomerFields value={{ name: edit.name ?? '', phone: edit.phone ?? '', email: edit.email ?? '', notes: edit.notes ?? '', tin: edit.tin ?? '' }} onChange={(v) => setEdit({ ...edit, ...v })} />
+          footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('customer.save', { tin: edit.tin ?? null, address: edit.address ?? null, id: edit.id, name: edit.name, phone: edit.phone, email: edit.email ?? '', notes: edit.notes }); setEdit(null); reload(); }, 'Customer saved')}>Save</Button></>}>
+          <CustomerFields value={{ tin: edit.tin ?? '', address: edit.address ?? '', name: edit.name ?? '', phone: edit.phone ?? '', email: edit.email ?? '', notes: edit.notes ?? '' }} onChange={(v) => setEdit({ ...edit, ...v })} />
         </Modal>
       )}
       {view && <CustomerView id={view} onClose={() => setView(null)} />}

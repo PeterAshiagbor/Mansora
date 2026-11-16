@@ -120,6 +120,7 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
     const pull: SyncPullResult = await call(engine, '/v1/sync/pull', { method: 'GET' });
     engine.db.transaction(() => {
       engine.setMeta('tenant_status', pull.tenant.status);
+      if (pull.vatFeature !== undefined) engine.setMeta('platform_vat_feature',JSON.stringify(pull.vatFeature));
       engine.setMeta('subscription', JSON.stringify(pull.subscription));
       // Only the server can replace the standing; an older server that omits it leaves the last one in place.
       if (pull.standing !== undefined) engine.setMeta('service_standing', JSON.stringify(pull.standing));

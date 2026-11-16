@@ -147,7 +147,7 @@ describe('F05 VAT payments are matched to the return they settle', () => {
     // 3 rice at 80.00 inclusive = 240.00; tax = 240 - 240/1.2 = 40.00.
     await cashSale(s, s.products.rice, 3, 24_000);
     at('2026-11-20T10:00:00.000Z');
-    await s.run(s.owner, 'tax.file', { id: uuid(), month: '2026-10', reference: 'GRA-ACK-1', reason: 'Filed', reviewed: true });
+    await s.run(s.owner, 'tax.file', { id: uuid(), month: '2026-10', reference: 'GRA-ACK-1', reason: 'Filed', reviewed: true, fiscalEvidenceConfirmed: true, submittedDate: '2026-11-20' });
     let oct = await s.run(s.owner, 'tax.report', { month: '2026-10' });
     expect(oct.payable).toBe(4000);
     expect(oct.arrears).toMatchObject({ outstanding: 4000 });
@@ -183,7 +183,7 @@ describe('F09 / F10 purchases', () => {
     expect(nov.buckets.map((b: any) => b.inputs)).toEqual([500, 83, 83]);
     expect(nov.unclaimedPurchases.length).toBe(0);
     expect((s.engine.db.prepare('SELECT total_cost FROM purchases WHERE id = ?').get(id) as any).total_cost).toBe(3330);
-    await expectCode(s.run(s.owner, 'tax.record', { id: uuid(), kind: 'input', date: '2026-11-03', invoiceDate: '2026-11-01', reference: 'SUP-9-again', supplierTin: 'S-TIN', purchaseId: id, vat: 500, nhil: 83, getfund: 83, evidenceConfirmed: true, reason: 'double claim' }), 'DUPLICATE_TAX_INVOICE');
+    await expectCode(s.run(s.owner, 'tax.record', { id: uuid(), kind: 'input', date: '2026-11-03', invoiceDate: '2026-11-01', reference: 'SUP-9-again', supplierTin: 'S-TIN', purchaseId: id, base: 3330, vat: 500, nhil: 83, getfund: 83, evidenceConfirmed: true, reason: 'double claim' }), 'DUPLICATE_TAX_INVOICE');
     // A receipt without a claim is flagged in the VAT papers.
     await s.run(s.owner, 'purchase.receive', { id: uuid(), reference: 'SUP-10', items: [{ productId: s.products.soap, quantity: 1, unitCost: 333 }] });
     expect((await s.run(s.owner, 'tax.report', { month: '2026-11' })).unclaimedPurchases.length).toBe(1);

@@ -9,6 +9,7 @@ export type TaxClass = typeof TAX_CLASSES[number];
 export const GHANA_VAT_THRESHOLD = 75_000_000; // pesewas; GHS 750,000
 export const taxConfigSchema = z.object({
   effectiveDate: zCalendarDate,
+  revision: z.number().int().nonnegative().safe().default(0),
   registered: z.boolean().default(false),
   automatic: z.boolean().default(true),
   registrationDate: zCalendarDate.nullable().default(null),
@@ -28,6 +29,8 @@ export const taxConfigSchema = z.object({
   serviceThresholdDate: zCalendarDate.nullable().default(null),
   serviceThresholdAuthority: z.string().trim().max(400).default(''),
   mandatoryRegistration: z.boolean().default(false),
+  ruleOverrideAuthority: z.string().trim().max(400).default(''),
+  deregistrationAuthority: z.string().trim().max(400).default(''),
   reason: z.string().trim().min(1).max(400),
 });
 export type TaxConfig = z.infer<typeof taxConfigSchema>;

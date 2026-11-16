@@ -53,7 +53,7 @@ describe.skipIf(!pw || !built)('Mansora provider branding and client workspace i
   async function checkBrand(page: any) {
     const mark = page.getByTestId('mansora-brand');
     await mark.getByText('MANSORA', { exact: true }).waitFor();
-    await mark.getByText('Consulting & Business Solutions Limited', { exact: true }).waitFor();
+    await mark.getByText('Consulting and Business Solutions Limited', { exact: true }).waitFor();
     await page.evaluate(() => document.fonts.ready);
     await page.evaluate(() => document.fonts.load('400 16px "DM Sans"', 'Ɛ'));
     expect(await page.evaluate(() => document.fonts.check('400 16px "DM Sans"'))).toBe(true);

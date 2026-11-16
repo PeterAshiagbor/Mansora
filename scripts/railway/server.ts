@@ -1,3 +1,5 @@
+import { seedVatDemo } from '../staging/vat-demo';
+import { vatFeaturePolicy } from '../../apps/api/src/vat-features';
 import { browserOwnerRecoveryIssuer } from '../../apps/api/src/browser-workspaces';
 import { createOwnerRecovery, type OwnerRecovery } from '../staging/owner-recovery';
 import { join } from 'node:path';
@@ -105,7 +107,11 @@ export async function runRailwayServer() {
         // Keep existing access available if an account password changed or a data pack needs review.
         console.log(`Sample test data: ${prepared} workspaces prepared, ${preserved} preserved, ${pending} awaiting review.`);
       }
-    }, onboarding, recovery);
+      if (process.env.MANSORA_VAT_DEMO) {
+        const result=await seedVatDemo({mode:config.mode,version:process.env.MANSORA_VAT_DEMO,dataDir:join(config.dataDir,'staging'),workspaces});
+        console.log('Synthetic TSB VAT demo:',JSON.stringify(result));
+      }
+    }, onboarding, recovery, tenantId => db.platform(q=>vatFeaturePolicy(q,tenantId)));
     // Off-site system backups (Google Cloud Storage for now), when switched on with MANSORA_SYSTEM_BACKUPS=1.
     const alertTo = process.env.PLATFORM_ALERT_EMAIL?.trim();
     const alert = alertTo ? (subject: string, body: string) => billing.email.send({ to: alertTo, subject, body, idempotencyKey: `mansora-backup-health/${subject}/${new Date().toISOString().slice(0, 13)}` }) : undefined;

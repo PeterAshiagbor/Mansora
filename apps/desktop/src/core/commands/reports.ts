@@ -27,9 +27,13 @@ function salesTotals(ctx: Ctx, from: string, to: string, cashierId?: string) {
   const refunds = cashierId
     ? v(ctx, `SELECT COALESCE(SUM(r.amount), 0) AS v FROM refunds r JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at < ? AND s.cashier_id = ?`, ...p)
     : v(ctx, `SELECT COALESCE(SUM(amount), 0) AS v FROM refunds WHERE created_at >= ? AND created_at < ?`, from, to);
-  // Tax figures are business-wide only: the cashier-scoped dashboard keeps gross takings.
-  const tax = cashierId ? null : taxFor(ctx, from, to);
-  return { gross, count, discounts, refunds, net: gross - refunds, tax, netExclTax: tax == null ? null : gross - refunds - tax };
+  const taxOnSales = v(ctx, `SELECT COALESCE(SUM(COALESCE(json_extract(tax_snapshot,'$.vat'),0)+COALESCE(json_extract(tax_snapshot,'$.nhil'),0)+COALESCE(json_extract(tax_snapshot,'$.getfund'),0)),0) AS v FROM sales WHERE created_at >= ? AND created_at < ? ${c}`, ...p);
+  const taxOnRefunds = v(ctx, `SELECT COALESCE(SUM(COALESCE(json_extract(ri.tax_snapshot,'$.vat'),0)+COALESCE(json_extract(ri.tax_snapshot,'$.nhil'),0)+COALESCE(json_extract(ri.tax_snapshot,'$.getfund'),0)),0) AS v FROM refund_items ri JOIN refunds r ON r.id = ri.refund_id JOIN sales s ON s.id = r.sale_id WHERE r.created_at >= ? AND r.created_at < ? ${cashierId ? 'AND s.cashier_id = ?' : ''}`, ...p);
+  const netTax = taxOnSales-taxOnRefunds;
+  return { gross, count, discounts, refunds, net: gross - refunds, taxOnSales, taxOnRefunds, netTax, netExcludingTax: gross-refunds-netTax,
+    // Same figures under the names the hardening reports use (audit F13).
+    tax: netTax, netExclTax: gross - refunds - netTax };
+
 }
 
 function paymentBreakdown(ctx: Ctx, from: string, to: string) {
@@ -75,14 +79,6 @@ export function lossesFor(ctx: Ctx, from: string, to: string, fromDay: string, t
   const debtWrittenOff = sum(ctx.all<{ payload: string }>(`SELECT payload FROM ledger_records WHERE kind = 'credit_writeoff' AND record_date >= ? AND record_date <= ?`, fromDay, toDay).map((r) => Number(JSON.parse(r.payload).amount) || 0));
   const lines = { damage, stockCount, corrections, unsellableReturns, cashShortOver, debtWrittenOff };
   return { ...lines, total: sum(Object.values(lines)) };
-}
-
-/** Tax collected on sales less tax reversed on refunds in the period (from the immutable snapshots). */
-function taxFor(ctx: Ctx, from: string, to: string) {
-  const t = (k: string) => `COALESCE(json_extract(tax_snapshot, '$.${k}'), 0)`;
-  const sold = v(ctx, `SELECT COALESCE(SUM(${t('vat')} + ${t('nhil')} + ${t('getfund')}), 0) AS v FROM sales WHERE created_at >= ? AND created_at < ?`, from, to);
-  const reversed = v(ctx, `SELECT COALESCE(SUM(${t('vat')} + ${t('nhil')} + ${t('getfund')}), 0) AS v FROM refund_items ri JOIN refunds r ON r.id = ri.refund_id WHERE r.created_at >= ? AND r.created_at < ?`, from, to);
-  return sold - reversed;
 }
 
 /**

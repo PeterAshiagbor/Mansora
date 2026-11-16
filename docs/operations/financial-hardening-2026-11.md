@@ -18,7 +18,7 @@ in the tests are worked out by hand, not read back from the application's report
 | F12 Non-blind cash count | Staff without shift review rights do not see expected cash while their shift is open; it is shown after closing. | F12 test, `engine.test.ts` |
 | F13 Mixed revenue bases | The sales report adds tax collected and net sales excluding tax. The profit report labels its tax-exclusive basis. `report-definitions.md` is corrected. | F13 test |
 | F14 No closing-stock valuation | The stock report adds the value at the end of the chosen period, rebuilt from the movement ledger. | F02 as-at test |
-| F16 VAT report scans all history | Only the chosen month's lines are loaded. | Existing VAT tests |
+| F16 VAT report scans all history | Not changed. The VAT report merged from PR #96/#97 reads the full history to detect historical exposure from disabled collection, which correctness requires. Revisit with stored monthly totals if large shops report slow VAT pages. | n/a |
 | F08 No accountant-ready output | `accounting.journal` and **Journal for your accountant** (Import & export): balanced daily double-entry journals on a default chart of accounts, period totals, and a review sheet for items needing judgement (withholding certificates, adjustments, opening credits). Every journal is checked to balance. Not financial statements. | F08 test: ties to the profit, credit, till and VAT figures |
 | F15 Invoice content | Optional business TIN on customers, printed on VAT receipts. Printable credit note per refund, with the original receipt and the tax reversed. VAT receipts state they are not issued through GRA E-VAT. | F08 test |
 | F18 Mansora's own invoice VAT | Billing setting "Mansora is VAT registered": new invoices carry VAT 15%, NHIL 2.5% and GETFund 2.5% as separate lines with Mansora's VAT number. Off by default; manual invoices with an explicit rate keep it. | `tests/billing/mansora-vat.test.ts` |
@@ -30,8 +30,8 @@ in the tests are worked out by hand, not read back from the application's report
 
 ## Deployment order
 
-1. Deploy the API with migration 18 (`ledger_records`) **before** upgrading laptops or browser shops. An older server refuses events containing the new table. If that happens, the events can be sent again with **Repair and resend** after the server is upgraded.
-2. Then upgrade laptops. Local migration 6 adds `ledger_records` and two lookup indexes.
+1. Deploy the API with migration 20 (`ledger_records`, `evat_submissions`, `purchases.due_date`, `invoices.tax_breakdown`) **before** upgrading laptops or browser shops. An older server refuses events containing the new table. If that happens, the events can be sent again with **Repair and resend** after the server is upgraded.
+2. Then upgrade laptops. Local migration 7 adds `ledger_records`, `evat_submissions`, `purchases.due_date` and two lookup indexes. Customer TIN and address come from migrations 6 (laptop) and 18 (cloud), merged from PR #96.
 
 ## Not changed here (still open)
 
