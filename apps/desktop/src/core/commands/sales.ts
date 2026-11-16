@@ -240,7 +240,12 @@ export const salesCommands = defineCommands({
       });
       const amount = sum(lines.map((l) => l.amount));
       const credit = ctx.get('SELECT * FROM credit_accounts WHERE sale_id = ?', input.saleId);
-      const { creditReduction, payout } = splitRefund(amount, credit?.outstanding_balance ?? 0);
+      const split = splitRefund(amount, credit?.outstanding_balance ?? 0);
+      // R16-05: goods returned on a debt that was written off reverse the write-off; they are never paid out in money
+      // the customer did not pay. Order: unpaid debt, then written-off debt, then a payout of what was actually paid.
+      const writtenOff = credit ? sum(ctx.all<{ payload: string }>(`SELECT payload FROM ledger_records WHERE kind = 'credit_writeoff' AND json_extract(payload, '$.creditAccountId') = ?`, credit.id).map((r) => Number(JSON.parse(r.payload).amount) || 0)) : 0;
+      const writeOffReversal = Math.min(split.payout, Math.max(0, writtenOff));
+      const creditReduction = split.creditReduction + writeOffReversal, payout = split.payout - writeOffReversal;
       const cashOut = payout > 0 && input.payoutMethod === 'cash';
       const shift = cashOut ? requireOpenShift(ctx, 'paying a cash refund') : openShift(ctx);
 
@@ -257,8 +262,13 @@ export const salesCommands = defineCommands({
         // Returned goods go back into stock at the cost they were sold at. Unsellable returns are not restocked.
         if (l.restock) moveStock(ctx, { productId: l.item.product_id, type: 'SALE_REFUND', delta: l.quantity, unitCost: l.item.cost_snapshot, refType: 'refund', refId: input.id, reason: input.reason });
       }
-      if (creditReduction > 0) {
-        const outstanding = credit.outstanding_balance - creditReduction;
+      if (writeOffReversal > 0) {
+        const wid = ctx.id();
+        ctx.insert('ledger_records', { id: wid, kind: 'credit_writeoff', record_date: now.slice(0, 10), reference: `Write-off reversed by ${refundNo}`, payload: JSON.stringify({ creditAccountId: credit.id, customerId: credit.customer_id, saleId: input.saleId, amount: -writeOffReversal, refundId: input.id, reason: 'Goods returned on written-off debt' }), created_by: ctx.user.id, created_at: now });
+        ctx.audit('ledger_record', wid, { kind: 'credit_writeoff', amount: -writeOffReversal, refundId: input.id }, 'ledger.credit_writeoff_reversed');
+      }
+      if (creditReduction - writeOffReversal > 0) {
+        const outstanding = credit.outstanding_balance - (creditReduction - writeOffReversal);
         ctx.update('credit_accounts', credit.id, { outstanding_balance: outstanding, status: outstanding === 0 ? 'settled' : 'open', updated_at: now });
       }
       queueEvat(ctx, 'credit_note', input.id);

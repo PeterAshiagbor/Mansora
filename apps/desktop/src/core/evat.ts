@@ -100,8 +100,21 @@ export function queueEvat(ctx: Ctx, type: EvatDocument['type'], id: string): voi
   });
 }
 
-/** Submit queued documents in issue order. Stops at the first connection failure so order is preserved. */
-export async function runEvatQueue(engine: Engine): Promise<{ accepted: number; rejected: number; pending: number; error: string | null }> {
+type QueueResult = { accepted: number; rejected: number; pending: number; error: string | null };
+const running = new WeakMap<Engine, Promise<QueueResult>>();
+/**
+ * Submit queued documents in issue order. Stops at the first connection failure so order is preserved.
+ * R16-05: one run at a time per laptop. A background sync and a manual "Submit now" that overlap share the same run,
+ * so no document is sent to the authority twice.
+ */
+export function runEvatQueue(engine: Engine): Promise<QueueResult> {
+  const current = running.get(engine);
+  if (current) return current;
+  const run = drainEvatQueue(engine).finally(() => running.delete(engine));
+  running.set(engine, run);
+  return run;
+}
+async function drainEvatQueue(engine: Engine): Promise<QueueResult> {
   const provider = providerFor(engine);
   const out = { accepted: 0, rejected: 0, pending: 0, error: null as string | null };
   const pending = () => (engine.db.prepare(`SELECT COUNT(*) AS n FROM evat_submissions WHERE status = 'pending'`).get() as { n: number }).n;

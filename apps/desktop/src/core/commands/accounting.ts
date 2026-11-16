@@ -1,4 +1,4 @@
-import { fail, sum, zDateRange } from '@mansora/domain';
+import { fail, movingAverageCost, sum, zDateRange } from '@mansora/domain';
 import { dayBounds, defineCommands, type Ctx } from '../engine';
 import { toXlsx } from '../importer';
 
@@ -9,9 +9,9 @@ import { toXlsx } from '../importer';
  * set of financial statements. Records that need an accountant's judgement are listed separately, never guessed.
  */
 export const CHART: Record<string, string> = {
-  '1000': 'Cash in till', '1010': 'Mobile Money wallet', '1020': 'Card settlements receivable', '1030': 'Bank', '1040': 'Cash transfers (banked or to owner)',
+  '1000': 'Cash in till', '1010': 'Mobile Money wallet', '1020': 'Card settlements receivable', '1030': 'Bank', '1040': 'Cash transfers (banked or to owner)', '1050': 'Cash paid outside the till (owner or petty cash)',
   '1100': 'Trade receivables (customer credit)', '1200': 'Inventory', '1300': 'Input VAT, NHIL and GETFund recoverable',
-  '2000': 'Trade payables (suppliers)', '2100': 'Output VAT payable', '2110': 'NHIL payable', '2120': 'GETFund payable', '2190': 'Payments to GRA (allocate to VAT, NHIL, GETFund)',
+  '2000': 'Trade payables (suppliers)', '2010': 'Goods paid for on delivery (allocate to cash or bank)', '2100': 'Output VAT payable', '2110': 'NHIL payable', '2120': 'GETFund payable', '2190': 'Payments to GRA (allocate to VAT, NHIL, GETFund)',
   '3000': 'Opening balances (equity)', '4000': 'Sales (excluding VAT and levies)', '5000': 'Cost of goods sold',
   '5100': 'Inventory losses and gains', '5110': 'Cash short and over', '5120': 'Bad debts written off', '6000': 'Operating expenses',
 };
@@ -79,17 +79,21 @@ export function buildJournal(ctx: Ctx, from: string, to: string) {
   }
 
   // Purchases (at the cost entered, which excludes recoverable tax for VAT-registered shops) and input tax claims.
-  for (const p of ctx.all(`SELECT substr(received_at, 1, 10) AS day, SUM(total_cost) AS cost FROM purchases WHERE received_at >= ? AND received_at < ? GROUP BY 1`, fromTs, toTs)) {
-    add(entryOf(p.day, `PURCHASES-${p.day}`, 'Goods received', [{ account: '1200', amount: p.cost }, { account: '2000', amount: -p.cost, memo: 'Allocate to supplier invoices and payments' }]));
+  // R16-05: only goods bought on credit are owed to suppliers (they match payable.list and supplier.pay). Goods paid
+  // for on delivery were settled outside Mansora, so they go to a clearing account for the accountant to allocate.
+  for (const p of ctx.all(`SELECT substr(received_at, 1, 10) AS day, status = 'on_credit' AS credit, SUM(total_cost) AS cost FROM purchases WHERE received_at >= ? AND received_at < ? GROUP BY 1, 2`, fromTs, toTs)) {
+    add(entryOf(p.day, `PURCHASES-${p.day}${p.credit ? '-CREDIT' : '-PAID'}`, 'Goods received', [{ account: '1200', amount: p.cost },
+      p.credit ? { account: '2000', amount: -p.cost, memo: 'Bought on credit' } : { account: '2010', amount: -p.cost, memo: 'Paid on delivery; allocate to cash or bank' }]));
   }
-  for (const t of ctx.all(`SELECT tax_date, reference, payload FROM tax_records WHERE kind = 'input' AND tax_date >= ? AND tax_date <= ?`, from, to)) {
-    const d = JSON.parse(t.payload), amount = sum(['vat', 'nhil', 'getfund'].map((k) => Number(d[k]) || 0));
-    add(entryOf(t.tax_date, `INPUT-${t.reference}`, 'Input tax claimed', [{ account: '1300', amount }, { account: '2000', amount: -amount, memo: `Supplier ${d.supplierTin ?? ''} invoice ${t.reference}` }]));
+  for (const t of ctx.all(`SELECT t.tax_date, t.reference, t.payload, p.status AS purchase_status FROM tax_records t LEFT JOIN purchases p ON p.id = json_extract(t.payload, '$.purchaseId') WHERE t.kind = 'input' AND t.tax_date >= ? AND t.tax_date <= ?`, from, to)) {
+    const d = JSON.parse(t.payload), amount = sum(['vat', 'nhil', 'getfund'].map((k) => Number(d[k]) || 0)), owed = t.purchase_status === 'on_credit';
+    add(entryOf(t.tax_date, `INPUT-${t.reference}`, 'Input tax claimed', [{ account: '1300', amount }, { account: owed ? '2000' : '2010', amount: -amount, memo: `Supplier ${d.supplierTin ?? ''} invoice ${t.reference}` }]));
   }
 
   for (const sp of ctx.all<{ record_date: string; reference: string; payload: string }>(`SELECT record_date, reference, payload FROM ledger_records WHERE kind = 'supplier_payment' AND record_date >= ? AND record_date <= ?`, from, to)) {
     const d = JSON.parse(sp.payload), amount = Number(d.amount) || 0;
-    add(entryOf(sp.record_date, `SUPPAY-${sp.reference}-${d.purchaseId.slice(0, 8)}`, 'Supplier payments', [{ account: '2000', amount }, { account: METHOD_ACCOUNT[d.method], amount: -amount }]));
+    const paidFrom = d.method === 'cash' && !d.shiftId ? '1050' : METHOD_ACCOUNT[d.method]; // cash not taken from the till
+    add(entryOf(sp.record_date, `SUPPAY-${sp.reference}-${d.purchaseId.slice(0, 8)}`, 'Supplier payments', [{ account: '2000', amount }, { account: paidFrom, amount: -amount }]));
   }
 
   // Stock written in or off outside sales and purchases.
@@ -100,8 +104,10 @@ export function buildJournal(ctx: Ctx, from: string, to: string) {
   }
 
   // Expenses by category and how they were paid.
-  for (const e of ctx.all(`SELECT expense_date AS day, category, payment_method AS method, SUM(amount) AS amount FROM expenses WHERE expense_date >= ? AND expense_date <= ? GROUP BY 1, 2, 3`, from, to)) {
-    add(entryOf(e.day, `EXP-${e.day}-${e.category}-${e.method}`, 'Expenses', [{ account: '6000', amount: e.amount, memo: e.category }, { account: METHOD_ACCOUNT[e.method], amount: -e.amount }]));
+  // R16-05: cash expenses not paid from a till shift came out of the owner's or petty cash, not the till.
+  for (const e of ctx.all(`SELECT expense_date AS day, category, payment_method AS method, shift_id IS NOT NULL AS till, SUM(amount) AS amount FROM expenses WHERE expense_date >= ? AND expense_date <= ? GROUP BY 1, 2, 3, 4`, from, to)) {
+    const paidFrom = e.method === 'cash' && !e.till ? '1050' : METHOD_ACCOUNT[e.method];
+    add(entryOf(e.day, `EXP-${e.day}-${e.category}-${e.method}${paidFrom === '1050' ? '-OUTSIDE' : ''}`, 'Expenses', [{ account: '6000', amount: e.amount, memo: e.category }, { account: paidFrom, amount: -e.amount }]));
   }
 
   // Till cash movements and shift differences.
@@ -119,12 +125,44 @@ export function buildJournal(ctx: Ctx, from: string, to: string) {
     add(entryOf(t.tax_date, `GRA-${t.reference}`, `Payment to GRA for ${d.period ?? 'unstated period'}`, [{ account: '2190', amount }, { account: '1030', amount: -amount }]));
   }
 
+  // R16-05: stock is valued at a rounded moving-average cost, so the postings above (made at each movement's cost) drift
+  // from the valuation report by a few pesewas. Post each day's difference so account 1200 always equals the valuation.
+  const valuation = stockValueByDay(ctx, from, to);
+  for (const [day, change] of valuation) {
+    const posted = sum(entries.filter((e) => e.date === day).flatMap((e) => e.lines).filter((l) => l.account === '1200').map((l) => l.debit - l.credit));
+    add(entryOf(day, `STOCKROUND-${day}`, 'Stock valuation rounding (moving-average cost)', [{ account: '1200', amount: change - posted }, { account: '5100', amount: posted - change, memo: 'Moving-average rounding' }]));
+  }
+
   const review = ctx.all(`SELECT tax_date, kind, reference, payload FROM tax_records WHERE kind IN ('withholding', 'adjustment', 'opening_credit') AND tax_date >= ? AND tax_date <= ? ORDER BY tax_date`, from, to);
   entries.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.entry < b.entry ? -1 : 1));
   const totals = new Map<string, { debit: number; credit: number }>();
   for (const e of entries) for (const l of e.lines) { const t = totals.get(l.account) ?? { debit: 0, credit: 0 }; t.debit += l.debit; t.credit += l.credit; totals.set(l.account, t); }
   const trial = Object.keys(CHART).filter((k) => totals.has(k)).map((k) => ({ account: k, name: CHART[k], ...totals.get(k)!, net: totals.get(k)!.debit - totals.get(k)!.credit }));
   return { from, to, entries, trial, debits: sum(trial.map((t) => t.debit)), credits: sum(trial.map((t) => t.credit)), review };
+}
+
+/** Change in stock valuation (as in the stock reports: quantity x moving-average cost) for each day in the range. */
+function stockValueByDay(ctx: Ctx, from: string, to: string): Map<string, number> {
+  const [fromTs, toTs] = dayBounds({ from, to });
+  const state = new Map<string, { quantity: number; averageCost: number }>();
+  let value = 0, opening: number | null = null, day: string | null = null, dayStart = 0;
+  const out = new Map<string, number>();
+  const close = () => { if (day) out.set(day, value - dayStart); };
+  for (const m of ctx.db.prepare(`SELECT product_id, quantity_delta, unit_cost, occurred_at FROM inventory_movements WHERE occurred_at < ? ORDER BY occurred_at, rowid`).iterate(toTs) as Iterable<any>) {
+    if (m.occurred_at >= fromTs) {
+      if (opening === null) opening = value;
+      const d = m.occurred_at.slice(0, 10);
+      if (d !== day) { close(); day = d; dayStart = value; }
+    }
+    const s = state.get(m.product_id) ?? { quantity: 0, averageCost: 0 };
+    const before = Math.max(0, s.quantity) * s.averageCost;
+    if (m.quantity_delta > 0) s.averageCost = movingAverageCost(s.quantity, s.averageCost, m.quantity_delta, m.unit_cost);
+    s.quantity += m.quantity_delta;
+    state.set(m.product_id, s);
+    value += Math.max(0, s.quantity) * s.averageCost - before;
+  }
+  close();
+  return out;
 }
 
 export const accountingCommands = defineCommands({
@@ -151,6 +189,8 @@ export const accountingCommands = defineCommands({
           ['Sales', 'Net of VAT, NHIL and GETFund from each line\'s tax snapshot. Credit given is posted to trade receivables.'],
           ['Stock', 'Moving-average cost. Purchases are posted to trade payables; match them to supplier invoices and payments.'],
           ['Cash transfers', 'Cash taken out of or put into the till is posted to account 1040; allocate to bank deposits or owner drawings.'],
+          ['Cash outside the till', 'Cash expenses and supplier payments not paid from the till are posted to 1050; allocate to owner or petty cash.'],
+          ['Paid on delivery', 'Goods (and their input tax) paid for on delivery are posted to 2010, not trade payables; allocate to cash or bank.'],
           ['GRA payments', 'Posted to 2190; allocate against VAT, NHIL and GETFund payable when the return is settled.'],
           ['Review sheet', 'VAT withholding certificates, tax adjustments and opening credits need the accountant\'s treatment and are not journalised.'],
         ] },
