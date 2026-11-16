@@ -321,8 +321,10 @@ describe('F08 supplier payables', () => {
     expect((await s.run(s.owner, 'payable.list', {})).totalOutstanding).toBe(0);
     const j = await s.run(s.owner, 'accounting.journal', { from: '2026-11-01', to: '2026-11-30' });
     expect(j.debits).toBe(j.credits);
-    // 2000 trade payables: credited 66.60 + 13.34 (credit purchase) + 3.33 (paid-at-receipt purchase), debited 79.94 paid.
-    expect(j.trial.find((t: any) => t.account === '2000').net).toBe(-333);
+    // 2000 trade payables: credited 66.60 + 13.34 (credit purchase), debited 79.94 paid, so nothing is owed, matching
+    // payable.list. The 3.33 purchase paid at receipt sits in 2010 for allocation to cash or bank (R16-05).
+    expect(j.trial.find((t: any) => t.account === '2000')?.net ?? 0).toBe(0);
+    expect(j.trial.find((t: any) => t.account === '2010').net).toBe(-333);
   });
 });
 

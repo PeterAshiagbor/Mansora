@@ -48,7 +48,7 @@ This is the current assignment for the remaining financial audit, security and r
 | R16-01 | Codex | Configure independent encrypted production backups, retention, protected key custody and failure monitoring. Verify a durable off-site object and record its integrity metadata without secrets. Claude owns any changes needed in backup/restore engine code. | Critical; destination/account access and any spending require the owner's decision. Current enabling flag, bucket and credentials are absent. Supersedes the stale C38 infrastructure assignment; no purchase authorised by this list. |
 | R16-02 | Codex | **Authenticated live TSB checkout → refund → VAT export → recovery rehearsal.** Use clearly labelled synthetic records; inspect receipt/tax splits, stock, cash/credit, return period and export. Recover a copy into an isolated replacement environment and reconcile all figures and numbering. Record actor, timestamps, source IDs and pass/fail evidence without credentials. Never restore over production. | Newly added; not complete. Checkout/refund/export need authorised TSB access; recovery depends on R16-01 and R16-03. Claude reviews the financial expectations. |
 | R16-03 | Claude | Validate and fix backup/restore/catch-up engine behaviour: older backup plus newer cloud facts, unsynced-loss accounting, unique numbering, tenant isolation, rejected-event repair and policy/audit-history recovery. Supply assertions and fixtures to Codex for the witnessed Railway drill. | Scripted drill already passed; production-like witnessed recovery remains open. Owns core/sync fixes; coordinate with R16-01/02. |
-| R16-04 | Claude | Prove automatic registration from **actual synthetic POS sales**, including exact boundary, exempt/zero-rated classification, month-end commencement and no manual registration shortcut. Include admin-off → re-enable → original-period exposure, refunds, input claims, payments/arrears and filed-period corrections. Provide engine/API tests; Codex runs browser acceptance. | Current TSB GHS 750,001 is external-turnover evidence plus explicit synthetic registration; it is not this live boundary-crossing proof. **Claude, branch `claude/zen-shannon-nr2hpy`: engine proof added (`tests/integration/vat-registration-boundary.test.ts`) and arrears double-count after amendment fixed; browser acceptance by Codex still open.** |
+| R16-04 | Claude | Prove automatic registration from **actual synthetic POS sales**, including exact boundary, exempt/zero-rated classification, month-end commencement and no manual registration shortcut. Include admin-off → re-enable → original-period exposure, refunds, input claims, payments/arrears and filed-period corrections. Provide engine/API tests; Codex runs browser acceptance. | Current TSB GHS 750,001 is external-turnover evidence plus explicit synthetic registration; it is not this live boundary-crossing proof. **Claude, branch `claude/zen-shannon-nr2hpy` (PR #99): engine proof added (`tests/integration/vat-registration-boundary.test.ts`) and arrears double-count after amendment fixed; browser acceptance by Codex still open.** |
 | R16-05 | Claude | Fresh financial/core code review of the combined release and remediation: journals, supplier payables, stock valuation/losses, credit/write-offs, VAT, own-company billing and E-VAT queue integrity. Trace independently calculated expected figures to source and tests; publish unresolved findings. | Prior audit corrections deployed; fresh combined-release sign-off is not complete. Codex independently reviews resulting PRs. |
 | R16-06 | Codex | Independent security/release review: tenant/role boundaries, browser bridge/proxy throttling, authenticated persistence, owner recovery expiry/replay, environment separation, alerts, and stale-version detection. Record live acceptance separately from local/CI results; coordinate core fixes through Claude. | Open. Include remaining acceptance from issue #70; do not repeat already evidenced A22 acquisition work as a new success. |
 | R16-07 | Codex | Enforce main/production branch protections and required production reviewers; verify administrator/provider MFA, access inventory and credential-rotation evidence with account owners. | Main is unprotected and production has no protection rules. Current connector lacks repository-admin rights; provider account owners must apply restricted settings. |
@@ -143,6 +143,20 @@ intake; it never provisions testers. App invitations, Resend diagnostics, DNS an
 infrastructure stay with their existing owners. Coordination: issue #39.
 
 ## Handoff log (current; append new facts here)
+
+### 2026-11-16 — Claude: R16-05 combined-release financial review
+
+Claimed R16-05 on the same branch and PR. The review record is `docs/operations/financial-review-r16-05.md`. Six defects were found, each shown failing on the old code, and fixed:
+
+- arrears double-counted after an amended VAT return
+- goods paid on delivery left in journal payables
+- cash paid outside the till posted to the till account
+- moving-average rounding drift between the inventory account and the stock valuation
+- written-off credit sales refunded in cash
+- overlapping E-VAT runs able to submit a document twice
+
+Five findings are left open for owner, adviser or GRA decision, listed in that record. **Codex:** please review the PR independently. **Owner:** existing Xero connections must map the new accounts 1050 and 2010. Full suite passes (110 files, 555 tests); CI result on the PR. Next for Claude: R16-03 recovery checks.
+
 
 ### 2026-11-16 — Claude: R16-04 engine proof and amended-return arrears fix
 
