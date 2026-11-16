@@ -83,3 +83,7 @@ restoring anything. Record the date and result.
 The copies hold the same personal and business data as the live service (see `docs/legal/data-inventory.md`),
 encrypted, in the chosen Google region, for 90 days. Record the region and the 90-day retention in the data
 processing records, and Google as a sub-processor (storage only: Google never has the key).
+
+## 16 November 2026 execution status
+
+The owner confirmed the Google setup is not yet provisioned and will be completed later. R16-01 remains blocked on that setup; do not silently switch destinations, enable a bucketless backup runtime or claim an independent copy exists. R16-02 may exercise synthetic live checkout/refund/export separately, but its production-like recovery stage remains open until the first verified copy can be restored into an isolated environment.

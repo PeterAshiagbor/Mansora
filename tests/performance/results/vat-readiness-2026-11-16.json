@@ -1,0 +1,42 @@
+{
+  "sourceCommit": "dfba4b59f6ec3f1b7745affa26538755d5a1d735",
+  "recordedAt": "2026-11-16T19:28:25.073Z",
+  "node": "v24.22.1",
+  "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+  "scope": "Local encrypted SQLite stress fixture. Entire reporting period on one synthetic date; 10% collection suppressed. Five warmed samples; p95 is the slowest of five, not a statistically strong production SLO. No live data or production endpoint.",
+  "rows": [
+    {
+      "sales": 1000,
+      "saleItems": 3000,
+      "suppressedSales": 100,
+      "samples": 5,
+      "medianMs": 61,
+      "p95Ms": 85,
+      "rssMb": 166,
+      "encryptedDbMb": 4,
+      "financialAssertions": "passed"
+    },
+    {
+      "sales": 10000,
+      "saleItems": 30000,
+      "suppressedSales": 1000,
+      "samples": 5,
+      "medianMs": 750,
+      "p95Ms": 956,
+      "rssMb": 496,
+      "encryptedDbMb": 33,
+      "financialAssertions": "passed"
+    },
+    {
+      "sales": 50000,
+      "saleItems": 150000,
+      "suppressedSales": 5000,
+      "samples": 5,
+      "medianMs": 4157,
+      "p95Ms": 4391,
+      "rssMb": 1230,
+      "encryptedDbMb": 167,
+      "financialAssertions": "passed"
+    }
+  ]
+}
