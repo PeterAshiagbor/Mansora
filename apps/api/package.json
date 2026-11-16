@@ -11,7 +11,7 @@
     "create-admin": "tsx src/cli.ts create-admin"
   },
   "dependencies": {
-    "@fastify/cors": "^11.0.0",
+    "@fastify/cors": "^11.4.3",
     "@fastify/helmet": "^13.0.0",
     "@mansora/domain": "*",
     "fastify": "^5.2.0",
