@@ -39,6 +39,10 @@
 11. After every push, check CI and record the result in the *Handoff log*. Anything that changes required environment variables, secrets, the Electron bridge or the container stack must update `infrastructure/**` and `tests/hardware/electron-smoke.mjs` in the same change.
 12. Branch from the latest default branch, rebase before opening a PR, and target the **default branch**, not another feature branch.
 
+## Unified client sign-in — 16 November 2026
+
+Codex claims `codex/unified-sign-in` at the owner's request: replace the public test-link landing page with branded sign-in, route authenticated users to their authorised workspace/platform, and prevent ambiguous public login identities. Password equality is not an identity rule; preserve independent salted password storage and existing credentials. Existing duplicated local usernames need deterministic shop-qualified public identities rather than password-based routing or destructive account renames. New hosted staff usernames receive an authenticated “username is taken” check. Core/native engine and sync remain Claude-owned. Keep synthetic business records labelled honestly inside their authorised workspace; remove public test navigation/branding, not audit history or unsigned-installer warnings.
+
 ## Client-facing metadata — 16 November 2026
 
 Codex claims browser/application/package metadata on `codex/client-facing-metadata` at the owner's request. Implementation on that branch updates titles/descriptions, generic sharing metadata, private-app indexing policy, legal author/homepage metadata and the installer filename. The production build and existing three browser branding checks passed locally; merge/release evidence belongs in the metadata PR. The branded client guide is assigned to another session; Codex supplies the source/context handoff only. Preserve tenant privacy, test-shop labels and actual installer signing/release status. Do not mark GRA certification, production recovery or general readiness complete by changing metadata.
