@@ -34,6 +34,7 @@ it.skipIf(!pw || !existsSync(join(import.meta.dirname,'../../apps/desktop/dist/r
   status=await s.run(s.owner,'tax.status');expect(status.annual.total).toBe(75000001);expect(status.registered).toBe(false);expect(status.pendingTrigger.effectiveDate).toBe('2026-11-01');
   await navigate(page,'Ghana VAT');await page.getByText(/Automatic VAT charging effective 2026-11-01/).waitFor();
   await page.getByRole('button',{name:'Lock / sign out',exact:true}).click();
+  await page.getByLabel('Username',{exact:true}).waitFor();
   clock=new Date('2026-11-01T10:00:00Z');await page.reload();await signIn();
   await sell('Boundary registered VAT item','120');
   const row=s.engine.db.prepare("SELECT tax_snapshot FROM sales ORDER BY created_at DESC LIMIT 1").get() as any;
