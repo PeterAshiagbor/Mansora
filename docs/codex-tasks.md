@@ -41,7 +41,7 @@
 
 ## Client-facing metadata — 16 November 2026
 
-Codex claims browser/application/package metadata on `codex/client-facing-metadata` at the owner's request. The branded client guide is assigned to another session; Codex supplies the source/context handoff only. Preserve tenant privacy, test-shop labels and actual installer signing/release status. Do not mark GRA certification, production recovery or general readiness complete by changing metadata.
+Codex claims browser/application/package metadata on `codex/client-facing-metadata` at the owner's request. Implementation on that branch updates titles/descriptions, generic sharing metadata, private-app indexing policy, legal author/homepage metadata and the installer filename. The production build and existing three browser branding checks passed locally; merge/release evidence belongs in the metadata PR. The branded client guide is assigned to another session; Codex supplies the source/context handoff only. Preserve tenant privacy, test-shop labels and actual installer signing/release status. Do not mark GRA certification, production recovery or general readiness complete by changing metadata.
 
 ## Readiness work split — 16 November 2026 (owner requested)
 
