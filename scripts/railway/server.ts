@@ -1,3 +1,4 @@
+import { rehearsePublicSignIn } from '../staging/sign-in-acceptance';
 import { rehearseTsb } from '../staging/tsb-acceptance';
 import { seedVatDemo } from '../staging/vat-demo';
 import { vatFeaturePolicy } from '../../apps/api/src/vat-features';
@@ -134,9 +135,11 @@ export async function runRailwayServer() {
     for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => { void close().then(() => process.exit(0), () => process.exit(1)); });
     if (process.env.MANSORA_TSB_ACCEPTANCE) {
       // After readiness, exercise the public origin with existing assigned synthetic-shop credentials.
-      acceptanceTimer=setTimeout(()=>{acceptanceRun=rehearseTsb({mode:config.mode,version:process.env.MANSORA_TSB_ACCEPTANCE,origin:config.origin,dataDir:join(config.dataDir,'staging'),workspaces:acceptanceWorkspaces})
-        .then(result=>console.log('TSB authenticated acceptance:',JSON.stringify(result)))
-        .catch(()=>console.warn('TSB authenticated acceptance blocked; inspect the private rehearsal journal.'));},45000);acceptanceTimer.unref();
+      acceptanceTimer=setTimeout(()=>{acceptanceRun=(process.env.MANSORA_TSB_ACCEPTANCE === 'signin-v1'
+        ? rehearsePublicSignIn({version:'signin-v1',origin:config.origin,dataDir:join(config.dataDir,'staging'),workspaces:acceptanceWorkspaces})
+        : rehearseTsb({mode:config.mode,version:process.env.MANSORA_TSB_ACCEPTANCE!,origin:config.origin,dataDir:join(config.dataDir,'staging'),workspaces:acceptanceWorkspaces}))
+        .then(result=>console.log(process.env.MANSORA_TSB_ACCEPTANCE === 'signin-v1' ? 'Public sign-in acceptance:' : 'TSB authenticated acceptance:',JSON.stringify(result)))
+        .catch(()=>console.warn(process.env.MANSORA_TSB_ACCEPTANCE === 'signin-v1' ? 'Public sign-in acceptance failed; existing credentials and financial records were not changed.' : 'TSB authenticated acceptance blocked; inspect the private rehearsal journal.'));},45000);acceptanceTimer.unref();
     }
     console.log(config.mode === 'client' ? 'Mansora client service is ready.' : 'Railway team testing is ready. Retrieve assigned accounts privately from the persistent volume.');
     return { app, gateway, db, close };

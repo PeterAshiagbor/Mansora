@@ -10,6 +10,7 @@ import { tempDir } from '../helpers';
 import { provisionStaging, type TestAccount } from '../../scripts/staging/bootstrap';
 import { loadWorkspaces, type StagingConfig } from '../../scripts/staging/config';
 import { startStagingGateway, type StagingWorkspace } from '../../scripts/staging/gateway';
+import { rehearsePublicSignIn } from '../../scripts/staging/sign-in-acceptance';
 import { navigate } from './navigation';
 const pw = (() => { try { return createRequire(import.meta.url)('playwright'); } catch { return null; } })();
 const root = join(import.meta.dirname, '../..');
@@ -60,6 +61,11 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
       const state = await page.evaluate(() => (window as any).mansora.invoke('app.state'));
       expect(state.data.user.role).toBe('manager'); expect(state.data.business.name).toBe('Mansora TSB');
     } finally { await page.context().close(); }
+  });
+  it('rehearses all six existing synthetic identities through the public sign-in without financial writes or email', async () => {
+    const before = workspaces.map(workspace => workspace.engine.db.prepare('SELECT COUNT(*) AS count FROM sales').get());
+    expect(await rehearsePublicSignIn({ version: 'signin-v1', origin: gateway.publicOrigin, dataDir: config.dataDir, workspaces })).toMatchObject({ accountsChecked: 6, authenticatedRouting: 'passed', crossShopIsolation: 'passed', financialWrites: 0, emailsSent: 0 });
+    expect(workspaces.map(workspace => workspace.engine.db.prepare('SELECT COUNT(*) AS count FROM sales').get())).toEqual(before);
   });
   it('keeps owner and cashier independent while they save and sell shared records', async () => {
     expect((await owner.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('owner');
