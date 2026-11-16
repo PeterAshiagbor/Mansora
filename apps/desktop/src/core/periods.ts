@@ -35,7 +35,7 @@ export function requireOpenPeriod(ctx: Pick<Ctx, 'all'>, date: string): void {
  * success moves the high-water mark forward.
  */
 export const FINANCIAL_COMMANDS = new Set([
-  'sale.complete', 'refund.create', 'expense.create', 'purchase.receive', 'stock.adjust', 'stock.count', 'credit.repay', 'credit.writeOff',
+  'sale.complete', 'refund.create', 'expense.create', 'purchase.receive', 'supplier.pay', 'stock.adjust', 'stock.count', 'credit.repay', 'credit.writeOff',
   'shift.open', 'shift.close', 'shift.closeFor', 'shift.cashMovement', 'tax.record', 'tax.file', 'product.save', 'import.commit',
 ]);
 /** Normal clock adjustments (time-server corrections) are tolerated. */

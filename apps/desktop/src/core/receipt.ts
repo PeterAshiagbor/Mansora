@@ -7,6 +7,18 @@ export interface ReceiptData {
   payments: { method: string; amount: number; reference: string | null }[];
   refunds: { refund_no: string; amount: number; created_at: string }[];
   reprint: boolean;
+  /** Audit F01: the E-VAT submission for this receipt, if E-VAT is switched on. */
+  evat?: EvatStamp | null;
+}
+export interface EvatStamp { status: string; provider: string; fiscal_id: string | null; qr: string | null }
+
+/** What the receipt says about E-VAT. Only an accepted live submission removes the "not certified" statement. */
+export function evatLines(tax: any, evat: EvatStamp | null | undefined): string {
+  if (!tax?.registered) return '';
+  if (evat?.status === 'accepted' && evat.provider === 'live') return `<div class="c muted">GRA E-VAT ID ${esc(evat.fiscal_id)}</div><div class="c muted" style="word-break:break-all">${esc(evat.qr)}</div>`;
+  if (evat?.status === 'accepted') return `<div class="c muted">TEST E-VAT ID ${esc(evat.fiscal_id)} (practice only, not valid for tax)</div><div class="c muted">${EVAT_NOTE}</div>`;
+  if (evat?.status === 'pending') return `<div class="c muted">E-VAT submission pending.</div><div class="c muted">${EVAT_NOTE}</div>`;
+  return `<div class="c muted">${EVAT_NOTE}</div>`;
 }
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -79,7 +91,7 @@ ${refunds}
 <hr>
 <div class="c">${esc(r.business.footer || 'Thank you for your purchase')}</div>
 ${r.reprint ? '<div class="c muted">Reprinted copy</div>' : ''}
-${tax?.registered ? `<div class="c muted">${EVAT_NOTE}</div>` : ''}
+${evatLines(tax, r.evat)}
 </body></html>`;
 }
 
@@ -91,6 +103,7 @@ export interface CreditNoteData {
   refund: { refund_no: string; created_at: string; amount: number; reason: string; payout_method: string | null; payout_amount: number; credit_reduction: number; authorised_by_name: string };
   sale: { receipt_no: string; created_at: string; tax_snapshot?: string | null };
   items: { product_name: string; quantity: number; amount: number; restocked: number; tax_snapshot?: string | null }[];
+  evat?: EvatStamp | null;
 }
 
 /**
@@ -119,6 +132,6 @@ ${tax?.customer?.name ? `<tr><td>Customer</td><td class="r">${esc(tax.customer.n
 <tr class="total"><td>TOTAL CREDITED (GHS)</td><td class="r">${money(c.refund.amount)}</td></tr>
 ${c.refund.credit_reduction ? `<tr><td>Taken off amount owed</td><td class="r">${money(c.refund.credit_reduction)}</td></tr>` : ''}
 ${c.refund.payout_amount ? `<tr><td>Paid back by ${esc(PAYMENT_LABELS[c.refund.payout_method as PaymentMethod] ?? c.refund.payout_method)}</td><td class="r">${money(c.refund.payout_amount)}</td></tr>` : ''}</table>
-${tax?.registered ? `<hr><div class="c muted">${EVAT_NOTE}</div>` : ''}
+${tax?.registered ? `<hr>${evatLines(tax, c.evat)}` : ''}
 </body></html>`;
 }

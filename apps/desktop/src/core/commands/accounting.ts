@@ -87,6 +87,11 @@ export function buildJournal(ctx: Ctx, from: string, to: string) {
     add(entryOf(t.tax_date, `INPUT-${t.reference}`, 'Input tax claimed', [{ account: '1300', amount }, { account: '2000', amount: -amount, memo: `Supplier ${d.supplierTin ?? ''} invoice ${t.reference}` }]));
   }
 
+  for (const sp of ctx.all<{ record_date: string; reference: string; payload: string }>(`SELECT record_date, reference, payload FROM ledger_records WHERE kind = 'supplier_payment' AND record_date >= ? AND record_date <= ?`, from, to)) {
+    const d = JSON.parse(sp.payload), amount = Number(d.amount) || 0;
+    add(entryOf(sp.record_date, `SUPPAY-${sp.reference}-${d.purchaseId.slice(0, 8)}`, 'Supplier payments', [{ account: '2000', amount }, { account: METHOD_ACCOUNT[d.method], amount: -amount }]));
+  }
+
   // Stock written in or off outside sales and purchases.
   for (const m of ctx.all(`SELECT substr(occurred_at, 1, 10) AS day, type, SUM(quantity_delta * unit_cost) AS value FROM inventory_movements
       WHERE type IN ('OPENING_STOCK', 'DAMAGE', 'STOCK_COUNT_ADJUSTMENT', 'MANUAL_CORRECTION') AND occurred_at >= ? AND occurred_at < ? GROUP BY 1, 2`, fromTs, toTs)) {

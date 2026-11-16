@@ -61,6 +61,6 @@ Sync status → Repair tools → "Send all records again" queues everything for 
 ## Honest limitations
 
 - **Automatic daily backups are optional and off by default.** The owner switches them on under Backup & recovery with a passphrase. They run while the app is open. The passphrase is not stored; a key derived from it is kept in the encrypted local database. The file name carries the information needed to reopen it with the passphrase, so automatic backup files must not be renamed.
-- **None of these recovery paths has been rehearsed on physical laptops or on Railway**; they are verified by automated tests. A witnessed rehearsal, with the measured recovery point and recovery time recorded here, is still required before a paying client relies on them.
+- A scripted laptop-loss drill (`scripts/recovery/drill.ts`) was run on 16 November 2026 and passed: every figure matched the cloud copy and recovery took under one second of processing. See [rehearsal-2026-11-16.md](rehearsal-2026-11-16.md). **The witnessed rehearsals on a physical laptop and on Railway are still outstanding**; they are verified by automated tests. A witnessed rehearsal, with the measured recovery point and recovery time recorded here, is still required before a paying client relies on them.
 - Rebuilding from the cloud does not bring back staff passwords, pending unsynced records, import history or local backup records.
 - A forgotten backup passphrase cannot be recovered.

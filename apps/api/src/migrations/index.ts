@@ -891,6 +891,17 @@ ALTER TABLE ledger_records FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON ledger_records USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
 GRANT SELECT, INSERT ON ledger_records TO mansora_tenant;
 ALTER TABLE customers ADD COLUMN tin text;
+ALTER TABLE purchases ADD COLUMN due_date text;
+CREATE TABLE evat_submissions (
+ tenant_id uuid NOT NULL REFERENCES tenants(id), id uuid NOT NULL, document_type text NOT NULL, document_id uuid NOT NULL, document_no text NOT NULL,
+ payload text NOT NULL, payload_sha256 text NOT NULL, status text NOT NULL, provider text NOT NULL, attempts bigint NOT NULL,
+ fiscal_id text, qr text, signature text, last_error text, created_at timestamptz NOT NULL, submitted_at timestamptz, updated_at timestamptz NOT NULL,
+ PRIMARY KEY (tenant_id, id)
+);
+ALTER TABLE evat_submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE evat_submissions FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON evat_submissions USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
+GRANT SELECT, INSERT, UPDATE ON evat_submissions TO mansora_tenant;
 -- Audit F18: VAT, NHIL and GETFund on Mansora's own invoices, when Mansora is VAT registered.
 ALTER TABLE invoices ADD COLUMN tax_breakdown text;
 `,

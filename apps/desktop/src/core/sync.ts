@@ -2,6 +2,7 @@ import { SYNC_PROTOCOL_VERSION, type SyncPullResult, type SyncPushResult } from 
 import { recordMansoraPayments } from './mansora-expenses';
 import { Ctx, type Engine } from './engine';
 import { reconcileSnapshot } from './restore';
+import { runEvatQueue } from './evat';
 import { maybeSendDailySummary } from './summary';
 
 const BATCH = 50;
@@ -129,6 +130,8 @@ export async function syncNow(engine: Engine): Promise<SyncOutcome> {
     state.online = true;
     // Payments to Mansora appear in the shop's own expenses; a failure is retried on the next sync.
     await recordMansoraPayments(engine, pull.mansoraPayments).catch((e) => console.warn('Recording Mansora payments as expenses failed:', (e as Error).message));
+    // Audit F01: queued E-VAT documents are submitted while online; a failure leaves them queued for next time.
+    await runEvatQueue(engine).catch((e) => console.warn('E-VAT submission failed:', (e as Error).message));
     // The owner's opt-in closing summary rides on a successful sync; a failure only waits for the next one.
     await maybeSendDailySummary(engine).catch(() => {});
     state.lastError = null;

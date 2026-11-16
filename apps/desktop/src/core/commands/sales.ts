@@ -5,6 +5,7 @@ import { quoteSale, recordRegistrationTrigger } from '../tax';
 import { requireTaxPeriodOpen } from './tax';
 import { requireOpenPeriod } from '../periods';
 import { renderCreditNoteHtml, renderReceiptHtml } from '../receipt';
+import { queueEvat } from '../evat';
 import { checkReferences, moveStock, nextNumber, openShift, requireOpenShift } from '../stock';
 
 function loadSale(ctx: Ctx, id: string) {
@@ -124,6 +125,7 @@ export const salesCommands = defineCommands({
         });
       }
       recordRegistrationTrigger(ctx);
+      queueEvat(ctx, 'invoice', input.id); // audit F01: queued with the sale, never separately
       ctx.audit('sale', input.id, { receiptNo, total: cart.total, discount: cart.discountTotal, credit: settlement.creditAmount, discountApprovedBy, ...(referenceApprovedBy ? { referenceReuseApprovedBy: referenceApprovedBy } : {}) });
       return { id: input.id, receiptNo, total: cart.total, change: settlement.change };
     },
@@ -156,7 +158,8 @@ export const salesCommands = defineCommands({
       const s = loadSale(ctx, input.id);
       const tax = s.sale.tax_snapshot ? JSON.parse(s.sale.tax_snapshot) : null;
       const m = (k: string) => ctx.setting(k) ?? '';
-      const html = renderReceiptHtml({
+      const evat = ctx.get(`SELECT status, provider, fiscal_id, qr FROM evat_submissions WHERE document_id = ?`, input.id) ?? null;
+      const html = renderReceiptHtml({ evat,
         business: { name: m('business_name'), phone: m('business_phone'), address: m('business_address'), ...tax?.business, footer: m('receipt_footer') },
         sale: tax?.customer ? { ...s.sale, customer_name: tax.customer.name, customer_phone: tax.customer.phone } : s.sale, items: s.items, payments: s.payments, refunds: s.refunds, reprint: input.reprint,
       });
@@ -175,7 +178,8 @@ export const salesCommands = defineCommands({
       const items = ctx.all(`SELECT ri.quantity, ri.amount, ri.restocked, ri.tax_snapshot, i.product_name FROM refund_items ri JOIN sale_items i ON i.id = ri.sale_item_id WHERE ri.refund_id = ? ORDER BY ri.rowid`, input.id);
       const tax = s.sale.tax_snapshot ? JSON.parse(s.sale.tax_snapshot) : null;
       const m = (k: string) => ctx.setting(k) ?? '';
-      const html = renderCreditNoteHtml({ business: { name: m('business_name'), phone: m('business_phone'), address: m('business_address'), ...tax?.business }, refund, sale: s.sale, items });
+      const evat = ctx.get(`SELECT status, provider, fiscal_id, qr FROM evat_submissions WHERE document_id = ?`, input.id) ?? null;
+      const html = renderCreditNoteHtml({ evat, business: { name: m('business_name'), phone: m('business_phone'), address: m('business_address'), ...tax?.business }, refund, sale: s.sale, items });
       return { html, refundNo: refund.refund_no as string };
     },
   },
@@ -240,6 +244,7 @@ export const salesCommands = defineCommands({
         const outstanding = credit.outstanding_balance - creditReduction;
         ctx.update('credit_accounts', credit.id, { outstanding_balance: outstanding, status: outstanding === 0 ? 'settled' : 'open', updated_at: now });
       }
+      queueEvat(ctx, 'credit_note', input.id);
       ctx.audit('refund', input.id, { refundNo, saleId: input.saleId, receiptNo: sale.receipt_no, amount, payout, creditReduction, reason: input.reason, authorisedBy });
       return { id: input.id, refundNo, amount, payout, creditReduction };
     },

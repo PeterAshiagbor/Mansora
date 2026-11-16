@@ -51,6 +51,7 @@ export function TaxPage() {
       <Card title="Review before filing"><p className="mb-3">Deadline before public-holiday checks: {r.deadlineBeforeHolidayCheck}. File and pay through GRA’s authorised channel.</p><ul className="list-disc space-y-2 pl-5 text-sm">{r.warnings.map((w: string) => <li key={w}>{w}</li>)}</ul></Card>
       <Card title="Tax evidence and filing history" pad={false}><Table rows={r.records} empty="No input credits, certificates, adjustments, payments or filing records in this month" columns={[{ header: 'Date', cell: (v: any) => v.tax_date }, { header: 'Type', cell: (v: any) => v.kind }, { header: 'Reference', cell: (v: any) => v.reference }, { header: 'Reason', cell: (v: any) => v.data.reason ?? 'Filed return' }]} /></Card>
     </>}</QueryView>
+    {d?.registered && <EvatCard owner={owner} />}
     {settings && d && <TaxSettings config={d.config} onClose={() => setSettings(false)} onSaved={saved} />}
     {record && <TaxRecord month={month} onClose={() => setRecord(false)} onSaved={saved} />}
     {filing && <Filing month={month} onClose={() => setFiling(false)} onSaved={saved} />}
@@ -104,4 +105,26 @@ function Filing({ month, onClose, onSaved }: { month: string; onClose: () => voi
   const [id] = useState(uuid), [reference, setReference] = useState(''), [reason, setReason] = useState(''), [reviewed, setReviewed] = useState(false);
   const { run, busy } = useAction();
   return <Modal title={`Record GRA filing · ${month}`} open onClose={onClose} footer={<><Button onClick={onClose}>Cancel</Button><Button disabled={busy || !reviewed || !reference.trim() || !reason.trim()} onClick={() => void run(async () => { await call('tax.file', { id, month, reference, reason, reviewed }); onSaved(); }, 'Filing recorded; period locked')}>Record filed return</Button></>}><div className="space-y-4"><Alert>This records a return already filed through GRA. It does not submit a return. The month’s tax entries will be locked; later corrections need an open-period adjustment.</Alert><Field label="GRA acknowledgement reference"><Input value={reference} onChange={e => setReference(e.target.value)} /></Field><Field label="Reconciliation / filing note"><Input value={reason} onChange={e => setReason(e.target.value)} /></Field><label className="text-sm"><input type="checkbox" checked={reviewed} onChange={e => setReviewed(e.target.checked)} /> I reconciled the export, reviewed the warnings and filed these figures with GRA.</label></div></Modal>;
+}
+
+/**
+ * Audit F01: GRA E-VAT submission queue. Live submission needs the GRA-issued specification, credentials and
+ * sign-off; until then only Off and Test (practice identifiers, not valid for tax) are available.
+ */
+function EvatCard({ owner }: { owner: boolean }) {
+  const q = useQuery<any>('evat.status');
+  const { run, busy } = useAction();
+  const [reason, setReason] = useState('');
+  const e = q.data;
+  return <QueryView query={q} label="E-VAT status">{e && <Card title="GRA E-VAT submissions">
+    <p className="mb-3 text-sm">Mode: <strong>{e.mode === 'off' ? 'Off' : e.mode === 'test' ? 'Test (practice identifiers, not valid for tax)' : 'Live'}</strong>. Live E-VAT is not available until Mansora completes GRA onboarding (API specification, credentials and sign-off). Receipts say they are not issued through GRA E-VAT until then.</p>
+    <div className="mb-3 grid gap-3 sm:grid-cols-3"><Stat label="Waiting to submit" value={e.pending} tone={e.pending ? 'warn' : 'default'} /><Stat label="Accepted" value={e.accepted} /><Stat label="Rejected" value={e.rejected} tone={e.rejected ? 'bad' : 'default'} /></div>
+    {e.downtimeNoticeRequired && <Alert tone="bad" className="mb-3">Documents have waited more than 24 hours to be submitted. GRA guidance expects longer downtime to be notified. Reconnect and submit, and notify GRA if the outage continues.</Alert>}
+    {e.rejectedDocuments.length > 0 && <Table rows={e.rejectedDocuments} columns={[{ header: 'Document', cell: (r: any) => r.document_no }, { header: 'Reason', cell: (r: any) => r.last_error }, { header: '', align: 'right', cell: (r: any) => owner && <Button size="sm" disabled={busy} onClick={() => void run(async () => { await call('evat.retry', { id: r.id }); q.reload(); }, 'Queued again')}>Send again</Button> }]} />}
+    <div className="mt-3 flex flex-wrap items-end gap-2">
+      <Button disabled={busy || !e.pending || e.mode === 'off'} onClick={() => void run(async () => { await call('evat.run'); q.reload(); }, 'Submitted')}>Submit now</Button>
+      {owner && <><Field label="Reason for change"><Input id="evat-reason" value={reason} onChange={ev => setReason(ev.target.value)} /></Field>
+        <Button disabled={busy || !reason.trim()} onClick={() => void run(async () => { await call('evat.configure', { mode: e.mode === 'test' ? 'off' : 'test', reason }); setReason(''); q.reload(); }, 'E-VAT mode changed')}>{e.mode === 'test' ? 'Turn test mode off' : 'Turn on test mode'}</Button></>}
+    </div>
+  </Card>}</QueryView>;
 }

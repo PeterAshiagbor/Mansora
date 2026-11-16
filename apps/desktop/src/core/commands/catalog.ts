@@ -317,6 +317,9 @@ export const catalogCommands = defineCommands({
        * costs are then the amounts EXCLUDING that tax, and the input claim is recorded with the receipt, once.
        */
       inputTax: z.object({ supplierTin: zText(80), invoiceDate: zCalendarDate, vat: zMoney, nhil: zMoney, getfund: zMoney, evidenceConfirmed: z.literal(true) }).optional(),
+      /** Audit F08: bought on credit. The supplier invoice stays in payables until it is paid with supplier.pay. */
+      onCredit: z.boolean().default(false),
+      dueDate: zCalendarDate.nullish(),
       /** Receiving the same supplier invoice twice is refused unless this is set with a reason (audit F10). */
       duplicateReason: zOptText(300),
     }),
@@ -331,6 +334,7 @@ export const catalogCommands = defineCommands({
         const same = ctx.get(`SELECT id, received_at FROM purchases WHERE lower(reference) = lower(?) AND COALESCE(supplier_id, '') = COALESCE(?, '')`, input.reference, input.supplierId ?? null);
         if (same && !input.duplicateReason) fail('DUPLICATE_PURCHASE', `Supplier invoice ${input.reference} was already received on ${String(same.received_at).slice(0, 10)}. Check it is not the same delivery; to record it again, give a reason.`, { purchaseId: same.id });
       }
+      if (input.onCredit && !input.supplierId) fail('SUPPLIER_REQUIRED', 'Choose the supplier for goods bought on credit');
       if (input.inputTax) {
         if (ctx.user.role !== 'owner') fail('PERMISSION_DENIED', 'Only the owner may record input-tax claims');
         if (!input.reference) fail('TAX_EVIDENCE_REQUIRED', 'Enter the supplier invoice number to claim its input tax');
@@ -342,8 +346,8 @@ export const catalogCommands = defineCommands({
       const totalCost = sum(input.items.map((i) => i.quantity * i.unitCost));
       if (!Number.isSafeInteger(totalCost)) fail('INVALID_AMOUNT', 'This purchase is too large to record. Split it into smaller purchases.');
       ctx.insert('purchases', {
-        id, supplier_id: input.supplierId ?? null, reference: input.reference, status: 'received',
-        total_cost: totalCost, received_at: now, created_by: ctx.user.id,
+        id, supplier_id: input.supplierId ?? null, reference: input.reference, status: input.onCredit ? 'on_credit' : 'received',
+        total_cost: totalCost, received_at: now, created_by: ctx.user.id, due_date: input.onCredit ? input.dueDate ?? null : null,
       });
       for (const item of input.items) {
         ctx.insert('purchase_items', { id: ctx.id(), purchase_id: id, product_id: item.productId, quantity: item.quantity, unit_cost: item.unitCost });
@@ -358,7 +362,7 @@ export const catalogCommands = defineCommands({
         ctx.insert('tax_records', { id: taxId, kind: 'input', tax_date: now.slice(0, 10), reference: input.reference!, payload: JSON.stringify(data), created_by: ctx.user.id, created_at: now });
         ctx.audit('tax_record', taxId, { kind: 'input', reference: input.reference, purchaseId: id });
       }
-      ctx.audit('purchase', id, { items: input.items.length, reference: input.reference, inputTax: !!input.inputTax, duplicateReason: input.duplicateReason ?? undefined });
+      ctx.audit('purchase', id, { items: input.items.length, reference: input.reference, inputTax: !!input.inputTax, onCredit: input.onCredit, dueDate: input.dueDate ?? null, duplicateReason: input.duplicateReason ?? undefined });
       return { id };
     },
   },

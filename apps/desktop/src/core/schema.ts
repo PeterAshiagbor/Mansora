@@ -422,7 +422,7 @@ CREATE TRIGGER tax_records_no_delete BEFORE DELETE ON tax_records BEGIN SELECT R
 -- write-offs and acknowledged clock corrections. Insert-only and synced, like the other financial facts.
 CREATE TABLE ledger_records (
  id TEXT PRIMARY KEY,
- kind TEXT NOT NULL CHECK (kind IN ('period_close','period_reopen','credit_writeoff','clock_override')),
+ kind TEXT NOT NULL CHECK (kind IN ('period_close','period_reopen','credit_writeoff','clock_override','supplier_payment')),
  record_date TEXT NOT NULL, reference TEXT NOT NULL, payload TEXT NOT NULL,
  created_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL
 );
@@ -433,6 +433,22 @@ CREATE INDEX payments_reference ON payments(reference) WHERE reference IS NOT NU
 CREATE INDEX purchases_reference ON purchases(reference) WHERE reference IS NOT NULL;
 -- Audit F15: a business customer's TIN, printed on its receipts so it can evidence an input-tax claim.
 ALTER TABLE customers ADD COLUMN tin TEXT;
+-- Audit F08: when a supplier invoice bought on credit falls due.
+ALTER TABLE purchases ADD COLUMN due_date TEXT;
+-- Audit F01: every VAT invoice and credit note queued for the GRA E-VAT interface, with its submission status and the
+-- fiscal identifiers GRA returns. Queued in the same transaction as the sale or refund, so none can be missed.
+CREATE TABLE evat_submissions (
+ id TEXT PRIMARY KEY,
+ document_type TEXT NOT NULL CHECK (document_type IN ('invoice','credit_note')),
+ document_id TEXT NOT NULL UNIQUE, document_no TEXT NOT NULL, payload TEXT NOT NULL, payload_sha256 TEXT NOT NULL,
+ status TEXT NOT NULL CHECK (status IN ('pending','accepted','rejected')),
+ provider TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, fiscal_id TEXT, qr TEXT, signature TEXT, last_error TEXT,
+ created_at TEXT NOT NULL, submitted_at TEXT, updated_at TEXT NOT NULL
+);
+CREATE INDEX evat_submissions_status ON evat_submissions(status, created_at);
+-- An accepted submission is final: its identifiers can never be changed.
+CREATE TRIGGER evat_submissions_final BEFORE UPDATE ON evat_submissions WHEN OLD.status = 'accepted' BEGIN SELECT RAISE(ABORT, 'Accepted E-VAT submissions are immutable'); END;
+CREATE TRIGGER evat_submissions_no_delete BEFORE DELETE ON evat_submissions BEGIN SELECT RAISE(ABORT, 'E-VAT submissions cannot be deleted'); END;
 `,
   },
 ];

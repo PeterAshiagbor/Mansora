@@ -23,6 +23,9 @@ in the tests are worked out by hand, not read back from the application's report
 | F15 Invoice content | Optional business TIN on customers, printed on VAT receipts. Printable credit note per refund, with the original receipt and the tax reversed. VAT receipts state they are not issued through GRA E-VAT. | F08 test |
 | F18 Mansora's own invoice VAT | Billing setting "Mansora is VAT registered": new invoices carry VAT 15%, NHIL 2.5% and GETFund 2.5% as separate lines with Mansora's VAT number. Off by default; manual invoices with an explicit rate keep it. | `tests/billing/mansora-vat.test.ts` |
 | F21 Counting while selling | The count sheet's start time is sent with the count. Movements since then are allowed for, so sales during counting are not recorded as missing stock. | F21 test |
+| F01 E-VAT readiness | Submission pipeline: queued atomically with each VAT sale or refund, ordered submission with retries, 24-hour downtime flag, immutable accepted identifiers, receipts stamped, synced to the cloud. Test simulator only; live mode refused until GRA onboarding. | F01 tests, `restore-reconcile.test.ts` |
+| F08 Supplier payables | "Bought on credit" when receiving stock, with a due date. **Owed to suppliers** shows each unpaid invoice (cost plus input tax), aging and part payments; paying from the till reduces expected cash. Supplier payments are journalised. | F08 payables test |
+| F19 Restore rehearsal | `npm run drill:recovery`: a scripted laptop-loss drill with measured recovery point and time. Result recorded in `docs/disaster-recovery/rehearsal-2026-11-16.md` (pass). | drill output |
 | F17 Receivables aging and write-off | `credit.list` returns 0, 1–30, 31–60, 61–90 and 90+ day buckets. `credit.writeOff` (owner, immutable record, shown as a loss). | F17 test |
 
 ## Deployment order
@@ -32,8 +35,8 @@ in the tests are worked out by hand, not read back from the application's report
 
 ## Not changed here (still open)
 
-- **F01 GRA E-VAT certified invoicing.** This needs GRA onboarding, credentials and sign-off; it cannot be completed in code alone. Receipts, credit notes and VAT workbooks remain working papers. Printed VAT receipts now say they are not issued through GRA E-VAT. Do not market or onboard VAT-registered clients as E-VAT compliant.
+- **F01 live GRA connection.** The pipeline is built and tested. The live connector needs the GRA-issued API specification, taxpayer credentials, GRA testing and sign-off. Until then receipts say they are not issued through GRA E-VAT. Do not market or onboard VAT-registered clients as E-VAT compliant.
 - **F18 legal decision.** Whether and from when Mansora itself must register for VAT is a tax-adviser decision; the setting stays off until then.
-- **F19 restore rehearsal.** A witnessed restore on a physical laptop and on Railway, with measured RPO and RTO.
-- **F08 beyond the journal.** There is still no general ledger, supplier payables ledger, balance sheet or Xero/QuickBooks connector. The journal export is the agreed interim step.
+- **F19 witnessed rehearsals.** The scripted drill passes. Still to do: a witnessed restore on a physical laptop and into an isolated Railway environment (procedure in the rehearsal record).
+- **F08 beyond the journal and payables.** By design there is no general ledger or balance sheet: Mansora is the operational sub-ledger and the accountant keeps the books from the journal export. A direct Xero or QuickBooks connector is a later step.
 - **F22 Act 1177.** The service-provider threshold amendment's commencement still needs a Ghanaian tax practitioner's confirmation.

@@ -292,3 +292,89 @@ describe('F21 stock count started before sales', () => {
     expect((s.engine.db.prepare(`SELECT COUNT(*) AS n FROM inventory_movements WHERE type = 'STOCK_COUNT_ADJUSTMENT'`).get() as any).n).toBe(0);
   });
 });
+
+describe('F08 supplier payables', () => {
+  it('tracks credit purchases by age, takes part payments from the till and ties to the journal', async () => {
+    const s = await open('2026-11-02T09:00:00.000Z');
+    await registerVat(s);
+    const supplier = (await s.run(s.owner, 'supplier.save', { name: 'Makola Wholesale' })).id;
+    // 20 soap at 3.33 net = 66.60, plus input tax 10.00 + 1.67 + 1.67 = 13.34 -> invoice 79.94, due 12 Nov.
+    const pid = uuid();
+    await expectCode(s.run(s.owner, 'purchase.receive', { id: uuid(), reference: 'MW-1', onCredit: true, items: [{ productId: s.products.soap, quantity: 20, unitCost: 333 }] }), 'SUPPLIER_REQUIRED');
+    await s.run(s.owner, 'purchase.receive', { id: pid, supplierId: supplier, reference: 'MW-1', onCredit: true, dueDate: '2026-11-12', items: [{ productId: s.products.soap, quantity: 20, unitCost: 333 }],
+      inputTax: { supplierTin: 'MW-TIN', invoiceDate: '2026-11-01', vat: 1000, nhil: 167, getfund: 167, evidenceConfirmed: true } });
+    // A purchase paid on receipt is not a payable.
+    await s.run(s.owner, 'purchase.receive', { id: uuid(), supplierId: supplier, reference: 'MW-2', items: [{ productId: s.products.soap, quantity: 1, unitCost: 333 }] });
+    let p = await s.run(s.owner, 'payable.list', {});
+    expect(p.totalOutstanding).toBe(7994);
+    expect(p.open.length).toBe(1);
+    await expectCode(s.run(s.cashier, 'payable.list', {}), 'PERMISSION_DENIED');
+    // Owner pays 30.00 cash from the till; expected cash falls by 30.00.
+    await s.run(s.owner, 'shift.open', { openingFloat: 5000 });
+    await expectCode(s.run(s.owner, 'supplier.pay', { id: uuid(), purchaseId: pid, amount: 8000, method: 'bank' }), 'INVALID_AMOUNT');
+    await s.run(s.owner, 'supplier.pay', { id: uuid(), purchaseId: pid, amount: 3000, method: 'cash', paidFromTill: true });
+    expect((await s.run(s.owner, 'shift.current', {})).totals.expectedCash).toBe(5000 - 3000);
+    at('2026-11-20T09:00:00.000Z'); // 8 days overdue
+    p = await s.run(s.owner, 'payable.list', {});
+    expect(p.aging).toEqual({ current: 0, d1_30: 4994, d31_60: 0, d61_90: 0, d90plus: 0 });
+    await s.run(s.owner, 'supplier.pay', { id: uuid(), purchaseId: pid, amount: 4994, method: 'bank', reference: 'TRF-88' });
+    expect((await s.run(s.owner, 'payable.list', {})).totalOutstanding).toBe(0);
+    const j = await s.run(s.owner, 'accounting.journal', { from: '2026-11-01', to: '2026-11-30' });
+    expect(j.debits).toBe(j.credits);
+    // 2000 trade payables: credited 66.60 + 13.34 (credit purchase) + 3.33 (paid-at-receipt purchase), debited 79.94 paid.
+    expect(j.trial.find((t: any) => t.account === '2000').net).toBe(-333);
+  });
+});
+
+describe('F01 E-VAT submission pipeline', () => {
+  it('queues every VAT document atomically, submits in order, retries and stamps receipts', async () => {
+    const { setEvatProvider, testProvider } = await import('../../apps/desktop/src/core/evat');
+    const s = await open('2026-11-05T09:00:00.000Z');
+    await registerVat(s);
+    await expectCode(s.run(s.owner, 'evat.configure', { mode: 'live', reason: 'go live' }), 'GRA_ONBOARDING_REQUIRED');
+    await expectCode(s.run(s.manager, 'evat.configure', { mode: 'test', reason: 'x' }), 'PERMISSION_DENIED');
+    await s.run(s.owner, 'evat.configure', { mode: 'test', reason: 'Training before GRA onboarding' });
+    // Offline: the provider cannot be reached. Two sales queue; nothing is lost and order is kept.
+    let online = false;
+    setEvatProvider(s.engine, { id: 'test', submit: (d, h) => (online ? testProvider.submit(d, h) : Promise.reject(new Error('GRA unreachable'))) });
+    const a = await cashSale(s, s.products.rice, 1, 8000);
+    const b = await cashSale(s, s.products.milk, 2, 2500);
+    let r = await s.run(s.owner, 'evat.run', {});
+    expect(r).toMatchObject({ accepted: 0, pending: 2, error: 'GRA unreachable' });
+    expect((await s.run(s.cashier, 'sale.receipt', { id: a.id })).html).toContain('E-VAT submission pending');
+    at('2026-11-06T10:00:00.000Z');
+    expect((await s.run(s.owner, 'evat.status', {})).downtimeNoticeRequired).toBe(true);
+    online = true;
+    r = await s.run(s.owner, 'evat.run', {});
+    expect(r).toMatchObject({ accepted: 2, pending: 0 });
+    const rows = s.engine.db.prepare(`SELECT document_no, status, fiscal_id, payload FROM evat_submissions ORDER BY created_at`).all() as any[];
+    expect(rows.map((x) => x.document_no)).toEqual(['R-000001', 'R-000002']);
+    // Document totals come from the immutable snapshots: rice 80.00 incl. = base 66.67, VAT 10.00, NHIL 1.67, GETFund 1.66 (allocated).
+    expect(JSON.parse(rows[0].payload).totals).toEqual({ base: 6667, vat: 1000, nhil: 167, getfund: 166, total: 8000 });
+    const receipt = (await s.run(s.cashier, 'sale.receipt', { id: a.id })).html;
+    expect(receipt).toContain(rows[0].fiscal_id); expect(receipt).toContain('not valid for tax'); expect(receipt).toContain('Not issued through GRA E-VAT');
+    expect(() => s.engine.db.prepare(`UPDATE evat_submissions SET fiscal_id = 'X'`).run()).toThrow(/immutable/);
+    // A refund queues a credit note referencing the original invoice.
+    const sale = await s.run(s.owner, 'sale.get', { id: b.id });
+    await s.run(s.owner, 'shift.open', { openingFloat: 0 });
+    await s.run(s.owner, 'refund.create', { id: uuid(), saleId: b.id, reason: 'Dented', lines: [{ saleItemId: sale.items[0].id, quantity: 1 }] });
+    const cn = s.engine.db.prepare(`SELECT payload FROM evat_submissions WHERE document_type = 'credit_note'`).get() as any;
+    expect(JSON.parse(cn.payload)).toMatchObject({ type: 'credit_note', number: 'RF-000001', originalNumber: 'R-000002', totals: { total: 1250 } });
+    // Rejection is recorded and can be sent again by the owner.
+    setEvatProvider(s.engine, { id: 'test', submit: async () => ({ status: 'rejected', reason: 'Invalid buyer TIN' }) });
+    expect(await s.run(s.owner, 'evat.run', {})).toMatchObject({ rejected: 1 });
+    const rejected = (await s.run(s.owner, 'evat.status', {})).rejectedDocuments[0];
+    setEvatProvider(s.engine, null);
+    await s.run(s.owner, 'evat.retry', { id: rejected.id });
+    expect(await s.run(s.owner, 'evat.run', {})).toMatchObject({ accepted: 1, pending: 0 });
+    // Every outbox event carrying submissions meets the sync contract.
+    for (const e of s.engine.db.prepare('SELECT payload FROM outbox').all() as any[]) expect(() => validateEventRows(JSON.parse(e.payload).rows)).not.toThrow();
+  });
+
+  it('queues nothing for an unregistered shop or when E-VAT is off, and never half a sale', async () => {
+    const s = await open('2026-11-05T09:00:00.000Z');
+    s.engine.setMeta('evat_mode', 'test');
+    await cashSale(s, s.products.soap, 1, 500);
+    expect((s.engine.db.prepare('SELECT COUNT(*) AS n FROM evat_submissions').get() as any).n).toBe(0);
+  });
+});

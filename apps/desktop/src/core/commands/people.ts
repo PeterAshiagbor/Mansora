@@ -15,7 +15,9 @@ export function shiftTotals(ctx: Ctx, shift: any) {
     cashSales: one(`SELECT COALESCE(SUM(p.amount), 0) AS v FROM payments p JOIN sales s ON s.id = p.sale_id WHERE s.shift_id = ? AND p.method = 'cash'`),
     cashRepayments: one(`SELECT COALESCE(SUM(amount), 0) AS v FROM credit_repayments WHERE shift_id = ? AND method = 'cash'`),
     cashRefunds: one(`SELECT COALESCE(SUM(payout_amount), 0) AS v FROM refunds WHERE shift_id = ? AND payout_method = 'cash'`),
-    cashExpenses: one(`SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE shift_id = ? AND payment_method = 'cash'`),
+    // Cash paid out of the till: expenses, and supplier invoices paid from the till (audit F08).
+    cashExpenses: one(`SELECT COALESCE(SUM(amount), 0) AS v FROM expenses WHERE shift_id = ? AND payment_method = 'cash'`)
+      + one(`SELECT COALESCE(SUM(json_extract(payload, '$.amount')), 0) AS v FROM ledger_records WHERE kind = 'supplier_payment' AND json_extract(payload, '$.shiftId') = ?`),
     cashIn: one(`SELECT COALESCE(SUM(amount), 0) AS v FROM shift_cash_movements WHERE shift_id = ? AND direction = 'in'`),
     cashOut: one(`SELECT COALESCE(SUM(amount), 0) AS v FROM shift_cash_movements WHERE shift_id = ? AND direction = 'out'`),
   };

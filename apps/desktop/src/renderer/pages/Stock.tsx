@@ -142,7 +142,8 @@ function StockCount({ onDone }: { onDone: () => void }) {
 }
 
 export function PurchasesPage() {
-  const [tab, setTab] = useState<'purchases' | 'reorder' | 'suppliers'>('purchases');
+  const [tab, setTab] = useState<'purchases' | 'payables' | 'reorder' | 'suppliers'>('purchases');
+  const { can } = useApp();
   const purchases = useQuery<any[]>('purchase.list');
   const suppliers = useQuery<any[]>('supplier.list');
   const [receiving, setReceiving] = useState(false);
@@ -154,8 +155,9 @@ export function PurchasesPage() {
       <PageHeader title="Purchases & suppliers" subtitle="Record stock you receive. This adds to stock and updates the average cost."
         actions={tab === 'purchases' ? <Button variant="primary" onClick={() => setReceiving(true)}>Receive stock</Button> : <Button variant="primary" onClick={() => setEdit({ name: '', phone: '', notes: '' })}>Add supplier</Button>} />
       <TaskLinks group="inventory" current="purchases" />
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'purchases', label: 'Purchases received' }, { id: 'reorder', label: 'Needs reordering' }, { id: 'suppliers', label: 'Suppliers' }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'purchases', label: 'Purchases received' }, ...(can('product.cost') ? [{ id: 'payables' as const, label: 'Owed to suppliers' }] : []), { id: 'reorder', label: 'Needs reordering' }, { id: 'suppliers', label: 'Suppliers' }]} />
       {tab === 'reorder' && <ReorderList />}
+      {tab === 'payables' && <Payables />}
       {tab === 'purchases' && (
         <QueryView query={purchases} label="purchases"><Card pad={false}>
           <Table rows={purchases.data} rowKey={(r) => r.id} onRowClick={(r) => setView(r.id)} empty="No purchases recorded yet"
@@ -184,6 +186,50 @@ export function PurchasesPage() {
         </Modal>
       )}
     </div>
+  );
+}
+
+/** Audit F08: supplier invoices bought on credit, by age, and recording payments against them. */
+function Payables() {
+  const q = useQuery<any>('payable.list');
+  const [pay, setPay] = useState<any | null>(null);
+  const d = q.data;
+  return (
+    <QueryView query={q} label="supplier payables">{d && <>
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-6">
+        <Stat label="Owed to suppliers" value={money(d.totalOutstanding)} tone={d.totalOutstanding ? 'warn' : 'default'} />
+        {([['current', 'Not yet due'], ['d1_30', '1–30 days overdue'], ['d31_60', '31–60 days'], ['d61_90', '61–90 days'], ['d90plus', 'Over 90 days']] as const).map(([k, label]) => <Stat key={k} label={label} value={money(d.aging[k])} tone={k !== 'current' && d.aging[k] ? 'bad' : 'default'} />)}
+      </div>
+      <Card pad={false}><Table rows={d.open} rowKey={(r: any) => r.id} empty="Nothing owed to suppliers. Tick &quot;Bought on credit&quot; when receiving stock you will pay for later." columns={[
+        { header: 'Supplier', cell: (r: any) => r.supplier_name ?? '—' }, { header: 'Invoice', cell: (r: any) => r.reference ?? '' }, { header: 'Received', cell: (r: any) => dateTime(r.received_at) },
+        { header: 'Due', cell: (r: any) => (r.daysOverdue ? <Badge tone="bad">{r.due_date} · {r.daysOverdue} days late</Badge> : r.due_date ?? '') },
+        { header: 'Invoice total', align: 'right', cell: (r: any) => money(r.owed) }, { header: 'Paid', align: 'right', cell: (r: any) => money(r.paid) }, { header: 'Still owed', align: 'right', cell: (r: any) => <strong>{money(r.outstanding)}</strong> },
+        { header: '', align: 'right', cell: (r: any) => <Button size="sm" variant="primary" onClick={() => setPay(r)}>Pay</Button> },
+      ]} /></Card>
+      {pay && <SupplierPayModal row={pay} onClose={() => setPay(null)} onDone={() => { setPay(null); q.reload(); }} />}
+    </>}</QueryView>
+  );
+}
+
+function SupplierPayModal({ row, onClose, onDone }: { row: any; onClose: () => void; onDone: () => void }) {
+  const [id] = useState(uuid);
+  const [amount, setAmount] = useState<number | null>(row.outstanding);
+  const [method, setMethod] = useState('bank');
+  const [reference, setReference] = useState('');
+  const [fromTill, setFromTill] = useState(false);
+  const { run, busy } = useAction();
+  const tooMuch = (amount ?? 0) > row.outstanding;
+  return (
+    <Modal title={`Pay ${row.supplier_name ?? 'supplier'}`} open onClose={onClose}
+      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !amount || tooMuch} onClick={() => run(async () => { await call('supplier.pay', { id, purchaseId: row.id, amount, method, reference: reference || null, paidFromTill: method === 'cash' && fromTill }); onDone(); }, 'Supplier payment recorded')}>Record payment</Button></>}>
+      <div className="space-y-3">
+        <p className="text-sm text-slate-600">Invoice {row.reference ?? ''}: still owed <strong>{money(row.outstanding)}</strong>.</p>
+        <Field label="Amount paid (GHS)" error={tooMuch ? 'This is more than is owed' : null}><MoneyInput value={amount} onChange={setAmount} autoFocus /></Field>
+        <Field label="Paid by"><Select id="supplier-pay-method" value={method} onChange={(e) => setMethod(e.target.value)}><option value="bank">Bank transfer</option><option value="momo">Mobile Money</option><option value="cash">Cash</option><option value="card">Card</option></Select></Field>
+        {method === 'cash' && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={fromTill} onChange={(e) => setFromTill(e.target.checked)} /> Paid with cash from my till (reduces my expected cash)</label>}
+        <Field label="Reference (optional)"><Input id="supplier-pay-reference" value={reference} onChange={(e) => setReference(e.target.value)} /></Field>
+      </div>
+    </Modal>
   );
 }
 
@@ -240,6 +286,8 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
   const [claim, setClaim] = useState(false);
   const [t, setT] = useState({ supplierTin: '', invoiceDate: today(), vat: 0 as number | null, nhil: 0 as number | null, getfund: 0 as number | null });
   const [duplicate, setDuplicate] = useState<string | null>(null);
+  const [onCredit, setOnCredit] = useState(false);
+  const [dueDate, setDueDate] = useState('');
   const [duplicateReason, setDuplicateReason] = useState('');
   const { run, busy } = useAction();
   const claimReady = !claim || (!!t.supplierTin.trim() && !!reference.trim() && t.vat != null && t.nhil != null && t.getfund != null);
@@ -249,15 +297,16 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
   return (
     <Modal title="Receive stock" open onClose={onClose} wide
       footer={<><span className="mr-auto self-center text-sm">Total cost: <strong>{money(total)}</strong></span><Button dismiss onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={busy || valid.length === 0 || valid.length !== items.length || !claimReady || (!!duplicate && !duplicateReason.trim())} onClick={() => run(async () => {
+        <Button variant="primary" disabled={busy || valid.length === 0 || valid.length !== items.length || !claimReady || (onCredit && !supplierId) || (!!duplicate && !duplicateReason.trim())} onClick={() => run(async () => {
           try {
             await call('purchase.receive', { id, supplierId: supplierId || null, reference: reference || null, items: valid.map((i) => ({ productId: i.productId, quantity: Number(i.quantity), unitCost: i.unitCost })),
-              inputTax: claim ? { supplierTin: t.supplierTin, invoiceDate: t.invoiceDate, vat: t.vat, nhil: t.nhil, getfund: t.getfund, evidenceConfirmed: true } : undefined, duplicateReason: duplicate ? duplicateReason : null });
+              onCredit, dueDate: onCredit && dueDate ? dueDate : null, inputTax: claim ? { supplierTin: t.supplierTin, invoiceDate: t.invoiceDate, vat: t.vat, nhil: t.nhil, getfund: t.getfund, evidenceConfirmed: true } : undefined, duplicateReason: duplicate ? duplicateReason : null });
           } catch (e: any) { if (e.code === 'DUPLICATE_PURCHASE') setDuplicate(e.message); throw e; }
           onDone();
         }, 'Stock received')}>Receive into stock</Button></>}>
       {productOptions.error && <QueryView query={productOptions} label="products for this receipt">{null}</QueryView>}
       <p className="mb-3 text-xs leading-relaxed text-slate-600">Enter whole selling units and their unit purchase cost. A carton must be converted to its individual items before receiving.{tax.data?.registered && ' This business is VAT registered: enter unit costs excluding the VAT, NHIL and GETFund you can recover.'}</p>
+      <div className="mb-3 flex flex-wrap items-end gap-3"><label className="flex items-center gap-2 text-sm"><input id="receive-on-credit" type="checkbox" checked={onCredit} onChange={(e) => setOnCredit(e.target.checked)} /> Bought on credit (pay the supplier later)</label>{onCredit && <Field label="Payment due"><Input id="receive-due-date" type="date" value={dueDate} min={today()} onChange={(e) => setDueDate(e.target.value)} /></Field>}{onCredit && !supplierId && <span className="text-sm text-amber-800">Choose the supplier.</span>}</div>
       {duplicate && <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"><p className="mb-2">{duplicate}</p><Field label="Reason for receiving this invoice again"><Input id="receive-duplicate-reason" value={duplicateReason} onChange={(e) => setDuplicateReason(e.target.value)} /></Field></div>}
       {vatRegistered && <div className="mb-3 rounded-md border border-slate-200 p-3">
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={claim} onChange={(e) => setClaim(e.target.checked)} /> Claim the input tax on this supplier invoice</label>

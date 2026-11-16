@@ -5,6 +5,7 @@ import { defineCommands, empty, zId, zMoney, zText, type Ctx } from '../engine';
 import { monthsBefore, quoteSale, recordRegistrationTrigger, taxConfig, taxPayments as taxPaymentsList, taxStatus, vatReport } from '../tax';
 import { toXlsx } from '../importer';
 import { requireOpenPeriod } from '../periods';
+import { evatStatus, requireEvatMode, runEvatQueue } from '../evat';
 
 const zMonth = z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/);
 export function requireTaxPeriodOpen(ctx: Ctx, date: string) {
@@ -44,6 +45,32 @@ export function checkInputClaim(ctx: Ctx, input: { date: string; reference: stri
   }
 }
 export const taxCommands = defineCommands({
+  /** Audit F01: E-VAT submission queue status, including the 24-hour downtime flag. */
+  'evat.status': { perm: 'report.sales', input: empty, run: (ctx) => evatStatus(ctx) },
+  'evat.configure': {
+    perm: 'settings.manage', mutates: true, input: z.object({ mode: z.string(), reason: zText(300) }),
+    run: (ctx, input) => {
+      owner(ctx);
+      const mode = requireEvatMode(input.mode);
+      const previous = ctx.setting('evat_mode') ?? 'off';
+      ctx.engine.setMeta('evat_mode', mode);
+      ctx.audit('evat', null, { from: previous, to: mode, reason: input.reason }, 'evat.configured');
+      return { mode };
+    },
+  },
+  'evat.run': { perm: 'report.sales', async: true, input: empty, run: (ctx) => runEvatQueue(ctx.engine) },
+  /** Send a rejected document again after the cause (for example a missing TIN in settings for later documents) is fixed. */
+  'evat.retry': {
+    perm: 'settings.manage', mutates: true, input: z.object({ id: zId }),
+    run: (ctx, input) => {
+      owner(ctx);
+      const row = ctx.get(`SELECT * FROM evat_submissions WHERE id = ?`, input.id);
+      if (!row || row.status !== 'rejected') fail('NOT_FOUND', 'Only a rejected E-VAT submission can be sent again');
+      ctx.update('evat_submissions', row.id, { status: 'pending', updated_at: ctx.now() });
+      ctx.audit('evat_submission', row.id, { documentNo: row.document_no }, 'evat.retry');
+      return { id: row.id };
+    },
+  },
   'tax.current': { perm: 'sale.create', input: empty, run: ctx => taxConfig(ctx) },
   'tax.status': { perm: 'report.sales', input: empty, run: ctx => taxStatus(ctx) },
   'tax.history': { perm: 'settings.manage', input: empty, run: ctx => ctx.all('SELECT * FROM tax_configs ORDER BY effective_date DESC, created_at DESC, rowid DESC') },

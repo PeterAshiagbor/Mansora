@@ -13320,6 +13320,530 @@
         "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
       ],
       "assessment": "Operational/financial metadata or linkable identifier; personal only when linked to a sole trader, worker or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.tenant_id",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: tenant_id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.id",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.document_type",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: document_type.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.document_id",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: document_id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.document_no",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: document_no.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.payload",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: payload.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Contains seller TIN and, for business customers, buyer name and TIN. Statutory tax-record retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.evat_submissions.payload_sha256",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: payload_sha256.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.status",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: status.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.provider",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: provider.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.attempts",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: attempts.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.fiscal_id",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: fiscal_id.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.qr",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: qr.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Contains seller TIN and, for business customers, buyer name and TIN. Statutory tax-record retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.evat_submissions.signature",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: signature.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.last_error",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: last_error.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Contains seller TIN and, for business customers, buyer name and TIN. Statutory tax-record retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "cloud.evat_submissions.created_at",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: created_at.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.submitted_at",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: submitted_at.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.evat_submissions.updated_at",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: updated_at.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "cloud.purchases.due_date",
+      "purpose": "Due date of a supplier invoice bought on credit, for payables aging (audit F08). Column: due_date.",
+      "locations": [
+        "Cloud PostgreSQL tenant plane (forced row-level security)",
+        "Any future hosting/database backup copies: provider, region and retention not selected"
+      ],
+      "access": [
+        "Authenticated tenant/device API under tenant row-level security",
+        "Mansora dashboard: no general raw-business-row access; consent-checked report path exposes limited aggregates/log projections",
+        "Privileged hosting/database operators: potential technical access, subject to deployment controls still to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.id",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: id.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.document_type",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: document_type.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.document_id",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: document_id.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.document_no",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: document_no.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.payload",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: payload.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Contains seller TIN and, for business customers, buyer name and TIN. Statutory tax-record retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.evat_submissions.payload_sha256",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: payload_sha256.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.status",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: status.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.provider",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: provider.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.attempts",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: attempts.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.fiscal_id",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: fiscal_id.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.qr",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: qr.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Contains seller TIN and, for business customers, buyer name and TIN. Statutory tax-record retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.evat_submissions.signature",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: signature.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.last_error",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: last_error.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Contains seller TIN and, for business customers, buyer name and TIN. Statutory tax-record retention likely applies; lawyer and tax adviser to confirm period and access limits."
+    },
+    {
+      "key": "laptop.evat_submissions.created_at",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: created_at.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.submitted_at",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: submitted_at.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.evat_submissions.updated_at",
+      "purpose": "GRA E-VAT submission record for a VAT invoice or credit note: document identity, canonical payload and hash, status and GRA-issued identifiers (audit F01). Column: updated_at.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
+    },
+    {
+      "key": "laptop.purchases.due_date",
+      "purpose": "Due date of a supplier invoice bought on credit, for payables aging (audit F08). Column: due_date.",
+      "locations": [
+        "Shop laptop SQLite database (encrypted in the packaged app)",
+        "Shop-passphrase-encrypted portable backups; any uploaded backup remains ciphertext",
+        "Cloud tenant PostgreSQL mirror/projection; historical sync/audit payloads may retain earlier values"
+      ],
+      "access": [
+        "Authorised shop staff through permission-checked commands; cashier history is restricted to own sales",
+        "Shop-controlled backup passphrase holders after decryption; OS/device administrators depend on physical access controls",
+        "Tenant/device replication API under forced RLS; ordinary Mansora dashboard exposes only permitted support aggregates/projections",
+        "Privileged cloud/database operators may technically access database rows; deployment controls remain to be agreed"
+      ],
+      "assessment": "Operational/tax metadata or linkable identifier; personal only when linked to a sole trader or customer. Statutory tax-record retention likely applies."
     }
   ]
 }

@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { openEngine, restoreBackupFile, syncNow } from '../../apps/desktop/src/core';
 import { startCloud, type Cloud } from '../cloud';
 import { CASHIER, expectCode, login, makeShop, OWNER, tempDir, uuid } from '../helpers';
+import { defaultTaxConfig } from '../../packages/domain/src';
 
 let cloud: Cloud;
 beforeAll(async () => void (cloud = await startCloud()));
@@ -74,6 +75,21 @@ describe('restore from an older backup file', () => {
     expect(r.numbering.R).toBe('1 -> 100001');
     const sale = await s.run(s.cashier, 'sale.complete', { id: uuid(), lines: [{ productId: s.products.milk, quantity: 1 }], tenders: [{ method: 'cash', amount: 100_000 }] });
     expect(sale.receiptNo).toBe('R-100001');
+    s.engine.db.close();
+  });
+
+  it('syncs E-VAT submissions and their accepted status to the cloud', async () => {
+    const C = await cloud.createClient('E-VAT Sync Shop');
+    const s = await makeShop({ apiUrl: cloud.url, code: C.code, fetch });
+    await s.run(s.owner, 'tax.configure', { ...defaultTaxConfig(), effectiveDate: '2026-01-01', registered: true, registrationDate: '2026-01-01', tin: 'C0000000009', vatNumber: 'V9', reason: 'Registered' });
+    const p = s.engine.db.prepare('SELECT * FROM products WHERE id = ?').get(s.products.milk) as any;
+    await s.run(s.owner, 'product.save', { id: p.id, name: p.name, sellingPrice: p.selling_price, taxClass: 'standard' });
+    await s.run(s.owner, 'evat.configure', { mode: 'test', reason: 'Training' });
+    await s.run(s.cashier, 'sale.complete', { id: uuid(), lines: [{ productId: s.products.milk, quantity: 1 }], tenders: [{ method: 'cash', amount: 100_000 }] });
+    expect(await syncNow(s.engine)).toMatchObject({ ok: true, rejected: 0 }); // pushes the pending row, then submits it
+    expect(await syncNow(s.engine)).toMatchObject({ ok: true, rejected: 0 }); // pushes the accepted status
+    const rows = await cloud.db.tenant(C.id, (q) => q(`SELECT document_no, status, fiscal_id FROM evat_submissions`));
+    expect(rows).toEqual([{ document_no: 'R-000001', status: 'accepted', fiscal_id: expect.stringMatching(/^TEST-/) }]);
     s.engine.db.close();
   });
 });

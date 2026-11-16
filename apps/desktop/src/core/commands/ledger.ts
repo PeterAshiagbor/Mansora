@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { fail } from '@mansora/domain';
-import { defineCommands, empty, zId, zMoney, zText, type Ctx } from '../engine';
+import { defineCommands, empty, zId, zMoney, zOptText, zText, type Ctx } from '../engine';
+import { requireOpenShift } from '../stock';
 import { closedThrough, requireOpenPeriod } from '../periods';
 
 const zMonth = z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/);
@@ -13,7 +14,60 @@ function record(ctx: Ctx, kind: string, date: string, reference: string, payload
   return id;
 }
 
+/**
+ * Audit F08: supplier payables. A purchase received on credit is owed at its cost plus any input tax recorded on the
+ * same supplier invoice, less supplier payments recorded against it.
+ */
+export function payables(ctx: Ctx) {
+  const today = ctx.now().slice(0, 10);
+  const paid = new Map<string, number>();
+  for (const r of ctx.all<{ payload: string }>(`SELECT payload FROM ledger_records WHERE kind = 'supplier_payment'`)) {
+    const p = JSON.parse(r.payload); paid.set(p.purchaseId, (paid.get(p.purchaseId) ?? 0) + (Number(p.amount) || 0));
+  }
+  const rows = ctx.all(`SELECT p.id, p.reference, p.received_at, p.due_date, p.total_cost, p.supplier_id, s.name AS supplier_name,
+      COALESCE((SELECT json_extract(t.payload, '$.originalTaxes.vat') + json_extract(t.payload, '$.originalTaxes.nhil') + json_extract(t.payload, '$.originalTaxes.getfund')
+        FROM tax_records t WHERE t.kind = 'input' AND json_extract(t.payload, '$.purchaseId') = p.id LIMIT 1), 0) AS tax
+    FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE p.status = 'on_credit' ORDER BY p.received_at`).map((r: any) => {
+    const owed = r.total_cost + r.tax, settled = paid.get(r.id) ?? 0, outstanding = Math.max(0, owed - settled);
+    const days = r.due_date ? Math.round((Date.parse(today) - Date.parse(r.due_date)) / 86_400_000) : 0;
+    return { ...r, owed, paid: settled, outstanding, daysOverdue: Math.max(0, days), bucket: days <= 0 ? 'current' : days <= 30 ? 'd1_30' : days <= 60 ? 'd31_60' : days <= 90 ? 'd61_90' : 'd90plus' };
+  });
+  const open = rows.filter((r) => r.outstanding > 0);
+  const aging = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90plus: 0 } as Record<string, number>;
+  for (const r of open) aging[r.bucket] += r.outstanding;
+  const bySupplier = [...new Set(open.map((r) => r.supplier_id))].map((id) => ({ supplierId: id, supplier: open.find((r) => r.supplier_id === id)!.supplier_name, outstanding: open.filter((r) => r.supplier_id === id).reduce((t, r) => t + r.outstanding, 0) }));
+  return { rows, open, aging, bySupplier, totalOutstanding: open.reduce((t, r) => t + r.outstanding, 0) };
+}
+
 export const ledgerCommands = defineCommands({
+  'payable.list': {
+    perm: 'purchase.manage',
+    input: empty,
+    run: (ctx) => {
+      ctx.require('product.cost'); // supplier amounts reveal cost prices
+      return payables(ctx);
+    },
+  },
+  /** Pay a supplier invoice bought on credit, in full or in part. Cash from the till reduces the cashier's expected cash. */
+  'supplier.pay': {
+    perm: 'purchase.manage',
+    mutates: true,
+    input: z.object({ id: zId, purchaseId: zId, amount: zMoney, method: z.enum(['cash', 'momo', 'card', 'bank']), reference: zOptText(80), paidFromTill: z.boolean().default(false) }),
+    run: (ctx, input) => {
+      ctx.require('expense.manage');
+      if (ctx.get('SELECT 1 FROM ledger_records WHERE id = ?', input.id)) return { id: input.id, duplicate: true };
+      requireOpenPeriod(ctx, ctx.now());
+      if (input.paidFromTill && input.method !== 'cash') fail('INVALID_INPUT', 'Only cash can be paid from the till');
+      const row = payables(ctx).rows.find((r) => r.id === input.purchaseId);
+      if (!row) fail('NOT_FOUND', 'That purchase was not bought on credit');
+      if (input.amount <= 0 || input.amount > row.outstanding) fail('INVALID_AMOUNT', 'The payment must be more than zero and no more than the amount still owed', { outstanding: row.outstanding });
+      const shift = input.paidFromTill ? requireOpenShift(ctx, 'paying a supplier from the till') : null;
+      record(ctx, 'supplier_payment', ctx.now().slice(0, 10), input.reference ?? `Supplier payment ${row.reference ?? ''}`.trim(), {
+        purchaseId: row.id, supplierId: row.supplier_id, amount: input.amount, method: input.method, reference: input.reference, shiftId: shift?.id ?? null,
+      }, input.id);
+      return { id: input.id, outstanding: row.outstanding - input.amount };
+    },
+  },
   'period.status': {
     perm: 'report.profit',
     input: empty,
