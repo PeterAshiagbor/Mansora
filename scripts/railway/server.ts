@@ -1,3 +1,4 @@
+import { assignTsaOwnerLogin } from '../staging/tsa-owner-login';
 import { rehearsePublicSignIn } from '../staging/sign-in-acceptance';
 import { rehearseTsb } from '../staging/tsb-acceptance';
 import { seedVatDemo } from '../staging/vat-demo';
@@ -77,6 +78,8 @@ export async function runRailwayServer() {
     }
     gateway = await startConfiguredStaging(async () => { const r = await fetch('http://127.0.0.1:4000/health/ready', { signal: AbortSignal.timeout(3000) }); return r.ok; }, async workspaces => {
       acceptanceWorkspaces = workspaces;
+      const tsaLogin = await assignTsaOwnerLogin({ dataDir: join(config.dataDir, 'staging'), workspaces }).catch(() => ({ reviewRequired: true }));
+      if (!('skipped' in tsaLogin)) console.log('TSA owner username:', JSON.stringify(tsaLogin));
       const result = await inviteTesters({ id: config.mode === 'team-test' ? process.env.STAGING_TESTER_INVITATION_ID : undefined, dataDir: join(config.dataDir, 'staging'), origin: config.origin, workspaces, email: billing.email, onActivated: async (tenantId, email) => {
         await db.platform(async q => {
           await q("UPDATE tenants SET email = $2 WHERE id = $1 AND (email IS NULL OR email LIKE '%@mansora.example')", [tenantId, email]);
