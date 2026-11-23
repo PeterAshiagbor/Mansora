@@ -48,6 +48,15 @@ it('accepts a unique invitation email and fails closed on client/admin identity 
   expect((await signIn(ADMIN.email, ADMIN.password)).status).toBe(401);
   const admin = await signIn('admin:' + ADMIN.email, ADMIN.password); expect(admin.body.data.platform).toBe('admin'); expect(admin.body.data.token).toBeTruthy(); expect(admin.cookie).toBeUndefined();
 });
+it('routes a shared email by explicit account type without matching passwords across roles', async () => {
+  const shop = await post('/signin/login', { username: ADMIN.email, password: OWNER.password, accountType: 'shop' });
+  expect(shop.body.data).toEqual({ platform: 'client', url: '/client/shop-a/' });
+  const admin = await post('/signin/login', { username: ADMIN.email, password: ADMIN.password, accountType: 'admin' });
+  expect(admin.body.data.platform).toBe('admin');
+  expect((await post('/signin/login', { username: ADMIN.email, password: OWNER.password, accountType: 'admin' })).status).toBe(401);
+  expect((await post('/signin/login', { username: ADMIN.email, password: ADMIN.password, accountType: 'shop' })).status).toBe(401);
+  expect((await post('/signin/login', { username: ADMIN.email, password: ADMIN.password, accountType: 'unknown' })).status).toBe(400);
+});
 it('rejects duplicate hosted usernames across shops, case variants and simultaneous attempts', async () => {
   const input = { name: 'New staff', username: 'kofi', role: 'cashier', password: 'another-strong-pass' };
   expect((await invoke('shop-a', 'staff.save', input)).body.error.code).toBe('USERNAME_TAKEN');

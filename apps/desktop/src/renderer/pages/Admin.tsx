@@ -260,27 +260,36 @@ const FIELD_LABEL: Record<string, string> = { tax_class: 'VAT classification', n
 export function DataPage() {
   const { can, go, state } = useApp();
   const toast = useToast();
-  const [completed, setCompleted] = useState<{ created: number; skipped: number; fileName: string } | null>(null);
+  const [completed, setCompleted] = useState<{ created: number; skipped: number; vatUpdated?: number; fileName: string } | null>(null);
   const history = useQuery<any[]>('import.history');
   const [file, setFile] = useState<{ fileName: string; contentBase64: string } | null>(null);
   const [preview, setPreview] = useState<any | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [defaultTaxClass, setDefaultTaxClass] = useState('');
+  const [updateExistingVat, setUpdateExistingVat] = useState(false);
+  const [vatUpdateReason, setVatUpdateReason] = useState('');
   const input = useRef<HTMLInputElement>(null);
   useUnsavedChanges(file != null, 'the product import preview');
   const { run, busy } = useAction();
-  const load = (source: File | { fileName: string; contentBase64: string }, mapping?: Record<string, string>) => run(async () => { setPreview(null); setCompleted(null); setConfirm(false); const f = source instanceof File ? { fileName: source.name, contentBase64: await fileToBase64(source) } : source; setFile(f); const next = await call('import.preview', { ...f, mapping }); setPreview(next); return next; });
+  const load = (source: File | { fileName: string; contentBase64: string }, mapping?: Record<string, string>, overrides: { defaultTaxClass?: string; updateExistingVat?: boolean } = {}) => run(async () => { setPreview(null); setCompleted(null); setConfirm(false); const f = source instanceof File ? { fileName: source.name, contentBase64: await fileToBase64(source) } : source; setFile(f); const next = await call('import.preview', { ...f, mapping, defaultTaxClass: (overrides.defaultTaxClass ?? defaultTaxClass) || undefined, updateExistingVat: overrides.updateExistingVat ?? updateExistingVat }); setPreview(next); return next; });
   const rows: any[] = preview?.rows ?? [];
   const errors = rows.filter((r) => r.errors.length).length;
-  const dups = rows.filter((r) => r.duplicate && !r.errors.length).length;
-  const good = rows.length - errors - dups;
+  const updates = rows.filter(r => r.vatUpdate && !r.errors.length).length;
+  const dups = rows.filter((r) => r.duplicate && !r.vatUpdate && !r.errors.length).length;
+  const good = rows.filter(r => !r.duplicate && !r.errors.length).length;
   const hasStock = rows.some((r) => !r.duplicate && !r.errors.length && r.data.openingStock > 0);
   return (
     <div className="space-y-4">
       <PageHeader title="Import & export" subtitle="Choose a file, check the rows, then confirm. Nothing is saved during preview." />
       <WorkflowSteps steps={['Choose file', 'Check rows', 'Import']} current={completed ? 2 : file ? 1 : 0} />
-      {completed && <Card title="Import complete"><p className="text-lg font-semibold">{completed.created} product(s) added · {completed.skipped} skipped</p><p className="mt-2 text-sm text-slate-600">{completed.fileName} · The confirmed result is recorded in import and audit history.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="primary" onClick={() => go('products')}>View products</Button><Button onClick={() => { setCompleted(null); input.current?.focus(); }}>Import another file</Button></div></Card>}
+      {completed && <Card title="Import complete"><p className="text-lg font-semibold">{completed.created} product(s) added{completed.vatUpdated ? ` · ${completed.vatUpdated} VAT classification(s) updated` : ''} · {completed.skipped} skipped</p><p className="mt-2 text-sm text-slate-600">{completed.fileName} · The confirmed result is recorded in import and audit history.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="primary" onClick={() => go('products')}>View products</Button><Button onClick={() => { setCompleted(null); input.current?.focus(); }}>Import another file</Button></div></Card>}
       <Card title="Import products and opening stock" actions={<><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'xlsx' })))}>Download Excel template</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.sample', { format: 'xlsx' })))}>Download sample shop</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'csv' })))}>CSV template</Button></>}>
         <p className="mb-3 text-sm text-slate-600">Moving from Excel, QuickBooks or Xero? Export your product list and choose it here: Mansora recognises their column names. The sample shop shows a filled-in file. When VAT collection is active, opening stock requires a VAT classification: standard, zero, exempt or outside. Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved. For carton costing, fill Carton cost and Units per carton; leave Cost price blank. Selling price and opening stock are per selling unit. Unit cost rounds to the nearest pesewa.</p>
+        <div className="mb-4 space-y-3 rounded border border-slate-200 p-3">
+          <Field label="VAT classification for rows with a blank VAT column" hint="Only fills blank classifications. Check the legal treatment before applying one class to several products."><Select disabled={busy} value={defaultTaxClass} onChange={e => { const value = e.target.value; setDefaultTaxClass(value); if (file) void load(file, preview?.mapping, { defaultTaxClass: value }); }}><option value="">Use each row's classification</option><option value="standard">Standard-rated</option><option value="zero">Zero-rated</option><option value="exempt">Exempt</option><option value="outside">Outside scope</option></Select></Field>
+          {can('product.manage') && <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={updateExistingVat} onChange={e => { const value = e.target.checked; setUpdateExistingVat(value); if (file) void load(file, preview?.mapping, { updateExistingVat: value }); }} /> Update VAT classifications of matching existing products</label>}
+          {updateExistingVat && <><p className="text-xs text-slate-600">For VAT-only updates, include a unique Name, SKU or Barcode and a VAT classification; price columns are optional. Only rows with a classification are updated; blank rows are skipped unless you choose a default above. Existing matches receive classification changes only. Their quantities, costs and prices stay as recorded. Conflicting identifiers must be corrected before importing.</p><Field label="Reason for imported VAT updates"><Input required={updates > 0} disabled={busy} value={vatUpdateReason} onChange={e => setVatUpdateReason(e.target.value)} maxLength={400} /></Field></>}
+        </div>
         <input ref={input} type="file" accept=".xlsx,.csv" className="block text-sm" aria-label="Choose import file" disabled={busy}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void load(f); }} />
         {busy && !preview && <p className="mt-4 text-sm text-slate-600" role="status">Checking the file. No products have been saved…</p>}
@@ -292,7 +301,7 @@ export function DataPage() {
               <legend className="sr-only">Column mapping</legend>
               <div className="grid grid-cols-3 gap-2">
                 {Object.entries(FIELD_LABEL).map(([field, label]) => (
-                  <Field key={field} label={label}>
+                  <Field key={field} label={updateExistingVat ? label.replace(' *', '') : label}>
                     <Select disabled={busy} value={preview.mapping[field] ?? ''} onChange={(e) => load(file, { ...preview.mapping, [field]: e.target.value || undefined })}>
                       <option value="">(not in my file)</option>{preview.headers.map((h: string) => <option key={h} value={h}>{h}</option>)}
                     </Select>
@@ -300,20 +309,20 @@ export function DataPage() {
                 ))}
               </div>
             </fieldset></details>
-            {preview.needsMapping ? <Alert tone="warn">Choose which columns hold the product name and the selling price.</Alert> : (
+            {preview.needsMapping ? <Alert tone="warn">{updateExistingVat ? 'Choose a product Name, SKU or Barcode column to identify existing products.' : 'Choose which columns hold the product name and the selling price.'}</Alert> : (
               <>
-                <div className="flex gap-2"><Badge tone="good">{good} new product(s)</Badge>{dups > 0 && <Badge tone="warn">{dups} already exist (will be skipped)</Badge>}{errors > 0 && <Badge tone="bad">{errors} row(s) with errors</Badge>}</div>
+                <div className="flex gap-2"><Badge tone="good">{good} new product(s)</Badge>{updates > 0 && <Badge tone="info">{updates} VAT classification update(s)</Badge>}{dups > 0 && <Badge tone="warn">{dups} already exist (will be skipped)</Badge>}{errors > 0 && <Badge tone="bad">{errors} row(s) with errors</Badge>}</div>
                 <div className="max-h-80 overflow-y-auto rounded border border-slate-200">
                   <Table rows={rows} rowKey={(r) => r.rowNo} columns={[
                     { header: 'Row', cell: (r) => r.rowNo }, { header: 'Product', cell: (r) => r.data.name }, { header: 'Barcode', cell: (r) => r.data.barcode ?? '' }, { header: 'Category', cell: (r) => r.data.category ?? '' }, { header: 'VAT classification', cell: (r) => r.data.taxClass ?? 'Not classified' },
                     { header: 'Cost', align: 'right', cell: (r) => money(r.data.costPrice) }, { header: 'Selling price', align: 'right', cell: (r) => money(r.data.sellingPrice) }, ...(can('product.cost') ? [{ header: 'Gross margin', align: 'right' as const, cell: (r: any) => marginLabel(r.data.sellingPrice, r.data.costPrice) }] : []), { header: 'Opening stock', align: 'right', cell: (r) => r.data.openingStock },
-                    { header: 'Result', cell: (r) => (r.errors.length ? <Badge tone="bad">{r.errors.join('; ')}</Badge> : r.duplicate ? <Badge tone="warn">{r.duplicate}</Badge> : <Badge tone="good">Will be added</Badge>) },
+                    { header: 'Result', cell: (r) => (r.errors.length ? <Badge tone="bad">{r.errors.join('; ')}</Badge> : r.vatUpdate ? <Badge tone="info">Update VAT only</Badge> : r.duplicate ? <Badge tone="warn">{r.duplicate}</Badge> : <Badge tone="good">Will be added</Badge>) },
                   ]} />
                 </div>
                 {hasStock && <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} /> I confirm the opening stock quantities are what is physically in the shop</label>}
-                <Button variant="primary" disabled={busy || errors > 0 || good === 0 || !!preview.alreadyImportedAt || (hasStock && !confirm)}
-                  onClick={() => run(async () => { const r = await call('import.commit', { ...file, mapping: preview.mapping, confirmOpeningStock: confirm }); setCompleted({ created: r.created, skipped: r.skipped, fileName: file.fileName }); setPreview(null); setFile(null); if (input.current) input.current.value = ''; history.reload(); toast(`Imported ${r.created} product(s)`); return r; })}>
-                  Import {good} product(s)
+                <Button variant="primary" disabled={busy || errors > 0 || good + updates === 0 || (updates > 0 && !vatUpdateReason.trim()) || !!preview.alreadyImportedAt || (hasStock && !confirm)}
+                  onClick={() => run(async () => { const r = await call('import.commit', { ...file, mapping: preview.mapping, expectedPreviewHash: preview.reviewHash, confirmOpeningStock: confirm, defaultTaxClass: defaultTaxClass || undefined, updateExistingVat, vatUpdateReason }); setCompleted({ created: r.created, skipped: r.skipped, vatUpdated: r.vatUpdated, fileName: file.fileName }); setPreview(null); setFile(null); if (input.current) input.current.value = ''; history.reload(); toast(r.vatUpdated ? `Imported ${r.created} product(s); updated ${r.vatUpdated} VAT classification(s)` : `Imported ${r.created} product(s)`); return r; })}>
+                  Import {good} product(s){updates > 0 ? ` and update ${updates} VAT classification(s)` : ''}
                 </Button>
                 {errors > 0 && <p className="text-sm text-red-700">Fix the rows with errors in your file and choose it again. Nothing has been imported.</p>}
               </>
@@ -322,7 +331,7 @@ export function DataPage() {
         )}
       </Card>
       <QueryView query={history} label="import history"><Card title="Import history" pad={false}>
-        <Table rows={history.data} rowKey={(r) => r.id} empty="No imports yet" columns={[{ header: 'When', cell: (r) => dateTime(r.created_at) }, { header: 'File', cell: (r) => r.file_name }, { header: 'Added', align: 'right', cell: (r) => r.created_count }, { header: 'Skipped', align: 'right', cell: (r) => r.skipped_count }, { header: 'Opening stock', cell: (r) => (r.opening_stock_applied ? 'Applied' : '—') }, { header: 'By', cell: (r) => r.imported_by_name }]} />
+        <Table rows={history.data} rowKey={(r) => r.id} empty="No imports yet" columns={[{ header: 'When', cell: (r) => dateTime(r.created_at) }, { header: 'File', cell: (r) => r.file_name }, { header: 'Added', align: 'right', cell: (r) => r.created_count }, { header: 'VAT updated', align: 'right', cell: (r) => r.vat_updated_count ?? 0 }, { header: 'Skipped', align: 'right', cell: (r) => r.skipped_count }, { header: 'Opening stock', cell: (r) => (r.opening_stock_applied ? 'Applied' : '—') }, { header: 'By', cell: (r) => r.imported_by_name }]} />
       </Card></QueryView>
       {can('data.export') && (
         <Card title="Export all business data">

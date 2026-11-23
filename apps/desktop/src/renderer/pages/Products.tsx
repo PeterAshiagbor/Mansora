@@ -9,36 +9,62 @@ export function ProductsPage() {
   const { can, go } = useApp();
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState(false);
+  const [needsClass, setNeedsClass] = useState(false);
+  const [selected, setSelected] = useState<Record<string, number>>({});
+  const [bulk, setBulk] = useState(false);
+  const [bulkClass, setBulkClass] = useState('');
+  const [bulkReason, setBulkReason] = useState('');
+  const bulkAction = useAction();
   const [edit, setEdit] = useState<any | null>(null);
   const productsQuery = useQuery<any[]>('product.list', { search, includeInactive: inactive, limit: 1000 });
-  const { data, reload } = productsQuery;
+  const { data: loaded, reload } = productsQuery;
+  const data = loaded?.filter(p => !needsClass || !p.tax_class);
   const cost = can('product.cost');
   return (
     <div>
-      <PageHeader title="Products" subtitle={data ? data.length === 1000 ? 'Showing the first 1,000 matching products. Refine your search to find more.' : `${data.length} matching product(s)` : undefined}
+      <PageHeader title="Products" subtitle={data ? loaded?.length === 1000 ? 'Showing the first 1,000 matching products. Refine your search to find more.' : `${data.length} matching product(s)` : undefined}
         actions={<>
-          <ExportButtons disabled={!data} title="Products — loaded matching catalogue" columns={['Name', 'SKU', 'Barcode', 'Category', 'Selling price', ...(cost ? ['Cost price', 'Gross margin (%)'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price), marginLabel(p.selling_price, p.cost_price)] : []), p.quantity])} />
+          <ExportButtons disabled={!data} title="Products — loaded matching catalogue" columns={['Name', 'SKU', 'Barcode', 'Category', 'VAT classification', 'Selling price', ...(cost ? ['Cost price', 'Gross margin (%)'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', p.tax_class ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price), marginLabel(p.selling_price, p.cost_price)] : []), p.quantity])} />
           {can('data.import') && <Button onClick={() => go('data')}>Upload Excel / CSV</Button>}
           {can('product.manage') && <Button variant="primary" onClick={() => setEdit({})}>Add product</Button>}
         </>} />
       <TaskLinks group="inventory" current="products" />
       <div className="mb-3 flex flex-wrap items-center gap-3 no-print">
-        <Input placeholder="Search by name, SKU or barcode" value={search} onChange={(e) => setSearch(e.target.value)} className="w-80" aria-label="Search products" /> <CameraScanButton onCode={setSearch} />
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={inactive} onChange={(e) => setInactive(e.target.checked)} /> Show inactive</label>
+        <Input placeholder="Search by name, SKU or barcode" value={search} onChange={(e) => { setSearch(e.target.value); setSelected({}); }} className="w-80" aria-label="Search products" /> <CameraScanButton onCode={code => { setSearch(code); setSelected({}); }} />
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={inactive} onChange={(e) => { setInactive(e.target.checked); setSelected({}); }} /> Show inactive</label>
       </div>
+      <label className="mb-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={needsClass} onChange={e => { setNeedsClass(e.target.checked); setSelected({}); }} /> Needs VAT classification</label>
+      {can('product.manage') && <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Button onClick={() => { setSelected({}); reload(); }}>Refresh products</Button>
+        <Button disabled={!data?.length} onClick={() => setSelected(Object.fromEntries((data ?? []).map(p => [p.id, p.version])))}>Select all loaded ({data?.length ?? 0})</Button>
+        <Button disabled={!Object.keys(selected).length} onClick={() => setSelected({})}>Clear selection</Button>
+        <span className="text-sm">{Object.keys(selected).length} selected</span>
+        <Button disabled={!Object.keys(selected).length} onClick={() => { setBulkClass(''); setBulkReason(''); setBulk(true); }}>Bulk update VAT</Button>
+      </div>}
       <QueryView query={productsQuery} label="products"><Card pad={false}>
         <Table rows={data} rowKey={(r) => r.id} onRowClick={can('product.manage') ? setEdit : undefined} empty={search.trim() ? 'No products match this search. Try a name, SKU or barcode, or clear the search.' : can('product.manage') ? 'Your catalogue is empty. Choose Add product or Upload Excel / CSV to begin.' : 'No products are available. Ask the owner to add products and opening stock.'}
           columns={[
+            ...(can('product.manage') ? [{ header: 'Select', cell: (p: any) => <input type="checkbox" aria-label={`Select ${p.name}`} checked={selected[p.id] !== undefined} onClick={e => e.stopPropagation()} onChange={e => { const checked = e.target.checked; setSelected(current => { const next = { ...current }; if (checked) next[p.id] = p.version; else delete next[p.id]; return next; }); }} /> }] : []),
             { header: 'Product', sortValue: (p) => p.name, cell: (p) => <><span className="font-medium">{p.name}</span>{!p.active && <> <Badge>Inactive</Badge></>}</> },
             { header: 'SKU', cell: (p) => p.sku ?? '' },
             { header: 'Barcode', cell: (p) => p.barcode ?? '' },
             { header: 'Category', cell: (p) => p.category_name ?? '' },
+            { header: 'VAT classification', cell: (p) => p.tax_class || <Badge tone="warn">Needs classification</Badge> },
             ...(cost ? [{ header: 'Cost', align: 'right' as const, cell: (p: any) => money(p.cost_price) }] : []),
             { header: 'Selling price', sortValue: (p) => p.selling_price, align: 'right', cell: (p) => money(p.selling_price) },
             ...(cost ? [{ header: 'Gross margin', align: 'right' as const, cell: (p: any) => marginLabel(p.selling_price, p.cost_price) }] : []),
             { header: 'In stock', sortValue: (p) => p.quantity, align: 'right', cell: (p) => (p.quantity <= 0 ? <Badge tone="bad">{p.quantity} · Out of stock</Badge> : p.quantity <= p.reorder_level ? <Badge tone="warn">{p.quantity} · Low stock</Badge> : p.quantity) },
           ]} />
       </Card></QueryView>
+      {bulk && <Modal title="Bulk update VAT classifications" open onClose={() => setBulk(false)} footer={<><Button dismiss onClick={() => setBulk(false)}>Cancel</Button><Button variant="primary" disabled={bulkAction.busy || !bulkClass || !bulkReason.trim()} onClick={() => bulkAction.run(async () => {
+        const result = await call('product.bulkVat', { lines: Object.entries(selected).map(([productId, expectedVersion]) => ({ productId, expectedVersion })), taxClass: bulkClass, reason: bulkReason });
+        setBulk(false); setSelected({}); reload(); return result;
+      }, 'VAT classifications updated')}>Update {Object.keys(selected).length} products</Button></>}>
+        <p className="mb-3 text-sm">Apply the chosen classification to {Object.keys(selected).length} selected products, including any already classified. Check that each product has the same legal treatment. Previous receipts retain their original taxes.</p>
+        <Field label="VAT classification"><Select required value={bulkClass} onChange={e => setBulkClass(e.target.value)}><option value="">Choose classification…</option><option value="standard">Standard-rated</option><option value="zero">Zero-rated</option><option value="exempt">Exempt</option><option value="outside">Outside scope</option></Select></Field>
+        <Field label="Reason for bulk VAT update"><Input required value={bulkReason} onChange={e => setBulkReason(e.target.value)} maxLength={400} /></Field>
+        <p className="mt-3 max-h-32 overflow-y-auto text-xs text-slate-600">Selected: {(loaded ?? []).filter(p => selected[p.id] !== undefined).map(p => p.name).join(', ')}</p>
+      </Modal>}
       {edit && <ProductForm product={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }} />}
     </div>
   );

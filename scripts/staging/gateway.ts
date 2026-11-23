@@ -133,14 +133,17 @@ export async function startStagingGateway(opts: GatewayOptions) {
           input.password = input.newPassword;
         }
         if (typeof input?.username !== 'string' || !input.username.trim() || input.username.length > 254 || typeof input.password !== 'string' || !input.password || input.password.length > 200) throw new HttpError(400, 'INVALID_INPUT', 'Enter your username and password.');
+        if (input.accountType !== undefined && !['auto', 'shop', 'admin'].includes(input.accountType)) throw new HttpError(400, 'INVALID_INPUT', 'Choose a valid account type.');
         const username = normaliseLogin(input.username);
         budget('signin-user:' + username, 20, 15 * 60_000);
-        const explicitAdmin = username.startsWith('admin:'), email = explicitAdmin ? username.slice(6) : username;
+        const prefixedAdmin = username.startsWith('admin:');
+        if (prefixedAdmin && input.accountType === 'shop') throw new HttpError(400, 'INVALID_INPUT', 'Choose Mansora administration for an administrator sign-in.');
+        const explicitAdmin = prefixedAdmin || input.accountType === 'admin', email = prefixedAdmin ? username.slice(6) : username;
         const candidates = explicitAdmin ? [] : findLoginAccounts(workspaces.values(), opts.loginAliases, username);
-        const isAdmin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (opts.adminIdentityExists ? await opts.adminIdentityExists(email) : !candidates.length);
+        const isAdmin = input.accountType !== 'shop' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (opts.adminIdentityExists ? await opts.adminIdentityExists(email) : !candidates.length);
         if (candidates.length > 1 || (candidates.length && isAdmin)) {
           await verifyLoginPassword(input.password);
-          throw new HttpError(401, 'INVALID_CREDENTIALS', 'Incorrect username or password. Use your assigned shop-qualified sign-in if needed.');
+          throw new HttpError(401, 'INVALID_CREDENTIALS', 'Incorrect username or password. Choose Business workspace or Mansora administration if you have more than one account, or use your assigned workspace sign-in.');
         }
         if (isAdmin && !accepting) return json(res, 200, { ok: true, data: await adminSignIn('/v1/admin/login', { email, password: input.password }, client.address) });
         const account = candidates[0];

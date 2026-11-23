@@ -112,6 +112,7 @@ export interface ImportRow {
   data: { name: string; sku: string | null; barcode: string | null; category: string | null; unit: string; costPrice: number; sellingPrice: number; openingStock: number; reorderLevel: number; taxClass?: TaxClass };
   errors: string[];
   duplicate: string | null;
+  vatUpdate?: { productId: string; expectedVersion: number };
 }
 
 const wholeNumber = (raw: string, label: string, errors: string[]): number => {
@@ -137,23 +138,49 @@ const cedis = (raw: string, label: string, errors: string[], required = false): 
 };
 
 export interface ExistingKeys {
+  products?: { id: string; name: string; sku: string | null; barcode: string | null; version: number }[];
   barcodes: Set<string>;
   skus: Set<string>;
   names: Set<string>;
 }
 
+/** Build once per preview so VAT-only imports scale with rows rather than rows × catalogue. */
+export function productMatcher(products: NonNullable<ExistingKeys['products']>) {
+  type Product = (typeof products)[number];
+  const index = new Map<string, Product[]>();
+  for (const p of products) for (const [kind, value] of [['name', p.name], ['sku', p.sku], ['barcode', p.barcode]]) {
+    if (!value) continue;
+    const key = kind + ':' + (kind === 'barcode' ? value : value.toLowerCase());
+    const bucket = index.get(key);
+    if (bucket) bucket.push(p); else index.set(key, [p]);
+  }
+  return (data: { name: string; sku: string | null; barcode: string | null }) => {
+    const strong = new Map<string, Product>();
+    for (const p of [...(index.get('sku:' + (data.sku?.toLowerCase() ?? '')) ?? []), ...(index.get('barcode:' + (data.barcode ?? '')) ?? [])]) strong.set(p.id, p);
+    const named = index.get('name:' + data.name.toLowerCase()) ?? [];
+    if (!strong.size) return named;
+    // A matching name may be repeated in a catalogue: a unique SKU/barcode still identifies the item.
+    if (named.some(p => strong.has(p.id))) return [...strong.values()];
+    for (const p of named) strong.set(p.id, p);
+    return [...strong.values()];
+  };
+}
+
 /** Validate rows and flag duplicates (against the catalogue and within the file). */
-export function buildPreview(table: string[][], mapping: Mapping, existing: ExistingKeys): ImportRow[] {
+export function buildPreview(table: string[][], mapping: Mapping, existing: ExistingKeys, allowExistingVatUpdates = false): ImportRow[] {
   const headers = table[0] ?? [];
   const idx = (f: ImportField) => (mapping[f] ? headers.indexOf(mapping[f]!) : -1);
   const col = Object.fromEntries(IMPORT_FIELDS.map((f) => [f, idx(f)])) as Record<ImportField, number>;
-  if (col.name < 0) fail('MAPPING_REQUIRED', 'Choose which column holds the product name');
-  if (col.selling_price < 0) fail('MAPPING_REQUIRED', 'Choose which column holds the selling price');
+  if (col.name < 0 && !(allowExistingVatUpdates && (col.sku >= 0 || col.barcode >= 0))) fail('MAPPING_REQUIRED', 'Choose which column holds the product name');
+  if (col.selling_price < 0 && !allowExistingVatUpdates) fail('MAPPING_REQUIRED', 'Choose which column holds the selling price');
+  const matchExisting = productMatcher(existing.products ?? []);
   const seen: ExistingKeys = { barcodes: new Set(), skus: new Set(), names: new Set() };
   return table.slice(1).map((cells, i) => {
     const get = (f: ImportField) => (col[f] >= 0 ? (cells[col[f]] ?? '').trim() : '');
     const errors: string[] = [];
-    const name = get('name');
+    const matches = allowExistingVatUpdates ? matchExisting({ name: get('name'), sku: get('sku') || null, barcode: get('barcode') || null }) : [];
+    const existingMatch = matches.length === 1 ? matches[0] : undefined;
+    const name = get('name') || existingMatch?.name || '';
     if (!name) errors.push('Product name is required');
     if (name.length > 160) errors.push('Product name is too long');
     const rawClass = get('tax_class').toLowerCase();
@@ -168,7 +195,7 @@ export function buildPreview(table: string[][], mapping: Mapping, existing: Exis
       category: get('category') || null,
       unit: get('unit') || 'each',
       costPrice: cedis(get('cost_price'), 'Cost price', errors),
-      sellingPrice: cedis(get('selling_price'), 'Selling price', errors, true),
+      sellingPrice: cedis(get('selling_price'), 'Selling price', errors, !existingMatch),
       openingStock: wholeNumber(get('opening_stock'), 'Opening stock', errors),
       reorderLevel: wholeNumber(get('reorder_level'), 'Reorder level', errors),
     };

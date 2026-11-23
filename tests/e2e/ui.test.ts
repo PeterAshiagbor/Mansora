@@ -108,7 +108,7 @@ describe.skipIf(!pw || !built)('end to end through the user interface', () => {
       await shop.getByLabel('Cost price (GHS)').fill(cost);
       await shop.getByLabel('Opening stock').fill(stock);
       await shop.getByRole('button', { name: 'Save' }).click();
-      await shop.getByRole('cell', { name }).waitFor();
+      await shop.getByRole('cell', { name, exact: true }).waitFor();
     }
     await nav('Staff');
     await shop.getByRole('button', { name: 'Add staff member' }).click();

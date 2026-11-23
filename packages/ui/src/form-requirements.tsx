@@ -40,7 +40,7 @@ export function FormRequirements({ scope }: { scope: RefObject<HTMLElement | nul
     };
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(refresh); };
     const observer = new MutationObserver(schedule);
-    observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['required', 'disabled', 'readonly', 'hidden', 'value', 'min', 'max', 'minlength', 'maxlength', 'pattern', 'type', 'data-validation-message'] });
+    observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['required', 'disabled', 'readonly', 'hidden', 'open', 'style', 'class', 'value', 'min', 'max', 'minlength', 'maxlength', 'pattern', 'type', 'data-validation-message'] });
     root.addEventListener('input', schedule); root.addEventListener('change', schedule);
     refresh();
     return () => { observer.disconnect(); cancelAnimationFrame(frame); root.removeEventListener('input', schedule); root.removeEventListener('change', schedule); };

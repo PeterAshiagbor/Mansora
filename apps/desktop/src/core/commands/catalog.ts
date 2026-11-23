@@ -49,7 +49,32 @@ function hideCost(ctx: Ctx, rows: any[]): any[] {
   return priced.map(({ cost_price, average_cost, ...rest }) => rest);
 }
 
+/** Update classifications only; stock, prices and original invoice snapshots stay immutable. */
+export function updateProductVat(ctx: Ctx, lines: { productId: string; expectedVersion: number }[], taxClass: typeof TAX_CLASSES[number], reason: string) {
+  ctx.require('product.manage');
+  if (new Set(lines.map(l => l.productId)).size !== lines.length) fail('INVALID_INPUT', 'Select each product only once');
+  const products = lines.map(line => {
+    const p = ctx.get('SELECT id, name, tax_class, version FROM products WHERE id = ?', line.productId);
+    if (!p) fail('PRODUCT_UNAVAILABLE', 'A selected product is no longer available. Reload Products.');
+    if (p.version !== line.expectedVersion) fail('PRODUCT_CHANGED', `${p.name} changed since it was selected. Reload Products or preview the import again.`);
+    return p;
+  });
+  let updated = 0;
+  for (const p of products) {
+    if (p.tax_class === taxClass) continue;
+    ctx.update('products', p.id, { tax_class: taxClass, version: p.version + 1, updated_at: ctx.now() });
+    ctx.audit('product', p.id, { taxClass: { from: p.tax_class, to: taxClass }, reason }, 'product.vat_class_updated');
+    updated++;
+  }
+  return { updated, unchanged: products.length - updated };
+}
+
 export const catalogCommands = defineCommands({
+  'product.bulkVat': {
+    perm: 'product.manage', mutates: true,
+    input: z.object({ lines: z.array(z.object({ productId: zId, expectedVersion: z.number().int().positive() })).min(1).max(1000), taxClass: z.enum(TAX_CLASSES), reason: zText(400) }),
+    run: (ctx, input) => updateProductVat(ctx, input.lines, input.taxClass, input.reason),
+  },
   'stock.vatPolicy': { perm: 'product.view', input: empty, run: ctx => stockVatPolicy(ctx) },
   'category.list': { perm: 'product.view', input: empty, run: (ctx) => ctx.all('SELECT id, name, active FROM categories ORDER BY name') },
   /**
