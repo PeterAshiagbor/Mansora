@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto';
 import ExcelJS from 'exceljs';
-import { DomainError, fail, parseGHS, unitCostFromCarton } from '@mansora/domain';
+import { DomainError, fail, parseGHS, unitCostFromCarton, TAX_CLASSES, type TaxClass } from '@mansora/domain';
 
-export const IMPORT_FIELDS = ['name', 'sku', 'barcode', 'category', 'unit', 'cost_price', 'carton_cost', 'units_per_carton', 'selling_price', 'opening_stock', 'reorder_level'] as const;
+export const IMPORT_FIELDS = ['name', 'sku', 'barcode', 'category', 'unit', 'cost_price', 'carton_cost', 'units_per_carton', 'selling_price', 'opening_stock', 'reorder_level', 'tax_class'] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 export type Mapping = Partial<Record<ImportField, string>>;
 
 const ALIASES: Record<ImportField, string[]> = {
+  tax_class: ['tax_class', 'tax class', 'vat classification', 'ghana vat classification', 'tax classification'],
   // Includes the column names QuickBooks (Products and Services export) and Xero (Inventory items export) use.
   name: ['name', 'product', 'product name', 'item', 'item name', 'description', 'product/service name', 'product/service', 'itemname', 'item description'],
   sku: ['sku', 'code', 'item code', 'product code', '*itemcode', 'itemcode'],
@@ -108,7 +109,7 @@ export function suggestMapping(headers: string[]): Mapping {
 
 export interface ImportRow {
   rowNo: number;
-  data: { name: string; sku: string | null; barcode: string | null; category: string | null; unit: string; costPrice: number; sellingPrice: number; openingStock: number; reorderLevel: number };
+  data: { name: string; sku: string | null; barcode: string | null; category: string | null; unit: string; costPrice: number; sellingPrice: number; openingStock: number; reorderLevel: number; taxClass?: TaxClass };
   errors: string[];
   duplicate: string | null;
 }
@@ -155,7 +156,12 @@ export function buildPreview(table: string[][], mapping: Mapping, existing: Exis
     const name = get('name');
     if (!name) errors.push('Product name is required');
     if (name.length > 160) errors.push('Product name is too long');
+    const rawClass = get('tax_class').toLowerCase();
+    const classAliases: Record<string, TaxClass> = { 'standard-rated': 'standard', 'zero-rated': 'zero', 'outside scope': 'outside', 'outside-scope': 'outside' };
+    const taxClass = classAliases[rawClass] ?? rawClass;
+    if (rawClass && !TAX_CLASSES.includes(taxClass as TaxClass)) errors.push('VAT classification must be standard, zero, exempt or outside');
     const data = {
+      ...(rawClass && TAX_CLASSES.includes(taxClass as TaxClass) ? { taxClass: taxClass as TaxClass } : {}),
       name,
       sku: get('sku') || null,
       barcode: get('barcode') || null,
@@ -200,6 +206,6 @@ export function fileHash(content: Buffer): string {
 }
 
 export const TEMPLATE_ROWS: unknown[][] = [
-  ['Name', 'SKU', 'Barcode', 'Category', 'Unit', 'Cost price', 'Selling price', 'Opening stock', 'Reorder level', 'Carton cost', 'Units per carton'],
-  ['Example: Milo 400g tin', 'MILO-400', '6001068000012', 'Beverages', 'each', '', '45.00', '24', '6', '924.00', '24'],
+  ['Name', 'SKU', 'Barcode', 'Category', 'Unit', 'Cost price', 'Selling price', 'Opening stock', 'Reorder level', 'Carton cost', 'Units per carton', 'VAT classification'],
+  ['Example: Milo 400g tin', 'MILO-400', '6001068000012', 'Beverages', 'each', '', '45.00', '24', '6', '924.00', '24', 'standard'],
 ];

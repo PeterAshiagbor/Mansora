@@ -102,6 +102,7 @@ export const TEMPLATE_GUIDE: unknown[][] = [
   ['Category', 'No', 'Group for reports and the New sale screen. New categories are created for you', 'Beverages'],
   ['Unit', 'No', 'How you sell it: each, tin, bag, bottle, pack. Defaults to each', 'tin'],
   ['Cost price', 'No', 'What one unit costs you. Leave empty if you fill Carton cost instead', '40.00'],
+  ['VAT classification', 'When VAT is active and opening stock is added', 'Choose standard, zero, exempt or outside using the applicable VAT schedules', 'standard'],
   ['Opening stock', 'No', 'How many are in the shop now, in whole units. Count them first', '24'],
   ['Reorder level', 'No', 'Mansora warns you when stock falls to this number', '6'],
   ['Carton cost', 'No', 'What a whole carton costs, if you buy by the carton', '924.00'],

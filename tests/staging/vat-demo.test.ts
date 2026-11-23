@@ -17,7 +17,7 @@ it('adds an idempotent TSB-only threshold fixture and preserves TSA',async()=>{
   expect((await a.run(a.owner,'tax.status')).unclassified).toBe(3);
   expect((await b.run(b.owner,'tax.status')).windows.every((w:any)=>w.exceeded)).toBe(true);
   expect((await b.run(b.owner,'tax.report',{month:'2026-11'})).output.vat).toBe(1500);
-  const added=await b.run(b.owner,'product.save',{name:'Later demo product',sellingPrice:1200,openingStock:2});
+  const added=await b.run(b.owner,'product.save',{name:'Later demo product',sellingPrice:1200});
   expect(await seedVatDemo(options)).toMatchObject({preserved:true});
   expect((await b.run(b.owner,'product.list')).find((p:any)=>p.id===added.id).tax_class).toBe('standard');
   expect(await b.run(b.owner,'sale.quote',{lines:[{productId:added.id,quantity:1}]})).toMatchObject({total:1200});

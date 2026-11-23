@@ -9,6 +9,7 @@ import { chunkRows, Ctx, dayBounds, defineCommands, likeContains, empty, MAX_AUD
 import { buildPreview, fileHash, IMPORT_FIELDS, readTable, suggestMapping, TEMPLATE_ROWS, toCsv, toXlsx, type ExistingKeys } from '../importer';
 import { syncNow, uploadBackup } from '../sync';
 import { createProduct } from './catalog';
+import { stockVatPolicy } from '../stock';
 
 const zFile = z.object({ fileName: zText(200), contentBase64: z.string().max(15_000_000) });
 const zMapping = z.partialRecord(z.enum(IMPORT_FIELDS), z.string().max(200));
@@ -72,6 +73,9 @@ async function preview(ctx: Ctx, input: { fileName: string; contentBase64: strin
   const already = ctx.get('SELECT created_at FROM import_batches WHERE file_hash = ?', hash);
   const needsMapping = !mapping.name || !mapping.selling_price;
   const rows = needsMapping ? [] : buildPreview(table, mapping, existingKeys(ctx));
+  if (stockVatPolicy(ctx).classificationRequired) for (const row of rows) {
+    if (!row.duplicate && row.data.openingStock > 0 && !row.data.taxClass) row.errors.push('Choose a VAT classification before importing opening stock');
+  }
   return { headers, mapping, needsMapping, hash, rows, alreadyImportedAt: already?.created_at ?? null };
 }
 

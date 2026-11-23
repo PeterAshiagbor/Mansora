@@ -77,10 +77,12 @@ function AdjustModal({ product, onClose, onDone }: { product: any; onClose: () =
   const { run, busy } = useAction();
   const n = Number(qty);
   const delta = type === 'DAMAGE' || direction === '-' ? -n : n;
+  const missingVatClass = delta > 0 && product.stock_tax_class_required;
   return (
     <Modal title={`Adjust stock: ${product.name}`} open onClose={onClose}
-      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !Number.isSafeInteger(n) || n <= 0 || !reason.trim()} onClick={() => run(async () => { await call('stock.adjust', { productId: product.id, type, delta, reason }); onDone(); }, 'Stock adjusted')}>Record adjustment</Button></>}>
+      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || missingVatClass || !Number.isSafeInteger(n) || n <= 0 || !reason.trim()} onClick={() => run(async () => { await call('stock.adjust', { productId: product.id, type, delta, reason }); onDone(); }, 'Stock adjusted')}>Record adjustment</Button></>}>
       <div className="space-y-3">
+        {missingVatClass && <Alert tone="warn">Choose a VAT classification for {product.name} in Products before adding stock.</Alert>}
         <p className="text-sm text-slate-600">Currently in stock: <strong>{product.quantity}</strong>{n > 0 && <> → <strong>{product.quantity + delta}</strong></>}</p>
         <Field label="What happened?"><Select value={type} onChange={(e) => setType(e.target.value)}><option value="DAMAGE">Damaged, expired or lost</option><option value="MANUAL_CORRECTION">Correction of a mistake</option></Select></Field>
         <div className="grid grid-cols-2 gap-3">
@@ -105,6 +107,7 @@ function StockCount({ onDone }: { onDone: () => void }) {
   const invalidCounts = Object.values(counted).some((value) => value !== '' && (!Number.isSafeInteger(Number(value)) || Number(value) < 0));
   const lines = rows.filter((r) => counted[r.id] !== undefined && counted[r.id] !== '').map((r) => ({ productId: r.id, counted: Number(counted[r.id]), system: r.quantity }));
   const diffs = lines.filter((l) => l.counted !== l.system);
+  const missingVatClasses = rows.filter(r => r.stock_tax_class_required && lines.some(l => l.productId === r.id && l.counted > l.system));
   const toast = useToast();
   const [scan, setScan] = useState('');
   // Each scan adds one to that product's count, so a shelf can be counted by scanning every item on it.
@@ -131,9 +134,10 @@ function StockCount({ onDone }: { onDone: () => void }) {
           { header: 'Difference', align: 'right', cell: (r) => { const l = lines.find((x) => x.productId === r.id); if (!l || l.counted === l.system) return ''; const d = l.counted - l.system; return <Badge tone={d < 0 ? 'bad' : 'info'}>{d > 0 ? '+' : ''}{d}</Badge>; } },
         ]} />
       </Card></QueryView>
+      {missingVatClasses.length > 0 && <Alert tone="warn">Choose VAT classifications in Products before increasing stock for: {missingVatClasses.map(p => p.name).join(', ')}.</Alert>}
       <div className="mt-3 flex items-end gap-3">
         <Field label="Note" className="flex-1"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Month-end count" /></Field>
-        <Button variant="primary" disabled={busy || !!countQuery.error || !data || invalidCounts || lines.length === 0} onClick={() => run(async () => { const r = await call('stock.count', { note: note || null, startedAt, lines: lines.map(({ productId, counted }) => ({ productId, counted })) }); setCounted({}); onDone(); return r; }, `Stock count saved: ${diffs.length} adjustment(s)`)}>
+        <Button variant="primary" disabled={busy || missingVatClasses.length > 0 || !!countQuery.error || !data || invalidCounts || lines.length === 0} onClick={() => run(async () => { const r = await call('stock.count', { note: note || null, startedAt, lines: lines.map(({ productId, counted }) => ({ productId, counted })) }); setCounted({}); onDone(); return r; }, `Stock count saved: ${diffs.length} adjustment(s)`)}>
           Save count ({lines.length} counted, {diffs.length} different)
         </Button>
       </div>
@@ -294,16 +298,18 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
   const set = (i: number, patch: Partial<(typeof items)[number]>) => setItems(items.map((x, k) => (k === i ? { ...x, ...patch } : x)));
   const valid = items.filter((i) => i.productId && Number.isSafeInteger(Number(i.quantity)) && Number(i.quantity) > 0 && i.unitCost != null);
   const total = valid.reduce((a, i) => a + Number(i.quantity) * (i.unitCost ?? 0), 0);
+  const missingVatClasses = products.filter(p => p.stock_tax_class_required && items.some(i => i.productId === p.id));
   return (
     <Modal title="Receive stock" open onClose={onClose} wide
       footer={<><span className="mr-auto self-center text-sm">Total cost: <strong>{money(total)}</strong></span><Button dismiss onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={busy || valid.length === 0 || valid.length !== items.length || !claimReady || (onCredit && !supplierId) || (!!duplicate && !duplicateReason.trim())} onClick={() => run(async () => {
+        <Button variant="primary" disabled={busy || missingVatClasses.length > 0 || valid.length === 0 || valid.length !== items.length || !claimReady || (onCredit && !supplierId) || (!!duplicate && !duplicateReason.trim())} onClick={() => run(async () => {
           try {
             await call('purchase.receive', { id, supplierId: supplierId || null, reference: reference || null, items: valid.map((i) => ({ productId: i.productId, quantity: Number(i.quantity), unitCost: i.unitCost })),
               onCredit, dueDate: onCredit && dueDate ? dueDate : null, inputTax: claim ? { supplierTin: t.supplierTin, invoiceDate: t.invoiceDate, vat: t.vat, nhil: t.nhil, getfund: t.getfund, evidenceConfirmed: true } : undefined, duplicateReason: duplicate ? duplicateReason : null });
           } catch (e: any) { if (e.code === 'DUPLICATE_PURCHASE') setDuplicate(e.message); throw e; }
           onDone();
         }, 'Stock received')}>Receive into stock</Button></>}>
+      {missingVatClasses.length > 0 && <Alert tone="warn" className="mb-3">Choose VAT classifications in Products before receiving stock for: {missingVatClasses.map(p => p.name).join(', ')}.</Alert>}
       {productOptions.error && <QueryView query={productOptions} label="products for this receipt">{null}</QueryView>}
       <p className="mb-3 text-xs leading-relaxed text-slate-600">Enter whole selling units and their unit purchase cost. A carton must be converted to its individual items before receiving.{tax.data?.registered && ' This business is VAT registered: enter unit costs excluding the VAT, NHIL and GETFund you can recover.'}</p>
       <div className="mb-3 flex flex-wrap items-end gap-3"><label className="flex items-center gap-2 text-sm"><input id="receive-on-credit" type="checkbox" checked={onCredit} onChange={(e) => setOnCredit(e.target.checked)} /> Bought on credit (pay the supplier later)</label>{onCredit && <Field label="Payment due"><Input id="receive-due-date" type="date" value={dueDate} min={today()} onChange={(e) => setDueDate(e.target.value)} /></Field>}{onCredit && !supplierId && <span className="text-sm text-amber-800">Choose the supplier.</span>}</div>
@@ -326,7 +332,7 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
       </div>
       {items.map((it, i) => (
         <div key={i} className="m-receive-line mb-4">
-          <Field label={i === 0 ? 'Product' : ''}><Select required value={it.productId} aria-label="Product" onChange={(e) => { const p = products.find((x) => x.id === e.target.value); set(i, { productId: e.target.value, unitCost: it.unitCost ?? p?.cost_price ?? null }); }}><option value="">Choose product…</option>{products.filter((p) => p.id === it.productId || !items.some((x) => x.productId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+          <Field label={i === 0 ? 'Product' : ''}><Select required value={it.productId} aria-label="Product" onChange={(e) => { const p = products.find((x) => x.id === e.target.value); set(i, { productId: e.target.value, unitCost: it.unitCost ?? p?.cost_price ?? null }); }}><option value="">Choose product…</option>{products.filter((p) => p.id === it.productId || !items.some((x) => x.productId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}{p.stock_tax_class_required ? ' (VAT classification required)' : ''}</option>)}</Select></Field>
           <Field label={i === 0 ? 'Quantity' : ''}><Input required type="number" min={1} aria-label="Quantity" value={it.quantity} onChange={(e) => set(i, { quantity: e.target.value })} /></Field>
           <Field label={i === 0 ? 'Unit cost (GHS)' : ''}><MoneyInput value={it.unitCost} aria-label="Unit cost" onChange={(v) => set(i, { unitCost: v })} /></Field>
           <button type="button" aria-label="Remove line" className="mb-2 text-red-700" onClick={() => setItems(items.length > 1 ? items.filter((_, k) => k !== i) : items)}>✕</button>

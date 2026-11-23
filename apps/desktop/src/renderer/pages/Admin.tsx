@@ -256,7 +256,7 @@ export function SettingsPage() {
 }
 
 // ---------------------------------------------------------------- Import & export
-const FIELD_LABEL: Record<string, string> = { name: 'Product name *', sku: 'SKU', barcode: 'Barcode', category: 'Category', unit: 'Unit', cost_price: 'Unit cost price (GHS)', carton_cost: 'Carton cost (GHS)', units_per_carton: 'Selling units per carton', selling_price: 'Selling price *', opening_stock: 'Opening stock', reorder_level: 'Reorder level' };
+const FIELD_LABEL: Record<string, string> = { tax_class: 'VAT classification', name: 'Product name *', sku: 'SKU', barcode: 'Barcode', category: 'Category', unit: 'Unit', cost_price: 'Unit cost price (GHS)', carton_cost: 'Carton cost (GHS)', units_per_carton: 'Selling units per carton', selling_price: 'Selling price *', opening_stock: 'Opening stock', reorder_level: 'Reorder level' };
 export function DataPage() {
   const { can, go, state } = useApp();
   const toast = useToast();
@@ -280,7 +280,7 @@ export function DataPage() {
       <WorkflowSteps steps={['Choose file', 'Check rows', 'Import']} current={completed ? 2 : file ? 1 : 0} />
       {completed && <Card title="Import complete"><p className="text-lg font-semibold">{completed.created} product(s) added · {completed.skipped} skipped</p><p className="mt-2 text-sm text-slate-600">{completed.fileName} · The confirmed result is recorded in import and audit history.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="primary" onClick={() => go('products')}>View products</Button><Button onClick={() => { setCompleted(null); input.current?.focus(); }}>Import another file</Button></div></Card>}
       <Card title="Import products and opening stock" actions={<><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'xlsx' })))}>Download Excel template</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.sample', { format: 'xlsx' })))}>Download sample shop</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'csv' })))}>CSV template</Button></>}>
-        <p className="mb-3 text-sm text-slate-600">Moving from Excel, QuickBooks or Xero? Export your product list and choose it here: Mansora recognises their column names. The sample shop shows a filled-in file. Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved. For carton costing, fill Carton cost and Units per carton; leave Cost price blank. Selling price and opening stock are per selling unit. Unit cost rounds to the nearest pesewa.</p>
+        <p className="mb-3 text-sm text-slate-600">Moving from Excel, QuickBooks or Xero? Export your product list and choose it here: Mansora recognises their column names. The sample shop shows a filled-in file. When VAT collection is active, opening stock requires a VAT classification: standard, zero, exempt or outside. Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved. For carton costing, fill Carton cost and Units per carton; leave Cost price blank. Selling price and opening stock are per selling unit. Unit cost rounds to the nearest pesewa.</p>
         <input ref={input} type="file" accept=".xlsx,.csv" className="block text-sm" aria-label="Choose import file" disabled={busy}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void load(f); }} />
         {busy && !preview && <p className="mt-4 text-sm text-slate-600" role="status">Checking the file. No products have been saved…</p>}
@@ -305,7 +305,7 @@ export function DataPage() {
                 <div className="flex gap-2"><Badge tone="good">{good} new product(s)</Badge>{dups > 0 && <Badge tone="warn">{dups} already exist (will be skipped)</Badge>}{errors > 0 && <Badge tone="bad">{errors} row(s) with errors</Badge>}</div>
                 <div className="max-h-80 overflow-y-auto rounded border border-slate-200">
                   <Table rows={rows} rowKey={(r) => r.rowNo} columns={[
-                    { header: 'Row', cell: (r) => r.rowNo }, { header: 'Product', cell: (r) => r.data.name }, { header: 'Barcode', cell: (r) => r.data.barcode ?? '' }, { header: 'Category', cell: (r) => r.data.category ?? '' },
+                    { header: 'Row', cell: (r) => r.rowNo }, { header: 'Product', cell: (r) => r.data.name }, { header: 'Barcode', cell: (r) => r.data.barcode ?? '' }, { header: 'Category', cell: (r) => r.data.category ?? '' }, { header: 'VAT classification', cell: (r) => r.data.taxClass ?? 'Not classified' },
                     { header: 'Cost', align: 'right', cell: (r) => money(r.data.costPrice) }, { header: 'Selling price', align: 'right', cell: (r) => money(r.data.sellingPrice) }, ...(can('product.cost') ? [{ header: 'Gross margin', align: 'right' as const, cell: (r: any) => marginLabel(r.data.sellingPrice, r.data.costPrice) }] : []), { header: 'Opening stock', align: 'right', cell: (r) => r.data.openingStock },
                     { header: 'Result', cell: (r) => (r.errors.length ? <Badge tone="bad">{r.errors.join('; ')}</Badge> : r.duplicate ? <Badge tone="warn">{r.duplicate}</Badge> : <Badge tone="good">Will be added</Badge>) },
                   ]} />
