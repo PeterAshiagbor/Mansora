@@ -20,7 +20,7 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
   });
   afterAll(async () => { await browser?.close(); if (host) { await new Promise<void>(r => host.server.close(() => r())); host.engine.db.close(); } await cloud?.close(); });
   it('uses the public configured contact on sign-in and explains staff/owner recovery without exposing credentials', async () => {
-    await page.getByRole('button', { name: 'Forgot password? Get help', exact: true }).click();
+    await page.getByRole('button', { name: 'Need help signing in?', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Help signing in', exact: true });
     await dialog.getByText('Mansora support desk', { exact: true }).waitFor();
     expect(await dialog.getByRole('link', { name: 'desk@example.test' }).getAttribute('href')).toBe('mailto:desk@example.test');

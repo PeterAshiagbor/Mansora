@@ -97,14 +97,14 @@ const BILLING_TABS = ['collections', 'invoices', 'payments'];
 /** The three billing views, one menu item. Each tab answers one question. */
 function BillingTabs({ current, go }: { current: string; go: (id: string) => void }) {
   const hint: Record<string, string> = {
-    collections: 'Who owes Mansora, how late they are, reminders sent and what happens next.',
+    collections: '', // the page's own subtitle already says this
     invoices: 'Every bill sent to a client shop, with its status and pay link.',
     payments: 'Money received, by Paystack, Mobile Money, bank or cash, and what it paid.',
   };
   return (
     <div className="mb-4">
       <Tabs value={current} onChange={(id: string) => go(id)} tabs={[{ id: 'collections', label: 'Who owes us' }, { id: 'invoices', label: 'Invoices' }, { id: 'payments', label: 'Payments received' }]} />
-      <p className="mt-2 text-sm text-slate-600">{hint[current]}</p>
+      {hint[current] && <p className="mt-2 text-sm text-slate-600">{hint[current]}</p>}
     </div>
   );
 }
@@ -182,7 +182,7 @@ function PasswordLogin({ onDone, initialEmail, welcome }: { onDone: () => void; 
         {error && <Alert tone="bad">{error}</Alert>}
         {challenge ? <>
           <p className="text-sm text-slate-600">Enter a code from your authenticator app, or one of your unused recovery codes. This sign-in challenge expires after five minutes.</p>
-          <Field label="Authenticator or recovery code"><Input key="second-factor" value={code} onChange={(e) => setCode(e.target.value)} autoFocus autoComplete="one-time-code" maxLength={64} /></Field>
+          <Field label="Authenticator or recovery code"><Input key="second-factor" required value={code} onChange={(e) => setCode(e.target.value)} autoFocus autoComplete="one-time-code" maxLength={64} /></Field>
           <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !code.trim()}>Verify and sign in</Button>
           <Button disabled={busy} onClick={() => { setChallenge(null); setCode(''); }}>Back to password sign in</Button>
         </> : <>
@@ -246,7 +246,7 @@ function AccountSecurity() {
         const result = await api('POST', '/v1/admin/totp/confirm', { code });
         setRecoveryCodes(result.recoveryCodes); setEnrolment(null); setCode(''); reload();
       }); }}>
-        <Field label="Authenticator code"><Input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} /></Field>
+        <Field label="Authenticator code"><Input required pattern="\d{6}" data-validation-message="Enter the 6-digit code from your authenticator app" value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} /></Field>
         <div className="flex gap-2"><Button type="submit" variant="primary" disabled={busy || !/^\d{6}$/.test(code)}>Enable two-factor authentication</Button><Button disabled={busy} onClick={() => { setEnrolment(null); setCode(''); }}>Cancel setup</Button></div>
       </form>
     </Card> : <Card title="Two-factor authentication">
@@ -270,8 +270,8 @@ function AccountSecurity() {
       }); }}>
         <Alert tone="warn">This removes your second sign-in step and invalidates all sessions and recovery codes. You will need to sign in again.</Alert>
         {error && <Alert tone="bad">{error}</Alert>}
-        <Field label="Current password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus /></Field>
-        <Field label="Authenticator or recovery code"><Input value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" maxLength={64} /></Field>
+        <Field label="Current password"><Input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus /></Field>
+        <Field label="Authenticator or recovery code"><Input required value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" maxLength={64} /></Field>
         <Button type="submit" variant="danger" disabled={busy || !password || !code.trim()}>Confirm disable</Button>
       </form>
     </Modal>}
@@ -334,16 +334,18 @@ function Progress({ done, total }: { done: number; total: number }) {
 
 const EMPTY_CLIENT = { name: '', ownerName: '', phone: '', email: '', address: '', businessType: 'retail', supportContact: '' };
 const BUSINESS_TYPES = ['retail', 'mini mart', 'general merchandise', 'wholesale', 'other'];
+/** Stored values stay lowercase; people read them with a capital and spaces. */
+const statusLabel = (s?: string | null) => (s ? s[0].toUpperCase() + s.slice(1).replace(/_/g, ' ') : '—');
 function ClientFields({ f, setF }: { f: any; setF: (f: any) => void }) {
   const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
   return (
     <div className="grid grid-cols-2 gap-3">
-      <Field label="Business name"><Input value={f.name} onChange={set('name')} autoFocus /></Field>
-      <Field label="Primary owner"><Input value={f.ownerName} onChange={set('ownerName')} /></Field>
+      <Field label="Business name"><Input required value={f.name} onChange={set('name')} autoFocus /></Field>
+      <Field label="Primary owner"><Input required value={f.ownerName} onChange={set('ownerName')} /></Field>
       <Field label="Phone"><Input value={f.phone ?? ''} onChange={set('phone')} /></Field>
       <Field label="Email"><Input type="email" value={f.email ?? ''} onChange={set('email')} /></Field>
       <Field label="Address" className="col-span-2"><Input value={f.address ?? ''} onChange={set('address')} /></Field>
-      <Field label="Business type"><Select value={f.businessType} onChange={set('businessType')}>{BUSINESS_TYPES.map((t) => <option key={t}>{t}</option>)}</Select></Field>
+      <Field label="Business type"><Select value={f.businessType} onChange={set('businessType')}>{BUSINESS_TYPES.map((t) => <option key={t} value={t}>{statusLabel(t)}</option>)}</Select></Field>
       <Field label="Assigned support contact"><Input value={f.supportContact ?? ''} onChange={set('supportContact')} /></Field>
     </div>
   );
@@ -367,14 +369,14 @@ function Clients({ go }: { go: (id: string, param?: string, afterSave?: boolean)
       <div className="mb-3 flex flex-wrap gap-3">
         <Input aria-label="Search clients" placeholder="Business, owner, phone or email" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
         <Select aria-label="Client status filter" value={status} onChange={(e) => setStatus(e.target.value)} className="max-w-xs">
-          <option value="all">All statuses</option>{['onboarding', 'active', 'suspended', 'closed'].map((value) => <option key={value} value={value}>{value}</option>)}
+          <option value="all">All statuses</option>{['onboarding', 'active', 'suspended', 'closed'].map((value) => <option key={value} value={value}>{statusLabel(value)}</option>)}
         </Select>
       </div>
       <QueryView query={clientsQuery} label="clients"><Card pad={false}>
         <Table rows={filtered} rowKey={(r) => r.id} onRowClick={(r) => go('client', r.id)} empty={query || status !== 'all' ? 'No clients match these filters' : 'No clients yet'}
           columns={[
             { header: 'Business', cell: (c) => <><div className="font-medium">{c.name}</div><div className="text-xs text-slate-500">{c.owner_name} · {c.business_type}</div></> },
-            { header: 'Status', cell: (c) => <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge> },
+            { header: 'Status', cell: (c) => <Badge tone={STATUS_TONE[c.status]}>{statusLabel(c.status)}</Badge> },
             { header: 'Plan', cell: (c) => c.plan_name ?? '—' },
             { header: 'Setup', cell: (c) => <Progress done={c.steps_done} total={c.steps_total} /> },
             { header: 'Laptop', cell: (c) => (c.connectivity === 'no_device' ? <Badge>Not activated</Badge> : <Badge tone={c.connectivity === 'online' ? 'good' : 'warn'}>{c.connectivity === 'online' ? 'Online' : 'Offline'}</Badge>) },
@@ -420,7 +422,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
     <div>
       <button className="mb-2 text-sm text-brand-700 hover:underline" onClick={() => go('clients')}>← All clients</button>
       <PageHeader title={c.name} subtitle={<>{c.owner_name} · {[c.phone, c.email, c.address].filter(Boolean).join(' · ')} · Support: {c.support_contact ?? '—'}</>}
-        actions={<><Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge><Button onClick={() => setEdit({ name: c.name, ownerName: c.owner_name, phone: c.phone ?? '', email: c.email ?? '', address: c.address ?? '', businessType: c.business_type, supportContact: c.support_contact ?? '', status: c.status })}>Edit</Button></>} />
+        actions={<><Badge tone={STATUS_TONE[c.status]}>{statusLabel(c.status)}</Badge><Button onClick={() => setEdit({ name: c.name, ownerName: c.owner_name, phone: c.phone ?? '', email: c.email ?? '', address: c.address ?? '', businessType: c.business_type, supportContact: c.support_contact ?? '', status: c.status })}>Edit</Button></>} />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Client overview' }, { id: 'audit', label: 'Client audit' }]} />
       {tab === 'audit' && <Audit tenantId={id} />}
       <div hidden={tab !== 'overview'}>
@@ -487,14 +489,14 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
       {edit && (
         <Modal title="Edit client" open onClose={() => setEdit(null)} wide footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={act.busy} onClick={() => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}`, edit); setEdit(null); reload(); })}>Save</Button></>}>
           <ClientFields f={edit} setF={setEdit} />
-          <Field label="Account status" className="mt-3" hint="Suspending is recorded and shown to the client; it does not block sales."><Select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })}>{['onboarding', 'active', 'suspended', 'closed'].map((s) => <option key={s}>{s}</option>)}</Select></Field>
+          <Field label="Account status" className="mt-3" hint="Suspending is recorded and shown to the client; it does not block sales."><Select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })}>{['onboarding', 'active', 'suspended', 'closed'].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</Select></Field>
         </Modal>
       )}
       {sub && (
         <Modal title="Service plan" open onClose={() => setSub(null)} footer={<><Button dismiss onClick={() => setSub(null)}>Cancel</Button><Button variant="primary" disabled={act.busy || !planOptions.data || !sub.planId} onClick={() => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}/subscription`, { ...sub, renewalDate: sub.renewalDate || null }); setSub(null); reload(); })}>Save</Button></>}>
           <div className="space-y-3">
             <QueryView query={planOptions} label="service plan options"><Field label="Plan"><Select value={sub.planId} onChange={(e) => setSub({ ...sub, planId: e.target.value })}><option value="">Choose…</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {formatGHS(p.price)} {p.billing_period}</option>)}</Select></Field></QueryView>
-            <Field label="Status"><Select value={sub.status} onChange={(e) => setSub({ ...sub, status: e.target.value })}>{['trial', 'active', 'past_due', 'cancelled'].map((s) => <option key={s}>{s}</option>)}</Select></Field>
+            <Field label="Status"><Select value={sub.status} onChange={(e) => setSub({ ...sub, status: e.target.value })}>{['trial', 'active', 'past_due', 'cancelled'].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</Select></Field>
             <Field label="Renewal date"><Input type="date" value={sub.renewalDate} onChange={(e) => setSub({ ...sub, renewalDate: e.target.value })} /></Field>
           </div>
         </Modal>

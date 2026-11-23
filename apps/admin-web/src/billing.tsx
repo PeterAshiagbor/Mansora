@@ -11,7 +11,7 @@ const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('en-GB
 const today = () => new Date().toISOString().slice(0, 10);
 const monthStart = () => `${today().slice(0, 7)}-01`;
 const pct = (bps: number | null | undefined) => (bps == null ? '—' : `${(bps / 100).toFixed(1)}%`);
-const label = (s?: string | null) => (s ? s.replace(/_/g, ' ') : '—');
+const label = (s?: string | null) => (s ? s[0].toUpperCase() + s.slice(1).replace(/_/g, ' ') : '—');
 const TONE: Record<string, 'good' | 'warn' | 'bad' | 'neutral' | 'info'> = {
   paid: 'good', active: 'good', successful: 'good', completed: 'good', sent: 'info', partially_paid: 'warn', overdue: 'bad', draft: 'neutral', disputed: 'warn', cancelled: 'neutral', written_off: 'neutral',
   awaiting_approval: 'info', trial: 'info', payment_due: 'warn', payment_failed: 'bad', paused: 'neutral', expired: 'neutral', failed: 'bad', pending: 'warn', awaiting_customer: 'info', initiated: 'info', queued: 'warn', skipped: 'neutral',
@@ -174,7 +174,7 @@ export function Collections({ go }: { go: (id: string, param?: string) => void }
         <>
           <div className="mb-3 flex flex-wrap gap-1.5">{FILTERS.map(([id, text]) => <Button key={id} size="sm" variant={filter === id ? 'primary' : 'secondary'} onClick={() => setFilter(id)} aria-pressed={filter === id}>{text}</Button>)}</div>
           <Card pad={false}>
-            <QueryView query={rows} label="billing records"><Table rows={rows.data} rowKey={(r) => r.tenant_id} empty="No clients match this filter"
+            <QueryView query={rows} label="billing records"><Table rows={rows.data} rowKey={(r) => r.tenant_id} empty={filter === 'all' ? 'No client has a subscription yet. Create one from Subscriptions to start billing.' : 'No clients match this filter'}
               columns={[
                 { header: 'Client', cell: (r) => <button className="font-medium text-brand-700 hover:underline" onClick={() => go('client', r.tenant_id)}>{r.client}</button> },
                 { header: 'Plan', cell: (r) => r.plan ?? '—' },
@@ -219,7 +219,7 @@ function ResolveModal({ title, children, onClose, onSave, button = 'Save' }: { t
   return (
     <Modal title={title} open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={act.busy || !text.trim()} onClick={() => act.run(() => onSave(text))}>{button}</Button></>}>
       <Msg a={act} />{children}
-      <Field label="Reason or note (kept in the audit log)"><Textarea value={text} onChange={(e) => setText(e.target.value)} autoFocus /></Field>
+      <Field label="Reason or note (kept in the audit log)"><Textarea required value={text} onChange={(e) => setText(e.target.value)} autoFocus /></Field>
     </Modal>
   );
 }
