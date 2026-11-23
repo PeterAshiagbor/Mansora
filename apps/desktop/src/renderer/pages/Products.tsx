@@ -72,10 +72,10 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
       footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !f.name.trim() || f.sellingPrice == null || (cost && f.costPrice == null)} onClick={save}>Save</Button></>}>
       {categoryOptions.error && <QueryView query={categoryOptions} label="categories">{null}</QueryView>}
       <div className="m-product-editor"><form className="grid grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
-        <Field label="Product name" className="col-span-2"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
+        <Field label="Product name" className="col-span-2"><Input required={true} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
         <div className="col-span-2 flex items-end gap-2"><Field label="Barcode" className="flex-1" hint="Click in the box and scan with a USB scanner, or use the camera"><Input value={f.barcode} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field><CameraScanButton label="Camera" onCode={(code) => setF((prev) => ({ ...prev, barcode: code }))} /></div>
         <Field label="Ghana VAT classification" hint="Confirm against the VAT Act schedules. Zero-rated and exempt supplies have different reporting and input-credit treatment."><Select value={f.taxClass} onChange={e => setF({ ...f, taxClass: e.target.value })}><option value="">Needs classification</option><option value="standard">Standard-rated</option><option value="zero">Zero-rated</option><option value="exempt">Exempt</option><option value="outside">Outside scope</option></Select></Field>
-        <Field label="Selling price (GHS)"><MoneyInput value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
+        <Field label="Selling price (GHS)"><MoneyInput required={true} value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
         {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : 'Enter a verified unit cost. Use 0 only when the item genuinely has no cost.'}><MoneyInput required value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
         {cost && <details className="m-form-details"><summary>Calculate cost from a carton</summary><div>
           <div className="grid grid-cols-2 gap-3">
@@ -117,7 +117,7 @@ export function CategoriesPage() {
         <Modal title={edit.id ? 'Edit category' : 'Add category'} open onClose={() => setEdit(null)}
           footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('category.save', { id: edit.id, name: edit.name, active: !!edit.active }); setEdit(null); reload(); }, 'Category saved')}>Save</Button></>}>
           <div className="space-y-3">
-            <Field label="Category name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
+            <Field label="Category name"><Input required={true} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked ? 1 : 0 })} /> Active</label>
           </div>
         </Modal>

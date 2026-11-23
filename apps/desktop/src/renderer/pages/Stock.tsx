@@ -85,9 +85,9 @@ function AdjustModal({ product, onClose, onDone }: { product: any; onClose: () =
         <Field label="What happened?"><Select value={type} onChange={(e) => setType(e.target.value)}><option value="DAMAGE">Damaged, expired or lost</option><option value="MANUAL_CORRECTION">Correction of a mistake</option></Select></Field>
         <div className="grid grid-cols-2 gap-3">
           {type === 'MANUAL_CORRECTION' && <Field label="Direction"><Select value={direction} onChange={(e) => setDirection(e.target.value)}><option value="-">Remove from stock</option><option value="+">Add to stock</option></Select></Field>}
-          <Field label="Quantity"><Input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></Field>
+          <Field label="Quantity"><Input required type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></Field>
         </div>
-        <Field label="Reason (required)"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+        <Field label="Reason (required)"><Textarea required={true} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
       </div>
     </Modal>
   );
@@ -175,7 +175,7 @@ export function PurchasesPage() {
         <Modal title={edit.id ? 'Edit supplier' : 'Add supplier'} open onClose={() => setEdit(null)}
           footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('supplier.save', { id: edit.id, name: edit.name, phone: edit.phone, momoNumber: edit.momo_number, location: edit.location, supplies: edit.supplies, notes: edit.notes }); setEdit(null); suppliers.reload(); }, 'Supplier saved')}>Save</Button></>}>
           <div className="space-y-3">
-            <Field label="Supplier name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
+            <Field label="Supplier name"><Input required={true} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <Field label="Phone"><Input value={edit.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
             <Field label="Mobile Money number" hint="For paying this supplier"><Input value={edit.momo_number ?? ''} onChange={(e) => setEdit({ ...edit, momo_number: e.target.value })} /></Field>
             <Field label="Location"><Input value={edit.location ?? ''} onChange={(e) => setEdit({ ...edit, location: e.target.value })} placeholder="e.g. Makola Market, Accra" /></Field>
@@ -307,12 +307,12 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
       {productOptions.error && <QueryView query={productOptions} label="products for this receipt">{null}</QueryView>}
       <p className="mb-3 text-xs leading-relaxed text-slate-600">Enter whole selling units and their unit purchase cost. A carton must be converted to its individual items before receiving.{tax.data?.registered && ' This business is VAT registered: enter unit costs excluding the VAT, NHIL and GETFund you can recover.'}</p>
       <div className="mb-3 flex flex-wrap items-end gap-3"><label className="flex items-center gap-2 text-sm"><input id="receive-on-credit" type="checkbox" checked={onCredit} onChange={(e) => setOnCredit(e.target.checked)} /> Bought on credit (pay the supplier later)</label>{onCredit && <Field label="Payment due"><Input id="receive-due-date" type="date" value={dueDate} min={today()} onChange={(e) => setDueDate(e.target.value)} /></Field>}{onCredit && !supplierId && <span className="text-sm text-amber-800">Choose the supplier.</span>}</div>
-      {duplicate && <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"><p className="mb-2">{duplicate}</p><Field label="Reason for receiving this invoice again"><Input id="receive-duplicate-reason" value={duplicateReason} onChange={(e) => setDuplicateReason(e.target.value)} /></Field></div>}
+      {duplicate && <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"><p className="mb-2">{duplicate}</p><Field label="Reason for receiving this invoice again"><Input required={!!duplicate} id="receive-duplicate-reason" value={duplicateReason} onChange={(e) => setDuplicateReason(e.target.value)} /></Field></div>}
       {vatRegistered && <div className="mb-3 rounded-md border border-slate-200 p-3">
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={claim} onChange={(e) => setClaim(e.target.checked)} /> Claim the input tax on this supplier invoice</label>
         {claim && <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <Field label="Supplier TIN"><Input id="receive-supplier-tin" value={t.supplierTin} onChange={(e) => setT({ ...t, supplierTin: e.target.value })} /></Field>
-          <Field label="Supplier invoice date"><Input id="receive-invoice-date" type="date" value={t.invoiceDate} max={today()} onChange={(e) => setT({ ...t, invoiceDate: e.target.value })} /></Field>
+          <Field label="Supplier TIN"><Input required id="receive-supplier-tin" value={t.supplierTin} onChange={(e) => setT({ ...t, supplierTin: e.target.value })} /></Field>
+          <Field label="Supplier invoice date"><Input required id="receive-invoice-date" type="date" value={t.invoiceDate} max={today()} onChange={(e) => setT({ ...t, invoiceDate: e.target.value })} /></Field>
           <div />
           <Field label="VAT on invoice (GHS)"><MoneyInput value={t.vat} onChange={(v) => setT({ ...t, vat: v })} /></Field>
           <Field label="NHIL on invoice (GHS)"><MoneyInput value={t.nhil} onChange={(v) => setT({ ...t, nhil: v })} /></Field>
@@ -321,13 +321,13 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
         </div>}
       </div>}
       <div className="mb-3 grid grid-cols-2 gap-3">
-        <Field label="Supplier"><Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">No supplier</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
-        <Field label="Invoice / waybill number"><Input value={reference} onChange={(e) => setReference(e.target.value)} /></Field>
+        <Field label="Supplier"><Select required={onCredit} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">No supplier</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
+        <Field label="Invoice / waybill number"><Input required={claim} value={reference} onChange={(e) => setReference(e.target.value)} /></Field>
       </div>
       {items.map((it, i) => (
         <div key={i} className="m-receive-line mb-4">
-          <Field label={i === 0 ? 'Product' : ''}><Select value={it.productId} aria-label="Product" onChange={(e) => { const p = products.find((x) => x.id === e.target.value); set(i, { productId: e.target.value, unitCost: it.unitCost ?? p?.cost_price ?? null }); }}><option value="">Choose product…</option>{products.filter((p) => p.id === it.productId || !items.some((x) => x.productId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
-          <Field label={i === 0 ? 'Quantity' : ''}><Input type="number" min={1} aria-label="Quantity" value={it.quantity} onChange={(e) => set(i, { quantity: e.target.value })} /></Field>
+          <Field label={i === 0 ? 'Product' : ''}><Select required value={it.productId} aria-label="Product" onChange={(e) => { const p = products.find((x) => x.id === e.target.value); set(i, { productId: e.target.value, unitCost: it.unitCost ?? p?.cost_price ?? null }); }}><option value="">Choose product…</option>{products.filter((p) => p.id === it.productId || !items.some((x) => x.productId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+          <Field label={i === 0 ? 'Quantity' : ''}><Input required type="number" min={1} aria-label="Quantity" value={it.quantity} onChange={(e) => set(i, { quantity: e.target.value })} /></Field>
           <Field label={i === 0 ? 'Unit cost (GHS)' : ''}><MoneyInput value={it.unitCost} aria-label="Unit cost" onChange={(v) => set(i, { unitCost: v })} /></Field>
           <button type="button" aria-label="Remove line" className="mb-2 text-red-700" onClick={() => setItems(items.length > 1 ? items.filter((_, k) => k !== i) : items)}>✕</button>
           <CartonReceiptCalculator onApply={(quantity, unitCost) => set(i, { quantity: String(quantity), unitCost })} />

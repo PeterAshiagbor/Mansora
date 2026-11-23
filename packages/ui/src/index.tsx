@@ -1,3 +1,4 @@
+import { FormRequirements } from './form-requirements';
 /**
  * Mansora Consulting design system: shared by platform administration and client workspaces.
  */
@@ -44,7 +45,7 @@ export function Field({ label, hint, error, children, className }: { label: stri
   }) : children;
   return (
     <label className={cx('block', className)}>
-      <span id={`${id}-label`} className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span data-field-label id={`${id}-label`} className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
       {child}
       {hint && !error && <span id={description} className="mt-1 block text-xs text-slate-500">{hint}</span>}
       {error && <span id={description} className="mt-1 block text-xs font-medium text-red-700">{error}</span>}
@@ -116,6 +117,7 @@ export function Modal({ title, open, onClose, children, footer, wide, trackChang
           <button type="button" onClick={() => dismiss(onClose)} aria-label="Close" className={cx('rounded p-1 text-slate-500 hover:bg-slate-100', focus)}>✕</button>
         </div>
         <div className="m-dialog-body px-5 py-4" role="region" aria-label={`${title} content`} tabIndex={0}>{children}</div>
+        <FormRequirements scope={ref} />
         {footer && <div className="m-dialog-footer flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3 rounded-b-lg">{footer}</div>}
       </div>
     </div></DialogDismiss.Provider>
@@ -125,8 +127,9 @@ export function Modal({ title, open, onClose, children, footer, wide, trackChang
 const TableCaption = createContext<string | undefined>(undefined);
 
 export function Card({ title, actions, children, className, pad = true }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; pad?: boolean }) {
+  const ref = useRef<HTMLElement>(null);
   return (
-    <section className={cx('m-card min-w-0 rounded-lg border border-slate-200 bg-white', className)}>
+    <section ref={ref} className={cx('m-card min-w-0 rounded-lg border border-slate-200 bg-white', className)}>
       {(title || actions) && (
         <div className="m-card-header flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
           <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
@@ -134,6 +137,7 @@ export function Card({ title, actions, children, className, pad = true }: { titl
         </div>
       )}
       <TableCaption.Provider value={typeof title === 'string' ? title : undefined}><div className={pad ? 'm-card-body p-4' : ''}>{children}</div></TableCaption.Provider>
+      <FormRequirements scope={ref} />
     </section>
   );
 }

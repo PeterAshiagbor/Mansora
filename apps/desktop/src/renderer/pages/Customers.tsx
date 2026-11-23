@@ -111,7 +111,7 @@ function WriteOffModal({ account, onClose, onDone }: { account: any; onClose: ()
       <div className="space-y-3">
         <p className="text-sm text-slate-600">Owes <strong>{money(account.outstanding_balance)}</strong> on receipt {account.receipt_no}. A write-off cannot be undone. It is recorded with your name and shown as a loss.</p>
         <Field label="Amount to write off (GHS)" error={tooMuch ? 'This is more than the amount owed' : null}><MoneyInput value={amount} onChange={setAmount} /></Field>
-        <Field label="Reason"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+        <Field label="Reason"><Textarea required={true} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
       </div>
     </Modal>
   );

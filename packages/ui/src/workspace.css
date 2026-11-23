@@ -32,3 +32,11 @@ h1,h2 { font-family:var(--font-sans);letter-spacing:-.025em; }
 .m-action-menu{position:relative;display:inline-block}.m-action-menu>summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;border:1px solid #cbd5e1;background:white;border-radius:6px;padding:8px 14px;font-size:14px;font-weight:500}.m-action-menu>div{position:absolute;right:0;top:calc(100% + 6px);min-width:180px;display:grid;gap:4px;padding:8px;border:1px solid #e2e7ee;border-radius:8px;background:white;box-shadow:0 10px 24px #25324b1c;z-index:20}.m-action-menu>div>button{justify-content:flex-start}.m-main>div>details.m-disclosure:first-child{margin-top:0}
 /* Scroll areas are the containing block for anything absolutely positioned inside them (such as screen-reader-only table
    captions), so nothing can stretch the whole page beyond the window and add a second, outer scrollbar. */
+
+/* Required-field feedback is deliberately quieter than a transaction error. */
+input[data-requirement-invalid="true"], select[data-requirement-invalid="true"], textarea[data-requirement-invalid="true"] {
+  border-color: #e6a3a3 !important;
+  outline: 1px solid #e6a3a3;
+  outline-offset: 1px;
+}
+.m-form-requirements { flex-shrink: 0; max-height: 8rem; overflow-y: auto; }

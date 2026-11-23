@@ -29,7 +29,25 @@ describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop
     await navigate(page, 'Ghana VAT');
     await page.getByRole('button', { name: 'Tax settings', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Ghana tax settings' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const requirements = dialog.getByRole('status');
+    await requirements.getByRole('button', { name: 'Complete Reason and supporting authority', exact: true }).waitFor();
+    const reasonField = dialog.getByLabel('Reason and supporting authority', { exact: true });
+    expect(await reasonField.getAttribute('data-requirement-invalid')).toBe('true');
+    expect(await reasonField.getAttribute('aria-invalid')).toBe('true');
+    expect(await dialog.getByLabel('VAT registration number', { exact: true }).getAttribute('data-requirement-invalid')).toBeNull();
+    await requirements.getByRole('button', { name: 'Complete Reason and supporting authority', exact: true }).click();
+    expect(await reasonField.evaluate((el: HTMLElement) => el === document.activeElement)).toBe(true);
+    await reasonField.fill('   ');
+    await requirements.getByRole('button', { name: 'Complete Reason and supporting authority', exact: true }).waitFor();
+    await reasonField.fill('Initial setup review');
+    await requirements.getByRole('button', { name: 'Complete Reason and supporting authority', exact: true }).waitFor({ state: 'hidden' });
+    expect(await reasonField.getAttribute('data-requirement-invalid')).toBeNull();
+    await page.setViewportSize({ width: 1366, height: 1000 });
+
     await dialog.getByLabel('VAT registered / legally effective obligation confirmed', { exact: true }).check();
+    await requirements.getByRole('button', { name: 'Complete Business TIN', exact: true }).waitFor();
+    await requirements.getByRole('button', { name: 'Complete Legal VAT effective date', exact: true }).waitFor();
     await dialog.getByLabel('Legal VAT effective date', { exact: true }).fill('2026-01-01');
     await dialog.getByLabel('Business TIN', { exact: true }).fill('BROWSER-TIN');
     await dialog.getByLabel('VAT registration number', { exact: true }).fill('BROWSER-VAT');

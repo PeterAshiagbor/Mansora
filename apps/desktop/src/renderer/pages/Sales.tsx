@@ -126,7 +126,7 @@ function RefundModal({ saleId, items, onClose, onDone }: { saleId: string; items
           { header: 'Back into stock?', cell: (r) => <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={restock[r.id] ?? true} onChange={(e) => setRestock({ ...restock, [r.id]: e.target.checked })} /> Sellable</label> },
         ]} />
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <Field label="Reason for refund"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+          <Field label="Reason for refund"><Textarea required={true} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
           <Field label="Pay the customer back by" hint="Any credit still owed on this sale is cancelled first.">
             <Select value={payoutMethod} onChange={(e) => setPayoutMethod(e.target.value)}><option value="cash">Cash from the till</option><option value="momo">Mobile money</option><option value="card">Card</option></Select>
           </Field>

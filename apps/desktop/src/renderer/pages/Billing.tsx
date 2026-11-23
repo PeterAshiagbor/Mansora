@@ -122,7 +122,7 @@ function CancelRequest({ busy, onClose, onSend }: { busy: boolean; onClose: () =
   return (
     <Modal title="Ask to cancel" open onClose={onClose} footer={<><Button dismiss onClick={onClose}>Never mind</Button><Button variant="danger" disabled={busy || !reason.trim()} onClick={() => onSend(reason.trim())}>Send request</Button></>}>
       <p className="mb-3 text-sm text-slate-700">This sends a request to Mansora. Nothing is cancelled until Mansora confirms with you, and any unpaid invoices still need to be settled.</p>
-      <Field label="Why would you like to cancel?"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} autoFocus /></Field>
+      <Field label="Why would you like to cancel?"><Textarea required={true} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus /></Field>
     </Modal>
   );
 }

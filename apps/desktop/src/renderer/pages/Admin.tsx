@@ -44,8 +44,8 @@ export function StaffPage() {
         <Modal title={edit.id ? `Edit ${edit.name}` : 'Add staff member'} open onClose={() => setEdit(null)} wide
           footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim() || !edit.username.trim() || (!edit.id && !edit.password && !(edit.email?.trim() && edit.sendCode))} onClick={save}>{edit.sendCode && edit.email?.trim() && !owner ? 'Save and email code' : 'Save'}</Button></>}>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Full name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
-            <Field label="Username" hint="3–40 letters, numbers, dots, dashes or underscores."><Input minLength={3} maxLength={40} pattern="[a-zA-Z0-9._\-]+" value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="off" /></Field>
+            <Field label="Full name"><Input required={true} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
+            <Field label="Username" hint="3–40 letters, numbers, dots, dashes or underscores."><Input required={true} minLength={3} maxLength={40} pattern="[a-zA-Z0-9._\-]+" value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="off" /></Field>
             <Field label="Role">
               <Select value={edit.role} disabled={owner} onChange={(e) => setEdit({ ...edit, role: e.target.value, permissions: ROLE_DEFAULTS[e.target.value as Role] })}>
                 {owner && <option value="owner">Owner</option>}<option value="manager">Manager</option><option value="cashier">Cashier</option>
@@ -54,7 +54,7 @@ export function StaffPage() {
             <Field label="Status"><Select value={edit.status} disabled={owner} onChange={(e) => setEdit({ ...edit, status: e.target.value })}><option value="active">Active</option><option value="disabled">Disabled (cannot sign in)</option></Select></Field>
             {!owner && <Field label="Email (optional)" hint="Used only to send a one-time sign-in code. Stays on this device." className="col-span-2"><Input type="email" maxLength={160} value={edit.email ?? ''} onChange={(e) => setEdit({ ...edit, email: e.target.value })} autoComplete="off" /></Field>}
             {!owner && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={!!edit.sendCode} disabled={!edit.email?.trim()} onChange={(e) => setEdit({ ...edit, sendCode: e.target.checked })} /> Email them a one-time code so they choose their own password</label>}
-            <Field label={edit.id ? 'New password (leave empty to keep)' : edit.sendCode && edit.email?.trim() ? 'Password (optional when emailing a code)' : 'Password'} hint="At least 8 characters" className="col-span-2"><Input type="password" minLength={8} maxLength={200} value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field>
+            <Field label={edit.id ? 'New password (leave empty to keep)' : edit.sendCode && edit.email?.trim() ? 'Password (optional when emailing a code)' : 'Password'} hint="At least 8 characters" className="col-span-2"><Input required={!edit.id && !(edit.email?.trim() && edit.sendCode)} type="password" minLength={8} maxLength={200} value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field>
           </div>
           {!owner && (
             <fieldset className="mt-4">
@@ -194,7 +194,7 @@ function DailySummaryCard() {
     <Card title="Daily summary email">
       <p className="mb-3 text-sm text-slate-600">After closing each day, get one email with net sales, payments taken, refunds, discounts, cash shortages, low stock and customer credit. Costs and profit are never included. It is sent through Mansora's email service and the figures are not stored there.</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Send to"><Input type="email" maxLength={160} value={form.email} onChange={(e) => setF({ ...form, email: e.target.value })} placeholder="owner@example.com" /></Field>
+        <Field label="Send to"><Input required={true} type="email" maxLength={160} value={form.email} onChange={(e) => setF({ ...form, email: e.target.value })} placeholder="owner@example.com" /></Field>
         <Field label="Send after"><Select value={form.hour} onChange={(e) => setF({ ...form, hour: e.target.value })}>{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}</Select></Field>
       </div>
       <p className="mt-2 text-xs text-slate-500">{d.email ? `On. Sends once a day after ${String(d.hour).padStart(2, '0')}:00 when the till is online${d.lastSentFor ? `; last sent for ${d.lastSentFor}` : ''}.` : 'Off.'}</p>
@@ -225,7 +225,7 @@ export function SettingsPage() {
       {manage && (
         <Card title="Business profile (printed on receipts)">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Business name"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
+            <Field label="Business name"><Input required={true} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
             <Field label="Phone"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
             <Field label="Address" className="col-span-2"><Input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} /></Field>
             <Field label="Receipt footer message" className="col-span-2"><Input value={f.receiptFooter} onChange={(e) => setF({ ...f, receiptFooter: e.target.value })} placeholder="Thank you for your purchase" /></Field>
@@ -488,7 +488,7 @@ export function SupportPage() {
       <PageHeader title="Mansora access" subtitle="Mansora staff cannot see your sales or reports unless you allow it here. You can stop access at any time." />
       <Card title="Allow Mansora to view my reports">
         <div className="grid max-w-2xl grid-cols-[1fr_10rem] gap-3">
-          <Field label="Why is access needed?"><Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="e.g. Help checking November stock report" /></Field>
+          <Field label="Why is access needed?"><Input required={true} value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="e.g. Help checking November stock report" /></Field>
           <Field label="For how long"><Select value={hours} onChange={(e) => setHours(e.target.value)}><option value="1">1 hour</option><option value="4">4 hours</option><option value="24">24 hours</option><option value="72">3 days</option></Select></Field>
         </div>
         <p className="mt-2 text-xs text-slate-500">Access covers sales summaries only: totals, payment methods, best-selling products and stock counts. It never includes customer details or staff passwords. It takes effect the next time this laptop syncs.</p>

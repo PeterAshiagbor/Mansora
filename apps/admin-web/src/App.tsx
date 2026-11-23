@@ -431,7 +431,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
           <p className="my-3 text-sm">This feature switch does not cancel the shop’s legal VAT obligation. Sales and tax evidence remain intact. Re-enabling shows historical liability separately from tax actually collected; unresolved periods require reconciliation before filing. Offline laptops receive changes on their next successful sync.</p>
           <Button onClick={()=>setVatChange({enabled:data.vatFeature?.enabled === false,reason:''})}>Change VAT feature</Button>
           <ul className="mt-3 space-y-2 text-sm">{data.vatFeature?.events.map((e:any)=><li key={e.id}>{when(e.occurredAt)} · {e.adminName} · {e.enabled?'Enabled':'Disabled'} · {e.reason}</li>)}</ul>
-          {vatChange && <Modal open title="Change VAT feature" onClose={()=>setVatChange(null)}><div className="space-y-3"><Alert tone="warn">{vatChange.enabled?'Enable VAT and include historical exposure in working papers. Original invoices and payments remain unchanged.':'Stop automatic VAT collection in the platform. Legal VAT liability continues and historical exposure is retained.'}</Alert><Field label="Reason for VAT feature change"><Textarea value={vatChange.reason} onChange={e=>setVatChange({...vatChange,reason:e.target.value})} /></Field><Button disabled={act.busy || !vatChange.reason.trim()} onClick={()=>act.run(async()=>{await api('PUT',`/v1/admin/clients/${id}/features/vat`,{...vatChange,expectedRevision:data.vatFeature?.revision ?? 0});setVatChange(null);reload();})}>Save VAT feature</Button></div></Modal>}
+          {vatChange && <Modal open title="Change VAT feature" onClose={()=>setVatChange(null)}><div className="space-y-3"><Alert tone="warn">{vatChange.enabled?'Enable VAT and include historical exposure in working papers. Original invoices and payments remain unchanged.':'Stop automatic VAT collection in the platform. Legal VAT liability continues and historical exposure is retained.'}</Alert><Field label="Reason for VAT feature change"><Textarea required={true} value={vatChange.reason} onChange={e=>setVatChange({...vatChange,reason:e.target.value})} /></Field><Button disabled={act.busy || !vatChange.reason.trim()} onClick={()=>act.run(async()=>{await api('PUT',`/v1/admin/clients/${id}/features/vat`,{...vatChange,expectedRevision:data.vatFeature?.revision ?? 0});setVatChange(null);reload();})}>Save VAT feature</Button></div></Modal>}
         </Card>
         <Card title="Onboarding checklist" pad={false} actions={<Progress done={c.steps_done} total={c.steps_total} />}>
           <p className="border-b border-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">Tick a step only after checking it with the client. Confirm go-live marks an onboarding client as active; this checklist does not automatically verify hardware, training, contracts or privacy arrangements.</p>
@@ -510,7 +510,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
           ) : (
             <>
               <Alert tone="warn" className="mb-3">Confirm you are speaking to the business owner before creating a code. This action is recorded in the audit log and on the client's laptop.</Alert>
-              <Field label="How did you verify the owner, and why is recovery needed?"><Textarea value={recovery.reason} onChange={(e) => setRecovery({ ...recovery, reason: e.target.value })} autoFocus /></Field>
+              <Field label="How did you verify the owner, and why is recovery needed?"><Textarea required={true} value={recovery.reason} onChange={(e) => setRecovery({ ...recovery, reason: e.target.value })} autoFocus /></Field>
             </>
           )}
         </Modal>
@@ -519,7 +519,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
         <Modal title="Browser workspace" open onClose={() => setBrowserWorkspace(null)} footer={<Button variant="primary" onClick={() => { setBrowserWorkspace(null); reload(); }}>Done</Button>}>
           {browserWorkspace.status === 'draft' ? <div className="space-y-4">
             <p>Create the account for {c.owner_name} using the recorded owner email, {c.email || 'not recorded'}. The owner chooses their own password.</p>
-            <Field label="Assign owner username (optional)" hint="Use 3–40 letters, numbers, dots, dashes or underscores. Leave empty to let the owner choose."><Input value={workspaceUsername} onChange={event => setWorkspaceUsername(event.target.value)} maxLength={40} autoComplete="off" /></Field>
+            <Field label="Assign owner username (optional)" hint="Use 3–40 lowercase letters, numbers, dots, dashes or underscores. Leave empty to let the owner choose."><Input minLength={3} pattern="[a-z0-9._\-]{3,40}" data-validation-message="Use 3–40 lowercase letters, numbers, dots, dashes or underscores for the owner username, or leave it empty" value={workspaceUsername} onChange={event => setWorkspaceUsername(event.target.value)} maxLength={40} autoComplete="off" /></Field>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={emailWorkspaceLink} onChange={event => setEmailWorkspaceLink(event.target.checked)} /> Email the private setup link to the owner</label>
             <Button variant="primary" disabled={act.busy || !c.email} onClick={() => act.run(async () => setBrowserWorkspace(await api('POST', `/v1/admin/clients/${id}/browser-workspace`, { ownerUsername: workspaceUsername.trim() || undefined, sendEmail: emailWorkspaceLink })))}>Create owner setup link</Button>
           </div> : <>
@@ -594,7 +594,7 @@ function Plans() {
         <Modal title={edit.id ? 'Edit plan' : 'Add plan'} open onClose={() => setEdit(null)} footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={save}>Save</Button></>}>
           {error && <Alert tone="bad" className="mb-3">{error}</Alert>}
           <div className="space-y-3">
-            <Field label="Plan name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
+            <Field label="Plan name"><Input required={true} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Billing amount (GHS)" hint="Enter 0 only for an intentional free plan."><Input required pattern="[0-9]+(\.[0-9]{1,2})?" title="Enter a non-negative amount with up to two decimal places." inputMode="decimal" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} placeholder="0.00" /></Field>
               <Field label="Billing period"><Select value={edit.billingPeriod} onChange={(e) => setEdit({ ...edit, billingPeriod: e.target.value })}><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></Select></Field>
