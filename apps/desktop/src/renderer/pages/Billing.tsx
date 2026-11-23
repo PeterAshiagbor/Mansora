@@ -109,7 +109,7 @@ function SetupModal({ options, busy, onClose, onGo }: { options: any; busy: bool
       <div className="space-y-3">
         <Field label="Pay with"><Select value={method} onChange={(e) => setMethod(e.target.value as 'card' | 'momo')}><option value="card" disabled={!options.card.available}>Card</option><option value="momo" disabled={!options.momo.available}>Mobile Money</option></Select></Field>
         {!opt.available && <Alert tone="warn">{opt.reason}</Alert>}
-        {method === 'momo' && <Field label="Mobile Money number"><Input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>}
+        {method === 'momo' && <Field label="Mobile Money number"><Input required inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>}
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span>I agree that Mansora may collect my subscription fee automatically each period, only for the amount on each invoice you have been sent. I can cancel this at any time on this screen.</span></label>
         <p className="text-xs text-slate-600">You will approve this on the payment provider's own secure page, in your browser. Nothing is charged by setting this up unless an invoice is due.</p>
       </div>

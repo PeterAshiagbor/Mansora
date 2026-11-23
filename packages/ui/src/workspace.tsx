@@ -88,10 +88,15 @@ export function WorkspaceShell({ groups, primaryIds, current, pageKey = current.
   // Keep the current page visible in the menu when the page changes, without moving anything when a section is
   // opened or closed, and without scrolling the page itself (scrollIntoView would move every scrollable ancestor).
   useEffect(() => {
-    const nav = navigation.current, item = nav?.querySelector<HTMLElement>('[aria-current=page]');
-    if (!nav || !item) return;
-    const n = nav.getBoundingClientRect(), r = item.getBoundingClientRect();
-    if (r.top < n.top) nav.scrollTop -= n.top - r.top; else if (r.bottom > n.bottom) nav.scrollTop += r.bottom - n.bottom;
+    // Measure on the next frame: opening the page's tools section is a separate render, and measuring before it
+    // lands leaves a page deep in More tools half hidden under the sidebar footer.
+    const frame = requestAnimationFrame(() => {
+      const nav = navigation.current, item = nav?.querySelector<HTMLElement>('[aria-current=page]');
+      if (!nav || !item) return;
+      const n = nav.getBoundingClientRect(), r = item.getBoundingClientRect();
+      if (r.top < n.top) nav.scrollTop -= n.top - r.top; else if (r.bottom > n.bottom) nav.scrollTop += r.bottom - n.bottom;
+    });
+    return () => cancelAnimationFrame(frame);
   }, [current.id]);
   const pageButton = (item: WorkspaceItem) => <button key={item.id} type="button" aria-current={current.id === item.id ? 'page' : undefined} onClick={() => navigatePage(item.id)} className={cx('m-nav-item', current.id === item.id && 'm-nav-active')}><Icon name={item.icon ?? 'file'} /><span>{item.label}</span></button>;
   useEffect(() => {

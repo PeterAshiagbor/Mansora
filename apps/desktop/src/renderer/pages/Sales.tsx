@@ -3,7 +3,7 @@ import { receiptMessage } from '../customer-sharing';
 import { useEffect, useState } from 'react';
 import { refundLineAmount } from '@mansora/domain';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, Textarea, QueryView } from '@mansora/ui';
-import { ApprovalModal, call, DateRange, dateTime, ExportButtons, METHOD, money, plain, printHtml, savePdf, today, useAction, useApp, useQuery, uuid, type Approver } from '../lib';
+import { ApprovalModal, isApproverError, call, DateRange, dateTime, ExportButtons, METHOD, money, plain, printHtml, savePdf, today, useAction, useApp, useQuery, uuid, type Approver } from '../lib';
 
 export function SalesPage({ openId }: { openId?: string }) {
   const [range, setRange] = useState({ from: today(), to: today() });
@@ -111,8 +111,8 @@ function RefundModal({ saleId, items, onClose, onDone }: { saleId: string; items
     if (q > 0) try { amount += refundLineAmount({ quantity: i.quantity, lineTotal: i.line_total, refundedQuantity: i.refunded_quantity, refundedAmount: i.refunded_amount }, q); } catch { /* shown by max */ }
   }
   const submit = (approver?: Approver) => {
-    if (!can('refund.approve') && !approver) return setApproval(true);
-    run(async () => { await call('refund.create', { id: refundId, saleId, reason, payoutMethod, lines, approver }); onDone(); }, 'Refund recorded');
+    if (!can('refund.approve') && !approver) { setApproval(true); return; }
+    return run(async () => { await call('refund.create', { id: refundId, saleId, reason, payoutMethod, lines, approver }); onDone(); }, 'Refund recorded', { rethrow: (e) => !!approver && isApproverError(e) });
   };
   return (
     <>
@@ -133,7 +133,7 @@ function RefundModal({ saleId, items, onClose, onDone }: { saleId: string; items
         </div>
         <p className="mt-2 text-xs text-slate-500">Untick "Sellable" for damaged returns: the customer is refunded but the item does not go back into stock.</p>
       </Modal>
-      <ApprovalModal open={approval} reason="Refunds need approval." onCancel={() => setApproval(false)} onApprove={(a) => { setApproval(false); submit(a); }} />
+      <ApprovalModal open={approval} reason="Refunds need approval." onCancel={() => setApproval(false)} onApprove={async (a) => { await submit(a); setApproval(false); }} />
     </>
   );
 }

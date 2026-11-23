@@ -115,9 +115,9 @@ function ConvertLead({ lead, onDone }: { lead: any; onDone: () => void }) {
   if (!open) return <Card title="Ready to become a client?"><p className="mb-3 text-sm text-slate-600">Converting creates the client with the usual onboarding checklist and, if a plan was agreed, a draft subscription. Nothing is invoiced or charged. A welcome email with setup guidance is sent to the client.</p><Button variant="primary" onClick={() => setOpen(true)}>Convert to client</Button></Card>;
   return <Card title="Convert to client">
     <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="Business name"><Input maxLength={120} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
-      <Field label="Owner name"><Input maxLength={120} value={f.ownerName} onChange={e => setF({ ...f, ownerName: e.target.value })} /></Field>
-      <Field label="Email (welcome email goes here)"><Input type="email" maxLength={200} value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></Field>
+      <Field label="Business name"><Input required maxLength={120} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
+      <Field label="Owner name"><Input required maxLength={120} value={f.ownerName} onChange={e => setF({ ...f, ownerName: e.target.value })} /></Field>
+      <Field label="Email (welcome email goes here)"><Input required type="email" maxLength={200} value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></Field>
       <Field label="Phone"><Input maxLength={40} value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} /></Field>
       <Field label="Address (optional)"><Input maxLength={300} value={f.address} onChange={e => setF({ ...f, address: e.target.value })} /></Field>
       <Field label="Kind of business"><Select value={f.businessType} onChange={e => setF({ ...f, businessType: e.target.value })}>{Object.entries(TYPE).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select></Field>

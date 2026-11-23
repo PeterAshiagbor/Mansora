@@ -57,7 +57,7 @@ describe.skipIf(!pw || !existsSync(join(dist, 'index.html')))('administrator bil
     await page.getByLabel('Amount received (GH₵)').fill('400');
     await page.getByLabel('Reference (transaction ID)').fill('MM-BROWSER-1');
     await page.getByRole('button', { name: 'Record payment', exact: true }).last().click();
-    await page.getByRole('dialog').getByText('paid', { exact: true }).first().waitFor();
+    await page.getByRole('dialog').getByText('Paid', { exact: true }).first().waitFor();
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).last().click();
 
     await nav('Payments');
