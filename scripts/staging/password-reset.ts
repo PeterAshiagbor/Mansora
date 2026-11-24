@@ -115,7 +115,7 @@ export async function resetTestLogins(options: {
         body: [
           'Hello,', '',
           `All passwords for your test shop "${shop}" have been reset. Earlier passwords and sign-in codes no longer work.`, '',
-          `Shop address: ${origin}/client/${workspace.id}/`, '',
+          `Sign in at: ${origin}/signin/`, '',
           ...logins.flatMap((l) => [
             `${l.role[0].toUpperCase()}${l.role.slice(1)}`,
             `  Username: ${l.username}${l.role === 'owner' ? `   (you can also type ${to})` : ''}`,

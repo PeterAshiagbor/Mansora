@@ -39,7 +39,7 @@ describe('C55: one-time role logins for every tester', () => {
       const mine = sent.filter((m) => m.to === owner.email);
       expect(mine).toHaveLength(3);
       const summary = mine.find((m) => m.subject.includes('three ways to sign in'));
-      expect(summary.body).toContain(`/client/${owner.workspace}/`);
+      expect(summary.body).toContain('/signin/'); expect(summary.body).not.toContain('/client/');
       expect(summary.body).not.toContain(owner.password); // no passwords in email
       const engine = workspaces.find((w) => w.id === owner.workspace)!.engine;
       for (const role of ['manager', 'cashier']) {

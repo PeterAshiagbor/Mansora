@@ -40,6 +40,9 @@ export function App() { return <DraftProvider><AdminApplication /></DraftProvide
 function AdminApplication() {
   const navigate = useNavigationGuard();
   const [signedIn, setSignedIn] = useState(!!getToken());
+  const signInUrl: string | undefined = (window as any).MANSORA_SIGNIN_URL;
+  // An emailed administrator invitation is accepted here first; only then does the hosted console use the one sign-in page.
+  const [invited] = useState(() => /(^|&)admin-invite=/.test(window.location.hash.slice(1)));
   // Remembered per browser tab, so a refresh stays on the same page.
   const [page, setPage] = usePersistentPage<{ id: string; param?: string }>('mansora:admin-page', { id: 'overview' });
   useEffect(() => {
@@ -47,7 +50,8 @@ function AdminApplication() {
     window.addEventListener('mansora:signed-out', out);
     return () => window.removeEventListener('mansora:signed-out', out);
   }, []);
-  if (!signedIn) return <Login onDone={() => setSignedIn(true)} />;
+  // Hosted together with the shops, administrators use the same single sign-in page; this console has no form of its own.
+  if (!signedIn) return signInUrl && !invited ? <ToSignIn url={signInUrl} /> : <Login onDone={() => setSignedIn(true)} signInUrl={signInUrl} />;
   const go = (id: string, param?: string, afterSave = false) => {
     if (page.id === id && page.param === param) return;
     if (afterSave) setPage({ id, param });
@@ -147,7 +151,12 @@ function AcceptInvitation({ token, onDone }: { token: string; onDone: (email: st
   );
 }
 
-function Login({ onDone }: { onDone: () => void }) {
+function ToSignIn({ url }: { url: string }) {
+  useEffect(() => { location.replace(url); }, [url]);
+  return <div className="flex min-h-screen items-center justify-center text-slate-500" role="status">Taking you to sign in…</div>;
+}
+
+function Login({ onDone, signInUrl }: { onDone: () => void; signInUrl?: string }) {
   // The invitation token arrives in the URL fragment and is removed from history straight away.
   const [invite, setInvite] = useState<string | null>(() => {
     const token = new URLSearchParams(window.location.hash.slice(1)).get('admin-invite');
@@ -156,6 +165,7 @@ function Login({ onDone }: { onDone: () => void }) {
   });
   const [welcome, setWelcome] = useState<string | null>(null);
   if (invite) return <AcceptInvitation token={invite} onDone={(address) => { setInvite(null); setWelcome(address); }} />;
+  if (signInUrl) return <ToSignIn url={signInUrl + (welcome ? '#email=' + encodeURIComponent(welcome) : '')} />;
   return <PasswordLogin onDone={onDone} initialEmail={welcome ?? ''} welcome={!!welcome} />;
 }
 

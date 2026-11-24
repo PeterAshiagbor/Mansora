@@ -57,7 +57,7 @@ export function createWorkspaceOnboarding(config: StagingConfig, now: () => Date
     return record;
   }
   const link = (record: Record): BrowserWorkspaceLink => record.completedAt
-    ? { workspaceId: record.workspaceId, status: 'ready', ownerUsername: record.ownerUsername, url: `${config.origin}/client/${record.workspaceId}/` }
+    ? { workspaceId: record.workspaceId, status: 'ready', ownerUsername: record.ownerUsername, url: `${config.origin}/signin/` }
     : { workspaceId: record.workspaceId, status: 'pending', ownerUsername: record.usernameAssigned ? record.ownerUsername : undefined, expiresAt: record.expiresAt, url: `${config.origin}/onboarding/#token=${unseal(record).token}` };
   const checkUsername = (username: string, tenantId: string) => {
     if (!/^[a-z0-9._-]{3,40}$/.test(username)) fail(400, 'INVALID_USERNAME', 'Use 3–40 letters, numbers, dots, dashes or underscores.');
@@ -137,7 +137,7 @@ export function createWorkspaceOnboarding(config: StagingConfig, now: () => Date
         if (!old) registerWorkspace({ id: record.workspaceId, label: record.label, engine }, { [record.ownerEmail]: record.ownerUsername });
         registered = true;
         record.completedAt = now().toISOString(); record.secret = undefined; save(file(record.tenantId), record);
-        return { workspaceId: record.workspaceId, url: `/client/${record.workspaceId}/`, email: record.ownerEmail };
+        return { workspaceId: record.workspaceId, url: `/signin/`, email: record.ownerEmail };
       } catch (error) {
         if (error instanceof DomainError && error.code === 'WEAK_PASSWORD') return fail(400, 'WEAK_PASSWORD', error.message);
         throw error;

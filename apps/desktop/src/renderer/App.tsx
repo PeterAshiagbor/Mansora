@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
 import { Alert, Button, VatGuide, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard, ReportProblemButton, ReportProblemNavItem, usePersistentPage } from '@mansora/ui';
-import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
+import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState, goToSignIn } from './lib';
 import { ContactMansora } from './components/ContactMansora';
 import { Checkout } from './pages/Checkout';
 import { Dashboard } from './pages/Dashboard';
@@ -130,7 +130,7 @@ function ClientApplication() {
   return (
     <AppCtx.Provider value={ctx}>
       <ToastProvider>
-        {!ctx.state.business.activated ? <Activation /> : !ctx.state.user ? <Login onDone={() => {}} /> : <Shell page={page} />}
+        {!ctx.state.business.activated ? <Activation /> : !ctx.state.user ? (window.MANSORA_SIGNIN_URL ? <ToSignIn url={window.MANSORA_SIGNIN_URL} /> : <Login onDone={() => {}} />) : <Shell page={page} />}
       </ToastProvider>
     </AppCtx.Provider>
   );
@@ -149,6 +149,15 @@ function AuthFrame({ title, subtitle, children }: { title: string; subtitle: str
       </div>
     </AuthLayout>
   );
+}
+
+/**
+ * Hosted in a browser, everyone signs in on one page and lands in their own workspace. Signing out, an idle lock,
+ * an expired session or the back button all return there instead of to a second, shop-specific form.
+ */
+function ToSignIn({ url }: { url: string }) {
+  useEffect(() => { goToSignIn(url); }, [url]);
+  return <div className="flex h-full items-center justify-center text-slate-500" role="status">Taking you to sign in…</div>;
 }
 
 function Login({ onDone }: { onDone: () => void }) {

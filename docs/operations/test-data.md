@@ -6,7 +6,7 @@ Each business receives eight clearly labelled SAMPLE products across three categ
 
 ## Using the data
 
-Sign in at your assigned `/client/shop-a/` or `/client/shop-b/` workspace. Products and customers remain editable. Add your own sample products, receive stock, open or continue a shift and complete sales as your role allows. Both businesses have separate records; staff within one business share its stock and customers.
+Sign in at the main address (`/signin/`) with your username and password; you land in your own shop at `/app/`. Products and customers remain editable. Add your own sample products, receive stock, open or continue a shift and complete sales as your role allows. Both businesses have separate records; staff within one business share its stock and customers.
 
 Owners can analyse sales, profit, payment methods, stock, expenses and credit through the existing Reports screens. Use the normal CSV/Excel actions or Import & export for a full business export. Cashiers retain their existing limited views and can export their own displayed sales; full business exports, cost/profit reports and management commands stay restricted. New sample imports still use the existing preview, validation and permission checks. The pack does not unlock features by changing roles.
 

@@ -11,8 +11,8 @@ export async function rehearsePublicSignIn(options: { version: string; origin: s
   const assigned = accounts.filter(account => ['shop-a', 'shop-b'].includes(account.workspace));
   if (assigned.length !== 6 || !['shop-a', 'shop-b'].every(id => ['owner', 'manager', 'cashier'].every(role => assigned.filter(account => account.workspace === id && account.role === role).length === 1))) throw new Error('SIGNIN_ACCEPTANCE_ASSIGNED_ACCOUNTS_REQUIRED');
   const check = (value: unknown) => { if (!value) throw new Error('SIGNIN_ACCEPTANCE_ASSERTION_FAILED'); };
-  const invoke = async (workspace: string, cookie: string, command: string) => {
-    const response = await fetch(`${origin}/client/${workspace}/invoke`, { method: 'POST', headers: { origin, cookie, 'content-type': 'application/json' }, body: JSON.stringify({ command }), signal: AbortSignal.timeout(30_000) });
+  const invoke = async (workspace: string, cookie: string, command: string, own = false) => {
+    const response = await fetch(own ? `${origin}/app/invoke` : `${origin}/client/${workspace}/invoke`, { method: 'POST', headers: { origin, cookie, 'content-type': 'application/json', ...(own ? { 'x-mansora-workspace': workspace } : {}) }, body: JSON.stringify({ command }), signal: AbortSignal.timeout(30_000) });
     check(response.ok); return await response.json() as any;
   };
   const landing = await fetch(origin + '/', { signal: AbortSignal.timeout(30_000) });
@@ -26,13 +26,13 @@ export async function rehearsePublicSignIn(options: { version: string; origin: s
       const response = await fetch(origin + '/signin/login', { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ username: publicLogin(account.workspace, account.username), password: account.password }), signal: AbortSignal.timeout(30_000) });
       const header = response.headers.get('set-cookie') ?? ''; cookie = header.split(';')[0];
       const result = await response.json() as any;
-      check(response.ok && result.ok && result.data.platform === 'client' && result.data.url === `/client/${account.workspace}/` && !result.data.token);
-      check(header.includes('HttpOnly') && header.includes('SameSite=Strict') && header.includes(`Path=/client/${account.workspace}/`) && (origin.startsWith('http:') || header.includes('; Secure')));
-      const state = await invoke(account.workspace, cookie, 'app.state');
+      check(response.ok && result.ok && result.data.platform === 'client' && result.data.url === '/app/' && !result.data.token);
+      check(header.includes('HttpOnly') && header.includes('SameSite=Strict') && header.includes('Path=/;') && (origin.startsWith('http:') || header.includes('; Secure')));
+      const state = await invoke(account.workspace, cookie, 'app.state', true);
       check(state.ok && state.data.user?.role === account.role && state.data.business.tenantId === workspace!.engine.meta('tenant_id'));
       const other = await invoke(account.workspace === 'shop-a' ? 'shop-b' : 'shop-a', cookie, 'app.state'); check(other.ok && other.data.user === null);
       checked++;
-    } finally { if (cookie) await invoke(account.workspace, cookie, 'auth.logout').catch(() => {}); }
+    } finally { if (cookie) await invoke(account.workspace, cookie, 'auth.logout', true).catch(() => {}); }
   }
   return { version: 'signin-v1', accountsChecked: checked, landing: 'passed', authenticatedRouting: 'passed', scopedCookies: 'passed', crossShopIsolation: 'passed', financialWrites: 0, emailsSent: 0 };
 }

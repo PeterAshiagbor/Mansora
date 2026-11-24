@@ -122,7 +122,8 @@ export async function runRailwayServer() {
         const result=await seedVatDemo({mode:config.mode,version:process.env.MANSORA_VAT_DEMO,dataDir:join(config.dataDir,'staging'),workspaces});
         console.log('Synthetic TSB VAT demo:',JSON.stringify(result));
       }
-    }, onboarding, recovery, tenantId => db.platform(q=>vatFeaturePolicy(q,tenantId)), email => db.platform(async q => (await q('SELECT 1 FROM admins WHERE email = $1', [email])).length > 0));
+    }, onboarding, recovery, tenantId => db.platform(q=>vatFeaturePolicy(q,tenantId)), email => db.platform(async q => (await q('SELECT 1 FROM admins WHERE email = $1', [email])).length > 0),
+      email => db.platform(async q => (await q<{ password_hash: string }>("SELECT password_hash FROM admins WHERE email = $1 AND status = 'active'", [email.trim().toLowerCase()]))[0]?.password_hash ?? null));
     // Off-site system backups (Google Cloud Storage for now), when switched on with MANSORA_SYSTEM_BACKUPS=1.
     const alertTo = process.env.PLATFORM_ALERT_EMAIL?.trim();
     const alert = alertTo ? (subject: string, body: string) => billing.email.send({ to: alertTo, subject, body, idempotencyKey: `mansora-backup-health/${subject}/${new Date().toISOString().slice(0, 13)}` }) : undefined;

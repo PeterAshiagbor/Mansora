@@ -135,7 +135,7 @@ it.skipIf(!pw)('lets the owner complete setup in the real browser with CSP and n
     await page.getByLabel('Choose a password', { exact: true }).fill(chosen);
     await page.getByLabel('Confirm password', { exact: true }).fill(chosen);
     await page.getByRole('button', { name: 'Create my workspace', exact: true }).click();
-    await page.waitForURL('**/client/shop-*/#email=*');
+    await page.waitForURL('**/signin/'); expect(await page.getByLabel('Username or email').inputValue()).toBe('browser-owner@example.test');
     expect(errors).toEqual([]);
     const ready = await api(`/v1/admin/clients/${created.body.id}/browser-workspace`);
     expect(ready.body.status).toBe('ready'); expect(JSON.stringify(ready.body)).not.toContain(chosen);

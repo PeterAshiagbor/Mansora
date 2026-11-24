@@ -48,7 +48,7 @@ describe('private, restart-safe readable tester invitations', () => {
     const accounts = owners();
     for (const [i, account] of accounts.entries()) {
       const message = sent.find(m => m.to === account.email);
-      expect(message.body).toContain(`/client/${account.workspace}/#email=`);
+      expect(message.body).toContain('/signin/#email='); expect(message.body).not.toContain('/client/');
       expect(message.body).toContain(account.password);
       expect(message.body).not.toContain(accounts[1 - i].password);
       expect(account.password).not.toBe(original[i]);
