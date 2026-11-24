@@ -11,6 +11,7 @@ import { provisionStaging, type TestAccount } from '../../scripts/staging/bootst
 import { loadWorkspaces, type StagingConfig } from '../../scripts/staging/config';
 import { startStagingGateway, type StagingWorkspace } from '../../scripts/staging/gateway';
 import { rehearsePublicSignIn } from '../../scripts/staging/sign-in-acceptance';
+import { hashPassword } from '../../apps/desktop/src/core/passwords';
 import { navigate } from './navigation';
 const pw = (() => { try { return createRequire(import.meta.url)('playwright'); } catch { return null; } })();
 const root = join(import.meta.dirname, '../..');
@@ -106,8 +107,16 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
   });
   it('rehearses all six existing synthetic identities through the public sign-in without financial writes or email', async () => {
     const before = workspaces.map(workspace => workspace.engine.db.prepare('SELECT COUNT(*) AS count FROM sales').get());
-    expect(await rehearsePublicSignIn({ version: 'signin-v1', origin: gateway.publicOrigin, dataDir: config.dataDir, workspaces })).toMatchObject({ accountsChecked: 6, authenticatedRouting: 'passed', crossShopIsolation: 'passed', financialWrites: 0, emailsSent: 0 });
+    expect(await rehearsePublicSignIn({ version: 'signin-v1', origin: gateway.publicOrigin, dataDir: config.dataDir, workspaces })).toMatchObject({ passed: true, failures: [], skippedPasswordChangedByUser: [], accountsChecked: 6, authenticatedRouting: 'passed', crossShopIsolation: 'passed', financialWrites: 0, emailsSent: 0 });
     expect(workspaces.map(workspace => workspace.engine.db.prepare('SELECT COUNT(*) AS count FROM sales').get())).toEqual(before);
+    // A tester who chose their own password is reported as such, not as a sign-in fault, and costs them no failed attempt.
+    const shopB = workspaces.find(w => w.id === 'shop-b')!.engine.db, manager = accounts.find(a => a.workspace === 'shop-b' && a.role === 'manager')!;
+    const original = shopB.prepare('SELECT password_hash, failed_attempts FROM users WHERE username = ?').get(manager.username) as { password_hash: string; failed_attempts: number };
+    shopB.prepare('UPDATE users SET password_hash = ? WHERE username = ?').run(hashPassword('a-password-the-tester-chose'), manager.username);
+    try {
+      expect(await rehearsePublicSignIn({ version: 'signin-v1', origin: gateway.publicOrigin, dataDir: config.dataDir, workspaces })).toMatchObject({ passed: true, accountsChecked: 5, failures: [], skippedPasswordChangedByUser: [{ workspace: 'shop-b', role: 'manager' }] });
+      expect((shopB.prepare('SELECT failed_attempts FROM users WHERE username = ?').get(manager.username) as any).failed_attempts).toBe(original.failed_attempts);
+    } finally { shopB.prepare('UPDATE users SET password_hash = ? WHERE username = ?').run(original.password_hash, manager.username); }
   });
   it('keeps owner and cashier independent while they save and sell shared records', async () => {
     expect((await owner.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('owner');
