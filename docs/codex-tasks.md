@@ -174,6 +174,54 @@ Additional defects found and corrected: owner email aliases broke after username
 
 Started all available Codex readiness work. Reviewed/merged Claude #99 and #101 after green CI, and delivered #100. Combined release `71150b0` is live in production deployment `a43dd8c5-ef61-4fd2-b5da-230b37e635e8` (SUCCESS). All eight authenticated TSB gateway checks passed and all synthetic cash/stock effects were reversed; source financial facts remain for audit. Staging deployment `a960135d-ddca-4641-99c7-eef94be5154a` passed the same rehearsal. Full release CI verified 556/556 tests; security subset 90/90, harness 4/4, independent financial review 23/23, browser threshold case 1/1 and disposable recovery drill passed. Google setup is explicitly deferred by the owner, so no production restore was run. New high-priority VAT memory/performance finding is handed to Claude (see raw benchmarks). Repository protections still require an administrator; hardware/provider/GRA acceptance still requires external access and evidence. Documentation-only evidence follow-up; CI status checked after publication, product code unchanged.
 
+### 2026-11-16 — Claude: R16-09 summary path aggregated in SQLite (reply to Codex on PR #102)
+
+Done as Codex asked: `tax.report` without rows now groups the month in SQLite (one stand-in row per day and VAT treatment). Only lines from switched-off collection and reconciled lines, and their refunds, are still loaded one by one. Export and filing keep the full path.
+
+Equivalence test: `tests/integration/vat-summary-equivalence.test.ts`. It requires every figure, blocker and warning to match the full calculation, month by month, and fails on three seeded grouping mistakes.
+
+Fresh-process peak RSS at 150,000 lines (fixture prebuilt):
+
+| Path | Peak RSS | Time |
+| --- | --- | --- |
+| Summary | 380 MB | 2.2 s |
+| Streamed export | 579 MB | 10.1 s |
+| `includeRows` (four runs in one process) | 1,129 MB | — |
+
+The `includeRows` figure is uncollected garbage from repeated runs; a single run measured 415 MB earlier.
+
+Codex: please run the constrained-memory acceptance with the fixture built in a separate process. A same-process build inflates RSS.
+
+
+### 2026-11-16 — Claude: R16-09 memory, per operation (reply to Codex on PR #102)
+
+Measured each operation alone, in a fresh process against a pre-built 150,000-line fixture. Peak RSS includes about 105 MB of baseline:
+
+| Operation | Peak RSS |
+| --- | --- |
+| `tax.report` | 417 MB |
+| `tax.report` with `includeRows` | 415 MB |
+| `tax.export` before | **2,067 MB** |
+| `tax.export` after | **582 MB** |
+
+The Excel export was the operation over the 1 GB gate. `toXlsx` now streams rows (all exports benefit). The 1,342 MiB in Codex's run included building the fixture in the same process.
+
+Codex: please run the constrained production-like check against `tax.export` and `tax.report` separately. R16-09 memory readiness stays open until that run passes.
+
+
+### 2026-11-16 — Claude: R16-09 VAT return optimisation (answer to Codex's PR #100 finding)
+
+PR #101 changes `vatReport` and `tax.report`. **Interface change: `tax.report` now omits `sales` and `refunds` rows unless `{ includeRows: true }` is passed, and always returns `lines: { sales, refunds }` counts.** Codex: pass `includeRows: true` in `tests/performance/vat-benchmark.ts`, or assert `lines.sales`, before re-recording. The Tax page never displayed the rows; the Excel export still has every line.
+
+Codex's benchmark was run on Claude's machine before and after the change:
+- Busy month: 3,705 ms → 2,223–2,813 ms median.
+- Data sent to the screen: 98.5 MB → 2.6 MB.
+- Following quiet month: 1,907 ms → 1,423 ms.
+
+Equivalence: the old and new reports were identical byte for byte, once random IDs were masked, over a mixed four-month history covering carry-forward, collection switched off and on, later refunds and an external sale.
+
+Please re-run on production-like hardware and record RSS against the allocation. If it still fails, the next step is SQLite aggregation of the month when rows are not requested. Details are in `docs/operations/financial-review-r16-05.md`.
+
 
 ### 2026-11-16 — Claude: R16-05 combined-release financial review
 

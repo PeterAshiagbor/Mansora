@@ -189,7 +189,17 @@ export const taxCommands = defineCommands({
       return result;
     },
   },
-  'tax.report': { perm: 'report.sales', input: z.object({ month: zMonth }), run: (ctx, input) => vatReport(ctx, input.month) },
+  /**
+   * R16-09: the Tax page shows totals, buckets, blockers and records, never the individual lines, so by default the
+   * per-line schedules are not sent (a large shop's month is 150,000 lines). The Excel export always has them; pass
+   * includeRows to receive them here.
+   */
+  'tax.report': {
+    perm: 'report.sales', input: z.object({ month: zMonth, includeRows: z.boolean().default(false) }),
+    run: (ctx, input) => {
+      return vatReport(ctx, input.month, { rows: input.includeRows });
+    },
+  },
   'tax.export': {
     perm: 'report.sales', async: true, input: z.object({ month: zMonth }),
     run: async (ctx, input) => {
@@ -199,8 +209,8 @@ export const taxCommands = defineCommands({
         { name: 'Mansora VAT feature history', rows: [['Revision','Changed at','Administrator','Enabled','Reason'],...r.feature.events.map(e=>[e.revision,e.occurredAt,e.adminName,e.enabled,e.reason])] },
         { name: 'Backdated VAT exposure', rows: [['Date','Source ID','Reference','Type','Policy revision','Base GHS','VAT GHS','NHIL GHS','GETFund GHS'],...r.historicalExposure.map(e=>[e.date,e.sourceId,e.reference,e.kind,e.policyRevision,e.base/100,e.vat/100,e.nhil/100,e.getfund/100])] },
         { name: 'Supply classifications', rows: [['Classification', 'Net base GHS'], ...r.classification.map(c => [c.classification, c.base / 100])] },
-        { name: 'Sales', rows: [['Receipt', 'Date', 'Product', 'Tax class', 'Base GHS', 'VAT GHS', 'NHIL GHS', 'GETFund GHS', 'Total GHS', 'Invoice identity snapshot'], ...r.sales.map(s => { const t = s.tax_snapshot ? JSON.parse(s.tax_snapshot) : null; return [s.reference, s.date, s.product_name, t?.classification ?? 'legacy-unverified', ...[t?.base, t?.vat, t?.nhil, t?.getfund, s.line_total].map(n => n == null ? '' : n / 100), s.invoice_tax]; })] },
-        { name: 'Credit notes', rows: [['Credit note', 'Original receipt', 'Date', 'Base GHS', 'VAT GHS', 'NHIL GHS', 'GETFund GHS', 'Total GHS'], ...r.refunds.map(s => { const t = s.tax_snapshot ? JSON.parse(s.tax_snapshot) : null; return [s.reference, s.original_reference, s.date, ...[t?.base, t?.vat, t?.nhil, t?.getfund, s.line_total].map(n => n == null ? '' : n / 100)]; })] },
+        { name: 'Sales', rows: [['Receipt', 'Date', 'Product', 'Tax class', 'Base GHS', 'VAT GHS', 'NHIL GHS', 'GETFund GHS', 'Total GHS', 'Invoice identity snapshot'], ...r.sales!.map(s => { const t = s.tax_snapshot ? JSON.parse(s.tax_snapshot) : null; return [s.reference, s.date, s.product_name, t?.classification ?? 'legacy-unverified', ...[t?.base, t?.vat, t?.nhil, t?.getfund, s.line_total].map(n => n == null ? '' : n / 100), s.invoice_tax]; })] },
+        { name: 'Credit notes', rows: [['Credit note', 'Original receipt', 'Date', 'Base GHS', 'VAT GHS', 'NHIL GHS', 'GETFund GHS', 'Total GHS'], ...r.refunds!.map(s => { const t = s.tax_snapshot ? JSON.parse(s.tax_snapshot) : null; return [s.reference, s.original_reference, s.date, ...[t?.base, t?.vat, t?.nhil, t?.getfund, s.line_total].map(n => n == null ? '' : n / 100)]; })] },
         { name: 'Filed returns and payments', rows: [['Return month', 'Filing reference', 'Payable GHS', 'Paid GHS', 'Still owed GHS'], ...r.arrears.rows.map(x => [x.month, x.reference, x.payable / 100, x.paid / 100, x.outstanding / 100]), [], ['Payment reference', 'Paid on', 'Return month settled', 'GHS', 'Matched by'], ...taxPaymentsList(ctx).map(p => [p.reference, p.paidOn, p.period, p.amount / 100, p.allocatedByDate ? 'payment date (no period recorded)' : 'return period'])] },
         { name: 'Input credit schedule', rows: [['Record ID','Supplier TIN','Invoice','Invoice date','Accrual date','Claim date','Base GHS','Invoice VAT','Invoice NHIL','Invoice GETFund','Applied eligible %','Claimed VAT','Claimed NHIL','Claimed GETFund','Category','Attribution','Evidence'], ...r.records.filter(v=>v.kind==='input').map(v=>[v.id,v.data.supplierTin,v.reference,v.data.invoiceDate,v.data.accrualDate,v.tax_date,v.data.base/100,...['vat','nhil','getfund'].map(k=>(v.data.originalTaxes?.[k] ?? v.data[k])/100),(v.data.appliedEligibleBps ?? v.data.eligibleBps)/100,...['vat','nhil','getfund'].map(k=>v.data[k]/100),v.data.inputCategory ?? 'legacy-review',v.data.attribution ?? 'legacy-review',v.data.reason])] },
         { name: 'Credits payments and filings', rows: [['ID','Type','Tax period/date','Reference','VAT credit GHS','Payment GHS','Recorded at','Reason or authority'], ...r.allRecords.filter(v=>['withholding','payment','filing','period_reopened'].includes(v.kind)).map(v=>[v.id,v.kind,v.tax_date,v.reference,(v.data.vat ?? 0)/100,(v.data.amount ?? 0)/100,v.created_at,v.data.legalAuthority ?? v.data.reason])] },
@@ -245,7 +255,7 @@ export const taxCommands = defineCommands({
       if ([...taxPeriodStates(ctx)].some(([month,state]) => state === 'period_reopened' && month < input.month)) fail('AMENDMENT_ORDER', 'Reconcile and refile earlier reopened periods before later returns');
       const report = vatReport(ctx, input.month);
       if (report.blockers.length) fail('VAT_RECONCILIATION_REQUIRED', report.blockers.join(' '));
-      const snapshot = { month: report.month, config: report.config, classification: report.classification, buckets: report.buckets, payable: report.payable, warnings: report.warnings, sourceIds: [...new Set([...report.sales, ...report.refunds, ...report.records].map(r => r.id))] };
+      const snapshot = { month: report.month, config: report.config, classification: report.classification, buckets: report.buckets, payable: report.payable, warnings: report.warnings, sourceIds: [...new Set([...report.sales!, ...report.refunds!, ...report.records].map(r => r.id))] };
       const hash = createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
       // Keep a compact financial snapshot in sync; detailed schedules can always be exported separately.
       const { sourceIds, ...financial } = snapshot;

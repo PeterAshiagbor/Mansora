@@ -113,4 +113,19 @@ describe('R16-05 journal ties to the operational ledgers', () => {
     expect(a).toEqual(b);
     expect(a).toMatchObject({ accepted: 3, pending: 0 });
   });
+
+  it('R16-09: the VAT return sends line counts, not 150,000 line rows, unless asked', async () => {
+    const s = (shop = await makeShop({ now: () => new Date('2026-11-10T10:00:00.000Z') }));
+    await s.run(s.owner, 'tax.configure', { ...defaultTaxConfig(), effectiveDate: '2026-01-01', registered: true, registrationDate: '2026-01-01', tin: 'C0000000001', reason: 'Registered' });
+    await s.run(s.owner, 'product.save', { id: s.products.milk, name: 'Milk tin', sellingPrice: 1200, taxClass: 'standard' });
+    await s.run(s.cashier, 'sale.complete', { id: uuid(), lines: [{ productId: s.products.milk, quantity: 2 }], tenders: [{ method: 'cash', amount: 2400 }] });
+    const slim = await s.run(s.owner, 'tax.report', { month: '2026-11' });
+    expect(slim.sales).toBeUndefined();
+    expect(slim.lines).toEqual({ sales: 1, refunds: 0 });
+    expect(slim.buckets[0]).toMatchObject({ tax: 'vat', output: 300, payable: 300 });
+    const full = await s.run(s.owner, 'tax.report', { month: '2026-11', includeRows: true });
+    expect(full.sales).toHaveLength(1);
+    expect(full.payable).toBe(slim.payable);
+  });
 });
+

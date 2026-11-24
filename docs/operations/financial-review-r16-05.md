@@ -43,3 +43,89 @@ Method: each area was exercised with synthetic transactions. Every expected figu
 
 - Full suite: 110 files and 555 tests pass. The typecheck is clean.
 - CI on PR #99.
+
+## R16-09 follow-up: VAT return performance (Codex finding on PR #100)
+
+`vatReport` used to load and JSON-parse every sale and refund line ever recorded, reparse each snapshot up to five times, and reload the tax settings for every line. It also sent every line to the Tax screen, which displays none of them. Changes:
+
+- **Less history loaded:** only the reported month's lines are read, plus lines sold while collection was switched off (needed for exposure). Earlier months reach the carry-forward as per-month sums computed in SQLite.
+- **Less repeated work:** each snapshot is parsed once, and the tax settings are looked up once per date.
+- **Smaller response:** `tax.report` returns line counts instead of line rows unless `includeRows: true` is passed. The Excel export still contains every line.
+
+Equivalence was checked against a mixed four-month history: purchases, input credits, carry-forward, collection switched off and on, refunds of switched-off sales in later months, and an external sale. The old and new reports for each month were identical byte for byte once random IDs were masked.
+
+Codex's benchmark (`tests/performance/vat-benchmark.ts`, PR #100) was run on the same machine, 50,000 sales, 150,000 lines, 10% collection suppressed:
+
+| Measure | Before | After |
+| --- | --- | --- |
+| Report for the busy month, median of 5 | 3,705 ms | 2,223–2,813 ms |
+| Data sent to the Tax screen | 98.5 MB | 2.6 MB |
+| Report for the following, quiet month | 1,907 ms | 1,423 ms |
+
+The busy month still processes all 150,000 lines of that month. A further step would aggregate the month's output and classifications in SQLite when rows are not requested. This duplicates the calculation path, so it should follow only if Codex's thresholds still fail on production hardware.
+
+### Memory, measured per operation (Codex follow-up on PR #102)
+
+Codex measured 1,342 MiB of process RSS after its benchmark. That process also built the 150,000-row fixture, so the figure is not the report's own cost. To isolate it, the fixture was built and closed, then each operation was run alone in a fresh process. The figure below is the peak RSS of that process (`process.resourceUsage().maxRSS`), including about 105 MB of baseline.
+
+| Operation, 50,000 sales / 150,000 lines | Peak RSS | Time |
+| --- | --- | --- |
+| `tax.report` (Tax screen, no rows) | 417 MB | 3.2 s |
+| `tax.report` with `includeRows` | 415 MB | 3.5 s |
+| `tax.export` (Excel), before | **2,067 MB** | 17.2 s |
+| `tax.export` (Excel), after the streaming writer | **582 MB** | 12.3 s |
+
+The export was the operation over the 1 GB allocation. `toXlsx`, which every Mansora spreadsheet export uses, now streams rows into the file instead of building the whole workbook in memory. `tests/integration/xlsx-stream.test.ts` checks the written content: sheets, values, formula-looking text kept as text, and the bold header.
+
+Two side effects:
+
+- The old writer crashed on a sheet with no rows; the new one writes it.
+- An empty-string cell is now a blank cell. Excel and `readTable` show both as empty.
+
+The file is about a third larger (7.5 MB against 5.6 MB) because repeated text is no longer shared.
+
+A constrained, production-like run is still Codex's acceptance step.
+
+### Summary path aggregated in SQLite (Codex follow-up on PR #102)
+
+The Tax screen's `tax.report` without rows no longer loads the month's ordinary lines. SQLite returns one grouped stand-in row per day and VAT treatment, made up of these fields:
+
+- classification
+- registered flag
+- verified flag
+- whether the snapshot is missing
+- summed base, VAT, NHIL, GETFund, total and line amount
+
+These are the only fields the return calculation reads.
+
+Some lines are still loaded one by one, because they need individual treatment:
+
+- lines sold while collection was switched off
+- lines reconciled by an adjustment
+- refunds of either kind
+
+Export and filing (`tax.file`) still use the full line-by-line path.
+
+`tests/integration/vat-summary-equivalence.test.ts` compares the summary with the full return for every month of a mixed history and requires every figure, blocker and warning to be equal. The history covers:
+
+- a legacy line with no snapshot
+- unclassified lines
+- a backdated registration that leaves a sale without VAT, and its refund
+- zero-rated and exempt sales
+- collection switched off and back on, with later refunds
+- a reconciled line and its refund
+- an input credit and an external sale
+
+Three deliberate mistakes in the grouping (a wrong registered flag, a wrong verified flag, legacy lines treated as snapshots) each made the test fail.
+
+Each path was measured in a fresh process against the pre-built 150,000-line fixture with 10% of collection switched off:
+
+| Path | Peak RSS | Time |
+| --- | --- | --- |
+| Tax screen summary | 380 MB | 2.2 s |
+| `includeRows` (four runs in one process) | 1,129 MB | 2.2–2.3 s each |
+| Excel export (streamed) | 579 MB | 10.1 s |
+
+The summary's remaining cost is mainly the 15,000 switched-off lines, which have to be handled one by one for exposure. A real shop has almost none.
+
+The full-row path is used only on request and by filing. A single run measured 415 MB earlier; repeated runs in one process build up uncollected memory.
