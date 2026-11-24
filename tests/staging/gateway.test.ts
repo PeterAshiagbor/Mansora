@@ -59,7 +59,12 @@ describe('persistent authenticated team staging gateway', () => {
     const client = await (await fetch(`${gateway.url}/app/`, { headers: { cookie: ownerCookie } })).text(); expect(client).toContain('/app/bridge.js'); expect(client).toContain('TEAM TEST ENVIRONMENT'); expect(client).not.toContain(config.key);
     const bridge = await (await fetch(`${gateway.url}/app/bridge.js`, { headers: { cookie: ownerCookie } })).text(); expect(bridge).toContain('/app/invoke'); expect(bridge).toContain('MANSORA_SIGNIN_URL'); expect(bridge).not.toContain('engine.execute'); expect(bridge).not.toContain(account('owner').password);
     expect((await fetch(`${gateway.url}/app/invoke`, { method: 'POST', headers: { origin: gateway.publicOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ command: 'app.state' }) }).then(r => r.json()) as any).error.code).toBe('NOT_SIGNED_IN');
-    const own = await fetch(`${gateway.url}/app/invoke`, { method: 'POST', headers: { origin: gateway.publicOrigin, cookie: otherCookie, 'content-type': 'application/json' }, body: JSON.stringify({ command: 'app.state' }) }).then(r => r.json()) as any; expect(own.data.business.tenantId).toBe(workspaces[1].engine.meta('tenant_id'));
+    const app = (cookie: string, workspace: string | null, command: string, input: unknown = {}) => fetch(`${gateway.url}/app/invoke`, { method: 'POST', headers: { origin: gateway.publicOrigin, cookie, 'content-type': 'application/json', ...(workspace ? { 'x-mansora-workspace': workspace } : {}) }, body: JSON.stringify({ command, input }) }).then(r => r.json()) as Promise<any>;
+    expect(bridge).toContain(`'x-mansora-workspace':"shop-a"`);
+    const own = await app(otherCookie, 'shop-b', 'app.state'); expect(own.data.business.tenantId).toBe(workspaces[1].engine.meta('tenant_id'));
+    // A page loaded for shop A never writes into shop B after another tab changes this browser's sign-in.
+    for (const stale of ['shop-a', null]) { const moved = await app(otherCookie, stale, 'product.save', { name: 'Wrong shop', costPrice: 1, sellingPrice: 1 }); expect(moved.error.code).toBe('WORKSPACE_CHANGED'); }
+    expect((await app(otherCookie, 'shop-b', 'product.list', { search: 'Wrong shop' })).data).toEqual([]);
     expect(await (await fetch(`${gateway.url}/config.js`)).text()).toContain('"/api"'); expect((await fetch(`${gateway.url}/admin/`)).status).toBe(200);
     for (const path of ['/test-accounts.json', '/workspaces.json', '/.secrets/staging_db_key', '/client/shop-a/..%2f..%2ftest-accounts.json']) expect((await fetch(gateway.url + path)).status).toBe(404);
   });

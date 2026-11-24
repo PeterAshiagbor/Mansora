@@ -11,8 +11,8 @@ import { startStagingGateway } from '../../scripts/staging/gateway';
 let cloud: Cloud, shops: TestShop[], gateway: Awaited<ReturnType<typeof startStagingGateway>>;
 let ownerCookie = '';
 const oldKey = process.env.ADMIN_TOTP_KEY;
-const post = async (path: string, input: unknown, cookie = '', origin?: string) => {
-  const response = await fetch(gateway.url + path, { method: 'POST', headers: { origin: origin ?? gateway.publicOrigin, 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(input) });
+const post = async (path: string, input: unknown, cookie = '', origin?: string, workspace?: string) => {
+  const response = await fetch(gateway.url + path, { method: 'POST', headers: { origin: origin ?? gateway.publicOrigin, 'content-type': 'application/json', ...(cookie ? { cookie } : {}), ...(workspace ? { 'x-mansora-workspace': workspace } : {}) }, body: JSON.stringify(input) });
   return { status: response.status, body: await response.json() as any, cookie: response.headers.get('set-cookie')?.split(';')[0], headers: response.headers };
 };
 const signIn = (username: string, password = OWNER.password) => post('/signin/login', { username, password });
@@ -35,18 +35,19 @@ it('replaces the directory with private, branded sign-in in both deployment mode
 it('lets the password decide a bare username, and asks which account only after the password is proved', async () => {
   // Both owners intentionally use the same password, so the password alone cannot decide: the person chooses.
   const response = await signIn(OWNER.username); expect(response.status).toBe(200); expect(response.cookie).toBeUndefined();
-  expect(response.body.data.choose).toEqual([{ id: 'shop:shop-a', label: 'Private business 0' }, { id: 'shop:shop-b', label: 'Private business 1' }]);
+  const [a, b] = response.body.data.choose; expect(response.body.data.choose).toHaveLength(2);
+  expect([a.label, b.label]).toEqual(['Private business 0', 'Private business 1']); expect(a.id).toMatch(/^shop:shop-a:/); expect(b.id).toMatch(/^shop:shop-b:/);
   expect((await post('/signin/login', { username: OWNER.username, password: 'wrong-password' })).status).toBe(401);
-  expect((await post('/signin/login', { username: OWNER.username, password: 'wrong-password', choice: 'shop:shop-a' })).status).toBe(401);
-  expect((await post('/signin/login', { username: OWNER.username, password: OWNER.password, choice: 'shop:absent' })).status).toBe(401);
-  const chosen = await post('/signin/login', { username: OWNER.username, password: OWNER.password, choice: 'shop:shop-b' }); expect(chosen.body.data).toEqual({ platform: 'client', url: '/app/' });
-  expect((await post('/app/invoke', { command: 'app.state' }, chosen.cookie)).body.data.business.tenantId).toBe(shops[1].engine.meta('tenant_id'));
+  expect((await post('/signin/login', { username: OWNER.username, password: 'wrong-password', choice: a.id })).status).toBe(401);
+  expect((await post('/signin/login', { username: OWNER.username, password: OWNER.password, choice: 'shop:absent:x' })).status).toBe(401);
+  const chosen = await post('/signin/login', { username: OWNER.username, password: OWNER.password, choice: b.id }); expect(chosen.body.data).toEqual({ platform: 'client', url: '/app/' });
+  expect((await post('/app/invoke', { command: 'app.state' }, chosen.cookie, undefined, 'shop-b')).body.data.business.tenantId).toBe(shops[1].engine.meta('tenant_id'));
   // A password held by only one of the accounts opens that account directly, with no question.
   const user = shops[1].engine.db.prepare("SELECT id FROM users WHERE role = 'owner'").get() as { id: string };
   const owner = (await invoke('shop-b', 'staff.list', {}, chosen.cookie)).body.data.find((row: any) => row.id === user.id);
   expect((await invoke('shop-b', 'staff.save', { id: owner.id, name: owner.name, username: owner.username, role: 'owner', status: 'active', permissions: owner.permissions, password: 'shop-b-only-passphrase' }, chosen.cookie)).body.ok).toBe(true);
   const direct = await signIn(OWNER.username, 'shop-b-only-passphrase'); expect(direct.body.data).toEqual({ platform: 'client', url: '/app/' });
-  expect((await post('/app/invoke', { command: 'app.state' }, direct.cookie)).body.data.business.tenantId).toBe(shops[1].engine.meta('tenant_id'));
+  expect((await post('/app/invoke', { command: 'app.state' }, direct.cookie, undefined, 'shop-b')).body.data.business.tenantId).toBe(shops[1].engine.meta('tenant_id'));
   expect((await signIn(OWNER.username)).body.data).toEqual({ platform: 'client', url: '/app/' });
 });
 it('normalises the qualified identity and gives a scoped session only after successful authentication', async () => {
@@ -63,6 +64,15 @@ it('accepts a unique invitation email and lets a shared shop/administrator email
   const shop = await signIn(ADMIN.email, OWNER.password); expect(shop.body.data).toEqual({ platform: 'client', url: '/app/' }); expect(shop.body.data.token).toBeUndefined();
   expect((await signIn(ADMIN.email, 'neither-password')).status).toBe(401);
   const admin = await signIn('admin:' + ADMIN.email, ADMIN.password); expect(admin.body.data.platform).toBe('admin'); expect(admin.body.data.token).toBeTruthy(); expect(admin.cookie).toBeUndefined();
+});
+it('names the exact account when one business has two accounts sharing an email and password', async () => {
+  const owner = await signIn('ama@shop-a');
+  for (const username of ['shared.one', 'shared.two']) expect((await invoke('shop-a', 'staff.save', { name: username, username, role: username === 'shared.one' ? 'cashier' : 'manager', email: 'shared@example.test', password: 'shared-strong-pass' }, owner.cookie)).body.ok).toBe(true);
+  const listed = await post('/signin/login', { username: 'shared@example.test', password: 'shared-strong-pass' });
+  expect(listed.body.data.choose.map((choice: any) => choice.label)).toEqual(['Private business 0 · shared.one', 'Private business 0 · shared.two']);
+  const second = listed.body.data.choose[1];
+  const opened = await post('/signin/login', { username: 'shared@example.test', password: 'shared-strong-pass', choice: second.id });
+  expect((await post('/app/invoke', { command: 'app.state' }, opened.cookie, undefined, 'shop-a')).body.data.user.username).toBe('shared.two');
 });
 it('rejects duplicate hosted usernames across shops, case variants and simultaneous attempts', async () => {
   const input = { name: 'New staff', username: 'kofi', role: 'cashier', password: 'another-strong-pass' };

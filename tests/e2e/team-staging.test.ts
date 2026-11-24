@@ -91,6 +91,16 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
       await signIn(ADMIN.email, ADMIN.password); await page.waitForURL('**/admin/'); await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
       await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Sign out', exact: true }).click(); await page.waitForURL('**/signin/');
       await page.goto(gateway.url + '/admin/'); await page.waitForURL('**/signin/');
+      // An emailed administrator invitation is still accepted in the console before the one sign-in page takes over.
+      const mails: any[] = []; cloud.billing.email = { configured: () => true, send: async (message: any) => { mails.push(message); return { id: 'm' + mails.length }; } } as any;
+      expect((await cloud.api('POST', '/v1/admin/admins/invitations', { name: 'Hosted Colleague', email: 'hosted.colleague@example.test' })).status).toBe(200);
+      const token = /#admin-invite=([A-Za-z0-9_-]{43})/.exec(mails.at(-1).body)![1];
+      await page.goto(gateway.url + '/admin/#admin-invite=' + token);
+      await page.getByLabel('New password', { exact: true }).fill('hosted-colleague-pass'); await page.getByLabel('Repeat password', { exact: true }).fill('hosted-colleague-pass');
+      await page.getByRole('button', { name: 'Create my account', exact: true }).click(); await page.waitForURL('**/signin/');
+      expect(await page.getByLabel('Username or email', { exact: true }).inputValue()).toBe('hosted.colleague@example.test');
+      await page.getByLabel('Password', { exact: true }).fill('hosted-colleague-pass'); await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await page.waitForURL('**/admin/'); await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
       expect(errors).toEqual([]);
     } finally { await page.context().close(); }
   });

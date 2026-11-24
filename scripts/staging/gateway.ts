@@ -183,8 +183,11 @@ export async function startStagingGateway(opts: GatewayOptions) {
         const matches: { id: string; label: string; open: () => Promise<void> }[] = [];
         for (const account of shops) {
           const row = account.workspace.engine.db.prepare('SELECT password_hash, status FROM users WHERE id = ?').get(account.id) as { password_hash: string; status: string } | undefined;
-          if (row?.status === 'active' && await verifyLoginPassword(input.password, row.password_hash)) matches.push({ id: 'shop:' + account.workspace.id, label: account.workspace.label, open: () => signInShop(account) });
+          if (row?.status === 'active' && await verifyLoginPassword(input.password, row.password_hash)) matches.push({ id: `shop:${account.workspace.id}:${account.id}`, label: account.workspace.label, open: () => signInShop(account) });
         }
+        // Two accounts in the same business (a shared staff email) are told apart by their usernames.
+        const repeated = new Set(matches.filter((match, index) => matches.findIndex(other => other.label === match.label) !== index).map(match => match.label));
+        for (const match of matches) if (repeated.has(match.label)) match.label += ' · ' + shops.find(account => match.id === `shop:${account.workspace.id}:${account.id}`)!.username;
         if (adminPossible && (adminHash === null ? !matches.length : await verifyLoginPassword(input.password, adminHash))) matches.push({ id: 'admin', label: 'Mansora administration', open: signInAdmin });
         if (!matches.length) throw new HttpError(401, 'INVALID_CREDENTIALS', 'Incorrect username or password.');
         if (input.choice !== undefined) {
@@ -291,6 +294,9 @@ export async function startStagingGateway(opts: GatewayOptions) {
           if (req.method !== 'POST') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Use POST for application commands.');
           if (req.headers.origin !== origin.origin) throw new HttpError(403, 'ORIGIN_DENIED', 'Open this workspace directly before submitting a request.');
           if (!(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) throw new HttpError(415, 'JSON_REQUIRED', 'Send application/json.');
+          // /app/ follows the browser's session, which another tab can replace by signing in to a different business.
+          // A page loaded for one shop says which; if the session now belongs to another, nothing runs there.
+          if (prefix === APP && req.headers['x-mansora-workspace'] !== workspace.id) return json(res, 200, { ok: false, error: { code: 'WORKSPACE_CHANGED', message: 'This browser is now signed in to a different business. The page will reload; nothing was saved.' } });
           let payload: any; try { payload = JSON.parse((await body(req, limit)).toString('utf8')); } catch (e) { if (e instanceof HttpError) throw e; throw new HttpError(400, 'BAD_JSON', 'The request could not be read.'); }
           if (!payload || typeof payload.command !== 'string' || payload.command.length > 100) throw new HttpError(400, 'BAD_COMMAND', 'A valid command is required.');
           const { command } = payload; let input = payload.input ?? {};
@@ -344,7 +350,7 @@ export async function startStagingGateway(opts: GatewayOptions) {
         if (req.method !== 'GET') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
         if (tail === 'bridge.js') {
           res.writeHead(200, { 'content-type': MIME['.js'] });
-          res.end(`${opts.ownerRecovery?.available() ? "window.MANSORA_OWNER_RECOVERY_URL=" + JSON.stringify(`/client/${workspace.id}/recover/`) + ";" : ""}window.MANSORA_SIGNIN_URL=${JSON.stringify(SIGN_IN)};window.mansora = {invoke: async (command,input) => {try {const r=await fetch(${JSON.stringify(prefix + 'invoke')},{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({command,input})});return await r.json();}catch {return {ok:false,error:{code:'OFFLINE',message:'Cannot reach Mansora. Reconnect and check saved records before retrying a transaction.'}};}}};`); return;
+          res.end(`${opts.ownerRecovery?.available() ? "window.MANSORA_OWNER_RECOVERY_URL=" + JSON.stringify(`/client/${workspace.id}/recover/`) + ";" : ""}window.MANSORA_SIGNIN_URL=${JSON.stringify(SIGN_IN)};window.mansora = {invoke: async (command,input) => {try {const r=await fetch(${JSON.stringify(prefix + 'invoke')},{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'${prefix === APP ? `,'x-mansora-workspace':${JSON.stringify(workspace.id)}` : ''}},body:JSON.stringify({command,input})});return await r.json();}catch {return {ok:false,error:{code:'OFFLINE',message:'Cannot reach Mansora. Reconnect and check saved records before retrying a transaction.'}};}}};`); return;
         }
         const target = file(opts.clientDir, tail || 'index.html'); if (!target) throw new HttpError(404, 'NOT_FOUND', 'Not found.');
         res.setHeader('content-type', MIME[extname(target)]);

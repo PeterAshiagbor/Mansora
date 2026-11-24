@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { can as canDo, type Permission } from '@mansora/domain';
 import { Alert, Button, VatGuide, cx, Field, Input, MansoraBrand, AuthLayout, WorkspaceShell, CLIENT_GUIDES, DraftProvider, useNavigationGuard, ReportProblemButton, ReportProblemNavItem, usePersistentPage } from '@mansora/ui';
-import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState } from './lib';
+import { AppCtx, call, canRestore, restoreBackup, ToastProvider, useAction, useApp, useQuery, type AppState, goToSignIn } from './lib';
 import { ContactMansora } from './components/ContactMansora';
 import { Checkout } from './pages/Checkout';
 import { Dashboard } from './pages/Dashboard';
@@ -156,7 +156,7 @@ function AuthFrame({ title, subtitle, children }: { title: string; subtitle: str
  * an expired session or the back button all return there instead of to a second, shop-specific form.
  */
 function ToSignIn({ url }: { url: string }) {
-  useEffect(() => { location.replace(url); }, [url]);
+  useEffect(() => { goToSignIn(url); }, [url]);
   return <div className="flex h-full items-center justify-center text-slate-500" role="status">Taking you to sign in…</div>;
 }
 

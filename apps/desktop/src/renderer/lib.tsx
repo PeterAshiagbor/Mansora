@@ -41,6 +41,14 @@ export const restoreBackup = (passphrase: string) => bridge.restore!(passphrase)
 
 const READ_ONLY = /\.(list|get|status|queue|current|overview|movements|lookup|receipt|dashboard|sales|profit|stock|state|preview|history|template|table|summary|document|quote|export)$/;
 
+/** Hosted only: leave for the one sign-in page exactly once, however many requests or screens notice first. */
+let leaving = false;
+export function goToSignIn(url = window.MANSORA_SIGNIN_URL!): void {
+  if (leaving) return;
+  leaving = true;
+  location.replace(url);
+}
+
 export async function call<T = any>(command: string, input: unknown = {}): Promise<T> {
   const res = await bridge.invoke(command, input);
   if (res.ok) {
@@ -49,9 +57,11 @@ export async function call<T = any>(command: string, input: unknown = {}): Promi
     if (!READ_ONLY.test(command)) window.dispatchEvent(new Event('mansora:changed'));
     return res.data as T;
   }
+  // Hosted: another tab signed this browser in to a different business. Reload into that business; the request did not run.
+  if (res.error.code === 'WORKSPACE_CHANGED' && window.MANSORA_SIGNIN_URL) { if (!leaving) { leaving = true; alert(res.error.message); location.replace(location.pathname); } return new Promise<T>(() => {}); }
   if (res.error.code === 'SESSION_LOCKED' || res.error.code === 'NOT_SIGNED_IN') {
     // Hosted: signed out, locked or expired always means the one sign-in page, never an error or a second form.
-    if (window.MANSORA_SIGNIN_URL) { location.replace(window.MANSORA_SIGNIN_URL); return new Promise<T>(() => {}); }
+    if (window.MANSORA_SIGNIN_URL) { goToSignIn(); return new Promise<T>(() => {}); }
     window.dispatchEvent(new CustomEvent('mansora:signed-out', { detail: res.error.code }));
   }
   throw new DomainError(res.error.code, res.error.message, res.error.details);
