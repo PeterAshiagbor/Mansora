@@ -117,6 +117,11 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
       expect(await rehearsePublicSignIn({ version: 'signin-v1', origin: gateway.publicOrigin, dataDir: config.dataDir, workspaces })).toMatchObject({ passed: true, accountsChecked: 5, failures: [], skippedPasswordChangedByUser: [{ workspace: 'shop-b', role: 'manager' }] });
       expect((shopB.prepare('SELECT failed_attempts FROM users WHERE username = ?').get(manager.username) as any).failed_attempts).toBe(original.failed_attempts);
     } finally { shopB.prepare('UPDATE users SET password_hash = ? WHERE username = ?').run(original.password_hash, manager.username); }
+    // A disabled assigned account is a failure, never mistaken for a changed password.
+    shopB.prepare("UPDATE users SET status = 'disabled' WHERE username = ?").run(manager.username);
+    try {
+      expect(await rehearsePublicSignIn({ version: 'signin-v1', origin: gateway.publicOrigin, dataDir: config.dataDir, workspaces })).toMatchObject({ passed: false, accountsChecked: 5, skippedPasswordChangedByUser: [], failures: [{ workspace: 'shop-b', role: 'manager', step: 'account-disabled' }] });
+    } finally { shopB.prepare("UPDATE users SET status = 'active' WHERE username = ?").run(manager.username); }
   });
   it('keeps owner and cashier independent while they save and sell shared records', async () => {
     expect((await owner.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('owner');

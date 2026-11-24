@@ -32,7 +32,10 @@ export async function rehearsePublicSignIn(options: { version: string; origin: s
     // A tester may have chosen their own password since the private test record was written. That is the person's
     // right, not a sign-in fault: compare against the stored hash (no failed attempt is counted) and skip the account.
     const row = workspace.engine.db.prepare('SELECT password_hash, status FROM users WHERE lower(username) = lower(?)').get(account.username) as { password_hash: string; status: string } | undefined;
-    if (!row || row.status !== 'active' || !verifyPassword(account.password, row.password_hash)) { changedByUser.push({ workspace: account.workspace, role: account.role }); continue; }
+    // A missing or disabled assigned account is a real failure; only an active account whose saved password no longer matches is skipped.
+    if (!row) { failures.push({ workspace: account.workspace, role: account.role, step: 'account-missing' }); continue; }
+    if (row.status !== 'active') { failures.push({ workspace: account.workspace, role: account.role, step: 'account-disabled' }); continue; }
+    if (!verifyPassword(account.password, row.password_hash)) { changedByUser.push({ workspace: account.workspace, role: account.role }); continue; }
     let cookie = '';
     try {
       step = 'sign-in';
