@@ -143,7 +143,7 @@ export async function runRailwayServer() {
         ? rehearsePublicSignIn({version:'signin-v1',origin:config.origin,dataDir:join(config.dataDir,'staging'),workspaces:acceptanceWorkspaces})
         : rehearseTsb({mode:config.mode,version:process.env.MANSORA_TSB_ACCEPTANCE!,origin:config.origin,dataDir:join(config.dataDir,'staging'),workspaces:acceptanceWorkspaces}))
         .then((result:any)=>console.log(process.env.MANSORA_TSB_ACCEPTANCE === 'signin-v1' ? (result.passed ? 'Public sign-in acceptance:' : 'Public sign-in acceptance FAILED:') : 'TSB authenticated acceptance:',JSON.stringify(result)))
-        .catch(()=>console.warn(process.env.MANSORA_TSB_ACCEPTANCE === 'signin-v1' ? 'Public sign-in acceptance failed; existing credentials and financial records were not changed.' : 'TSB authenticated acceptance blocked; inspect the private rehearsal journal.'));},45000);acceptanceTimer.unref();
+        .catch((error:any)=>console.warn(process.env.MANSORA_TSB_ACCEPTANCE === 'signin-v1' ? `Public sign-in acceptance failed (${/^SIGNIN_[A-Z_]+$/.test(String(error?.message)) ? error.message : (error?.name ?? 'Error')}); existing credentials and financial records were not changed.` : 'TSB authenticated acceptance blocked; inspect the private rehearsal journal.'));},45000);acceptanceTimer.unref();
     }
     console.log(config.mode === 'client' ? 'Mansora client service is ready.' : 'Railway team testing is ready. Retrieve assigned accounts privately from the persistent volume.');
     return { app, gateway, db, close };

@@ -1,5 +1,5 @@
 /** Opt-in, read-only public sign-in rehearsal using existing assigned synthetic accounts. */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { StagingWorkspace } from './gateway';
 import type { TestAccount } from './bootstrap';
@@ -8,9 +8,16 @@ import { verifyPassword } from '../../apps/desktop/src/core/passwords';
 export async function rehearsePublicSignIn(options: { version: string; origin: string; dataDir: string; workspaces: StagingWorkspace[] }) {
   if (options.version !== 'signin-v1') throw new Error('SIGNIN_ACCEPTANCE_VERSION_REQUIRED');
   const origin = new URL(options.origin).origin;
-  const accounts = JSON.parse(readFileSync(join(options.dataDir, 'test-accounts.json'), 'utf8')) as TestAccount[];
+  // A deployment without the private test-account list (or with testers added to the test shops) is reported, not thrown,
+  // so the log says why nothing could be checked instead of a bare "failed".
+  const notChecked = (setup: string, extra: Record<string, unknown> = {}) => ({ version: 'signin-v1', passed: false, setup, accountsChecked: 0, skippedPasswordChangedByUser: [], failures: [], ...extra, financialWrites: 0, emailsSent: 0 });
+  const manifest = join(options.dataDir, 'test-accounts.json');
+  if (!existsSync(manifest)) return notChecked('no private test-account list on this deployment');
+  let accounts: TestAccount[];
+  try { accounts = JSON.parse(readFileSync(manifest, 'utf8')); if (!Array.isArray(accounts)) throw new Error(); } catch { return notChecked('the private test-account list could not be read'); }
   const assigned = accounts.filter(account => ['shop-a', 'shop-b'].includes(account.workspace));
-  if (assigned.length !== 6 || !['shop-a', 'shop-b'].every(id => ['owner', 'manager', 'cashier'].every(role => assigned.filter(account => account.workspace === id && account.role === role).length === 1))) throw new Error('SIGNIN_ACCEPTANCE_ASSIGNED_ACCOUNTS_REQUIRED');
+  const roles = Object.fromEntries(['shop-a', 'shop-b'].flatMap(id => ['owner', 'manager', 'cashier'].map(role => [`${id}:${role}`, assigned.filter(account => account.workspace === id && account.role === role).length])));
+  if (!assigned.length) return notChecked('no test-shop accounts in the private test-account list', { roles });
   // Each check names its step so a failure can be traced without logging any secret.
   class StepFailed extends Error {}
   let step = 'landing';
@@ -53,5 +60,5 @@ export async function rehearsePublicSignIn(options: { version: string; origin: s
     } finally { if (cookie) await invoke(account.workspace, cookie, 'auth.logout', true).catch(() => {}); }
   }
   const passed = !failures.length && checked > 0;
-  return { version: 'signin-v1', passed, accountsChecked: checked, skippedPasswordChangedByUser: changedByUser, failures, landing, ...(passed ? { authenticatedRouting: 'passed', scopedCookies: 'passed', crossShopIsolation: 'passed' } : {}), financialWrites: 0, emailsSent: 0 };
+  return { version: 'signin-v1', passed, roles, accountsChecked: checked, skippedPasswordChangedByUser: changedByUser, failures, landing, ...(passed ? { authenticatedRouting: 'passed', scopedCookies: 'passed', crossShopIsolation: 'passed' } : {}), financialWrites: 0, emailsSent: 0 };
 }
