@@ -48,7 +48,7 @@ export async function inviteTesters(options: { id?: string; dataDir: string; ori
       if (!invitation.messageId) {
         if (invitation.firstAttemptAt && now().getTime() - Date.parse(invitation.firstAttemptAt) >= 23 * 3_600_000) throw new Error('Provider reconciliation required');
         invitation.firstAttemptAt ??= now().toISOString(); save(journalPath, journal);
-        const link = `${origin.origin}/client/${invitation.workspace}/#email=${encodeURIComponent(invitation.email)}`;
+        const link = `${origin.origin}/signin/#email=${encodeURIComponent(invitation.email)}`;
         const result = await email.send({ to: invitation.email, subject: 'Your Mansora test workspace is ready',
           idempotencyKey: `mansora-test-invite/${id}/${invitation.workspace}`,
           body: `Welcome to Mansora,\n\nYour private test workspace: ${link}\nSign-in email: ${invitation.email}\nYour unique test passphrase: ${invitation.password}\n\nPaste the passphrase exactly, including the hyphens and numbers. It will be activated immediately after this invitation is accepted for delivery. If you open this email straight away, allow a few seconds and retry.\n\nThis is a team test environment. Use sample records only. Your existing business records are preserved. Keep these sign-in details private; reply to this email if you need help.\n\nMansora Consulting and Business Solutions Limited` });

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { DomainError, formatGHS, grossMarginBps, parseGHS, type Permission } from '@mansora/domain';
-import { ActionMenu, Button, cx, Field, Input, Modal } from '@mansora/ui';
+import { ActionMenu, Alert, Button, cx, Field, Input, Modal } from '@mansora/ui';
 import { tableReportHtml } from './reporting';
 
 export interface FileOut {
@@ -20,6 +20,8 @@ declare global {
   interface Window {
     mansora?: Bridge;
     MANSORA_OWNER_RECOVERY_URL?: string;
+    /** Hosted (browser) deployments: the one sign-in page for every account. The app then never shows its own form. */
+    MANSORA_SIGNIN_URL?: string;
   }
 }
 
@@ -39,6 +41,14 @@ export const restoreBackup = (passphrase: string) => bridge.restore!(passphrase)
 
 const READ_ONLY = /\.(list|get|status|queue|current|overview|movements|lookup|receipt|dashboard|sales|profit|stock|state|preview|history|template|table|summary|document|quote|export)$/;
 
+/** Hosted only: leave for the one sign-in page exactly once, however many requests or screens notice first. */
+let leaving = false;
+export function goToSignIn(url = window.MANSORA_SIGNIN_URL!): void {
+  if (leaving) return;
+  leaving = true;
+  location.replace(url);
+}
+
 export async function call<T = any>(command: string, input: unknown = {}): Promise<T> {
   const res = await bridge.invoke(command, input);
   if (res.ok) {
@@ -47,7 +57,13 @@ export async function call<T = any>(command: string, input: unknown = {}): Promi
     if (!READ_ONLY.test(command)) window.dispatchEvent(new Event('mansora:changed'));
     return res.data as T;
   }
-  if (res.error.code === 'SESSION_LOCKED' || res.error.code === 'NOT_SIGNED_IN') window.dispatchEvent(new CustomEvent('mansora:signed-out', { detail: res.error.code }));
+  // Hosted: another tab signed this browser in to a different business. Reload into that business; the request did not run.
+  if (res.error.code === 'WORKSPACE_CHANGED' && window.MANSORA_SIGNIN_URL) { if (!leaving) { leaving = true; alert(res.error.message); location.replace(location.pathname); } return new Promise<T>(() => {}); }
+  if (res.error.code === 'SESSION_LOCKED' || res.error.code === 'NOT_SIGNED_IN') {
+    // Hosted: signed out, locked or expired always means the one sign-in page, never an error or a second form.
+    if (window.MANSORA_SIGNIN_URL) { goToSignIn(); return new Promise<T>(() => {}); }
+    window.dispatchEvent(new CustomEvent('mansora:signed-out', { detail: res.error.code }));
+  }
   throw new DomainError(res.error.code, res.error.message, res.error.details);
 }
 
@@ -150,7 +166,7 @@ export function useAction() {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
-  const run = useCallback(async <T,>(fn: () => Promise<T>, success?: string): Promise<T | undefined> => {
+  const run = useCallback(async <T,>(fn: () => Promise<T>, success?: string, options?: { rethrow?: (e: any) => boolean }): Promise<T | undefined> => {
     if (running.current) return undefined;
     running.current = true;
     setBusy(true);
@@ -159,6 +175,7 @@ export function useAction() {
       if (success) toast(success);
       return out;
     } catch (e: any) {
+      if (options?.rethrow?.(e)) throw e; // the caller shows this error where it happened
       toast(e.message ?? 'Something went wrong', 'bad');
       return undefined;
     } finally {
@@ -243,19 +260,39 @@ export interface Approver {
   password: string;
 }
 /** Asks a manager or owner to enter their own credentials to approve a restricted action. */
-export function ApprovalModal({ open, reason, onCancel, onApprove }: { open: boolean; reason: string; onCancel: () => void; onApprove: (a: Approver) => void }) {
+/** Errors that mean the approver's own details were refused: keep the approval open so they can retype them. */
+const APPROVER_ERRORS = new Set(['INVALID_CREDENTIALS', 'ACCOUNT_LOCKED', 'ACCOUNT_DISABLED', 'PERMISSION_DENIED', 'OWNER_APPROVAL_REQUIRED']);
+export const isApproverError = (e: any) => APPROVER_ERRORS.has(e?.code);
+
+/**
+ * Manager sign-off. `onApprove` may return a promise: if it rejects with an approver error (wrong password,
+ * locked account, someone not allowed to approve), the dialog stays open with the message so the manager can
+ * try again without the cashier re-entering the whole action. Any other outcome is left to the caller.
+ */
+export function ApprovalModal({ open, reason, onCancel, onApprove }: { open: boolean; reason: string; onCancel: () => void; onApprove: (a: Approver) => void | Promise<void> }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (open) (setUsername(''), setPassword(''));
+    if (open) (setUsername(''), setPassword(''), setError(null));
   }, [open]);
+  const approve = async () => {
+    if (!username || !password || busy) return;
+    setBusy(true); setError(null);
+    try { await onApprove({ username, password }); }
+    catch (e: any) { setError(e?.message ?? 'The approval could not be checked. Try again.'); if (isApproverError(e)) { setPassword(''); setTimeout(() => passwordRef.current?.focus(), 0); } }
+    finally { setBusy(false); }
+  };
   return (
     <Modal trackChanges={false} title="Manager approval needed" open={open} onClose={onCancel}
-      footer={<><Button dismiss onClick={onCancel}>Cancel</Button><Button variant="primary" disabled={!username || !password} onClick={() => onApprove({ username, password })}>Approve</Button></>}>
-      <form onSubmit={(e) => { e.preventDefault(); if (username && password) onApprove({ username, password }); }} className="space-y-3">
+      footer={<><Button dismiss onClick={onCancel}>Cancel</Button><Button variant="primary" disabled={busy || !username || !password} onClick={() => void approve()}>{busy ? 'Checking…' : 'Approve'}</Button></>}>
+      <form onSubmit={(e) => { e.preventDefault(); void approve(); }} className="space-y-3">
         <p className="text-sm text-slate-700">{reason} A manager or the owner must sign to approve.</p>
+        {error && <Alert tone="bad">{error}</Alert>}
         <Field label="Manager username"><Input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" /></Field>
-        <Field label="Manager password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="off" /></Field>
+        <Field label="Manager password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="off" ref={passwordRef} /></Field>
         <button type="submit" hidden />
       </form>
     </Modal>

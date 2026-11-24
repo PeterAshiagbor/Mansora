@@ -97,3 +97,12 @@ Something not working, confusing, or missing? Press **Report a problem** in the 
 
 Mansora reads every report each evening at 7pm. Do not write passwords or customers' details in a report. Only the name of what you pointed at is sent, never what is typed in a box.
 If the internet is off, the report is not lost: your text stays in the form, so send it again when you are back online.
+
+
+## Bulk VAT classifications
+
+On **Products**, filter/search the catalogue, optionally select **Needs VAT classification**, then select individual rows or **Select all loaded**. The selection is limited to the loaded matching products (at most 1,000), including their table pages; refine the search for larger catalogues. Choose **Bulk update VAT**, review the selected names, choose Standard-rated, Zero-rated, Exempt or Outside scope, and enter a reason. The operation requires Create and edit products and categories permission. It checks product versions and asks for a refresh if another user changed a selected product. Original receipts, stock quantities, cost prices and selling prices are preserved.
+
+On **Import & export**, map a VAT classification column or choose a classification for rows whose VAT column is blank. Explicit row classifications take precedence. To change an existing catalogue, select **Update VAT classifications of matching existing products**, preview the file, and enter a reason. VAT-only files can identify products by unique Name, SKU or Barcode without supplying prices. Conflicting identifiers and repeated updates to the same existing product are refused. Existing matches receive classification changes only; quantities and prices are not re-imported. A changed catalogue requires a new preview before committing. The result and import history show VAT update counts; each changed product has its own audit entry. Blank classification rows are skipped for existing products unless a default is selected.
+
+When VAT collection is effective, new opening stock still requires a classification. Choosing a bulk default is an explicit owner/manager decision, not an inference about a product’s statutory treatment.

@@ -17,7 +17,7 @@ export function ContactMansora({ recovery = false }: { recovery?: boolean }) {
     }).catch(() => { if (live) setFailed(true); });
     return () => { live = false; };
   }, [open]);
-  return <><Button variant="ghost" onClick={() => setOpen(true)}>{recovery ? 'Forgot password? Get help' : 'Contact Mansora'}</Button>{open && <Modal title={recovery ? 'Help signing in' : 'Contact Mansora'} trackChanges={false} open onClose={() => setOpen(false)}>
+  return <><Button variant="ghost" onClick={() => setOpen(true)}>{recovery ? 'Need help signing in?' : 'Contact Mansora'}</Button>{open && <Modal title={recovery ? 'Help signing in' : 'Contact Mansora'} trackChanges={false} open onClose={() => setOpen(false)}>
     {recovery && <div className="mb-5 space-y-3 text-sm"><p><strong>Staff:</strong> ask your business owner to reset your staff password. Mansora cannot disclose it.</p><p><strong>Business owners:</strong> use the owner recovery form on the sign-in screen. You will need a recovery code issued after your identity is verified. {window.MANSORA_OWNER_RECOVERY_URL ? <>For this browser workspace, <a className="underline" href={window.MANSORA_OWNER_RECOVERY_URL}>request a private recovery link</a> at the recorded owner email.</> : <>For a browser workspace, contact Mansora for the recovery process.</>}</p><p>Never send your password, passphrase, payment PIN or recovery code through email or WhatsApp.</p></div>}
     <Card title={contact?.name || 'Mansora support'}>
       {!contact && !failed && <p role="status">Loading contact details…</p>}

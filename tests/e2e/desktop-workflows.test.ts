@@ -212,9 +212,12 @@ describe.skipIf(!pw || !built)('remaining desktop workflows through the real int
     await page.getByRole('button', { name: 'Pay (F9)', exact: true }).click();
     await page.getByRole('dialog', { name: 'Take payment', exact: true }).getByRole('button', { name: 'Exact', exact: true }).click();
     await page.getByRole('button', { name: /Complete sale/ }).click(); await approve(manager);
-    await page.getByRole('dialog', { name: 'Take payment', exact: true }).getByText("Discounts above 10% need the owner's approval", { exact: true }).waitFor();
+    // The refusal stays in the approval dialog so the owner can sign there without restarting payment.
+    const approval = page.getByRole('dialog', { name: 'Manager approval needed', exact: true });
+    await approval.getByText("Discounts above 10% need the owner's approval", { exact: true }).waitFor();
+    expect(await approval.getByLabel('Manager password').inputValue()).toBe('');
     expect(read('SELECT COUNT(*) AS n FROM sales').n).toBe(1);
-    await page.getByRole('button', { name: /Complete sale/ }).click(); await approve(owner); await nextSale();
+    await approve(owner); await nextSale();
     expect(read('SELECT s.total, s.discount_total, u.username FROM sales s JOIN users u ON u.id = s.discount_approved_by WHERE s.discount_total > 0')).toMatchObject({ total: 800, discount_total: 200, username: owner.username });
   });
 

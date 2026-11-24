@@ -4,7 +4,7 @@ import { CustomerPicker, type PickedCustomer } from '../components/CustomerPicke
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { settlePayments, type taxCart } from '@mansora/domain';
 import { Alert, Badge, Button, cx, Field, Input, Modal, Select, QueryView, PageHeader, WorkflowSteps, useUnsavedChanges, useNavigationGuard } from '@mansora/ui';
-import { ApprovalModal, call, METHOD, money, MoneyInput, printHtml, useAction, useApp, useQuery, useToast, uuid, type Approver } from '../lib';
+import { ApprovalModal, isApproverError, call, METHOD, money, MoneyInput, printHtml, useAction, useApp, useQuery, useToast, uuid, type Approver } from '../lib';
 
 interface Product {
   id: string;
@@ -97,6 +97,18 @@ export function Checkout() {
   }, [done]);
   const cart = !lines.length ? null : quote.data ?? { error: quote.error ?? 'Calculating total…' };
   const total = cart && 'total' in cart ? cart.total : 0;
+  // A real quote failure, as opposed to the total still being worked out after the last scan.
+  const cartError = lines.length > 0 && !!quote.error;
+  const calculating = scanning || (lines.length > 0 && quote.loading);
+  // Pay pressed while a scan or the total is still being worked out: open payment as soon as it is ready
+  // instead of silently ignoring the key, which is easy to do with a fast barcode scanner.
+  const [payPending, setPayPending] = useState(false);
+  useEffect(() => {
+    if (!payPending || calculating) return;
+    setPayPending(false);
+    if (lines.length && !stockProblem && !quantityProblem && !paying && !done && cart && 'total' in cart) setPaying(true);
+  }, [payPending, calculating, lines, stockProblem, quantityProblem, paying, done, cart]);
+  const requestPay = () => { if (calculating) setPayPending(true); else setPaying(true); };
 
   const reset = () => {
     basketVersion.current++;
@@ -107,6 +119,7 @@ export function Checkout() {
     setCustomerId('');
     setSelectedCustomer(null);
     setDone(null);
+    setPayPending(false);
     setSaleId(uuid());
     setSearch('');
     setTimeout(() => searchRef.current?.focus(), 0);
@@ -149,11 +162,11 @@ export function Checkout() {
       if (e.key === 'F6' && !document.querySelector('[role=dialog]')) { e.preventDefault(); setShowParked(true); }
       if (e.key === 'F2') (e.preventDefault(), searchRef.current?.focus());
       if (e.key === 'F9' && document.querySelector<HTMLInputElement>('section[aria-label="Basket"] input:invalid')) { e.preventDefault(); document.querySelector<HTMLInputElement>('section[aria-label="Basket"] input:invalid')?.reportValidity(); return; }
-      if (e.key === 'F9' && !scanning && lines.length && !stockProblem && !quantityProblem && !paying && !done && cart && 'total' in cart) (e.preventDefault(), setPaying(true));
+      if (e.key === 'F9' && (lines.length || pendingScans.current) && !stockProblem && !quantityProblem && !paying && !done && !cartError && (calculating || (cart && 'total' in cart))) (e.preventDefault(), requestPay());
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lines, stockProblem, quantityProblem, paying, done, cart, customerId, selectedCustomer, requestingDiscount, saleId, scanning]);
+  }, [lines, stockProblem, quantityProblem, paying, done, cart, cartError, calculating, customerId, selectedCustomer, requestingDiscount, saleId, scanning]);
 
   if (shift.data === undefined) return <QueryView query={shift} label="your current shift">{null}</QueryView>;
   if (shift.data === null) return <OpenShift onOpened={shift.reload} />;
@@ -194,7 +207,10 @@ export function Checkout() {
       <section aria-label="Basket" className="m-basket flex w-full min-w-0 flex-col border bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
           <h2 className="text-sm font-semibold">Basket {lines.length > 0 && <span className="font-normal text-slate-500">· {lines.reduce((a, l) => a + l.quantity, 0)} item(s)</span>}</h2>
-          {lines.length > 0 && <Button size="sm" variant="ghost" onClick={() => navigate(reset)}>Clear</Button>}
+          <div className="flex items-center gap-1">
+            {!discountEntry && <Button size="sm" variant="ghost" onClick={() => setRequestingDiscount(true)}>Request discount</Button>}
+            {lines.length > 0 && <Button size="sm" variant="ghost" onClick={() => navigate(reset)}>Clear</Button>}
+          </div>
         </div>
         <div className="m-basket-lines flex-1 overflow-y-auto" role="region" aria-label="Basket items" tabIndex={0}>
           {lines.length === 0 && <div className="px-4 py-12 text-center text-sm text-slate-500">Scan or choose a product to start a sale.</div>}
@@ -220,22 +236,22 @@ export function Checkout() {
           ))}
         </div>
         <div className="m-basket-summary space-y-2 border-t border-slate-200 p-4">
-          <div className="grid grid-cols-2 gap-2">
-            {discountEntry ? <Field label={can('sale.discount') ? 'Basket discount (GHS)' : 'Requested discount (GHS)'}><MoneyInput value={cartDiscount} onChange={setCartDiscount} aria-label="Basket discount" /></Field> : <Button onClick={() => setRequestingDiscount(true)}>Request discount</Button>}
-          </div>
+          {discountEntry && <div className="grid grid-cols-2 gap-2">
+            <Field label={can('sale.discount') ? 'Basket discount (GHS)' : 'Requested discount (GHS)'}><MoneyInput value={cartDiscount} onChange={setCartDiscount} aria-label="Basket discount" /></Field>
+          </div>}
           <div>
             {/* Not a <label>: the chosen customer shows a Change button that a label would press on any click. */}
             <span className="mb-1 block text-sm font-medium text-slate-700">Customer (optional)</span>
             <CustomerPicker value={selectedCustomer} onChange={(c) => { setSelectedCustomer(c); setCustomerId(c?.id ?? ''); }} />
-            {!selectedCustomer && <span className="mt-1 block text-xs text-slate-500">Needed to sell on credit. Leave empty for a walk-in sale.</span>}
+            {!selectedCustomer && !lines.length && <span className="mt-1 block text-xs text-slate-500">Needed to sell on credit. Leave empty for a walk-in sale.</span>}
           </div>
           {quantityProblem && <Alert tone="bad">Enter a whole-number quantity of at least 1 for each item. Use Remove to take an item out of the basket.</Alert>}
           {stockProblem && <Alert tone="bad">One or more quantities exceed recorded stock. Reduce the quantity or ask the owner to receive or count the stock before taking payment.</Alert>}
           {!can('sale.discount') && requestingDiscount && <p className="text-sm text-amber-900">Discount requests need an authorised approver at payment. You cannot apply a discount yourself.</p>}
-          {cart && 'error' in cart && <Alert tone="bad">{cart.error}</Alert>}
+          {cartError && cart && 'error' in cart && <Alert tone="bad">{cart.error}</Alert>}
           {cart && 'total' in cart && (
             <dl className="space-y-0.5 text-sm">
-              <div className="flex justify-between text-slate-600"><dt>Subtotal</dt><dd className="tabular-nums">{money(cart.subtotal)}</dd></div>
+              {(cart.discountTotal > 0 || cart.subtotal !== cart.total) && <div className="flex justify-between text-slate-600"><dt>Subtotal</dt><dd className="tabular-nums">{money(cart.subtotal)}</dd></div>}
               {cart.discountTotal > 0 && <div className="flex justify-between text-slate-600"><dt>Discount {(!can('sale.discount') || (state.business.maxDiscountBps > 0 && state.user?.role !== 'owner' && cart.discountTotal * 10_000 > state.business.maxDiscountBps * cart.subtotal)) && <span className="text-xs">(needs approval)</span>}</dt><dd className="tabular-nums">−{money(cart.discountTotal)}</dd></div>}
               {cart.snapshots.some(t => t.registered) && <><div className="flex justify-between"><dt>VAT</dt><dd>{money(cart.tax.vat)}</dd></div><div className="flex justify-between"><dt>NHIL</dt><dd>{money(cart.tax.nhil)}</dd></div><div className="flex justify-between"><dt>GETFund</dt><dd>{money(cart.tax.getfund)}</dd></div><p className="text-xs">Taxes included in the total below.</p></>}
 
@@ -245,7 +261,7 @@ export function Checkout() {
             <span className="text-sm font-medium text-slate-600">Total</span>
             <span className="text-4xl font-bold tabular-nums text-slate-900" data-testid="basket-total">{money(total)}</span>
           </div>
-          <Button variant="primary" size="lg" className="w-full !py-4 !text-lg" disabled={scanning || !cart || 'error' in cart || stockProblem || quantityProblem} onClick={() => setPaying(true)}>Pay  (F9)</Button>
+          <Button variant="primary" size="lg" className="w-full !py-4 !text-lg" disabled={(!lines.length && !scanning) || payPending || cartError || stockProblem || quantityProblem} onClick={requestPay}>{payPending ? 'Working out total…' : 'Pay  (F9)'}</Button>
         </div>
       </section>
 
@@ -339,8 +355,11 @@ function PayModal({ total, customerId, customerName, needsDiscountApproval, onCl
     try {
       await submit(tenders, (credit ?? 0) > 0 && dueDate ? dueDate : null, approver);
     } catch (e: any) {
-      setError(e.message);
       setBusy(false);
+      // Wrong manager password or someone not allowed to approve: the approval dialog keeps it and lets them retry.
+      if (approver && isApproverError(e)) throw e;
+      setApproval(false);
+      setError(e.message);
       // A reused Mobile Money or card reference needs a manager to look at the payment message and approve it.
       if (e.code === 'REFERENCE_ALREADY_USED' && !approver) setApproval(true);
     }
@@ -390,7 +409,7 @@ function PayModal({ total, customerId, customerName, needsDiscountApproval, onCl
           <button type="submit" hidden />
         </form>
       </Modal>
-      <ApprovalModal open={approval} reason="This sale includes a discount or credit you are not allowed to give on your own." onCancel={() => setApproval(false)} onApprove={(a) => { setApproval(false); go(a); }} />
+      <ApprovalModal open={approval} reason="This sale includes a discount or credit you are not allowed to give on your own." onCancel={() => setApproval(false)} onApprove={(a) => go(a)} />
     </>
   );
 }

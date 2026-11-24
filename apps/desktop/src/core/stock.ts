@@ -1,5 +1,10 @@
 import { fail, movingAverageCost, type MovementType } from '@mansora/domain';
 import type { Ctx } from './engine';
+import { collectionTaxConfig, registeredOn } from './tax';
+
+export function stockVatPolicy(ctx: Ctx) {
+  return { classificationRequired: registeredOn(collectionTaxConfig(ctx), ctx.now().slice(0, 10)) };
+}
 
 export interface MoveInput {
   productId: string;
@@ -18,8 +23,11 @@ export interface MoveInput {
  */
 export function moveStock(ctx: Ctx, m: MoveInput): { unitCost: number; quantity: number } {
   if (!Number.isSafeInteger(m.delta) || m.delta === 0) fail('INVALID_QUANTITY', 'Stock movement quantity must be a non-zero whole number');
-  const product = ctx.get('SELECT id, name, cost_price FROM products WHERE id = ?', m.productId);
+  const product = ctx.get('SELECT id, name, cost_price, tax_class FROM products WHERE id = ?', m.productId);
   if (!product) fail('NOT_FOUND', 'Product not found');
+  if (m.delta > 0 && m.type !== 'SALE_REFUND' && !product.tax_class && stockVatPolicy(ctx).classificationRequired) {
+    fail('TAX_CLASS_REQUIRED', `Choose a VAT classification for ${product.name} in Products before adding stock.`, { productId: m.productId });
+  }
   const now = ctx.now();
   let bal = ctx.get('SELECT * FROM stock_balances WHERE product_id = ?', m.productId);
   if (!bal) {

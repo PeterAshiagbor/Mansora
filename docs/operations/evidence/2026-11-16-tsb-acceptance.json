@@ -1,0 +1,68 @@
+{
+  "recordedAt": "2026-11-16",
+  "sourceCommit": "71150b0ff681860c5b0828c4a960b46ef8aad20b",
+  "scope": "Authenticated public gateway/API acceptance using the existing assigned TSB owner; not a witnessed browser click-through, physical receipt or production restore.",
+  "ci": "556/556 verified tests; separate accessibility, real PostgreSQL sync and Windows checks passed.",
+  "stage": {
+    "deploymentId": "a960135d-ddca-4641-99c7-eef94be5154a",
+    "deploymentStatus": "SUCCESS",
+    "gatewayPhase": {
+      "version": "r16-02-v1",
+      "tenantId": "36f8eb76-cb51-4a07-bc42-e75c0a2acf06",
+      "startedAt": "2026-11-16T19:52:42.944Z",
+      "checks": [
+        "authenticated public gateway owner login",
+        "trusted VAT quote matches independently calculated GHS 120 split",
+        "sale, immutable VAT snapshot and rendered receipt",
+        "full refund and rendered credit note",
+        "stock and expected till cash restored",
+        "original-period sale and VAT reversal appear in report",
+        "downloaded VAT workbook parses with required schedules",
+        "cloud sync accepted rehearsal facts"
+      ],
+      "productId": "d8a77f3a-2689-4757-a382-aef19756c2f2",
+      "stockBefore": 2,
+      "cashBefore": 42000,
+      "saleId": "f7ffae37-5161-45fb-a1ae-c7e57d9941a9",
+      "saleAttempted": true,
+      "refundId": "75d1acd7-502f-4ede-a3e4-6e1d7477305a",
+      "exportSha256": "cb6f9798935cd9e4e443a71c968d0790ff3fcddaebdd376fdb5cbe144cb253a8",
+      "exportBytes": 15928,
+      "complete": true,
+      "completedAt": "2026-11-16T19:52:44.256Z",
+      "recovery": "NOT RUN: independent production backup and isolated restore required"
+    }
+  },
+  "production": {
+    "deploymentId": "a43dd8c5-ef61-4fd2-b5da-230b37e635e8",
+    "deploymentStatus": "SUCCESS",
+    "gatewayPhase": {
+      "version": "r16-02-v1",
+      "tenantId": "87826b87-ca87-41d3-adea-34d6be4d33ed",
+      "startedAt": "2026-11-16T19:56:22.094Z",
+      "checks": [
+        "authenticated public gateway owner login",
+        "trusted VAT quote matches independently calculated GHS 120 split",
+        "sale, immutable VAT snapshot and rendered receipt",
+        "full refund and rendered credit note",
+        "stock and expected till cash restored",
+        "original-period sale and VAT reversal appear in report",
+        "downloaded VAT workbook parses with required schedules",
+        "cloud sync accepted rehearsal facts"
+      ],
+      "productId": "9e171a32-f634-46d3-b023-670df39421bc",
+      "stockBefore": 2,
+      "cashBefore": 22800,
+      "saleId": "082cbb1b-cb34-468a-a8d8-22ec6d721845",
+      "saleAttempted": true,
+      "refundId": "f74fe3eb-4b78-4c76-ac71-cb0b172b8610",
+      "exportSha256": "f1d183418f7dce116e2ea8483acef43518a3aa0005e053380e46a6e0af3e6a35",
+      "exportBytes": 17596,
+      "complete": true,
+      "completedAt": "2026-11-16T19:56:23.582Z",
+      "recovery": "NOT RUN: independent production backup and isolated restore required"
+    }
+  },
+  "recovery": "NOT RUN: owner deferred Google provisioning; verified independent backup and isolated restore required.",
+  "triggers": "Cleared in staging and production after execution; changes apply on next restart. Journals also prevent duplicate replays."
+}

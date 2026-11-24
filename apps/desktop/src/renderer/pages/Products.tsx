@@ -2,43 +2,69 @@ import { useState } from 'react';
 import { CameraScanButton } from '../components/CameraScanner';
 import { TaskLinks } from '../components/TaskLinks';
 import { unitCostFromCarton } from '@mansora/domain';
-import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, QueryView } from '@mansora/ui';
+import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, QueryView } from '@mansora/ui';
 import { call, ExportButtons, marginLabel, money, MoneyInput, plain, useAction, useApp, useQuery } from '../lib';
 
 export function ProductsPage() {
   const { can, go } = useApp();
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState(false);
+  const [needsClass, setNeedsClass] = useState(false);
+  const [selected, setSelected] = useState<Record<string, number>>({});
+  const [bulk, setBulk] = useState(false);
+  const [bulkClass, setBulkClass] = useState('');
+  const [bulkReason, setBulkReason] = useState('');
+  const bulkAction = useAction();
   const [edit, setEdit] = useState<any | null>(null);
   const productsQuery = useQuery<any[]>('product.list', { search, includeInactive: inactive, limit: 1000 });
-  const { data, reload } = productsQuery;
+  const { data: loaded, reload } = productsQuery;
+  const data = loaded?.filter(p => !needsClass || !p.tax_class);
   const cost = can('product.cost');
   return (
     <div>
-      <PageHeader title="Products" subtitle={data ? data.length === 1000 ? 'Showing the first 1,000 matching products. Refine your search to find more.' : `${data.length} matching product(s)` : undefined}
+      <PageHeader title="Products" subtitle={data ? loaded?.length === 1000 ? 'Showing the first 1,000 matching products. Refine your search to find more.' : `${data.length} matching product(s)` : undefined}
         actions={<>
-          <ExportButtons disabled={!data} title="Products — loaded matching catalogue" columns={['Name', 'SKU', 'Barcode', 'Category', 'Selling price', ...(cost ? ['Cost price', 'Gross margin (%)'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price), marginLabel(p.selling_price, p.cost_price)] : []), p.quantity])} />
+          <ExportButtons disabled={!data} title="Products — loaded matching catalogue" columns={['Name', 'SKU', 'Barcode', 'Category', 'VAT classification', 'Selling price', ...(cost ? ['Cost price', 'Gross margin (%)'] : []), 'In stock']} rows={() => (data ?? []).map((p) => [p.name, p.sku ?? '', p.barcode ?? '', p.category_name ?? '', p.tax_class ?? '', plain(p.selling_price), ...(cost ? [plain(p.cost_price), marginLabel(p.selling_price, p.cost_price)] : []), p.quantity])} />
           {can('data.import') && <Button onClick={() => go('data')}>Upload Excel / CSV</Button>}
           {can('product.manage') && <Button variant="primary" onClick={() => setEdit({})}>Add product</Button>}
         </>} />
       <TaskLinks group="inventory" current="products" />
       <div className="mb-3 flex flex-wrap items-center gap-3 no-print">
-        <Input placeholder="Search by name, SKU or barcode" value={search} onChange={(e) => setSearch(e.target.value)} className="w-80" aria-label="Search products" /> <CameraScanButton onCode={setSearch} />
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={inactive} onChange={(e) => setInactive(e.target.checked)} /> Show inactive</label>
+        <Input placeholder="Search by name, SKU or barcode" value={search} onChange={(e) => { setSearch(e.target.value); setSelected({}); }} className="w-80" aria-label="Search products" /> <CameraScanButton onCode={code => { setSearch(code); setSelected({}); }} />
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={inactive} onChange={(e) => { setInactive(e.target.checked); setSelected({}); }} /> Show inactive</label>
       </div>
+      <label className="mb-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={needsClass} onChange={e => { setNeedsClass(e.target.checked); setSelected({}); }} /> Needs VAT classification</label>
+      {can('product.manage') && <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Button onClick={() => { setSelected({}); reload(); }}>Refresh products</Button>
+        <Button disabled={!data?.length} onClick={() => setSelected(Object.fromEntries((data ?? []).map(p => [p.id, p.version])))}>Select all loaded ({data?.length ?? 0})</Button>
+        <Button disabled={!Object.keys(selected).length} onClick={() => setSelected({})}>Clear selection</Button>
+        <span className="text-sm">{Object.keys(selected).length} selected</span>
+        <Button disabled={!Object.keys(selected).length} onClick={() => { setBulkClass(''); setBulkReason(''); setBulk(true); }}>Bulk update VAT</Button>
+      </div>}
       <QueryView query={productsQuery} label="products"><Card pad={false}>
         <Table rows={data} rowKey={(r) => r.id} onRowClick={can('product.manage') ? setEdit : undefined} empty={search.trim() ? 'No products match this search. Try a name, SKU or barcode, or clear the search.' : can('product.manage') ? 'Your catalogue is empty. Choose Add product or Upload Excel / CSV to begin.' : 'No products are available. Ask the owner to add products and opening stock.'}
           columns={[
+            ...(can('product.manage') ? [{ header: 'Select', cell: (p: any) => <input type="checkbox" aria-label={`Select ${p.name}`} checked={selected[p.id] !== undefined} onClick={e => e.stopPropagation()} onChange={e => { const checked = e.target.checked; setSelected(current => { const next = { ...current }; if (checked) next[p.id] = p.version; else delete next[p.id]; return next; }); }} /> }] : []),
             { header: 'Product', sortValue: (p) => p.name, cell: (p) => <><span className="font-medium">{p.name}</span>{!p.active && <> <Badge>Inactive</Badge></>}</> },
             { header: 'SKU', cell: (p) => p.sku ?? '' },
             { header: 'Barcode', cell: (p) => p.barcode ?? '' },
             { header: 'Category', cell: (p) => p.category_name ?? '' },
+            { header: 'VAT classification', cell: (p) => p.tax_class || <Badge tone="warn">Needs classification</Badge> },
             ...(cost ? [{ header: 'Cost', align: 'right' as const, cell: (p: any) => money(p.cost_price) }] : []),
             { header: 'Selling price', sortValue: (p) => p.selling_price, align: 'right', cell: (p) => money(p.selling_price) },
             ...(cost ? [{ header: 'Gross margin', align: 'right' as const, cell: (p: any) => marginLabel(p.selling_price, p.cost_price) }] : []),
             { header: 'In stock', sortValue: (p) => p.quantity, align: 'right', cell: (p) => (p.quantity <= 0 ? <Badge tone="bad">{p.quantity} · Out of stock</Badge> : p.quantity <= p.reorder_level ? <Badge tone="warn">{p.quantity} · Low stock</Badge> : p.quantity) },
           ]} />
       </Card></QueryView>
+      {bulk && <Modal title="Bulk update VAT classifications" open onClose={() => setBulk(false)} footer={<><Button dismiss onClick={() => setBulk(false)}>Cancel</Button><Button variant="primary" disabled={bulkAction.busy || !bulkClass || !bulkReason.trim()} onClick={() => bulkAction.run(async () => {
+        const result = await call('product.bulkVat', { lines: Object.entries(selected).map(([productId, expectedVersion]) => ({ productId, expectedVersion })), taxClass: bulkClass, reason: bulkReason });
+        setBulk(false); setSelected({}); reload(); return result;
+      }, 'VAT classifications updated')}>Update {Object.keys(selected).length} products</Button></>}>
+        <p className="mb-3 text-sm">Apply the chosen classification to {Object.keys(selected).length} selected products, including any already classified. Check that each product has the same legal treatment. Previous receipts retain their original taxes.</p>
+        <Field label="VAT classification"><Select required value={bulkClass} onChange={e => setBulkClass(e.target.value)}><option value="">Choose classification…</option><option value="standard">Standard-rated</option><option value="zero">Zero-rated</option><option value="exempt">Exempt</option><option value="outside">Outside scope</option></Select></Field>
+        <Field label="Reason for bulk VAT update"><Input required value={bulkReason} onChange={e => setBulkReason(e.target.value)} maxLength={400} /></Field>
+        <p className="mt-3 max-h-32 overflow-y-auto text-xs text-slate-600">Selected: {(loaded ?? []).filter(p => selected[p.id] !== undefined).map(p => p.name).join(', ')}</p>
+      </Modal>}
       {edit && <ProductForm product={edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }} />}
     </div>
   );
@@ -48,6 +74,7 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
   const { can } = useApp();
   const isNew = !product.id;
   const categoryOptions = useQuery<any[]>('category.list');
+  const vatPolicy = useQuery<{ classificationRequired: boolean }>('stock.vatPolicy');
   const categories = categoryOptions.data ?? [];
   const [f, setF] = useState({
     taxClass: product.tax_class ?? '', name: product.name ?? '', sku: product.sku ?? '', barcode: product.barcode ?? '', categoryId: product.category_id ?? '', unit: product.unit ?? 'each',
@@ -59,6 +86,8 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
   if (cartonCost != null && Number.isSafeInteger(Number(cartonUnits)) && Number(cartonUnits) > 0) derivedCost = unitCostFromCarton(cartonCost, Number(cartonUnits));
   const { run, busy } = useAction();
   const cost = can('product.cost');
+  const addingStock = isNew && Number(f.openingStock) > 0;
+  const missingVatClass = addingStock && !!vatPolicy.data?.classificationRequired && !f.taxClass;
   const save = () => run(async () => {
     await call('product.save', {
       ...(f.taxClass ? { taxClass: f.taxClass } : {}), id: product.id, name: f.name, sku: f.sku || null, barcode: f.barcode || null, categoryId: f.categoryId || null, unit: f.unit, sellingPrice: f.sellingPrice,
@@ -69,13 +98,15 @@ function ProductForm({ product, onClose, onSaved }: { product: any; onClose: () 
   }, 'Product saved');
   return (
     <Modal title={isNew ? 'Add product' : 'Edit product'} open onClose={onClose} wide
-      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !f.name.trim() || f.sellingPrice == null || (cost && f.costPrice == null)} onClick={save}>Save</Button></>}>
+      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || (addingStock && !vatPolicy.data) || missingVatClass || !f.name.trim() || f.sellingPrice == null || (cost && f.costPrice == null)} onClick={save}>Save</Button></>}>
+      {addingStock && !vatPolicy.data && <QueryView query={vatPolicy} label="VAT stock requirements">{null}</QueryView>}
+      {missingVatClass && <Alert tone="warn" className="mb-3">Choose a Ghana VAT classification before adding opening stock.</Alert>}
       {categoryOptions.error && <QueryView query={categoryOptions} label="categories">{null}</QueryView>}
       <div className="m-product-editor"><form className="grid grid-cols-2 gap-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
-        <Field label="Product name" className="col-span-2"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
+        <Field label="Product name" className="col-span-2"><Input required={true} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
         <div className="col-span-2 flex items-end gap-2"><Field label="Barcode" className="flex-1" hint="Click in the box and scan with a USB scanner, or use the camera"><Input value={f.barcode} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field><CameraScanButton label="Camera" onCode={(code) => setF((prev) => ({ ...prev, barcode: code }))} /></div>
-        <Field label="Ghana VAT classification" hint="Confirm against the VAT Act schedules. Zero-rated and exempt supplies have different reporting and input-credit treatment."><Select value={f.taxClass} onChange={e => setF({ ...f, taxClass: e.target.value })}><option value="">Needs classification</option><option value="standard">Standard-rated</option><option value="zero">Zero-rated</option><option value="exempt">Exempt</option><option value="outside">Outside scope</option></Select></Field>
-        <Field label="Selling price (GHS)"><MoneyInput value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
+        <Field label="Ghana VAT classification" hint="Confirm against the VAT Act schedules. Zero-rated and exempt supplies have different reporting and input-credit treatment."><Select required={addingStock && !!vatPolicy.data?.classificationRequired} value={f.taxClass} onChange={e => setF({ ...f, taxClass: e.target.value })}><option value="">Needs classification</option><option value="standard">Standard-rated</option><option value="zero">Zero-rated</option><option value="exempt">Exempt</option><option value="outside">Outside scope</option></Select></Field>
+        <Field label="Selling price (GHS)"><MoneyInput required={true} value={f.sellingPrice} onChange={(v) => setF({ ...f, sellingPrice: v })} /></Field>
         {cost && <Field label="Cost price (GHS)" hint={!isNew ? 'Changing this does not re-value stock already on hand.' : 'Enter a verified unit cost. Use 0 only when the item genuinely has no cost.'}><MoneyInput required value={f.costPrice} onChange={(v) => setF({ ...f, costPrice: v })} /></Field>}
         {cost && <details className="m-form-details"><summary>Calculate cost from a carton</summary><div>
           <div className="grid grid-cols-2 gap-3">
@@ -117,7 +148,7 @@ export function CategoriesPage() {
         <Modal title={edit.id ? 'Edit category' : 'Add category'} open onClose={() => setEdit(null)}
           footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('category.save', { id: edit.id, name: edit.name, active: !!edit.active }); setEdit(null); reload(); }, 'Category saved')}>Save</Button></>}>
           <div className="space-y-3">
-            <Field label="Category name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
+            <Field label="Category name"><Input required={true} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked ? 1 : 0 })} /> Active</label>
           </div>
         </Modal>

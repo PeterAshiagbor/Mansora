@@ -124,7 +124,7 @@ export function createOwnerRecovery(options: { config: StagingConfig; email: Ema
       try {
         const code = await options.issueCode(identity.tenantId);
         const result = await identity.workspace.engine.execute(null, 'auth.recoverOwner', { code, newPassword: password });
-        return { url: `/client/${workspaceId}/`, username: result.username };
+        return { url: `/signin/`, username: result.username };
       } catch (error) {
         if (error instanceof DomainError && error.code === 'WEAK_PASSWORD') fail(400, 'WEAK_PASSWORD', error.message);
         throw error;

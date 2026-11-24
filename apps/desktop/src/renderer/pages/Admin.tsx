@@ -35,7 +35,7 @@ export function StaffPage() {
         actions={<Button variant="primary" onClick={() => setEdit({ name: '', username: '', role: 'cashier', status: 'active', permissions: ROLE_DEFAULTS.cashier, password: '', email: '', sendCode: true })}>Add staff member</Button>} />
       <QueryView query={staffQuery} label="staff"><Card pad={false}>
         <Table rows={data} rowKey={(r) => r.id} onRowClick={(u) => setEdit({ ...u, password: '', email: u.email ?? '', sendCode: false })}
-          columns={[{ header: 'Name', cell: (u) => <span className="font-medium">{u.name}</span> }, { header: 'Username', cell: (u) => u.username }, { header: 'Role', cell: (u) => <span className="capitalize">{u.role}</span> }, { header: 'Status', cell: (u) => (u.status === 'active' ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>) }, { header: 'Sign-in by email', cell: (u) => u.role === 'owner' ? '' : !u.email ? <span className="text-xs text-slate-500">No email recorded</span> : u.invite_expires_at ? <span className="text-xs text-slate-600">Code sent, valid until {dateTime(u.invite_expires_at)}</span> : <span className="text-xs text-slate-600">{u.email}</span> }, { header: '', align: 'right', cell: (u) => u.role !== 'owner' && u.email && u.status === 'active' ? <Button size="sm" disabled={busy} onClick={(e) => { e.stopPropagation(); invite(u.id); }}>{u.invite_expires_at ? 'Send a new code' : 'Email sign-in code'}</Button> : null }]} />
+          columns={[{ header: 'Name', cell: (u) => <span className="font-medium">{u.name}</span> }, { header: 'Username', cell: (u) => <span>{u.username}{u.publicLogin && <span className="block text-xs text-slate-500">Web sign-in: {u.publicLogin}</span>}</span> }, { header: 'Role', cell: (u) => <span className="capitalize">{u.role}</span> }, { header: 'Status', cell: (u) => (u.status === 'active' ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>) }, { header: 'Sign-in by email', cell: (u) => u.role === 'owner' ? '' : !u.email ? <span className="text-xs text-slate-500">No email recorded</span> : u.invite_expires_at ? <span className="text-xs text-slate-600">Code sent, valid until {dateTime(u.invite_expires_at)}</span> : <span className="text-xs text-slate-600">{u.email}</span> }, { header: '', align: 'right', cell: (u) => u.role !== 'owner' && u.email && u.status === 'active' ? <Button size="sm" disabled={busy} onClick={(e) => { e.stopPropagation(); invite(u.id); }}>{u.invite_expires_at ? 'Send a new code' : 'Email sign-in code'}</Button> : null }]} />
       </Card></QueryView>
       <Disclosure title="Who can do what" description="What each role can do when added. You can change a manager's or cashier's permissions person by person.">
         <RoleMatrix />
@@ -44,8 +44,8 @@ export function StaffPage() {
         <Modal title={edit.id ? `Edit ${edit.name}` : 'Add staff member'} open onClose={() => setEdit(null)} wide
           footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim() || !edit.username.trim() || (!edit.id && !edit.password && !(edit.email?.trim() && edit.sendCode))} onClick={save}>{edit.sendCode && edit.email?.trim() && !owner ? 'Save and email code' : 'Save'}</Button></>}>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Full name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
-            <Field label="Username" hint="3–40 letters, numbers, dots, dashes or underscores."><Input minLength={3} maxLength={40} pattern="[a-zA-Z0-9._\-]+" value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="off" /></Field>
+            <Field label="Full name"><Input required={true} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
+            <Field label="Username" hint="3–40 letters, numbers, dots, dashes or underscores."><Input required={true} minLength={3} maxLength={40} pattern="[a-zA-Z0-9._\-]+" value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="off" /></Field>
             <Field label="Role">
               <Select value={edit.role} disabled={owner} onChange={(e) => setEdit({ ...edit, role: e.target.value, permissions: ROLE_DEFAULTS[e.target.value as Role] })}>
                 {owner && <option value="owner">Owner</option>}<option value="manager">Manager</option><option value="cashier">Cashier</option>
@@ -54,7 +54,7 @@ export function StaffPage() {
             <Field label="Status"><Select value={edit.status} disabled={owner} onChange={(e) => setEdit({ ...edit, status: e.target.value })}><option value="active">Active</option><option value="disabled">Disabled (cannot sign in)</option></Select></Field>
             {!owner && <Field label="Email (optional)" hint="Used only to send a one-time sign-in code. Stays on this device." className="col-span-2"><Input type="email" maxLength={160} value={edit.email ?? ''} onChange={(e) => setEdit({ ...edit, email: e.target.value })} autoComplete="off" /></Field>}
             {!owner && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={!!edit.sendCode} disabled={!edit.email?.trim()} onChange={(e) => setEdit({ ...edit, sendCode: e.target.checked })} /> Email them a one-time code so they choose their own password</label>}
-            <Field label={edit.id ? 'New password (leave empty to keep)' : edit.sendCode && edit.email?.trim() ? 'Password (optional when emailing a code)' : 'Password'} hint="At least 8 characters" className="col-span-2"><Input type="password" minLength={8} maxLength={200} value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field>
+            <Field label={edit.id ? 'New password (leave empty to keep)' : edit.sendCode && edit.email?.trim() ? 'Password (optional when emailing a code)' : 'Password'} hint="At least 8 characters" className="col-span-2"><Input required={!edit.id && !(edit.email?.trim() && edit.sendCode)} type="password" minLength={8} maxLength={200} value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field>
           </div>
           {!owner && (
             <fieldset className="mt-4">
@@ -194,7 +194,7 @@ function DailySummaryCard() {
     <Card title="Daily summary email">
       <p className="mb-3 text-sm text-slate-600">After closing each day, get one email with net sales, payments taken, refunds, discounts, cash shortages, low stock and customer credit. Costs and profit are never included. It is sent through Mansora's email service and the figures are not stored there.</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Send to"><Input type="email" maxLength={160} value={form.email} onChange={(e) => setF({ ...form, email: e.target.value })} placeholder="owner@example.com" /></Field>
+        <Field label="Send to"><Input required={true} type="email" maxLength={160} value={form.email} onChange={(e) => setF({ ...form, email: e.target.value })} placeholder="owner@example.com" /></Field>
         <Field label="Send after"><Select value={form.hour} onChange={(e) => setF({ ...form, hour: e.target.value })}>{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}</Select></Field>
       </div>
       <p className="mt-2 text-xs text-slate-500">{d.email ? `On. Sends once a day after ${String(d.hour).padStart(2, '0')}:00 when the till is online${d.lastSentFor ? `; last sent for ${d.lastSentFor}` : ''}.` : 'Off.'}</p>
@@ -225,7 +225,7 @@ export function SettingsPage() {
       {manage && (
         <Card title="Business profile (printed on receipts)">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Business name"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
+            <Field label="Business name"><Input required={true} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
             <Field label="Phone"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
             <Field label="Address" className="col-span-2"><Input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} /></Field>
             <Field label="Receipt footer message" className="col-span-2"><Input value={f.receiptFooter} onChange={(e) => setF({ ...f, receiptFooter: e.target.value })} placeholder="Thank you for your purchase" /></Field>
@@ -256,31 +256,40 @@ export function SettingsPage() {
 }
 
 // ---------------------------------------------------------------- Import & export
-const FIELD_LABEL: Record<string, string> = { name: 'Product name *', sku: 'SKU', barcode: 'Barcode', category: 'Category', unit: 'Unit', cost_price: 'Unit cost price (GHS)', carton_cost: 'Carton cost (GHS)', units_per_carton: 'Selling units per carton', selling_price: 'Selling price *', opening_stock: 'Opening stock', reorder_level: 'Reorder level' };
+const FIELD_LABEL: Record<string, string> = { tax_class: 'VAT classification', name: 'Product name *', sku: 'SKU', barcode: 'Barcode', category: 'Category', unit: 'Unit', cost_price: 'Unit cost price (GHS)', carton_cost: 'Carton cost (GHS)', units_per_carton: 'Selling units per carton', selling_price: 'Selling price *', opening_stock: 'Opening stock', reorder_level: 'Reorder level' };
 export function DataPage() {
   const { can, go, state } = useApp();
   const toast = useToast();
-  const [completed, setCompleted] = useState<{ created: number; skipped: number; fileName: string } | null>(null);
+  const [completed, setCompleted] = useState<{ created: number; skipped: number; vatUpdated?: number; fileName: string } | null>(null);
   const history = useQuery<any[]>('import.history');
   const [file, setFile] = useState<{ fileName: string; contentBase64: string } | null>(null);
   const [preview, setPreview] = useState<any | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [defaultTaxClass, setDefaultTaxClass] = useState('');
+  const [updateExistingVat, setUpdateExistingVat] = useState(false);
+  const [vatUpdateReason, setVatUpdateReason] = useState('');
   const input = useRef<HTMLInputElement>(null);
   useUnsavedChanges(file != null, 'the product import preview');
   const { run, busy } = useAction();
-  const load = (source: File | { fileName: string; contentBase64: string }, mapping?: Record<string, string>) => run(async () => { setPreview(null); setCompleted(null); setConfirm(false); const f = source instanceof File ? { fileName: source.name, contentBase64: await fileToBase64(source) } : source; setFile(f); const next = await call('import.preview', { ...f, mapping }); setPreview(next); return next; });
+  const load = (source: File | { fileName: string; contentBase64: string }, mapping?: Record<string, string>, overrides: { defaultTaxClass?: string; updateExistingVat?: boolean } = {}) => run(async () => { setPreview(null); setCompleted(null); setConfirm(false); const f = source instanceof File ? { fileName: source.name, contentBase64: await fileToBase64(source) } : source; setFile(f); const next = await call('import.preview', { ...f, mapping, defaultTaxClass: (overrides.defaultTaxClass ?? defaultTaxClass) || undefined, updateExistingVat: overrides.updateExistingVat ?? updateExistingVat }); setPreview(next); return next; });
   const rows: any[] = preview?.rows ?? [];
   const errors = rows.filter((r) => r.errors.length).length;
-  const dups = rows.filter((r) => r.duplicate && !r.errors.length).length;
-  const good = rows.length - errors - dups;
+  const updates = rows.filter(r => r.vatUpdate && !r.errors.length).length;
+  const dups = rows.filter((r) => r.duplicate && !r.vatUpdate && !r.errors.length).length;
+  const good = rows.filter(r => !r.duplicate && !r.errors.length).length;
   const hasStock = rows.some((r) => !r.duplicate && !r.errors.length && r.data.openingStock > 0);
   return (
     <div className="space-y-4">
       <PageHeader title="Import & export" subtitle="Choose a file, check the rows, then confirm. Nothing is saved during preview." />
       <WorkflowSteps steps={['Choose file', 'Check rows', 'Import']} current={completed ? 2 : file ? 1 : 0} />
-      {completed && <Card title="Import complete"><p className="text-lg font-semibold">{completed.created} product(s) added · {completed.skipped} skipped</p><p className="mt-2 text-sm text-slate-600">{completed.fileName} · The confirmed result is recorded in import and audit history.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="primary" onClick={() => go('products')}>View products</Button><Button onClick={() => { setCompleted(null); input.current?.focus(); }}>Import another file</Button></div></Card>}
+      {completed && <Card title="Import complete"><p className="text-lg font-semibold">{completed.created} product(s) added{completed.vatUpdated ? ` · ${completed.vatUpdated} VAT classification(s) updated` : ''} · {completed.skipped} skipped</p><p className="mt-2 text-sm text-slate-600">{completed.fileName} · The confirmed result is recorded in import and audit history.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="primary" onClick={() => go('products')}>View products</Button><Button onClick={() => { setCompleted(null); input.current?.focus(); }}>Import another file</Button></div></Card>}
       <Card title="Import products and opening stock" actions={<><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'xlsx' })))}>Download Excel template</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.sample', { format: 'xlsx' })))}>Download sample shop</Button><Button size="sm" onClick={() => run(async () => saveFile(await call('import.template', { format: 'csv' })))}>CSV template</Button></>}>
-        <p className="mb-3 text-sm text-slate-600">Moving from Excel, QuickBooks or Xero? Export your product list and choose it here: Mansora recognises their column names. The sample shop shows a filled-in file. Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved. For carton costing, fill Carton cost and Units per carton; leave Cost price blank. Selling price and opening stock are per selling unit. Unit cost rounds to the nearest pesewa.</p>
+        <p className="mb-3 text-sm text-slate-600">Moving from Excel, QuickBooks or Xero? Export your product list and choose it here: Mansora recognises their column names. The sample shop shows a filled-in file. When VAT collection is active, opening stock requires a VAT classification: standard, zero, exempt or outside. Fill in the template (or use your own Excel / CSV list), then choose the file. You will see a preview before anything is saved. For carton costing, fill Carton cost and Units per carton; leave Cost price blank. Selling price and opening stock are per selling unit. Unit cost rounds to the nearest pesewa.</p>
+        <div className="mb-4 space-y-3 rounded border border-slate-200 p-3">
+          <Field label="VAT classification for rows with a blank VAT column" hint="Only fills blank classifications. Check the legal treatment before applying one class to several products."><Select disabled={busy} value={defaultTaxClass} onChange={e => { const value = e.target.value; setDefaultTaxClass(value); if (file) void load(file, preview?.mapping, { defaultTaxClass: value }); }}><option value="">Use each row's classification</option><option value="standard">Standard-rated</option><option value="zero">Zero-rated</option><option value="exempt">Exempt</option><option value="outside">Outside scope</option></Select></Field>
+          {can('product.manage') && <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={updateExistingVat} onChange={e => { const value = e.target.checked; setUpdateExistingVat(value); if (file) void load(file, preview?.mapping, { updateExistingVat: value }); }} /> Update VAT classifications of matching existing products</label>}
+          {updateExistingVat && <><p className="text-xs text-slate-600">For VAT-only updates, include a unique Name, SKU or Barcode and a VAT classification; price columns are optional. Only rows with a classification are updated; blank rows are skipped unless you choose a default above. Existing matches receive classification changes only. Their quantities, costs and prices stay as recorded. Conflicting identifiers must be corrected before importing.</p><Field label="Reason for imported VAT updates"><Input required={updates > 0} disabled={busy} value={vatUpdateReason} onChange={e => setVatUpdateReason(e.target.value)} maxLength={400} /></Field></>}
+        </div>
         <input ref={input} type="file" accept=".xlsx,.csv" className="block text-sm" aria-label="Choose import file" disabled={busy}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void load(f); }} />
         {busy && !preview && <p className="mt-4 text-sm text-slate-600" role="status">Checking the file. No products have been saved…</p>}
@@ -292,7 +301,7 @@ export function DataPage() {
               <legend className="sr-only">Column mapping</legend>
               <div className="grid grid-cols-3 gap-2">
                 {Object.entries(FIELD_LABEL).map(([field, label]) => (
-                  <Field key={field} label={label}>
+                  <Field key={field} label={updateExistingVat ? label.replace(' *', '') : label}>
                     <Select disabled={busy} value={preview.mapping[field] ?? ''} onChange={(e) => load(file, { ...preview.mapping, [field]: e.target.value || undefined })}>
                       <option value="">(not in my file)</option>{preview.headers.map((h: string) => <option key={h} value={h}>{h}</option>)}
                     </Select>
@@ -300,20 +309,20 @@ export function DataPage() {
                 ))}
               </div>
             </fieldset></details>
-            {preview.needsMapping ? <Alert tone="warn">Choose which columns hold the product name and the selling price.</Alert> : (
+            {preview.needsMapping ? <Alert tone="warn">{updateExistingVat ? 'Choose a product Name, SKU or Barcode column to identify existing products.' : 'Choose which columns hold the product name and the selling price.'}</Alert> : (
               <>
-                <div className="flex gap-2"><Badge tone="good">{good} new product(s)</Badge>{dups > 0 && <Badge tone="warn">{dups} already exist (will be skipped)</Badge>}{errors > 0 && <Badge tone="bad">{errors} row(s) with errors</Badge>}</div>
+                <div className="flex gap-2"><Badge tone="good">{good} new product(s)</Badge>{updates > 0 && <Badge tone="info">{updates} VAT classification update(s)</Badge>}{dups > 0 && <Badge tone="warn">{dups} already exist (will be skipped)</Badge>}{errors > 0 && <Badge tone="bad">{errors} row(s) with errors</Badge>}</div>
                 <div className="max-h-80 overflow-y-auto rounded border border-slate-200">
                   <Table rows={rows} rowKey={(r) => r.rowNo} columns={[
-                    { header: 'Row', cell: (r) => r.rowNo }, { header: 'Product', cell: (r) => r.data.name }, { header: 'Barcode', cell: (r) => r.data.barcode ?? '' }, { header: 'Category', cell: (r) => r.data.category ?? '' },
+                    { header: 'Row', cell: (r) => r.rowNo }, { header: 'Product', cell: (r) => r.data.name }, { header: 'Barcode', cell: (r) => r.data.barcode ?? '' }, { header: 'Category', cell: (r) => r.data.category ?? '' }, { header: 'VAT classification', cell: (r) => r.data.taxClass ?? 'Not classified' },
                     { header: 'Cost', align: 'right', cell: (r) => money(r.data.costPrice) }, { header: 'Selling price', align: 'right', cell: (r) => money(r.data.sellingPrice) }, ...(can('product.cost') ? [{ header: 'Gross margin', align: 'right' as const, cell: (r: any) => marginLabel(r.data.sellingPrice, r.data.costPrice) }] : []), { header: 'Opening stock', align: 'right', cell: (r) => r.data.openingStock },
-                    { header: 'Result', cell: (r) => (r.errors.length ? <Badge tone="bad">{r.errors.join('; ')}</Badge> : r.duplicate ? <Badge tone="warn">{r.duplicate}</Badge> : <Badge tone="good">Will be added</Badge>) },
+                    { header: 'Result', cell: (r) => (r.errors.length ? <Badge tone="bad">{r.errors.join('; ')}</Badge> : r.vatUpdate ? <Badge tone="info">Update VAT only</Badge> : r.duplicate ? <Badge tone="warn">{r.duplicate}</Badge> : <Badge tone="good">Will be added</Badge>) },
                   ]} />
                 </div>
                 {hasStock && <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} /> I confirm the opening stock quantities are what is physically in the shop</label>}
-                <Button variant="primary" disabled={busy || errors > 0 || good === 0 || !!preview.alreadyImportedAt || (hasStock && !confirm)}
-                  onClick={() => run(async () => { const r = await call('import.commit', { ...file, mapping: preview.mapping, confirmOpeningStock: confirm }); setCompleted({ created: r.created, skipped: r.skipped, fileName: file.fileName }); setPreview(null); setFile(null); if (input.current) input.current.value = ''; history.reload(); toast(`Imported ${r.created} product(s)`); return r; })}>
-                  Import {good} product(s)
+                <Button variant="primary" disabled={busy || errors > 0 || good + updates === 0 || (updates > 0 && !vatUpdateReason.trim()) || !!preview.alreadyImportedAt || (hasStock && !confirm)}
+                  onClick={() => run(async () => { const r = await call('import.commit', { ...file, mapping: preview.mapping, expectedPreviewHash: preview.reviewHash, confirmOpeningStock: confirm, defaultTaxClass: defaultTaxClass || undefined, updateExistingVat, vatUpdateReason }); setCompleted({ created: r.created, skipped: r.skipped, vatUpdated: r.vatUpdated, fileName: file.fileName }); setPreview(null); setFile(null); if (input.current) input.current.value = ''; history.reload(); toast(r.vatUpdated ? `Imported ${r.created} product(s); updated ${r.vatUpdated} VAT classification(s)` : `Imported ${r.created} product(s)`); return r; })}>
+                  Import {good} product(s){updates > 0 ? ` and update ${updates} VAT classification(s)` : ''}
                 </Button>
                 {errors > 0 && <p className="text-sm text-red-700">Fix the rows with errors in your file and choose it again. Nothing has been imported.</p>}
               </>
@@ -322,7 +331,7 @@ export function DataPage() {
         )}
       </Card>
       <QueryView query={history} label="import history"><Card title="Import history" pad={false}>
-        <Table rows={history.data} rowKey={(r) => r.id} empty="No imports yet" columns={[{ header: 'When', cell: (r) => dateTime(r.created_at) }, { header: 'File', cell: (r) => r.file_name }, { header: 'Added', align: 'right', cell: (r) => r.created_count }, { header: 'Skipped', align: 'right', cell: (r) => r.skipped_count }, { header: 'Opening stock', cell: (r) => (r.opening_stock_applied ? 'Applied' : '—') }, { header: 'By', cell: (r) => r.imported_by_name }]} />
+        <Table rows={history.data} rowKey={(r) => r.id} empty="No imports yet" columns={[{ header: 'When', cell: (r) => dateTime(r.created_at) }, { header: 'File', cell: (r) => r.file_name }, { header: 'Added', align: 'right', cell: (r) => r.created_count }, { header: 'VAT updated', align: 'right', cell: (r) => r.vat_updated_count ?? 0 }, { header: 'Skipped', align: 'right', cell: (r) => r.skipped_count }, { header: 'Opening stock', cell: (r) => (r.opening_stock_applied ? 'Applied' : '—') }, { header: 'By', cell: (r) => r.imported_by_name }]} />
       </Card></QueryView>
       {can('data.export') && (
         <Card title="Export all business data">
@@ -488,7 +497,7 @@ export function SupportPage() {
       <PageHeader title="Mansora access" subtitle="Mansora staff cannot see your sales or reports unless you allow it here. You can stop access at any time." />
       <Card title="Allow Mansora to view my reports">
         <div className="grid max-w-2xl grid-cols-[1fr_10rem] gap-3">
-          <Field label="Why is access needed?"><Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="e.g. Help checking November stock report" /></Field>
+          <Field label="Why is access needed?"><Input required={true} value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="e.g. Help checking November stock report" /></Field>
           <Field label="For how long"><Select value={hours} onChange={(e) => setHours(e.target.value)}><option value="1">1 hour</option><option value="4">4 hours</option><option value="24">24 hours</option><option value="72">3 days</option></Select></Field>
         </div>
         <p className="mt-2 text-xs text-slate-500">Access covers sales summaries only: totals, payment methods, best-selling products and stock counts. It never includes customer details or staff passwords. It takes effect the next time this laptop syncs.</p>

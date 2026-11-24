@@ -1,0 +1,52 @@
+import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { startDevHost } from '../../apps/desktop/dev/host';
+import { makeShop, OWNER, TEST_DB_KEY } from '../helpers';
+import { navigate } from './navigation';
+const pw = (() => { try { return createRequire(import.meta.url)('playwright'); } catch { return null; } })();
+describe.skipIf(!pw || !existsSync(join(import.meta.dirname, '../../apps/desktop/dist/renderer/index.html')))('Bulk VAT workflows', () => {
+  let host: Awaited<ReturnType<typeof startDevHost>>, browser: any, page: any;
+  beforeAll(async () => {
+    const shop = await makeShop();
+    const file = { fileName: 'original-import.csv', contentBase64: Buffer.from('Name,Selling price\nImported bulk one,12\nImported bulk two,15').toString('base64') };
+    const preview = await shop.run(shop.owner, 'import.preview', file);
+    await shop.run(shop.owner, 'import.commit', { ...file, mapping: preview.mapping, confirmOpeningStock: false });
+    shop.engine.db.close();
+    host = await startDevHost({ dataDir: shop.dir, dbKey: TEST_DB_KEY, port: 0 });
+    browser = await pw.chromium.launch(); page = await browser.newPage({ viewport: { width: 390, height: 844 } }); page.setDefaultTimeout(15000);
+    await page.goto(host.url);
+    await page.getByLabel('Username', { exact: true }).fill(OWNER.username);
+    await page.getByLabel('Password', { exact: true }).fill(OWNER.password);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  });
+  afterAll(async () => { await browser?.close(); if (host) { await new Promise<void>(r => host.server.close(() => r())); host.engine.db.close(); } });
+  it('bulk classifies selected products after import on a narrow screen', async () => {
+    await navigate(page, 'Products');
+    await page.getByLabel('Search products', { exact: true }).fill('Imported bulk');
+    await page.getByLabel('Needs VAT classification', { exact: true }).check();
+    await page.getByLabel('Select Imported bulk one', { exact: true }).check();
+    expect(await page.getByRole('dialog').count()).toBe(0);
+    await page.getByRole('button', { name: 'Select all loaded (2)', exact: true }).click();
+    await page.getByRole('button', { name: 'Bulk update VAT', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Bulk update VAT classifications', exact: true });
+    expect(await dialog.getByRole('button', { name: 'Update 2 products', exact: true }).isDisabled()).toBe(true);
+    await dialog.getByLabel('VAT classification', { exact: true }).selectOption('exempt');
+    await dialog.getByLabel('Reason for bulk VAT update', { exact: true }).fill('Reviewed classifications');
+    await dialog.getByRole('button', { name: 'Update 2 products', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    expect((host.engine.db.prepare("SELECT COUNT(*) n FROM products WHERE tax_class='exempt'").get() as any).n).toBe(2);
+  });
+  it('previews and commits VAT-only updates from a spreadsheet without adding stock', async () => {
+    await navigate(page, 'Import & export');
+    await page.getByLabel('Update VAT classifications of matching existing products', { exact: true }).check();
+    await page.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'vat-only.csv', mimeType: 'text/csv', buffer: Buffer.from('SKU,VAT classification\nRICE,standard\nMILK,zero') });
+    await page.getByText('2 VAT classification update(s)', { exact: true }).waitFor();
+    await page.getByLabel('Reason for imported VAT updates', { exact: true }).fill('Verified supplier list');
+    await page.getByRole('button', { name: 'Import 0 product(s) and update 2 VAT classification(s)', exact: true }).click();
+    await page.getByText('0 product(s) added · 2 VAT classification(s) updated · 0 skipped', { exact: true }).waitFor();
+    expect(host.engine.db.prepare("SELECT tax_class FROM products WHERE sku='RICE'").get()).toEqual({ tax_class: 'standard' });
+    expect(host.engine.db.prepare("SELECT b.quantity FROM stock_balances b JOIN products p ON p.id=b.product_id WHERE p.sku='MILK'").get()).toEqual({ quantity: 50 });
+  });
+});

@@ -6,9 +6,12 @@ import { z } from 'zod';
 import { fail, formatGHS, SYNC_TABLES, validateEventRows } from '@mansora/domain';
 import { createBackupFile, deriveAutoKey, verifyBackupFile } from '../backup';
 import { chunkRows, Ctx, dayBounds, defineCommands, likeContains, empty, MAX_AUDIT_DETAIL, zId, zRange, zText, type Engine } from '../engine';
-import { buildPreview, fileHash, IMPORT_FIELDS, readTable, suggestMapping, TEMPLATE_ROWS, toCsv, toXlsx, type ExistingKeys } from '../importer';
+import { buildPreview, productMatcher, fileHash, IMPORT_FIELDS, readTable, suggestMapping, TEMPLATE_ROWS, toCsv, toXlsx, type ExistingKeys } from '../importer';
 import { syncNow, uploadBackup } from '../sync';
-import { createProduct } from './catalog';
+import { createProduct, updateProductVat } from './catalog';
+import { stockVatPolicy } from '../stock';
+
+const zVatImport = { defaultTaxClass: z.enum(['standard', 'zero', 'exempt', 'outside']).optional(), updateExistingVat: z.boolean().default(false), vatUpdateReason: z.string().trim().max(400).default('') };
 
 const zFile = z.object({ fileName: zText(200), contentBase64: z.string().max(15_000_000) });
 const zMapping = z.partialRecord(z.enum(IMPORT_FIELDS), z.string().max(200));
@@ -52,15 +55,16 @@ export async function runScheduledBackup(engine: Engine): Promise<{ made: boolea
 }
 
 function existingKeys(ctx: Ctx): ExistingKeys {
-  const rows = ctx.all('SELECT name, sku, barcode FROM products');
+  const rows = ctx.all('SELECT id, name, sku, barcode, version FROM products');
   return {
+    products: rows as any[],
     barcodes: new Set(rows.filter((r) => r.barcode).map((r) => r.barcode)),
     skus: new Set(rows.filter((r) => r.sku).map((r) => String(r.sku).toLowerCase())),
     names: new Set(rows.map((r) => String(r.name).toLowerCase())),
   };
 }
 
-async function preview(ctx: Ctx, input: { fileName: string; contentBase64: string; mapping?: Record<string, string> }) {
+async function preview(ctx: Ctx, input: { fileName: string; contentBase64: string; mapping?: Record<string, string>; defaultTaxClass?: 'standard' | 'zero' | 'exempt' | 'outside'; updateExistingVat?: boolean; vatUpdateReason?: string }) {
   const content = Buffer.from(input.contentBase64, 'base64');
   const table = await readTable(input.fileName, content);
   if (table.length < 2) fail('INVALID_FILE', 'The file has no product rows');
@@ -68,11 +72,30 @@ async function preview(ctx: Ctx, input: { fileName: string; contentBase64: strin
   const headers = table[0].map((h) => h.trim());
   table[0] = headers;
   const mapping = input.mapping && Object.keys(input.mapping).length ? input.mapping : suggestMapping(headers);
-  const hash = fileHash(content);
+  const originalHash = fileHash(content);
+  const hash = input.updateExistingVat ? createHash('sha256').update(originalHash + '/vat-update/' + (input.defaultTaxClass ?? 'row-values')).digest('hex') : originalHash;
   const already = ctx.get('SELECT created_at FROM import_batches WHERE file_hash = ?', hash);
-  const needsMapping = !mapping.name || !mapping.selling_price;
-  const rows = needsMapping ? [] : buildPreview(table, mapping, existingKeys(ctx));
-  return { headers, mapping, needsMapping, hash, rows, alreadyImportedAt: already?.created_at ?? null };
+  const needsMapping = input.updateExistingVat ? !(mapping.name || mapping.sku || mapping.barcode) : !mapping.name || !mapping.selling_price;
+  const existing = existingKeys(ctx);
+  const rows = needsMapping ? [] : buildPreview(table, mapping, existing, input.updateExistingVat);
+  const updateIds = new Set<string>();
+  const matchExisting = productMatcher(existing.products ?? []);
+  for (const row of rows) {
+    if (!row.data.taxClass && input.defaultTaxClass) row.data.taxClass = input.defaultTaxClass;
+    if (!input.updateExistingVat || !row.duplicate || !row.data.taxClass) continue;
+    const matches = matchExisting(row.data);
+    if (!matches.length) continue; // Repeated rows in the same new-product file remain skipped.
+    if (matches.length !== 1) { row.errors.push('Product identifiers match different existing products. Correct the name, SKU and barcode.'); continue; }
+    const match = matches[0];
+    if (updateIds.has(match.id)) { row.errors.push('The same existing product is selected for VAT update more than once'); continue; }
+    updateIds.add(match.id);
+    row.vatUpdate = { productId: match.id, expectedVersion: match.version };
+  }
+  if (stockVatPolicy(ctx).classificationRequired) for (const row of rows) {
+    if (!row.duplicate && row.data.openingStock > 0 && !row.data.taxClass) row.errors.push('Choose a VAT classification before importing opening stock');
+  }
+  const reviewHash = createHash('sha256').update(JSON.stringify({ hash, defaultTaxClass: input.defaultTaxClass ?? null, updates: rows.filter(r => r.vatUpdate).map(r => ({ ...r.vatUpdate, taxClass: r.data.taxClass })) })).digest('hex');
+  return { reviewHash, headers, mapping, needsMapping, hash, rows, alreadyImportedAt: already?.created_at ?? null };
 }
 
 export const systemCommands = defineCommands({
@@ -328,8 +351,8 @@ export const systemCommands = defineCommands({
   'import.template': { perm: 'data.import', async: true, input: z.object({ format: z.enum(['csv', 'xlsx']) }), run: (_c, input) => tableFile('mansora-product-import-template', input.format, input.format === 'xlsx' ? [{ name: 'Products', rows: TEMPLATE_ROWS }, { name: 'How to fill this in', rows: TEMPLATE_GUIDE }] : [{ name: 'Products', rows: TEMPLATE_ROWS }]) },
   /** C58: a ready-made sample shop (about 140 products) in the same layout as the template. */
   'import.sample': { perm: 'data.import', async: true, input: z.object({ format: z.enum(['csv', 'xlsx']) }), run: (_c, input) => tableFile('mansora-sample-shop', input.format, input.format === 'xlsx' ? [{ name: 'Products', rows: sampleShopRows() }, { name: 'About this sample', rows: SAMPLE_GUIDE }] : [{ name: 'Products', rows: sampleShopRows() }]) },
-  'import.preview': { perm: 'data.import', async: true, input: zFile.extend({ mapping: zMapping.optional() }), run: (ctx, input) => preview(ctx, input) },
-  'import.history': { perm: 'data.import', input: empty, run: (ctx) => ctx.all('SELECT b.*, u.name AS imported_by_name FROM import_batches b JOIN users u ON u.id = b.imported_by ORDER BY b.created_at DESC LIMIT 100') },
+  'import.preview': { perm: 'data.import', async: true, input: zFile.extend({ mapping: zMapping.optional(), ...zVatImport }), run: (ctx, input) => preview(ctx, input) },
+  'import.history': { perm: 'data.import', input: empty, run: (ctx) => ctx.all(`SELECT b.*, COALESCE((SELECT json_extract(a.detail, '$.vatUpdated') FROM audit_logs a WHERE a.entity_id = b.id AND a.action = 'import.committed' LIMIT 1), 0) AS vat_updated_count, u.name AS imported_by_name FROM import_batches b JOIN users u ON u.id = b.imported_by ORDER BY b.created_at DESC LIMIT 100`) },
   /**
    * Import products (and, when confirmed, their opening stock). Safe to retry:
    * the same file is refused a second time, and rows matching an existing
@@ -338,7 +361,7 @@ export const systemCommands = defineCommands({
   'import.commit': {
     perm: 'data.import',
     async: true,
-    input: zFile.extend({ mapping: zMapping, confirmOpeningStock: z.boolean() }),
+    input: zFile.extend({ mapping: zMapping, confirmOpeningStock: z.boolean(), expectedPreviewHash: z.string().regex(/^[a-f0-9]{64}$/).optional(), ...zVatImport }),
     run: async (ctx, input) => {
       const p = await preview(ctx, input);
       if (p.alreadyImportedAt) fail('ALREADY_IMPORTED', 'This file has already been imported. Nothing was changed.');
@@ -346,6 +369,12 @@ export const systemCommands = defineCommands({
       const invalid = p.rows.filter((r) => r.errors.length);
       if (invalid.length) fail('IMPORT_HAS_ERRORS', `Fix ${invalid.length} row(s) with errors before importing`, invalid.slice(0, 20));
       const good = p.rows.filter((r) => !r.duplicate);
+      const vatUpdates = p.rows.filter(r => r.vatUpdate && !r.errors.length);
+      if (vatUpdates.length) {
+        ctx.require('product.manage');
+        if (!input.vatUpdateReason) fail('REASON_REQUIRED', 'Enter a reason for updating existing VAT classifications');
+        if (!input.expectedPreviewHash || input.expectedPreviewHash !== p.reviewHash) fail('IMPORT_CHANGED', 'Existing products changed or this VAT update was not previewed. Preview the file again before importing.');
+      }
       const withStock = good.some((r) => r.data.openingStock > 0);
       if (withStock && !input.confirmOpeningStock) fail('CONFIRM_OPENING_STOCK', 'Confirm the opening stock quantities before importing');
       if (withStock) ctx.require('stock.adjust');
@@ -365,7 +394,9 @@ export const systemCommands = defineCommands({
           }
           createProduct(ctx, { ...row.data, categoryId, active: true }, 'import');
         }
-        const result = { batchId, created: good.length, skipped: p.rows.length - good.length, openingStockApplied: withStock };
+        let vatUpdated = 0;
+        for (const row of vatUpdates) vatUpdated += updateProductVat(ctx, [row.vatUpdate!], row.data.taxClass!, input.vatUpdateReason).updated;
+        const result = { vatUpdated, batchId, created: good.length, skipped: p.rows.length - good.length - vatUpdates.length, openingStockApplied: withStock };
         ctx.run(
           'INSERT INTO import_batches (id, file_name, file_hash, created_count, skipped_count, opening_stock_applied, imported_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           batchId, input.fileName, p.hash, result.created, result.skipped, withStock ? 1 : 0, ctx.user.id, ctx.now(),

@@ -40,6 +40,20 @@ describe('Resend HTTPS adapter', () => {
     vi.stubEnv('MANSORA_STAGING_MODE', ''); vi.stubEnv('MANSORA_DEPLOYMENT_MODE', 'team-test'); vi.stubEnv('RESEND_API_KEY', 'key'); vi.stubEnv('RESEND_ALLOWED_RECIPIENTS', '');
     try { expect(() => resendFromEnv()).toThrow('RESEND_ALLOWED_RECIPIENTS'); } finally { vi.unstubAllEnvs(); }
   });
+  it('permits request-driven client account messages without releasing queued test mail, and cannot bypass staging restrictions', async () => {
+    vi.stubEnv('MANSORA_STAGING_MODE', 'client'); vi.stubEnv('MANSORA_DEPLOYMENT_MODE', 'client'); vi.stubEnv('RESEND_API_KEY', 'synthetic-key'); vi.stubEnv('RESEND_FROM_EMAIL', 'sender@example.test'); vi.stubEnv('RESEND_ALLOWED_RECIPIENTS', 'operator@example.test');
+    const transport = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ id: 'synthetic-provider-id' }), { status: 200 }));
+    try {
+      const account = resendFromEnv({ clientAccountMessages: true }), queued = resendFromEnv();
+      expect(await account.send({ to: 'new-owner@example.test', subject: 'Account setup', body: 'synthetic proof' })).toEqual({ id: 'synthetic-provider-id' });
+      await expect(queued.send({ to: 'new-owner@example.test', subject: 'Queued test message', body: 'synthetic' })).rejects.toMatchObject({ retryable: false });
+      expect(transport).toHaveBeenCalledTimes(1);
+      vi.stubEnv('MANSORA_STAGING_MODE', 'team-test'); vi.stubEnv('MANSORA_DEPLOYMENT_MODE', 'team-test');
+      expect(() => resendFromEnv({ clientAccountMessages: true })).toThrow('explicit client deployment mode');
+      vi.stubEnv('MANSORA_DEPLOYMENT_MODE', 'client');
+      expect(() => resendFromEnv({ clientAccountMessages: true })).toThrow('explicit client deployment mode');
+    } finally { transport.mockRestore(); vi.unstubAllEnvs(); }
+  });
   it('reports an unverified sender without exposing the provider response or address', async () => {
     const email = new ResendEmail({ apiKey: 'key', from: 'sender@example.test', fetch: (async () => new Response(JSON.stringify({ message: 'The private-marker.test domain is not verified.' }), { status: 403 })) as any });
     await expect(email.send({ to: 'client@example.test', subject: 'Test', body: 'body' })).rejects.toMatchObject({ message: 'Resend sender domain is not verified.', retryable: false });

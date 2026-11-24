@@ -457,6 +457,8 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
     if (!ctx.browserWorkspaces) httpError(404, 'NOT_AVAILABLE', 'Browser workspace provisioning is not available on this service.');
     workspaceLimiter.check(a.id);
     const { id } = zId.parse(req.params);
+    const setupInput = z.object({ ownerUsername: z.string().trim().toLowerCase().min(3).max(40).regex(/^[a-z0-9._-]+$/).optional(), sendEmail: z.boolean().default(false) }).parse(req.body ?? {});
+    if (setupInput.sendEmail && !ctx.email?.configured()) httpError(503, 'EMAIL_UNAVAILABLE', 'Email delivery is not configured. Use a private setup link or contact support.');
     const code = newActivationCode(), expiresAt = new Date(Date.now() + 72 * 3_600_000).toISOString();
     const tenant = await db.platform(async q => {
       const [row] = await q<{ name: string; owner_name: string; email: string | null; has_active_device: boolean }>("SELECT t.name, t.owner_name, t.email, EXISTS (SELECT 1 FROM devices d WHERE d.tenant_id = t.id AND d.status = 'active') AS has_active_device FROM tenants t WHERE t.id = $1 AND t.status <> 'closed'", [id]);
@@ -465,8 +467,12 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: AppContext): void
       await q('INSERT INTO activation_codes (code_hash, tenant_id, expires_at, created_by) VALUES ($1, $2, $3, $4)', [sha256(code), id, expiresAt, a.id]);
       return row;
     });
-    const result = await ctx.browserWorkspaces!.invite({ tenantId: id, label: tenant.name, ownerName: tenant.owner_name, ownerEmail: tenant.email!, activationCode: code, hasActiveDevice: tenant.has_active_device });
-    await db.platform(q => audit(q, a, 'browser_workspace.invited', id, { workspaceId: result.workspaceId, status: result.status, expiresAt: result.expiresAt }));
+    const result = await ctx.browserWorkspaces!.invite({ tenantId: id, label: tenant.name, ownerName: tenant.owner_name, ownerEmail: tenant.email!, activationCode: code, hasActiveDevice: tenant.has_active_device, ownerUsername: setupInput.ownerUsername });
+    if (setupInput.sendEmail && result.status === 'pending') {
+      await ctx.email!.send({ to: tenant.email!, subject: 'Your Mansora Sales & Stock account', idempotencyKey: 'mansora-owner-setup/' + sha256(result.url), body: `Hello ${tenant.owner_name},\n\nMansora has prepared your business account for ${tenant.name}.\n${result.ownerUsername ? 'Your assigned username: ' + result.ownerUsername + '\n' : ''}Choose your password using this private link:\n${result.url}\n\nThis link works once and expires at ${result.expiresAt}. Never share your password or this link.\n\nMansora Consulting and Business Solutions Limited` });
+      result.emailSent = true;
+    }
+    await db.platform(q => audit(q, a, 'browser_workspace.invited', id, { workspaceId: result.workspaceId, status: result.status, expiresAt: result.expiresAt, ownerUsername: result.ownerUsername, emailAccepted: !!result.emailSent }));
     return result;
   });
 

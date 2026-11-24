@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Stat, Table, Textarea, QueryView } from '@mansora/ui';
-import { ApprovalModal, call, DateRange, dateTime, daysAgo, ExportButtons, METHOD, money, MoneyInput, monthStart, plain, today, useAction, useApp, useQuery, uuid, type Approver } from '../lib';
+import { ApprovalModal, isApproverError, call, DateRange, dateTime, daysAgo, ExportButtons, METHOD, money, MoneyInput, monthStart, plain, today, useAction, useApp, useQuery, uuid, type Approver } from '../lib';
 
 const less = (n: number) => (n ? `−${plain(n)}` : plain(0));
 
@@ -84,10 +84,10 @@ function CloseModal({ expected, onClose, onDone }: { expected: number | null; on
       footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || counted == null || (diff != null && diff !== 0 && !notes.trim())} onClick={() => run(async () => { const r = await call('shift.close', { countedCash: counted, notes: notes || null }); if (blind) setResult(r); else onDone(); }, 'Shift closed')}>Close shift</Button></>}>
       <div className="space-y-3">
         <p className="text-sm text-slate-600">Count all the cash in the till, including the float, and enter the total.</p>
-        <Field label="Cash counted (GHS)"><MoneyInput value={counted} onChange={setCounted} autoFocus className="!text-lg" /></Field>
+        <Field label="Cash counted (GHS)"><MoneyInput required value={counted} onChange={setCounted} autoFocus className="!text-lg" /></Field>
         {blind ? <p className="text-sm text-slate-600">Count before you see the expected amount. It is shown once the shift is closed.</p> : <div className="flex justify-between rounded-md bg-slate-50 px-3 py-2 text-sm"><span>Expected in till</span><strong className="tabular-nums">{money(expected)}</strong></div>}
         {diff != null && <Alert tone={diff === 0 ? 'good' : 'warn'}>{diff === 0 ? 'The till balances.' : diff < 0 ? `The till is short by ${money(-diff)}.` : `The till is over by ${money(diff)}.`}</Alert>}
-        <Field label={diff ? 'Explain the difference (required)' : 'Notes (optional)'}><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+        <Field label={diff ? 'Explain the difference (required)' : 'Notes (optional)'}><Textarea required={!!diff} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       </div>
     </Modal>
   );
@@ -101,8 +101,8 @@ function CashMoveModal({ onClose, onDone }: { onClose: () => void; onDone: () =>
   const [approval, setApproval] = useState(false);
   const { run, busy } = useAction();
   const submit = (approver?: Approver) => {
-    if (!can('shift.review') && !approver) return setApproval(true);
-    run(async () => { await call('shift.cashMovement', { direction, amount, reason, approver }); onDone(); }, 'Cash movement recorded');
+    if (!can('shift.review') && !approver) { setApproval(true); return; }
+    return run(async () => { await call('shift.cashMovement', { direction, amount, reason, approver }); onDone(); }, 'Cash movement recorded', { rethrow: (e) => !!approver && isApproverError(e) });
   };
   return (
     <>
@@ -110,11 +110,11 @@ function CashMoveModal({ onClose, onDone }: { onClose: () => void; onDone: () =>
         footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !amount || !reason.trim()} onClick={() => submit()}>Record</Button></>}>
         <div className="space-y-3">
           <Field label="Type"><Select value={direction} onChange={(e) => setDirection(e.target.value)}><option value="out">Cash taken out (e.g. banked, given to owner)</option><option value="in">Cash put in (e.g. extra change)</option></Select></Field>
-          <Field label="Amount (GHS)"><MoneyInput value={amount} onChange={setAmount} autoFocus /></Field>
-          <Field label="Reason"><Input value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+          <Field label="Amount (GHS)"><MoneyInput required value={amount} onChange={setAmount} autoFocus /></Field>
+          <Field label="Reason"><Input required value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
         </div>
       </Modal>
-      <ApprovalModal open={approval} reason="Moving cash in or out of the till needs approval." onCancel={() => setApproval(false)} onApprove={(a) => { setApproval(false); submit(a); }} />
+      <ApprovalModal open={approval} reason="Moving cash in or out of the till needs approval." onCancel={() => setApproval(false)} onApprove={async (a) => { await submit(a); setApproval(false); }} />
     </>
   );
 }
@@ -173,8 +173,8 @@ function ExpenseModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Category"><Select value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</Select></Field>
         <Field label="Date"><Input type="date" value={f.expenseDate} max={today()} onChange={(e) => setF({ ...f, expenseDate: e.target.value })} /></Field>
-        <Field label="Description" className="col-span-2"><Input value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} autoFocus /></Field>
-        <Field label="Amount (GHS)"><MoneyInput value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>
+        <Field label="Description" className="col-span-2"><Input required value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} autoFocus /></Field>
+        <Field label="Amount (GHS)"><MoneyInput required value={f.amount} onChange={(v) => setF({ ...f, amount: v })} /></Field>
         <Field label="Paid by"><Select value={f.paymentMethod} onChange={(e) => setF({ ...f, paymentMethod: e.target.value })}><option value="cash">Cash</option><option value="momo">Mobile money</option><option value="card">Card</option><option value="bank">Bank transfer</option></Select></Field>
         <Field label="Receipt reference (optional)" className="col-span-2"><Input value={f.receiptReference} onChange={(e) => setF({ ...f, receiptReference: e.target.value })} /></Field>
         {f.paymentMethod === 'cash' && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={f.paidFromTill} onChange={(e) => setF({ ...f, paidFromTill: e.target.checked })} /> Paid with cash from my till (reduces my expected cash)</label>}
@@ -205,8 +205,8 @@ function OthersOpenShifts({ onDone }: { onDone: () => void }) {
             onClick={() => run(async () => { await call('shift.closeFor', { shiftId: closing.id, countedCash: counted, reason: reason.trim() }); setClosing(null); query.reload(); onDone(); }, 'Shift closed')}>Close shift</Button></>}>
           <div className="space-y-3">
             <p className="text-sm text-slate-700">Count the cash in {closing.cashier_name}'s till. Mansora compares it with what should be there and records the difference, with your name.</p>
-            <Field label="Cash counted (GHS)"><MoneyInput value={counted} onChange={setCounted} autoFocus /></Field>
-            <Field label="Why are you closing it?" hint="For example: went home without closing"><Input value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} /></Field>
+            <Field label="Cash counted (GHS)"><MoneyInput required value={counted} onChange={setCounted} autoFocus /></Field>
+            <Field label="Why are you closing it?" hint="For example: went home without closing"><Input required minLength={3} data-validation-message="Explain in a few words why you are closing this shift" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} /></Field>
           </div>
         </Modal>
       )}

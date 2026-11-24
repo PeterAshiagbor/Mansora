@@ -9,7 +9,7 @@ export interface PickedCustomer { id: string; name: string; phone?: string | nul
 export function CustomerFields({ value, onChange, autoFocus = 'name' }: { value: CustomerDraft; onChange: (v: CustomerDraft) => void; autoFocus?: 'name' | 'phone' }) {
   return (
     <div className="space-y-3">
-      <Field label="Name" hint="Required when saving a customer record."><Input value={value.name} maxLength={120} onChange={(e) => onChange({ ...value, name: e.target.value })} autoFocus={autoFocus === 'name'} /></Field>
+      <Field label="Name" hint="Required when saving a customer record."><Input required value={value.name} maxLength={120} onChange={(e) => onChange({ ...value, name: e.target.value })} autoFocus={autoFocus === 'name'} /></Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Phone (optional)" hint="Needed to remind a credit customer by WhatsApp."><Input type="tel" value={value.phone} maxLength={40} onChange={(e) => onChange({ ...value, phone: e.target.value })} autoFocus={autoFocus === 'phone'} /></Field>
         <Field label="Customer TIN (when required for tax documents)"><Input value={value.tin ?? ''} maxLength={80} onChange={e => onChange({ ...value, tin: e.target.value })} /></Field>

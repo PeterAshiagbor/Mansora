@@ -11,9 +11,13 @@ npm ci
 npm run desktop:dist
 ```
 
-Output: `apps/desktop/release/*.exe` (NSIS installer, per-machine). CI produces the
+Output: `apps/desktop/release/Mansora-Sales-Stock-Setup-<version>-x64.exe` (NSIS installer, per-machine). The product is **Mansora Sales & Stock**, provided by **Mansora Consulting and Business Solutions Limited**. CI produces the
 same file as the artifact `mansora-windows-installer-unsigned` on every pull
 request and launches the packaged app to verify its security shell.
+
+## Client distribution status
+
+Client-facing application/package metadata does not create a signed release or a public download endpoint. The approved public distribution URL, release version, integrity information and signing status must be confirmed before publishing a client download guide. Do not direct ordinary clients to internal CI artifacts or label an unsigned artifact as a verified publisher release. The authenticated application and administration pages remain excluded from search indexing; metadata contains no shop-specific or customer information. Test-shop labels remain truthful.
 
 ## Signing (required before any client installation)
 

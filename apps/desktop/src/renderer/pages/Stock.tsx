@@ -77,17 +77,19 @@ function AdjustModal({ product, onClose, onDone }: { product: any; onClose: () =
   const { run, busy } = useAction();
   const n = Number(qty);
   const delta = type === 'DAMAGE' || direction === '-' ? -n : n;
+  const missingVatClass = delta > 0 && product.stock_tax_class_required;
   return (
     <Modal title={`Adjust stock: ${product.name}`} open onClose={onClose}
-      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || !Number.isSafeInteger(n) || n <= 0 || !reason.trim()} onClick={() => run(async () => { await call('stock.adjust', { productId: product.id, type, delta, reason }); onDone(); }, 'Stock adjusted')}>Record adjustment</Button></>}>
+      footer={<><Button dismiss onClick={onClose}>Cancel</Button><Button variant="primary" disabled={busy || missingVatClass || !Number.isSafeInteger(n) || n <= 0 || !reason.trim()} onClick={() => run(async () => { await call('stock.adjust', { productId: product.id, type, delta, reason }); onDone(); }, 'Stock adjusted')}>Record adjustment</Button></>}>
       <div className="space-y-3">
+        {missingVatClass && <Alert tone="warn">Choose a VAT classification for {product.name} in Products before adding stock.</Alert>}
         <p className="text-sm text-slate-600">Currently in stock: <strong>{product.quantity}</strong>{n > 0 && <> → <strong>{product.quantity + delta}</strong></>}</p>
         <Field label="What happened?"><Select value={type} onChange={(e) => setType(e.target.value)}><option value="DAMAGE">Damaged, expired or lost</option><option value="MANUAL_CORRECTION">Correction of a mistake</option></Select></Field>
         <div className="grid grid-cols-2 gap-3">
           {type === 'MANUAL_CORRECTION' && <Field label="Direction"><Select value={direction} onChange={(e) => setDirection(e.target.value)}><option value="-">Remove from stock</option><option value="+">Add to stock</option></Select></Field>}
-          <Field label="Quantity"><Input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></Field>
+          <Field label="Quantity"><Input required type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></Field>
         </div>
-        <Field label="Reason (required)"><Textarea value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+        <Field label="Reason (required)"><Textarea required={true} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
       </div>
     </Modal>
   );
@@ -105,6 +107,7 @@ function StockCount({ onDone }: { onDone: () => void }) {
   const invalidCounts = Object.values(counted).some((value) => value !== '' && (!Number.isSafeInteger(Number(value)) || Number(value) < 0));
   const lines = rows.filter((r) => counted[r.id] !== undefined && counted[r.id] !== '').map((r) => ({ productId: r.id, counted: Number(counted[r.id]), system: r.quantity }));
   const diffs = lines.filter((l) => l.counted !== l.system);
+  const missingVatClasses = rows.filter(r => r.stock_tax_class_required && lines.some(l => l.productId === r.id && l.counted > l.system));
   const toast = useToast();
   const [scan, setScan] = useState('');
   // Each scan adds one to that product's count, so a shelf can be counted by scanning every item on it.
@@ -131,9 +134,10 @@ function StockCount({ onDone }: { onDone: () => void }) {
           { header: 'Difference', align: 'right', cell: (r) => { const l = lines.find((x) => x.productId === r.id); if (!l || l.counted === l.system) return ''; const d = l.counted - l.system; return <Badge tone={d < 0 ? 'bad' : 'info'}>{d > 0 ? '+' : ''}{d}</Badge>; } },
         ]} />
       </Card></QueryView>
+      {missingVatClasses.length > 0 && <Alert tone="warn">Choose VAT classifications in Products before increasing stock for: {missingVatClasses.map(p => p.name).join(', ')}.</Alert>}
       <div className="mt-3 flex items-end gap-3">
         <Field label="Note" className="flex-1"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Month-end count" /></Field>
-        <Button variant="primary" disabled={busy || !!countQuery.error || !data || invalidCounts || lines.length === 0} onClick={() => run(async () => { const r = await call('stock.count', { note: note || null, startedAt, lines: lines.map(({ productId, counted }) => ({ productId, counted })) }); setCounted({}); onDone(); return r; }, `Stock count saved: ${diffs.length} adjustment(s)`)}>
+        <Button variant="primary" disabled={busy || missingVatClasses.length > 0 || !!countQuery.error || !data || invalidCounts || lines.length === 0} onClick={() => run(async () => { const r = await call('stock.count', { note: note || null, startedAt, lines: lines.map(({ productId, counted }) => ({ productId, counted })) }); setCounted({}); onDone(); return r; }, `Stock count saved: ${diffs.length} adjustment(s)`)}>
           Save count ({lines.length} counted, {diffs.length} different)
         </Button>
       </div>
@@ -175,7 +179,7 @@ export function PurchasesPage() {
         <Modal title={edit.id ? 'Edit supplier' : 'Add supplier'} open onClose={() => setEdit(null)}
           footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={() => run(async () => { await call('supplier.save', { id: edit.id, name: edit.name, phone: edit.phone, momoNumber: edit.momo_number, location: edit.location, supplies: edit.supplies, notes: edit.notes }); setEdit(null); suppliers.reload(); }, 'Supplier saved')}>Save</Button></>}>
           <div className="space-y-3">
-            <Field label="Supplier name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
+            <Field label="Supplier name"><Input required={true} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <Field label="Phone"><Input value={edit.phone ?? ''} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
             <Field label="Mobile Money number" hint="For paying this supplier"><Input value={edit.momo_number ?? ''} onChange={(e) => setEdit({ ...edit, momo_number: e.target.value })} /></Field>
             <Field label="Location"><Input value={edit.location ?? ''} onChange={(e) => setEdit({ ...edit, location: e.target.value })} placeholder="e.g. Makola Market, Accra" /></Field>
@@ -294,25 +298,27 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
   const set = (i: number, patch: Partial<(typeof items)[number]>) => setItems(items.map((x, k) => (k === i ? { ...x, ...patch } : x)));
   const valid = items.filter((i) => i.productId && Number.isSafeInteger(Number(i.quantity)) && Number(i.quantity) > 0 && i.unitCost != null);
   const total = valid.reduce((a, i) => a + Number(i.quantity) * (i.unitCost ?? 0), 0);
+  const missingVatClasses = products.filter(p => p.stock_tax_class_required && items.some(i => i.productId === p.id));
   return (
     <Modal title="Receive stock" open onClose={onClose} wide
       footer={<><span className="mr-auto self-center text-sm">Total cost: <strong>{money(total)}</strong></span><Button dismiss onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={busy || valid.length === 0 || valid.length !== items.length || !claimReady || (onCredit && !supplierId) || (!!duplicate && !duplicateReason.trim())} onClick={() => run(async () => {
+        <Button variant="primary" disabled={busy || missingVatClasses.length > 0 || valid.length === 0 || valid.length !== items.length || !claimReady || (onCredit && !supplierId) || (!!duplicate && !duplicateReason.trim())} onClick={() => run(async () => {
           try {
             await call('purchase.receive', { id, supplierId: supplierId || null, reference: reference || null, items: valid.map((i) => ({ productId: i.productId, quantity: Number(i.quantity), unitCost: i.unitCost })),
               onCredit, dueDate: onCredit && dueDate ? dueDate : null, inputTax: claim ? { supplierTin: t.supplierTin, invoiceDate: t.invoiceDate, vat: t.vat, nhil: t.nhil, getfund: t.getfund, evidenceConfirmed: true } : undefined, duplicateReason: duplicate ? duplicateReason : null });
           } catch (e: any) { if (e.code === 'DUPLICATE_PURCHASE') setDuplicate(e.message); throw e; }
           onDone();
         }, 'Stock received')}>Receive into stock</Button></>}>
+      {missingVatClasses.length > 0 && <Alert tone="warn" className="mb-3">Choose VAT classifications in Products before receiving stock for: {missingVatClasses.map(p => p.name).join(', ')}.</Alert>}
       {productOptions.error && <QueryView query={productOptions} label="products for this receipt">{null}</QueryView>}
       <p className="mb-3 text-xs leading-relaxed text-slate-600">Enter whole selling units and their unit purchase cost. A carton must be converted to its individual items before receiving.{tax.data?.registered && ' This business is VAT registered: enter unit costs excluding the VAT, NHIL and GETFund you can recover.'}</p>
       <div className="mb-3 flex flex-wrap items-end gap-3"><label className="flex items-center gap-2 text-sm"><input id="receive-on-credit" type="checkbox" checked={onCredit} onChange={(e) => setOnCredit(e.target.checked)} /> Bought on credit (pay the supplier later)</label>{onCredit && <Field label="Payment due"><Input id="receive-due-date" type="date" value={dueDate} min={today()} onChange={(e) => setDueDate(e.target.value)} /></Field>}{onCredit && !supplierId && <span className="text-sm text-amber-800">Choose the supplier.</span>}</div>
-      {duplicate && <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"><p className="mb-2">{duplicate}</p><Field label="Reason for receiving this invoice again"><Input id="receive-duplicate-reason" value={duplicateReason} onChange={(e) => setDuplicateReason(e.target.value)} /></Field></div>}
+      {duplicate && <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"><p className="mb-2">{duplicate}</p><Field label="Reason for receiving this invoice again"><Input required={!!duplicate} id="receive-duplicate-reason" value={duplicateReason} onChange={(e) => setDuplicateReason(e.target.value)} /></Field></div>}
       {vatRegistered && <div className="mb-3 rounded-md border border-slate-200 p-3">
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={claim} onChange={(e) => setClaim(e.target.checked)} /> Claim the input tax on this supplier invoice</label>
         {claim && <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <Field label="Supplier TIN"><Input id="receive-supplier-tin" value={t.supplierTin} onChange={(e) => setT({ ...t, supplierTin: e.target.value })} /></Field>
-          <Field label="Supplier invoice date"><Input id="receive-invoice-date" type="date" value={t.invoiceDate} max={today()} onChange={(e) => setT({ ...t, invoiceDate: e.target.value })} /></Field>
+          <Field label="Supplier TIN"><Input required id="receive-supplier-tin" value={t.supplierTin} onChange={(e) => setT({ ...t, supplierTin: e.target.value })} /></Field>
+          <Field label="Supplier invoice date"><Input required id="receive-invoice-date" type="date" value={t.invoiceDate} max={today()} onChange={(e) => setT({ ...t, invoiceDate: e.target.value })} /></Field>
           <div />
           <Field label="VAT on invoice (GHS)"><MoneyInput value={t.vat} onChange={(v) => setT({ ...t, vat: v })} /></Field>
           <Field label="NHIL on invoice (GHS)"><MoneyInput value={t.nhil} onChange={(v) => setT({ ...t, nhil: v })} /></Field>
@@ -321,13 +327,13 @@ function ReceiveModal({ suppliers, onClose, onDone }: { suppliers: any[]; onClos
         </div>}
       </div>}
       <div className="mb-3 grid grid-cols-2 gap-3">
-        <Field label="Supplier"><Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">No supplier</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
-        <Field label="Invoice / waybill number"><Input value={reference} onChange={(e) => setReference(e.target.value)} /></Field>
+        <Field label="Supplier"><Select required={onCredit} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">No supplier</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
+        <Field label="Invoice / waybill number"><Input required={claim} value={reference} onChange={(e) => setReference(e.target.value)} /></Field>
       </div>
       {items.map((it, i) => (
         <div key={i} className="m-receive-line mb-4">
-          <Field label={i === 0 ? 'Product' : ''}><Select value={it.productId} aria-label="Product" onChange={(e) => { const p = products.find((x) => x.id === e.target.value); set(i, { productId: e.target.value, unitCost: it.unitCost ?? p?.cost_price ?? null }); }}><option value="">Choose product…</option>{products.filter((p) => p.id === it.productId || !items.some((x) => x.productId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
-          <Field label={i === 0 ? 'Quantity' : ''}><Input type="number" min={1} aria-label="Quantity" value={it.quantity} onChange={(e) => set(i, { quantity: e.target.value })} /></Field>
+          <Field label={i === 0 ? 'Product' : ''}><Select required value={it.productId} aria-label="Product" onChange={(e) => { const p = products.find((x) => x.id === e.target.value); set(i, { productId: e.target.value, unitCost: it.unitCost ?? p?.cost_price ?? null }); }}><option value="">Choose product…</option>{products.filter((p) => p.id === it.productId || !items.some((x) => x.productId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.name}{p.stock_tax_class_required ? ' (VAT classification required)' : ''}</option>)}</Select></Field>
+          <Field label={i === 0 ? 'Quantity' : ''}><Input required type="number" min={1} aria-label="Quantity" value={it.quantity} onChange={(e) => set(i, { quantity: e.target.value })} /></Field>
           <Field label={i === 0 ? 'Unit cost (GHS)' : ''}><MoneyInput value={it.unitCost} aria-label="Unit cost" onChange={(v) => set(i, { unitCost: v })} /></Field>
           <button type="button" aria-label="Remove line" className="mb-2 text-red-700" onClick={() => setItems(items.length > 1 ? items.filter((_, k) => k !== i) : items)}>✕</button>
           <CartonReceiptCalculator onApply={(quantity, unitCost) => set(i, { quantity: String(quantity), unitCost })} />

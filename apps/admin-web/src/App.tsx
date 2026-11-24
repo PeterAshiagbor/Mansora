@@ -40,6 +40,9 @@ export function App() { return <DraftProvider><AdminApplication /></DraftProvide
 function AdminApplication() {
   const navigate = useNavigationGuard();
   const [signedIn, setSignedIn] = useState(!!getToken());
+  const signInUrl: string | undefined = (window as any).MANSORA_SIGNIN_URL;
+  // An emailed administrator invitation is accepted here first; only then does the hosted console use the one sign-in page.
+  const [invited] = useState(() => /(^|&)admin-invite=/.test(window.location.hash.slice(1)));
   // Remembered per browser tab, so a refresh stays on the same page.
   const [page, setPage] = usePersistentPage<{ id: string; param?: string }>('mansora:admin-page', { id: 'overview' });
   useEffect(() => {
@@ -47,7 +50,8 @@ function AdminApplication() {
     window.addEventListener('mansora:signed-out', out);
     return () => window.removeEventListener('mansora:signed-out', out);
   }, []);
-  if (!signedIn) return <Login onDone={() => setSignedIn(true)} />;
+  // Hosted together with the shops, administrators use the same single sign-in page; this console has no form of its own.
+  if (!signedIn) return signInUrl && !invited ? <ToSignIn url={signInUrl} /> : <Login onDone={() => setSignedIn(true)} signInUrl={signInUrl} />;
   const go = (id: string, param?: string, afterSave = false) => {
     if (page.id === id && page.param === param) return;
     if (afterSave) setPage({ id, param });
@@ -97,14 +101,14 @@ const BILLING_TABS = ['collections', 'invoices', 'payments'];
 /** The three billing views, one menu item. Each tab answers one question. */
 function BillingTabs({ current, go }: { current: string; go: (id: string) => void }) {
   const hint: Record<string, string> = {
-    collections: 'Who owes Mansora, how late they are, reminders sent and what happens next.',
+    collections: '', // the page's own subtitle already says this
     invoices: 'Every bill sent to a client shop, with its status and pay link.',
     payments: 'Money received, by Paystack, Mobile Money, bank or cash, and what it paid.',
   };
   return (
     <div className="mb-4">
       <Tabs value={current} onChange={(id: string) => go(id)} tabs={[{ id: 'collections', label: 'Who owes us' }, { id: 'invoices', label: 'Invoices' }, { id: 'payments', label: 'Payments received' }]} />
-      <p className="mt-2 text-sm text-slate-600">{hint[current]}</p>
+      {hint[current] && <p className="mt-2 text-sm text-slate-600">{hint[current]}</p>}
     </div>
   );
 }
@@ -147,7 +151,12 @@ function AcceptInvitation({ token, onDone }: { token: string; onDone: (email: st
   );
 }
 
-function Login({ onDone }: { onDone: () => void }) {
+function ToSignIn({ url }: { url: string }) {
+  useEffect(() => { location.replace(url); }, [url]);
+  return <div className="flex min-h-screen items-center justify-center text-slate-500" role="status">Taking you to sign in…</div>;
+}
+
+function Login({ onDone, signInUrl }: { onDone: () => void; signInUrl?: string }) {
   // The invitation token arrives in the URL fragment and is removed from history straight away.
   const [invite, setInvite] = useState<string | null>(() => {
     const token = new URLSearchParams(window.location.hash.slice(1)).get('admin-invite');
@@ -156,6 +165,7 @@ function Login({ onDone }: { onDone: () => void }) {
   });
   const [welcome, setWelcome] = useState<string | null>(null);
   if (invite) return <AcceptInvitation token={invite} onDone={(address) => { setInvite(null); setWelcome(address); }} />;
+  if (signInUrl) return <ToSignIn url={signInUrl + (welcome ? '#email=' + encodeURIComponent(welcome) : '')} />;
   return <PasswordLogin onDone={onDone} initialEmail={welcome ?? ''} welcome={!!welcome} />;
 }
 
@@ -182,7 +192,7 @@ function PasswordLogin({ onDone, initialEmail, welcome }: { onDone: () => void; 
         {error && <Alert tone="bad">{error}</Alert>}
         {challenge ? <>
           <p className="text-sm text-slate-600">Enter a code from your authenticator app, or one of your unused recovery codes. This sign-in challenge expires after five minutes.</p>
-          <Field label="Authenticator or recovery code"><Input key="second-factor" value={code} onChange={(e) => setCode(e.target.value)} autoFocus autoComplete="one-time-code" maxLength={64} /></Field>
+          <Field label="Authenticator or recovery code"><Input key="second-factor" required value={code} onChange={(e) => setCode(e.target.value)} autoFocus autoComplete="one-time-code" maxLength={64} /></Field>
           <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy || !code.trim()}>Verify and sign in</Button>
           <Button disabled={busy} onClick={() => { setChallenge(null); setCode(''); }}>Back to password sign in</Button>
         </> : <>
@@ -246,7 +256,7 @@ function AccountSecurity() {
         const result = await api('POST', '/v1/admin/totp/confirm', { code });
         setRecoveryCodes(result.recoveryCodes); setEnrolment(null); setCode(''); reload();
       }); }}>
-        <Field label="Authenticator code"><Input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} /></Field>
+        <Field label="Authenticator code"><Input required pattern="\d{6}" data-validation-message="Enter the 6-digit code from your authenticator app" value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} /></Field>
         <div className="flex gap-2"><Button type="submit" variant="primary" disabled={busy || !/^\d{6}$/.test(code)}>Enable two-factor authentication</Button><Button disabled={busy} onClick={() => { setEnrolment(null); setCode(''); }}>Cancel setup</Button></div>
       </form>
     </Card> : <Card title="Two-factor authentication">
@@ -270,8 +280,8 @@ function AccountSecurity() {
       }); }}>
         <Alert tone="warn">This removes your second sign-in step and invalidates all sessions and recovery codes. You will need to sign in again.</Alert>
         {error && <Alert tone="bad">{error}</Alert>}
-        <Field label="Current password"><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus /></Field>
-        <Field label="Authenticator or recovery code"><Input value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" maxLength={64} /></Field>
+        <Field label="Current password"><Input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus /></Field>
+        <Field label="Authenticator or recovery code"><Input required value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" maxLength={64} /></Field>
         <Button type="submit" variant="danger" disabled={busy || !password || !code.trim()}>Confirm disable</Button>
       </form>
     </Modal>}
@@ -334,16 +344,18 @@ function Progress({ done, total }: { done: number; total: number }) {
 
 const EMPTY_CLIENT = { name: '', ownerName: '', phone: '', email: '', address: '', businessType: 'retail', supportContact: '' };
 const BUSINESS_TYPES = ['retail', 'mini mart', 'general merchandise', 'wholesale', 'other'];
+/** Stored values stay lowercase; people read them with a capital and spaces. */
+const statusLabel = (s?: string | null) => (s ? s[0].toUpperCase() + s.slice(1).replace(/_/g, ' ') : '—');
 function ClientFields({ f, setF }: { f: any; setF: (f: any) => void }) {
   const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
   return (
     <div className="grid grid-cols-2 gap-3">
-      <Field label="Business name"><Input value={f.name} onChange={set('name')} autoFocus /></Field>
-      <Field label="Primary owner"><Input value={f.ownerName} onChange={set('ownerName')} /></Field>
+      <Field label="Business name"><Input required value={f.name} onChange={set('name')} autoFocus /></Field>
+      <Field label="Primary owner"><Input required value={f.ownerName} onChange={set('ownerName')} /></Field>
       <Field label="Phone"><Input value={f.phone ?? ''} onChange={set('phone')} /></Field>
       <Field label="Email"><Input type="email" value={f.email ?? ''} onChange={set('email')} /></Field>
       <Field label="Address" className="col-span-2"><Input value={f.address ?? ''} onChange={set('address')} /></Field>
-      <Field label="Business type"><Select value={f.businessType} onChange={set('businessType')}>{BUSINESS_TYPES.map((t) => <option key={t}>{t}</option>)}</Select></Field>
+      <Field label="Business type"><Select value={f.businessType} onChange={set('businessType')}>{BUSINESS_TYPES.map((t) => <option key={t} value={t}>{statusLabel(t)}</option>)}</Select></Field>
       <Field label="Assigned support contact"><Input value={f.supportContact ?? ''} onChange={set('supportContact')} /></Field>
     </div>
   );
@@ -367,14 +379,14 @@ function Clients({ go }: { go: (id: string, param?: string, afterSave?: boolean)
       <div className="mb-3 flex flex-wrap gap-3">
         <Input aria-label="Search clients" placeholder="Business, owner, phone or email" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
         <Select aria-label="Client status filter" value={status} onChange={(e) => setStatus(e.target.value)} className="max-w-xs">
-          <option value="all">All statuses</option>{['onboarding', 'active', 'suspended', 'closed'].map((value) => <option key={value} value={value}>{value}</option>)}
+          <option value="all">All statuses</option>{['onboarding', 'active', 'suspended', 'closed'].map((value) => <option key={value} value={value}>{statusLabel(value)}</option>)}
         </Select>
       </div>
       <QueryView query={clientsQuery} label="clients"><Card pad={false}>
         <Table rows={filtered} rowKey={(r) => r.id} onRowClick={(r) => go('client', r.id)} empty={query || status !== 'all' ? 'No clients match these filters' : 'No clients yet'}
           columns={[
             { header: 'Business', cell: (c) => <><div className="font-medium">{c.name}</div><div className="text-xs text-slate-500">{c.owner_name} · {c.business_type}</div></> },
-            { header: 'Status', cell: (c) => <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge> },
+            { header: 'Status', cell: (c) => <Badge tone={STATUS_TONE[c.status]}>{statusLabel(c.status)}</Badge> },
             { header: 'Plan', cell: (c) => c.plan_name ?? '—' },
             { header: 'Setup', cell: (c) => <Progress done={c.steps_done} total={c.steps_total} /> },
             { header: 'Laptop', cell: (c) => (c.connectivity === 'no_device' ? <Badge>Not activated</Badge> : <Badge tone={c.connectivity === 'online' ? 'good' : 'warn'}>{c.connectivity === 'online' ? 'Online' : 'Offline'}</Badge>) },
@@ -402,7 +414,9 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
   const plans = planOptions.data ?? [];
   const [edit, setEdit] = useState<any | null>(null);
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
-  const [browserWorkspace, setBrowserWorkspace] = useState<{ status: string; url: string; expiresAt?: string } | null>(null);
+  const [browserWorkspace, setBrowserWorkspace] = useState<{ status: string; url?: string; expiresAt?: string; ownerUsername?: string; emailSent?: boolean } | null>(null);
+  const [workspaceUsername, setWorkspaceUsername] = useState('');
+  const [emailWorkspaceLink, setEmailWorkspaceLink] = useState(true);
   const [sub, setSub] = useState<any | null>(null);
   const [recovery, setRecovery] = useState<{ reason: string; code?: string; expiresAt?: string } | null>(null);
   const act = useAction();
@@ -418,7 +432,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
     <div>
       <button className="mb-2 text-sm text-brand-700 hover:underline" onClick={() => go('clients')}>← All clients</button>
       <PageHeader title={c.name} subtitle={<>{c.owner_name} · {[c.phone, c.email, c.address].filter(Boolean).join(' · ')} · Support: {c.support_contact ?? '—'}</>}
-        actions={<><Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge><Button onClick={() => setEdit({ name: c.name, ownerName: c.owner_name, phone: c.phone ?? '', email: c.email ?? '', address: c.address ?? '', businessType: c.business_type, supportContact: c.support_contact ?? '', status: c.status })}>Edit</Button></>} />
+        actions={<><Badge tone={STATUS_TONE[c.status]}>{statusLabel(c.status)}</Badge><Button onClick={() => setEdit({ name: c.name, ownerName: c.owner_name, phone: c.phone ?? '', email: c.email ?? '', address: c.address ?? '', businessType: c.business_type, supportContact: c.support_contact ?? '', status: c.status })}>Edit</Button></>} />
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Client overview' }, { id: 'audit', label: 'Client audit' }]} />
       {tab === 'audit' && <Audit tenantId={id} />}
       <div hidden={tab !== 'overview'}>
@@ -429,7 +443,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
           <p className="my-3 text-sm">This feature switch does not cancel the shop’s legal VAT obligation. Sales and tax evidence remain intact. Re-enabling shows historical liability separately from tax actually collected; unresolved periods require reconciliation before filing. Offline laptops receive changes on their next successful sync.</p>
           <Button onClick={()=>setVatChange({enabled:data.vatFeature?.enabled === false,reason:''})}>Change VAT feature</Button>
           <ul className="mt-3 space-y-2 text-sm">{data.vatFeature?.events.map((e:any)=><li key={e.id}>{when(e.occurredAt)} · {e.adminName} · {e.enabled?'Enabled':'Disabled'} · {e.reason}</li>)}</ul>
-          {vatChange && <Modal open title="Change VAT feature" onClose={()=>setVatChange(null)}><div className="space-y-3"><Alert tone="warn">{vatChange.enabled?'Enable VAT and include historical exposure in working papers. Original invoices and payments remain unchanged.':'Stop automatic VAT collection in the platform. Legal VAT liability continues and historical exposure is retained.'}</Alert><Field label="Reason for VAT feature change"><Textarea value={vatChange.reason} onChange={e=>setVatChange({...vatChange,reason:e.target.value})} /></Field><Button disabled={act.busy || !vatChange.reason.trim()} onClick={()=>act.run(async()=>{await api('PUT',`/v1/admin/clients/${id}/features/vat`,{...vatChange,expectedRevision:data.vatFeature?.revision ?? 0});setVatChange(null);reload();})}>Save VAT feature</Button></div></Modal>}
+          {vatChange && <Modal open title="Change VAT feature" onClose={()=>setVatChange(null)}><div className="space-y-3"><Alert tone="warn">{vatChange.enabled?'Enable VAT and include historical exposure in working papers. Original invoices and payments remain unchanged.':'Stop automatic VAT collection in the platform. Legal VAT liability continues and historical exposure is retained.'}</Alert><Field label="Reason for VAT feature change"><Textarea required={true} value={vatChange.reason} onChange={e=>setVatChange({...vatChange,reason:e.target.value})} /></Field><Button disabled={act.busy || !vatChange.reason.trim()} onClick={()=>act.run(async()=>{await api('PUT',`/v1/admin/clients/${id}/features/vat`,{...vatChange,expectedRevision:data.vatFeature?.revision ?? 0});setVatChange(null);reload();})}>Save VAT feature</Button></div></Modal>}
         </Card>
         <Card title="Onboarding checklist" pad={false} actions={<Progress done={c.steps_done} total={c.steps_total} />}>
           <p className="border-b border-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">Tick a step only after checking it with the client. Confirm go-live marks an onboarding client as active; this checklist does not automatically verify hardware, training, contracts or privacy arrangements.</p>
@@ -460,7 +474,7 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
               ))}
             </dl>
             <div className="mt-3 flex flex-wrap gap-2">
-              {data.browserWorkspaceAvailable && <Button size="sm" disabled={act.busy} onClick={() => act.run(async () => setBrowserWorkspace(await api('POST', `/v1/admin/clients/${id}/browser-workspace`)))}>Browser workspace</Button>}
+              {data.browserWorkspaceAvailable && <Button size="sm" disabled={act.busy} onClick={() => { setWorkspaceUsername(''); setEmailWorkspaceLink(true); setBrowserWorkspace({ status: 'draft' }); }}>Browser workspace</Button>}
               <Button size="sm" disabled={act.busy || !!device} title={device ? 'Deactivate the current laptop first' : ''} onClick={() => act.run(async () => setCode(await api('POST', `/v1/admin/clients/${id}/activation-codes`)))}>Create activation code</Button>
               {device && <Button size="sm" disabled={act.busy} onClick={() => setRecovery({ reason: '' })}>Owner recovery code</Button>}
               {device && <Button size="sm" variant="danger" disabled={act.busy} onClick={() => setRevoking(true)}>Deactivate laptop</Button>}
@@ -485,14 +499,14 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
       {edit && (
         <Modal title="Edit client" open onClose={() => setEdit(null)} wide footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={act.busy} onClick={() => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}`, edit); setEdit(null); reload(); })}>Save</Button></>}>
           <ClientFields f={edit} setF={setEdit} />
-          <Field label="Account status" className="mt-3" hint="Suspending is recorded and shown to the client; it does not block sales."><Select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })}>{['onboarding', 'active', 'suspended', 'closed'].map((s) => <option key={s}>{s}</option>)}</Select></Field>
+          <Field label="Account status" className="mt-3" hint="Suspending is recorded and shown to the client; it does not block sales."><Select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })}>{['onboarding', 'active', 'suspended', 'closed'].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</Select></Field>
         </Modal>
       )}
       {sub && (
         <Modal title="Service plan" open onClose={() => setSub(null)} footer={<><Button dismiss onClick={() => setSub(null)}>Cancel</Button><Button variant="primary" disabled={act.busy || !planOptions.data || !sub.planId} onClick={() => act.run(async () => { await api('PUT', `/v1/admin/clients/${id}/subscription`, { ...sub, renewalDate: sub.renewalDate || null }); setSub(null); reload(); })}>Save</Button></>}>
           <div className="space-y-3">
             <QueryView query={planOptions} label="service plan options"><Field label="Plan"><Select value={sub.planId} onChange={(e) => setSub({ ...sub, planId: e.target.value })}><option value="">Choose…</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.name} · {formatGHS(p.price)} {p.billing_period}</option>)}</Select></Field></QueryView>
-            <Field label="Status"><Select value={sub.status} onChange={(e) => setSub({ ...sub, status: e.target.value })}>{['trial', 'active', 'past_due', 'cancelled'].map((s) => <option key={s}>{s}</option>)}</Select></Field>
+            <Field label="Status"><Select value={sub.status} onChange={(e) => setSub({ ...sub, status: e.target.value })}>{['trial', 'active', 'past_due', 'cancelled'].map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}</Select></Field>
             <Field label="Renewal date"><Input type="date" value={sub.renewalDate} onChange={(e) => setSub({ ...sub, renewalDate: e.target.value })} /></Field>
           </div>
         </Modal>
@@ -508,15 +522,25 @@ function Client({ id, go }: { id: string; go: (id: string, param?: string) => vo
           ) : (
             <>
               <Alert tone="warn" className="mb-3">Confirm you are speaking to the business owner before creating a code. This action is recorded in the audit log and on the client's laptop.</Alert>
-              <Field label="How did you verify the owner, and why is recovery needed?"><Textarea value={recovery.reason} onChange={(e) => setRecovery({ ...recovery, reason: e.target.value })} autoFocus /></Field>
+              <Field label="How did you verify the owner, and why is recovery needed?"><Textarea required={true} value={recovery.reason} onChange={(e) => setRecovery({ ...recovery, reason: e.target.value })} autoFocus /></Field>
             </>
           )}
         </Modal>
       )}
       {browserWorkspace && (
         <Modal title="Browser workspace" open onClose={() => setBrowserWorkspace(null)} footer={<Button variant="primary" onClick={() => { setBrowserWorkspace(null); reload(); }}>Done</Button>}>
-          <p>{browserWorkspace.status === 'ready' ? 'The workspace is ready. The owner can sign in at this address.' : 'Share this private setup link only with the recorded business owner. They choose their own password. This link expires in 30 minutes.'}</p>
-          <Field label="Workspace link"><Input readOnly value={browserWorkspace.url} onFocus={(event) => event.currentTarget.select()} /></Field>
+          {browserWorkspace.status === 'draft' ? <div className="space-y-4">
+            <p>Create the account for {c.owner_name} using the recorded owner email, {c.email || 'not recorded'}. The owner chooses their own password.</p>
+            <Field label="Assign owner username (optional)" hint="Use 3–40 lowercase letters, numbers, dots, dashes or underscores. Leave empty to let the owner choose."><Input minLength={3} pattern="[a-z0-9._\-]{3,40}" data-validation-message="Use 3–40 lowercase letters, numbers, dots, dashes or underscores for the owner username, or leave it empty" value={workspaceUsername} onChange={event => setWorkspaceUsername(event.target.value)} maxLength={40} autoComplete="off" /></Field>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={emailWorkspaceLink} onChange={event => setEmailWorkspaceLink(event.target.checked)} /> Email the private setup link to the owner</label>
+            <Button variant="primary" disabled={act.busy || !c.email} onClick={() => act.run(async () => setBrowserWorkspace(await api('POST', `/v1/admin/clients/${id}/browser-workspace`, { ownerUsername: workspaceUsername.trim() || undefined, sendEmail: emailWorkspaceLink })))}>Create owner setup link</Button>
+          </div> : <>
+            <p>{browserWorkspace.status === 'ready' ? 'The workspace is ready. The owner can sign in with their username or recorded email.' : 'Share this private setup link only with the recorded business owner. They choose their own password. This link expires in 30 minutes.'}</p>
+            {browserWorkspace.ownerUsername && <p className="mt-3 text-sm">Owner username: <strong>{browserWorkspace.ownerUsername}</strong></p>}
+            {browserWorkspace.emailSent && <Alert tone="good">The setup email was accepted for delivery to the recorded owner email.</Alert>}
+            <Field label="Workspace link"><Input readOnly value={browserWorkspace.url ?? ''} onFocus={(event) => event.currentTarget.select()} /></Field>
+          </>}
+          {act.error && <Alert tone="bad" className="mt-3">{act.error}</Alert>}
         </Modal>
       )}
       {code && (
@@ -582,7 +606,7 @@ function Plans() {
         <Modal title={edit.id ? 'Edit plan' : 'Add plan'} open onClose={() => setEdit(null)} footer={<><Button dismiss onClick={() => setEdit(null)}>Cancel</Button><Button variant="primary" disabled={busy || !edit.name.trim()} onClick={save}>Save</Button></>}>
           {error && <Alert tone="bad" className="mb-3">{error}</Alert>}
           <div className="space-y-3">
-            <Field label="Plan name"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
+            <Field label="Plan name"><Input required={true} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Billing amount (GHS)" hint="Enter 0 only for an intentional free plan."><Input required pattern="[0-9]+(\.[0-9]{1,2})?" title="Enter a non-negative amount with up to two decimal places." inputMode="decimal" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} placeholder="0.00" /></Field>
               <Field label="Billing period"><Select value={edit.billingPeriod} onChange={(e) => setEdit({ ...edit, billingPeriod: e.target.value })}><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></Select></Field>

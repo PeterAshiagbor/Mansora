@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Mansora Sales & Stock - offline-first POS for Windows laptops",
+  "description": "Sales, inventory, customer balances and business reporting for Windows, with offline operation and cloud synchronisation.",
   "author": "Mansora Consulting and Business Solutions Limited",
   "main": "dist/electron/main.cjs",
   "scripts": {
@@ -37,7 +37,7 @@
     "react-dom": "^19.0.0",
     "tailwindcss": "^4.0.0",
     "unpdf": "1.9.1",
-    "vite": "^8.3.0",
+    "vite": "^8.3.8",
     "zod": "^4.0.0"
   },
   "build": {
@@ -75,6 +75,9 @@
         "from": "../../packages/ui/src/assets/OFL-DM-Sans.txt",
         "to": "licenses/OFL-DM-Sans.txt"
       }
-    ]
-  }
+    ],
+    "copyright": "Copyright © 2026 Mansora Consulting and Business Solutions Limited",
+    "artifactName": "Mansora-Sales-Stock-Setup-${version}-${arch}.${ext}"
+  },
+  "homepage": "https://mansora-consulting.com"
 }

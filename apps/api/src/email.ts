@@ -32,7 +32,7 @@ export class ResendEmail implements EmailAdapter {
     return { id: data.id };
   }
 }
-export function resendFromEnv(): ResendEmail {
+export function resendFromEnv(options: { clientAccountMessages?: boolean } = {}): ResendEmail {
   const from = process.env.RESEND_FROM_EMAIL?.trim();
   const replyTo = process.env.RESEND_REPLY_TO?.trim();
   const mailbox = from?.match(/<([^<>]+)>$/)?.[1] ?? from;
@@ -42,8 +42,12 @@ export function resendFromEnv(): ResendEmail {
   if (allowedRecipients.some(a => !address.test(a))) throw new Error('RESEND_ALLOWED_RECIPIENTS must contain email addresses.');
   // A team-test deployment must explicitly allow its recipients before it can send.
   if ((process.env.MANSORA_DEPLOYMENT_MODE === 'team-test' || process.env.MANSORA_STAGING_MODE === 'team-test') && process.env.RESEND_API_KEY && !allowedRecipients.length) throw new Error('Set RESEND_ALLOWED_RECIPIENTS before enabling team-test email.');
+  const configuredModes = [process.env.MANSORA_DEPLOYMENT_MODE, process.env.MANSORA_STAGING_MODE].filter(Boolean);
+  if (options.clientAccountMessages && (!configuredModes.length || configuredModes.some(mode => mode !== 'client'))) throw new Error('Client account email requires explicit client deployment mode.');
   // The logo is served by this API (see brand.ts), so emails show it wherever the public address is known.
   const base = process.env.PUBLIC_BASE_URL?.trim().replace(/\/+$/, '');
   const logoUrl = base && /^https:\/\//.test(base) ? `${base}/brand/mansora-logo.png` : undefined;
-  return new ResendEmail({ apiKey: process.env.RESEND_API_KEY, from, replyTo, allowedRecipients, logoUrl });
+  // Only the request-driven client account adapter uses real recorded recipients.
+  // The existing billing/notification queue retains its configured allowlist.
+  return new ResendEmail({ apiKey: process.env.RESEND_API_KEY, from, replyTo, allowedRecipients: options.clientAccountMessages ? undefined : allowedRecipients, logoUrl });
 }

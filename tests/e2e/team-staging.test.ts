@@ -10,6 +10,7 @@ import { tempDir } from '../helpers';
 import { provisionStaging, type TestAccount } from '../../scripts/staging/bootstrap';
 import { loadWorkspaces, type StagingConfig } from '../../scripts/staging/config';
 import { startStagingGateway, type StagingWorkspace } from '../../scripts/staging/gateway';
+import { rehearsePublicSignIn } from '../../scripts/staging/sign-in-acceptance';
 import { navigate } from './navigation';
 const pw = (() => { try { return createRequire(import.meta.url)('playwright'); } catch { return null; } })();
 const root = join(import.meta.dirname, '../..');
@@ -25,10 +26,11 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     for (const role of ['owner', 'cashier']) {
       const page = await (await browser.newContext({ viewport: { width: 1366, height: 768 } })).newPage(); page.setDefaultTimeout(10_000); page.on('pageerror', (e: Error) => errors.push(e.message));
       const account = accounts.find(a => a.workspace === 'shop-a' && a.role === role)!;
-      await page.goto(gateway.url + '/client/shop-a/#email=invited%40example.test');
-      expect(await page.getByLabel('Username', { exact: true }).inputValue()).toBe('invited@example.test');
-      await page.getByText('Use your invitation email or staff username.', { exact: true }).waitFor();
-      await page.getByLabel('Username', { exact: true }).fill(account.username);
+      // An invitation link opens the one sign-in page with the email filled in.
+      await page.goto(gateway.url + '/signin/#email=invited%40example.test');
+      expect(await page.getByLabel('Username or email', { exact: true }).inputValue()).toBe('invited@example.test');
+      expect(new URL(page.url()).hash).toBe('');
+      await page.getByLabel('Username or email', { exact: true }).fill(account.username + '@shop-a');
       await page.getByLabel('Password', { exact: true }).fill(account.password);
       await page.getByRole('button', { name: 'Show password', exact: true }).click();
       expect(await page.getByLabel('Password', { exact: true }).getAttribute('type')).toBe('text');
@@ -40,6 +42,73 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     admin = await (await browser.newContext()).newPage(); admin.setDefaultTimeout(10_000); admin.on('pageerror', (e: Error) => errors.push(e.message));
   });
   afterAll(async () => { await browser?.close(); await gateway?.close(); for (const w of workspaces ?? []) w.engine.db.close(); await api?.close(); await cloud?.db.close(); });
+  it('opens branded sign-in without a public shop directory and routes an authenticated manager to their own shop', async () => {
+    const page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+    page.setDefaultTimeout(10_000); page.on('pageerror', (error: Error) => errors.push(error.message));
+    try {
+      await page.goto(gateway.url + '/'); await page.getByRole('heading', { name: 'Sign in', exact: true }).waitFor();
+      expect(new URL(page.url()).pathname).toBe('/signin/');
+      expect(await page.locator('body').innerText()).not.toMatch(/TEAM TEST|Mansora TSA|Mansora TSB/);
+      expect(await page.locator('a[href^="/client/"]').count()).toBe(0);
+      expect(await page.locator('body').evaluate((body: HTMLElement) => body.scrollWidth <= innerWidth)).toBe(true);
+      const manager = accounts.find(account => account.workspace === 'shop-b' && account.role === 'manager')!;
+      await page.getByLabel('Username or email', { exact: true }).fill(manager.username + '@shop-b');
+      await page.getByLabel('Password', { exact: true }).fill('incorrect-password');
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByRole('status').filter({ hasText: 'Incorrect username or password' }).waitFor();
+      expect(new URL(page.url()).pathname).toBe('/signin/');
+      await page.getByLabel('Password', { exact: true }).fill(manager.password);
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
+      expect(new URL(page.url()).pathname).toBe('/app/');
+      const state = await page.evaluate(() => (window as any).mansora.invoke('app.state'));
+      expect(state.data.user.role).toBe('manager'); expect(state.data.business.name).toBe('Mansora TSB');
+    } finally { await page.context().close(); }
+  });
+  it('has one sign-in form for every account and never shows a second one after sign-out, back or an old address', async () => {
+    const page = await (await browser.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
+    page.setDefaultTimeout(10_000); page.on('pageerror', (error: Error) => errors.push(error.message));
+    const path = () => new URL(page.url()).pathname;
+    const signIn = async (username: string, password: string) => {
+      await page.getByLabel('Username or email', { exact: true }).fill(username); await page.getByLabel('Password', { exact: true }).fill(password);
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    };
+    try {
+      await page.goto(gateway.url + '/'); await page.getByRole('heading', { name: 'Sign in', exact: true }).waitFor();
+      expect(await page.locator('select').count()).toBe(0); expect(await page.locator('body').innerText()).not.toMatch(/Account type|Business workspace|Mansora administration/);
+      // "cashier" exists in both shops; the password alone finds the right one. The address never names the shop.
+      const cashierB = accounts.find(account => account.workspace === 'shop-b' && account.role === 'cashier')!;
+      await signIn('cashier', cashierB.password); await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
+      expect(path()).toBe('/app/'); expect((await page.evaluate(() => (window as any).mansora.invoke('app.state'))).data.business.tenantId).toBe(workspaces.find(w => w.id === 'shop-b')!.engine.meta('tenant_id'));
+      await page.goto(gateway.url + '/client/shop-a/'); await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor(); expect(path()).toBe('/app/');
+      expect((await page.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('cashier');
+      await page.getByRole('button', { name: 'Lock / sign out', exact: true }).click(); await page.waitForURL('**/signin/');
+      await page.goBack().catch(() => {}); await page.waitForTimeout(300);
+      expect(['/signin/', '/', 'blank']).toContain(page.url() === 'about:blank' ? 'blank' : path());
+      for (const address of ['/app/', '/client/shop-b/', '/admin/']) {
+        await page.goto(gateway.url + address); await page.waitForURL('**/signin/');
+        expect(await page.getByLabel('Username', { exact: true }).count()).toBe(0); // no shop- or console-specific form
+      }
+      // Administrators use the same form, and leave through it too.
+      await signIn(ADMIN.email, ADMIN.password); await page.waitForURL('**/admin/'); await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
+      await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Sign out', exact: true }).click(); await page.waitForURL('**/signin/');
+      await page.goto(gateway.url + '/admin/'); await page.waitForURL('**/signin/');
+      // An emailed administrator invitation is still accepted in the console before the one sign-in page takes over.
+      const mails: any[] = []; cloud.billing.email = { configured: () => true, send: async (message: any) => { mails.push(message); return { id: 'm' + mails.length }; } } as any;
+      expect((await cloud.api('POST', '/v1/admin/admins/invitations', { name: 'Hosted Colleague', email: 'hosted.colleague@example.test' })).status).toBe(200);
+      const token = /#admin-invite=([A-Za-z0-9_-]{43})/.exec(mails.at(-1).body)![1];
+      await page.goto(gateway.url + '/admin/#admin-invite=' + token);
+      await page.getByLabel('New password', { exact: true }).fill('hosted-colleague-pass'); await page.getByLabel('Repeat password', { exact: true }).fill('hosted-colleague-pass');
+      await page.getByRole('button', { name: 'Create my account', exact: true }).click(); await page.waitForURL('**/signin/');
+      expect(await page.getByLabel('Username or email', { exact: true }).inputValue()).toBe('hosted.colleague@example.test');
+      await page.getByLabel('Password', { exact: true }).fill('hosted-colleague-pass'); await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await page.waitForURL('**/admin/'); await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
+      expect(errors).toEqual([]);
+    } finally { await page.context().close(); }
+  });
+  it('rehearses all six existing synthetic identities through the public sign-in without financial writes or email', async () => {
+    const before = workspaces.map(workspace => workspace.engine.db.prepare('SELECT COUNT(*) AS count FROM sales').get());
+    expect(await rehearsePublicSignIn({ version: 'signin-v1', origin: gateway.publicOrigin, dataDir: config.dataDir, workspaces })).toMatchObject({ accountsChecked: 6, authenticatedRouting: 'passed', crossShopIsolation: 'passed', financialWrites: 0, emailsSent: 0 });
+    expect(workspaces.map(workspace => workspace.engine.db.prepare('SELECT COUNT(*) AS count FROM sales').get())).toEqual(before);
+  });
   it('keeps owner and cashier independent while they save and sell shared records', async () => {
     expect((await owner.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('owner');
     expect((await cashier.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('cashier');
@@ -61,7 +130,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     expect(workspaces[0].engine.db.prepare("SELECT COUNT(*) AS n FROM products WHERE name = 'Team Excel item'").get()).toMatchObject({ n: 0 });
   });
   it('serves the actual platform dashboard through the same-origin API proxy', async () => {
-    await admin.goto(gateway.url + '/admin/'); await admin.getByLabel('Email', { exact: true }).fill(ADMIN.email); await admin.getByLabel('Password', { exact: true }).fill(ADMIN.password); await admin.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await admin.goto(gateway.url + '/'); await admin.getByLabel('Username or email', { exact: true }).fill(ADMIN.email); await admin.getByLabel('Password', { exact: true }).fill(ADMIN.password); await admin.getByRole('button', { name: 'Sign in', exact: true }).click();
     await navigate(admin, 'Clients'); await admin.getByRole('row').filter({ hasText: 'Mansora TSA' }).waitFor(); await admin.getByRole('row').filter({ hasText: 'Mansora TSB' }).waitFor(); expect(errors).toEqual([]);
   });
   it('completes a sandbox checkout through proxied forms and redirects', async () => {

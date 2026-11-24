@@ -20,8 +20,8 @@ it.skipIf(!pw || !existsSync(join(import.meta.dirname,'../../apps/desktop/dist/r
   await s.run(s.owner,'shift.open',{openingFloat:0});
   gateway=await startStagingGateway({origin:'http://127.0.0.1:0',apiUrl:cloud.url,port:0,workspaces:[{id:'shop-b',label:'Synthetic TSB',engine:s.engine}],clientDir:join(import.meta.dirname,'../../apps/desktop/dist/renderer'),adminDir:join(import.meta.dirname,'../../apps/admin-web/dist')});
   browser=await pw.chromium.launch();const page=await browser.newPage();page.setDefaultTimeout(12000);const errors:string[]=[];page.on('pageerror',(e:Error)=>errors.push(e.message));
-  const signIn=async()=>{await page.getByLabel('Username',{exact:true}).fill(OWNER.username);await page.getByLabel('Password',{exact:true}).fill(OWNER.password);await page.getByRole('button',{name:'Sign in',exact:true}).click();};
-  await page.goto(gateway.url+'/client/shop-b/');await signIn();
+  const signIn=async()=>{await page.getByLabel('Username or email',{exact:true}).fill(OWNER.username);await page.getByLabel('Password',{exact:true}).fill(OWNER.password);await page.getByRole('button',{name:'Sign in',exact:true}).click();};
+  await page.goto(gateway.url+'/client/shop-b/');await page.waitForURL('**/signin/');await signIn();
   const sell=async(name:string,cash:string)=>{
    await navigate(page,'New sale');await page.getByRole('button').filter({hasText:name}).click();
    await page.getByRole('button',{name:'Pay (F9)',exact:true}).click();await page.getByRole('dialog').getByLabel('Cash received',{exact:true}).fill(cash);
@@ -34,7 +34,7 @@ it.skipIf(!pw || !existsSync(join(import.meta.dirname,'../../apps/desktop/dist/r
   status=await s.run(s.owner,'tax.status');expect(status.annual.total).toBe(75000001);expect(status.registered).toBe(false);expect(status.pendingTrigger.effectiveDate).toBe('2026-11-01');
   await navigate(page,'Ghana VAT');await page.getByText(/Automatic VAT charging effective 2026-11-01/).waitFor();
   await page.getByRole('button',{name:'Lock / sign out',exact:true}).click();
-  await page.getByLabel('Username',{exact:true}).waitFor();
+  await page.waitForURL('**/signin/');
   clock=new Date('2026-11-01T10:00:00Z');await page.reload();await signIn();
   await sell('Boundary registered VAT item','120');
   const row=s.engine.db.prepare("SELECT tax_snapshot FROM sales ORDER BY created_at DESC LIMIT 1").get() as any;

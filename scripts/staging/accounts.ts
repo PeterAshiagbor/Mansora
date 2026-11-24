@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { TestAccount } from './bootstrap';
 import { existsSync } from 'node:fs';
+import type { StagingWorkspace } from './gateway';
 export function testerEmails(raw: string | undefined): string[] {
   if (!raw) return [];
   let values: unknown;
@@ -11,13 +12,14 @@ export function testerEmails(raw: string | undefined): string[] {
   if (new Set(emails).size !== 2) throw new Error('Tester email identities must be distinct.');
   return emails;
 }
-export function loadLoginAliases(dataDir: string): Record<string, Record<string, string>> {
+export function loadLoginAliases(dataDir: string, workspaces: StagingWorkspace[] = []): Record<string, Record<string, string>> {
   const manifest = join(dataDir, 'test-accounts.json');
   const accounts = (existsSync(manifest) ? JSON.parse(readFileSync(manifest, 'utf8')) : []) as TestAccount[];
   const aliases: Record<string, Record<string, string>> = {};
-  for (const a of accounts) if (a.email) (aliases[a.workspace] ??= {})[a.email.toLowerCase()] = a.username;
+  const ownerUsername = (workspaceId: string, fallback: string) => (workspaces.find(workspace => workspace.id === workspaceId)?.engine.db.prepare("SELECT username FROM users WHERE role = 'owner'").get() as { username: string } | undefined)?.username ?? fallback;
+  for (const a of accounts) if (a.email) (aliases[a.workspace] ??= {})[a.email.toLowerCase()] = a.role === 'owner' ? ownerUsername(a.workspace, a.username) : a.username;
   const registry = join(dataDir, 'workspaces.json');
-  if (existsSync(registry)) for (const w of JSON.parse(readFileSync(registry, 'utf8'))) if (w.ownerEmail && w.ownerUsername && /^[a-z0-9][a-z0-9-]{1,40}$/.test(w.id)) (aliases[w.id] ??= {})[w.ownerEmail.toLowerCase()] = w.ownerUsername;
+  if (existsSync(registry)) for (const w of JSON.parse(readFileSync(registry, 'utf8'))) if (w.ownerEmail && w.ownerUsername && /^[a-z0-9][a-z0-9-]{1,40}$/.test(w.id)) (aliases[w.id] ??= {})[w.ownerEmail.toLowerCase()] = ownerUsername(w.id, w.ownerUsername);
   return aliases;
 }
 

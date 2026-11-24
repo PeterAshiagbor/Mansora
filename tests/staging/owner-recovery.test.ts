@@ -99,7 +99,7 @@ it.skipIf(!playwright)('lets an owner request and redeem a private link in the r
     await page.getByLabel('New password', { exact: true }).fill(password + 'browser');
     await page.getByLabel('Confirm password').fill(password + 'browser');
     await page.getByRole('button', { name: 'Set new password' }).click();
-    await page.waitForURL('**/client/shop-b/#username=' + OWNER.username);
+    await page.waitForURL('**/signin/'); expect(await page.getByLabel('Username or email').inputValue()).toBe(OWNER.username);
     expect(requested.every(url => !url.includes(proof))).toBe(true);
     expect((await shops[1].run(null, 'auth.login', { username: OWNER.username, password: password + 'browser' })).user.role).toBe('owner');
   } finally { await browser.close(); }
