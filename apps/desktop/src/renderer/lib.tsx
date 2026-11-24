@@ -20,6 +20,8 @@ declare global {
   interface Window {
     mansora?: Bridge;
     MANSORA_OWNER_RECOVERY_URL?: string;
+    /** Hosted (browser) deployments: the one sign-in page for every account. The app then never shows its own form. */
+    MANSORA_SIGNIN_URL?: string;
   }
 }
 
@@ -47,7 +49,11 @@ export async function call<T = any>(command: string, input: unknown = {}): Promi
     if (!READ_ONLY.test(command)) window.dispatchEvent(new Event('mansora:changed'));
     return res.data as T;
   }
-  if (res.error.code === 'SESSION_LOCKED' || res.error.code === 'NOT_SIGNED_IN') window.dispatchEvent(new CustomEvent('mansora:signed-out', { detail: res.error.code }));
+  if (res.error.code === 'SESSION_LOCKED' || res.error.code === 'NOT_SIGNED_IN') {
+    // Hosted: signed out, locked or expired always means the one sign-in page, never an error or a second form.
+    if (window.MANSORA_SIGNIN_URL) { location.replace(window.MANSORA_SIGNIN_URL); return new Promise<T>(() => {}); }
+    window.dispatchEvent(new CustomEvent('mansora:signed-out', { detail: res.error.code }));
+  }
   throw new DomainError(res.error.code, res.error.message, res.error.details);
 }
 

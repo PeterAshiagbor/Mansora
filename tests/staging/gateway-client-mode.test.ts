@@ -22,8 +22,13 @@ it('hides the public client directory but preserves explicit test notices and ha
   const response = await fetch(gateway.url), html = await response.text();
   expect(html).not.toContain('Private real client name'); expect(html).not.toContain('Private test shop name');
   expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
-  expect(await (await fetch(gateway.url + '/client/shop-a/')).text()).toContain('TEAM TEST ENVIRONMENT');
-  expect(await (await fetch(gateway.url + '/client/shop-b/')).text()).not.toContain('TEAM TEST ENVIRONMENT');
+  // The notice follows the signed-in shop: a synthetic test shop shows it, a real client never does.
+  const workspacePage = async (workspace: string) => {
+    const login = await fetch(`${gateway.url}/client/${workspace}/invoke`, { method: 'POST', headers: { origin: gateway.publicOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ command: 'auth.login', input: { username: OWNER.username, password: OWNER.password } }) });
+    return (await fetch(gateway.url + '/app/', { headers: { cookie: login.headers.get('set-cookie')!.split(';')[0] } })).text();
+  };
+  expect(await workspacePage('shop-a')).toContain('TEAM TEST ENVIRONMENT');
+  expect(await workspacePage('shop-b')).not.toContain('TEAM TEST ENVIRONMENT');
   const health = await (await fetch(gateway.url + '/healthz', { headers: { 'x-real-ip': '198.51.100.1' } })).json() as any;
   expect(health).toMatchObject({ ok: true, mode: 'client', clientAddressSource: 'forwarded' });
 });

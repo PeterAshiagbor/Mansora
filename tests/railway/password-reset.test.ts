@@ -51,7 +51,7 @@ describe('reset every test login and email the new details', () => {
     for (const w of workspaces) {
       const owner = accounts().find((a) => a.workspace === w.id && a.role === 'owner')!;
       const mail = shopMails.find((m) => m.to === owner.email)!;
-      expect(mail.body).toContain(`/client/${w.id}/`);
+      expect(mail.body).toContain('/signin/'); expect(mail.body).not.toContain('/client/');
       for (const role of ['owner', 'manager', 'cashier']) {
         const now = accounts().find((a) => a.workspace === w.id && a.role === role)!;
         expect(now.password).not.toBe(old.find((a) => a.workspace === w.id && a.username === now.username)?.password);

@@ -47,7 +47,8 @@ function AdminApplication() {
     window.addEventListener('mansora:signed-out', out);
     return () => window.removeEventListener('mansora:signed-out', out);
   }, []);
-  if (!signedIn) return <Login onDone={() => setSignedIn(true)} />;
+  // Hosted together with the shops, administrators use the same single sign-in page; this console has no form of its own.
+  if (!signedIn) return (window as any).MANSORA_SIGNIN_URL ? <ToSignIn url={(window as any).MANSORA_SIGNIN_URL} /> : <Login onDone={() => setSignedIn(true)} />;
   const go = (id: string, param?: string, afterSave = false) => {
     if (page.id === id && page.param === param) return;
     if (afterSave) setPage({ id, param });
@@ -145,6 +146,11 @@ function AcceptInvitation({ token, onDone }: { token: string; onDone: (email: st
       </form>
     </AuthLayout>
   );
+}
+
+function ToSignIn({ url }: { url: string }) {
+  useEffect(() => { location.replace(url); }, [url]);
+  return <div className="flex min-h-screen items-center justify-center text-slate-500" role="status">Taking you to sign in…</div>;
 }
 
 function Login({ onDone }: { onDone: () => void }) {

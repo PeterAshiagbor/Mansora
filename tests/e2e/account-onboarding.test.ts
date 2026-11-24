@@ -55,8 +55,9 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/desktop/dist/renderer/index.
     await owner.goto(setupUrl(invite.body)); await owner.getByLabel('Username', { exact: true }).waitFor();
     expect(await owner.getByLabel('Username', { exact: true }).inputValue()).toBe('assigned.owner'); expect(await owner.getByLabel('Username', { exact: true }).getAttribute('readonly')).not.toBeNull(); await scan(owner);
     await owner.getByLabel('Choose a password', { exact: true }).fill(ownerPassword); await owner.getByLabel('Confirm password', { exact: true }).fill(ownerPassword); await owner.getByRole('button', { name: 'Create my workspace', exact: true }).click();
-    await owner.waitForURL('**/client/shop-*/#email=*');
-    await owner.goto(gateway.url); await owner.getByLabel('Username or email', { exact: true }).fill(email); await owner.getByLabel('Password', { exact: true }).fill(ownerPassword); await owner.getByRole('button', { name: 'Sign in', exact: true }).click();
+    // Setup ends on the one sign-in page with the email filled in; there is no second, shop-specific form.
+    await owner.waitForURL('**/signin/'); expect(await owner.getByLabel('Username or email', { exact: true }).inputValue()).toBe(email);
+    await owner.getByLabel('Username or email', { exact: true }).fill(email); await owner.getByLabel('Password', { exact: true }).fill(ownerPassword); await owner.getByRole('button', { name: 'Sign in', exact: true }).click();
     await owner.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
     expect((await owner.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('owner');
   });
@@ -97,7 +98,7 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/desktop/dist/renderer/index.
       await buyer.getByLabel('Owner email', { exact: true }).fill(email); await buyer.getByRole('button', { name: 'Email my setup link', exact: true }).click(); await buyer.getByRole('status').filter({ hasText: 'eligible paid purchase' }).waitFor();
       const invite = sent.find(message => message.to === email && message.subject.startsWith('Set up your')); expect(invite).toBeTruthy(); expect(workspaces).toHaveLength(pendingCount);
       await buyer.goto(setupUrl(invite.body)); await buyer.getByLabel('Username', { exact: true }).fill('assigned.owner'); await buyer.getByLabel('Choose a password', { exact: true }).fill(ownerPassword); await buyer.getByLabel('Confirm password', { exact: true }).fill(ownerPassword); await buyer.getByRole('button', { name: 'Create my workspace', exact: true }).click(); await buyer.getByRole('status').filter({ hasText: 'This username is taken' }).waitFor();
-      await buyer.getByLabel('Username', { exact: true }).fill('purchased.owner'); await buyer.getByRole('button', { name: 'Create my workspace', exact: true }).click(); await buyer.waitForURL('**/client/shop-*/#email=*');
+      await buyer.getByLabel('Username', { exact: true }).fill('purchased.owner'); await buyer.getByRole('button', { name: 'Create my workspace', exact: true }).click(); await buyer.waitForURL('**/signin/');
       await buyer.goto(gateway.url); await buyer.getByLabel('Username or email', { exact: true }).fill('purchased.owner'); await buyer.getByLabel('Password', { exact: true }).fill(ownerPassword); await buyer.getByRole('button', { name: 'Sign in', exact: true }).click(); await buyer.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
       const state = (await buyer.evaluate(() => (window as any).mansora.invoke('app.state'))).data; expect(state.business.name).toBe('Purchased shop'); expect(state.user.role).toBe('owner');
       const saved = await buyer.evaluate(() => (window as any).mansora.invoke('staff.save', { name: 'Purchased shop team', username: 'purchased.cashier', role: 'cashier', email: 'purchased-team@example.test' })); expect(saved.ok).toBe(true);

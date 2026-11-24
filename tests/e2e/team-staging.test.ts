@@ -26,10 +26,11 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
     for (const role of ['owner', 'cashier']) {
       const page = await (await browser.newContext({ viewport: { width: 1366, height: 768 } })).newPage(); page.setDefaultTimeout(10_000); page.on('pageerror', (e: Error) => errors.push(e.message));
       const account = accounts.find(a => a.workspace === 'shop-a' && a.role === role)!;
-      await page.goto(gateway.url + '/client/shop-a/#email=invited%40example.test');
-      expect(await page.getByLabel('Username', { exact: true }).inputValue()).toBe('invited@example.test');
-      await page.getByText('Use your invitation email or staff username.', { exact: true }).waitFor();
-      await page.getByLabel('Username', { exact: true }).fill(account.username);
+      // An invitation link opens the one sign-in page with the email filled in.
+      await page.goto(gateway.url + '/signin/#email=invited%40example.test');
+      expect(await page.getByLabel('Username or email', { exact: true }).inputValue()).toBe('invited@example.test');
+      expect(new URL(page.url()).hash).toBe('');
+      await page.getByLabel('Username or email', { exact: true }).fill(account.username + '@shop-a');
       await page.getByLabel('Password', { exact: true }).fill(account.password);
       await page.getByRole('button', { name: 'Show password', exact: true }).click();
       expect(await page.getByLabel('Password', { exact: true }).getAttribute('type')).toBe('text');
@@ -57,9 +58,40 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
       expect(new URL(page.url()).pathname).toBe('/signin/');
       await page.getByLabel('Password', { exact: true }).fill(manager.password);
       await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
-      expect(new URL(page.url()).pathname).toBe('/client/shop-b/');
+      expect(new URL(page.url()).pathname).toBe('/app/');
       const state = await page.evaluate(() => (window as any).mansora.invoke('app.state'));
       expect(state.data.user.role).toBe('manager'); expect(state.data.business.name).toBe('Mansora TSB');
+    } finally { await page.context().close(); }
+  });
+  it('has one sign-in form for every account and never shows a second one after sign-out, back or an old address', async () => {
+    const page = await (await browser.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
+    page.setDefaultTimeout(10_000); page.on('pageerror', (error: Error) => errors.push(error.message));
+    const path = () => new URL(page.url()).pathname;
+    const signIn = async (username: string, password: string) => {
+      await page.getByLabel('Username or email', { exact: true }).fill(username); await page.getByLabel('Password', { exact: true }).fill(password);
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    };
+    try {
+      await page.goto(gateway.url + '/'); await page.getByRole('heading', { name: 'Sign in', exact: true }).waitFor();
+      expect(await page.locator('select').count()).toBe(0); expect(await page.locator('body').innerText()).not.toMatch(/Account type|Business workspace|Mansora administration/);
+      // "cashier" exists in both shops; the password alone finds the right one. The address never names the shop.
+      const cashierB = accounts.find(account => account.workspace === 'shop-b' && account.role === 'cashier')!;
+      await signIn('cashier', cashierB.password); await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor();
+      expect(path()).toBe('/app/'); expect((await page.evaluate(() => (window as any).mansora.invoke('app.state'))).data.business.tenantId).toBe(workspaces.find(w => w.id === 'shop-b')!.engine.meta('tenant_id'));
+      await page.goto(gateway.url + '/client/shop-a/'); await page.getByRole('heading', { name: 'Dashboard', exact: true }).waitFor(); expect(path()).toBe('/app/');
+      expect((await page.evaluate(() => (window as any).mansora.invoke('app.state'))).data.user.role).toBe('cashier');
+      await page.getByRole('button', { name: 'Lock / sign out', exact: true }).click(); await page.waitForURL('**/signin/');
+      await page.goBack().catch(() => {}); await page.waitForTimeout(300);
+      expect(['/signin/', '/', 'blank']).toContain(page.url() === 'about:blank' ? 'blank' : path());
+      for (const address of ['/app/', '/client/shop-b/', '/admin/']) {
+        await page.goto(gateway.url + address); await page.waitForURL('**/signin/');
+        expect(await page.getByLabel('Username', { exact: true }).count()).toBe(0); // no shop- or console-specific form
+      }
+      // Administrators use the same form, and leave through it too.
+      await signIn(ADMIN.email, ADMIN.password); await page.waitForURL('**/admin/'); await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
+      await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Sign out', exact: true }).click(); await page.waitForURL('**/signin/');
+      await page.goto(gateway.url + '/admin/'); await page.waitForURL('**/signin/');
+      expect(errors).toEqual([]);
     } finally { await page.context().close(); }
   });
   it('rehearses all six existing synthetic identities through the public sign-in without financial writes or email', async () => {

@@ -21,7 +21,7 @@ beforeAll(async () => {
   process.env.ADMIN_TOTP_KEY = randomBytes(32).toString('base64');
   cloud = await startCloud(); shops = [await makeShop(), await makeShop()];
   const directory = tempDir(); writeFileSync(join(directory, 'index.html'), '<!doctype html><html><head></head><body><div id="root"></div></body></html>');
-  gateway = await startStagingGateway({ origin: 'http://127.0.0.1:0', apiUrl: cloud.url, clientDir: directory, adminDir: directory, port: 0, mode: 'team-test', workspaces: shops.map((shop, index) => ({ id: index ? 'shop-b' : 'shop-a', label: `Private business ${index}`, engine: shop.engine })), loginAliases: { 'shop-a': { 'owner-a@example.test': OWNER.username, [ADMIN.email]: OWNER.username } }, adminIdentityExists: email => cloud.db.platform(async q => (await q('SELECT 1 FROM admins WHERE email=$1', [email])).length > 0) });
+  gateway = await startStagingGateway({ origin: 'http://127.0.0.1:0', apiUrl: cloud.url, clientDir: directory, adminDir: directory, port: 0, mode: 'team-test', workspaces: shops.map((shop, index) => ({ id: index ? 'shop-b' : 'shop-a', label: `Private business ${index}`, engine: shop.engine })), loginAliases: { 'shop-a': { 'owner-a@example.test': OWNER.username, [ADMIN.email]: OWNER.username } }, adminIdentityExists: email => cloud.db.platform(async q => (await q('SELECT 1 FROM admins WHERE email=$1', [email])).length > 0), adminPasswordHash: email => cloud.db.platform(async q => (await q<{ password_hash: string }>("SELECT password_hash FROM admins WHERE email=$1 AND status='active'", [email]))[0]?.password_hash ?? null) });
 });
 afterAll(async () => { await gateway?.close(); for (const shop of shops ?? []) shop.engine.db.close(); await cloud?.close(); if (oldKey === undefined) delete process.env.ADMIN_TOTP_KEY; else process.env.ADMIN_TOTP_KEY = oldKey; });
 it('replaces the directory with private, branded sign-in in both deployment modes', async () => {
@@ -32,36 +32,43 @@ it('replaces the directory with private, branded sign-in in both deployment mode
   expect(response.headers.get('x-robots-tag')).toContain('noindex'); expect(response.headers.get('cache-control')).toBe('no-store');
   expect((await fetch(gateway.url + '/signin/app.js')).headers.get('content-type')).toContain('javascript');
 });
-it('never selects a shop by matching passwords when a bare username is ambiguous', async () => {
-  // Both owners intentionally use the same password. An identity, not a password, selects the account.
-  const response = await signIn(OWNER.username); expect(response.status).toBe(401); expect(response.body.error.code).toBe('INVALID_CREDENTIALS'); expect(response.cookie).toBeUndefined(); expect(JSON.stringify(response.body)).not.toContain('shop-a');
+it('lets the password decide a bare username, and asks which account only after the password is proved', async () => {
+  // Both owners intentionally use the same password, so the password alone cannot decide: the person chooses.
+  const response = await signIn(OWNER.username); expect(response.status).toBe(200); expect(response.cookie).toBeUndefined();
+  expect(response.body.data.choose).toEqual([{ id: 'shop:shop-a', label: 'Private business 0' }, { id: 'shop:shop-b', label: 'Private business 1' }]);
+  expect((await post('/signin/login', { username: OWNER.username, password: 'wrong-password' })).status).toBe(401);
+  expect((await post('/signin/login', { username: OWNER.username, password: 'wrong-password', choice: 'shop:shop-a' })).status).toBe(401);
+  expect((await post('/signin/login', { username: OWNER.username, password: OWNER.password, choice: 'shop:absent' })).status).toBe(401);
+  const chosen = await post('/signin/login', { username: OWNER.username, password: OWNER.password, choice: 'shop:shop-b' }); expect(chosen.body.data).toEqual({ platform: 'client', url: '/app/' });
+  expect((await post('/app/invoke', { command: 'app.state' }, chosen.cookie)).body.data.business.tenantId).toBe(shops[1].engine.meta('tenant_id'));
+  // A password held by only one of the accounts opens that account directly, with no question.
+  const user = shops[1].engine.db.prepare("SELECT id FROM users WHERE role = 'owner'").get() as { id: string };
+  const owner = (await invoke('shop-b', 'staff.list', {}, chosen.cookie)).body.data.find((row: any) => row.id === user.id);
+  expect((await invoke('shop-b', 'staff.save', { id: owner.id, name: owner.name, username: owner.username, role: 'owner', status: 'active', permissions: owner.permissions, password: 'shop-b-only-passphrase' }, chosen.cookie)).body.ok).toBe(true);
+  const direct = await signIn(OWNER.username, 'shop-b-only-passphrase'); expect(direct.body.data).toEqual({ platform: 'client', url: '/app/' });
+  expect((await post('/app/invoke', { command: 'app.state' }, direct.cookie)).body.data.business.tenantId).toBe(shops[1].engine.meta('tenant_id'));
+  expect((await signIn(OWNER.username)).body.data).toEqual({ platform: 'client', url: '/app/' });
 });
 it('normalises the qualified identity and gives a scoped session only after successful authentication', async () => {
   expect((await signIn('ama@shop-a', 'incorrect-password')).status).toBe(401);
-  const response = await signIn(' AMA@SHOP-A '); expect(response.body.data).toEqual({ platform: 'client', url: '/client/shop-a/' }); expect(response.headers.get('set-cookie')).toContain('Path=/client/shop-a/; HttpOnly; SameSite=Strict'); expect(response.body.data.token).toBeUndefined(); ownerCookie = response.cookie!;
+  const response = await signIn(' AMA@SHOP-A '); expect(response.body.data).toEqual({ platform: 'client', url: '/app/' }); expect(response.headers.get('set-cookie')).toContain('Path=/; HttpOnly; SameSite=Strict'); expect(response.body.data.token).toBeUndefined(); ownerCookie = response.cookie!;
   expect((await invoke('shop-a', 'app.state')).body.data.user.id).toBeDefined();
   expect((await invoke('shop-b', 'app.state')).body.data.user).toBeNull();
-  const other = await signIn('ama@shop-b'); expect(other.body.data.url).toBe('/client/shop-b/'); expect(other.cookie).not.toBe(ownerCookie);
+  const other = await signIn('ama@shop-b', 'shop-b-only-passphrase'); expect(other.body.data.url).toBe('/app/'); expect(other.cookie).not.toBe(ownerCookie);
 });
-it('accepts a unique invitation email and fails closed on client/admin identity collisions', async () => {
-  expect((await signIn('owner-a@example.test')).body.data.url).toBe('/client/shop-a/');
-  expect((await signIn(ADMIN.email, ADMIN.password)).status).toBe(401);
+it('accepts a unique invitation email and lets a shared shop/administrator email open the account its password belongs to', async () => {
+  expect((await signIn('owner-a@example.test')).body.data.url).toBe('/app/');
+  // ADMIN.email is also shop-a's owner email. Each account has its own password; no account type is asked for.
+  expect((await signIn(ADMIN.email, ADMIN.password)).body.data.platform).toBe('admin');
+  const shop = await signIn(ADMIN.email, OWNER.password); expect(shop.body.data).toEqual({ platform: 'client', url: '/app/' }); expect(shop.body.data.token).toBeUndefined();
+  expect((await signIn(ADMIN.email, 'neither-password')).status).toBe(401);
   const admin = await signIn('admin:' + ADMIN.email, ADMIN.password); expect(admin.body.data.platform).toBe('admin'); expect(admin.body.data.token).toBeTruthy(); expect(admin.cookie).toBeUndefined();
-});
-it('routes a shared email by explicit account type without matching passwords across roles', async () => {
-  const shop = await post('/signin/login', { username: ADMIN.email, password: OWNER.password, accountType: 'shop' });
-  expect(shop.body.data).toEqual({ platform: 'client', url: '/client/shop-a/' });
-  const admin = await post('/signin/login', { username: ADMIN.email, password: ADMIN.password, accountType: 'admin' });
-  expect(admin.body.data.platform).toBe('admin');
-  expect((await post('/signin/login', { username: ADMIN.email, password: OWNER.password, accountType: 'admin' })).status).toBe(401);
-  expect((await post('/signin/login', { username: ADMIN.email, password: ADMIN.password, accountType: 'shop' })).status).toBe(401);
-  expect((await post('/signin/login', { username: ADMIN.email, password: ADMIN.password, accountType: 'unknown' })).status).toBe(400);
 });
 it('rejects duplicate hosted usernames across shops, case variants and simultaneous attempts', async () => {
   const input = { name: 'New staff', username: 'kofi', role: 'cashier', password: 'another-strong-pass' };
   expect((await invoke('shop-a', 'staff.save', input)).body.error.code).toBe('USERNAME_TAKEN');
   expect((await invoke('shop-a', 'staff.save', { ...input, username: 'KoFi' })).status).toBe(409);
-  const other = await signIn('ama@shop-b');
+  const other = await signIn('ama@shop-b', 'shop-b-only-passphrase');
   const responses = await Promise.all([invoke('shop-a', 'staff.save', { ...input, username: 'unique.new' }), invoke('shop-b', 'staff.save', { ...input, username: 'UNIQUE.NEW' }, other.cookie)]);
   expect(responses.filter(response => response.body.ok)).toHaveLength(1); expect(responses.filter(response => response.body.error?.code === 'USERNAME_TAKEN')).toHaveLength(1);
   const login = await signIn('unique.new', input.password); expect(login.body.data.platform).toBe('client');
@@ -86,7 +93,7 @@ it('preserves administrator second-factor enforcement without issuing a prematur
 it('keeps the recorded email working after an owner username changes, including rebuilding aliases after a restart', async () => {
   const listed = await invoke('shop-a', 'staff.list'); const owner = listed.body.data.find((user: any) => user.role === 'owner');
   const saved = await invoke('shop-a', 'staff.save', { id: owner.id, name: owner.name, username: 'renamed.ama', role: 'owner', status: 'active', permissions: owner.permissions }); expect(saved.body.ok).toBe(true);
-  expect((await signIn('owner-a@example.test')).body.data.url).toBe('/client/shop-a/');
+  expect((await signIn('owner-a@example.test')).body.data.url).toBe('/app/');
   const directory = tempDir(); writeFileSync(join(directory, 'workspaces.json'), JSON.stringify([{ id: 'shop-a', ownerEmail: 'owner-a@example.test', ownerUsername: 'ama' }]));
   expect(loadLoginAliases(directory, [{ id: 'shop-a', label: 'Own shop', engine: shops[0].engine }])['shop-a']['owner-a@example.test']).toBe('renamed.ama');
 });

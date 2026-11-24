@@ -57,7 +57,7 @@ export async function sendRoleLogins(options: { id?: string; dataDir: string; or
           body: [
             'Hello,', '',
             `Your test shop "${shop}" has three logins, one for each role, so you can see exactly what each person in a real shop can and cannot do.`, '',
-            `Shop address: ${origin}/client/${owner.workspace}/`, '',
+            `Sign in at: ${origin}/signin/`, '',
             `1. Owner. Sign in with ${owner.email} and your current passphrase. Forgot it? Use "Reset owner password" on the sign-in page.`,
             '   Can do everything: staff and permissions, settings, reports and profit, exports, backups, billing and Mansora access.',
             ...staff.map((s, i) => s.role === 'manager'

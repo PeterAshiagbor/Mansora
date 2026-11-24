@@ -31,7 +31,7 @@ describe('persistent authenticated team staging gateway', () => {
   it('gives simultaneous browsers independent HttpOnly sessions without exposing engine tokens', async () => {
     for (const [role, workspace] of [['owner', 'shop-a'], ['cashier', 'shop-a'], ['owner', 'shop-b']]) {
       const a = account(role, workspace), r = await invoke(workspace, 'auth.login', { username: a.username, password: a.password });
-      expect(r.status).toBe(200); expect(r.data.ok).toBe(true); expect(r.data.data.token).toBeUndefined(); expect(r.cookie?.includes('HttpOnly')).toBe(true); expect(r.cookie?.includes('SameSite=Strict')).toBe(true); expect(r.cookie?.includes(`Path=/client/${workspace}/`)).toBe(true);
+      expect(r.status).toBe(200); expect(r.data.ok).toBe(true); expect(r.data.data.token).toBeUndefined(); expect(r.cookie?.includes('HttpOnly')).toBe(true); expect(r.cookie?.includes('SameSite=Strict')).toBe(true); expect(r.cookie?.includes('Path=/;')).toBe(true);
       const cookie = r.cookie!.split(';')[0]; if (workspace === 'shop-b') otherCookie = cookie; else if (role === 'owner') ownerCookie = cookie; else cashierCookie = cookie;
     }
     expect(ownerCookie !== cashierCookie).toBe(true); expect((await invoke('shop-a', 'app.state', {}, ownerCookie)).data.data.user.role).toBe('owner'); expect((await invoke('shop-a', 'app.state', {}, cashierCookie)).data.data.user.role).toBe('cashier');
@@ -52,8 +52,14 @@ describe('persistent authenticated team staging gateway', () => {
     expect(() => stagingOrigin('http://staging.example.com')).toThrow(); expect(() => stagingOrigin('https://user:secret@example.com')).toThrow(); expect(() => stagingOrigin('https://example.com/path')).toThrow();
   });
   it('serves interface assets, injects a narrow bridge and never serves private stores', async () => {
-    const client = await (await fetch(`${gateway.url}/client/shop-a/`)).text(); expect(client).toContain('/client/shop-a/bridge.js'); expect(client).toContain('TEAM TEST ENVIRONMENT'); expect(client).not.toContain(config.key);
-    const bridge = await (await fetch(`${gateway.url}/client/shop-a/bridge.js`)).text(); expect(bridge).toContain('/client/shop-a/invoke'); expect(bridge).not.toContain('engine.execute'); expect(bridge).not.toContain(account('owner').password);
+    // The workspace has one address; the signed-in session, not the URL, decides which shop it shows.
+    const signedOut = await fetch(`${gateway.url}/app/`, { redirect: 'manual' }); expect(signedOut.status).toBe(302); expect(signedOut.headers.get('location')).toBe('/signin/');
+    const legacy = await fetch(`${gateway.url}/client/shop-a/`, { redirect: 'manual' }); expect(legacy.status).toBe(302); expect(legacy.headers.get('location')).toBe('/signin/');
+    const signedInLegacy = await fetch(`${gateway.url}/client/shop-b/`, { redirect: 'manual', headers: { cookie: ownerCookie } }); expect(signedInLegacy.headers.get('location')).toBe('/app/');
+    const client = await (await fetch(`${gateway.url}/app/`, { headers: { cookie: ownerCookie } })).text(); expect(client).toContain('/app/bridge.js'); expect(client).toContain('TEAM TEST ENVIRONMENT'); expect(client).not.toContain(config.key);
+    const bridge = await (await fetch(`${gateway.url}/app/bridge.js`, { headers: { cookie: ownerCookie } })).text(); expect(bridge).toContain('/app/invoke'); expect(bridge).toContain('MANSORA_SIGNIN_URL'); expect(bridge).not.toContain('engine.execute'); expect(bridge).not.toContain(account('owner').password);
+    expect((await fetch(`${gateway.url}/app/invoke`, { method: 'POST', headers: { origin: gateway.publicOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ command: 'app.state' }) }).then(r => r.json()) as any).error.code).toBe('NOT_SIGNED_IN');
+    const own = await fetch(`${gateway.url}/app/invoke`, { method: 'POST', headers: { origin: gateway.publicOrigin, cookie: otherCookie, 'content-type': 'application/json' }, body: JSON.stringify({ command: 'app.state' }) }).then(r => r.json()) as any; expect(own.data.business.tenantId).toBe(workspaces[1].engine.meta('tenant_id'));
     expect(await (await fetch(`${gateway.url}/config.js`)).text()).toContain('"/api"'); expect((await fetch(`${gateway.url}/admin/`)).status).toBe(200);
     for (const path of ['/test-accounts.json', '/workspaces.json', '/.secrets/staging_db_key', '/client/shop-a/..%2f..%2ftest-accounts.json']) expect((await fetch(gateway.url + path)).status).toBe(404);
   });
