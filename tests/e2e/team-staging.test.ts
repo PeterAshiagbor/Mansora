@@ -117,6 +117,8 @@ describe.skipIf(!pw || !existsSync(join(root, 'apps/admin-web/dist/index.html'))
       expect(await rehearsePublicSignIn({ version: 'signin-v1', origin: gateway.publicOrigin, dataDir: config.dataDir, workspaces })).toMatchObject({ passed: true, accountsChecked: 5, failures: [], skippedPasswordChangedByUser: [{ workspace: 'shop-b', role: 'manager' }] });
       expect((shopB.prepare('SELECT failed_attempts FROM users WHERE username = ?').get(manager.username) as any).failed_attempts).toBe(original.failed_attempts);
     } finally { shopB.prepare('UPDATE users SET password_hash = ? WHERE username = ?').run(original.password_hash, manager.username); }
+    // Without the private list, the rehearsal says so instead of failing silently.
+    expect(await rehearsePublicSignIn({ version: 'signin-v1', origin: gateway.publicOrigin, dataDir: tempDir(), workspaces })).toMatchObject({ passed: false, accountsChecked: 0, setup: 'no private test-account list on this deployment' });
     // A disabled assigned account is a failure, never mistaken for a changed password.
     shopB.prepare("UPDATE users SET status = 'disabled' WHERE username = ?").run(manager.username);
     try {
